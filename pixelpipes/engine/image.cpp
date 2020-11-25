@@ -230,14 +230,7 @@ SharedVariable Moments::run(std::vector<SharedVariable> inputs, ContextHandle co
 
 
 SharedVariable Polygon::run(std::vector<SharedVariable> inputs, ContextHandle context) noexcept(false) {
-
-    
-}
-
-
-SharedVariable Noise::run(std::vector<SharedVariable> inputs, ContextHandle context) noexcept(false) {
-
-    
+  
 }
 
 template<typename T>
@@ -279,8 +272,6 @@ SharedVariable MaskBoundingBox::run(std::vector<SharedVariable> inputs, ContextH
     if (image.channels() != 1)
         throw OperationException("Image has more than one channel", shared_from_this());
 
-
-
     switch (image.depth()) {
         case CV_8U:
             return std::make_shared<FloatList>(bounds<uint8_t>(image));
@@ -295,5 +286,189 @@ SharedVariable MaskBoundingBox::run(std::vector<SharedVariable> inputs, ContextH
     }
 
 }
+
+// NEW OPERATIONS
+
+SharedVariable ImageAdd::run(std::vector<SharedVariable> inputs, ContextHandle context) noexcept(false) {
+
+    if (inputs.size() != 2) 
+        throw OperationException("Incorrect number of parameters", shared_from_this());
+
+    cv::Mat image_0 = Image::get_value(inputs[0]);
+    cv::Mat image_1 = Image::get_value(inputs[1]);
+
+    if (image_0.channels() != 1 || image_1.channels() != 1)
+        throw OperationException("Image has more than one channel", shared_from_this());
+
+    if (image_0.rows != image_1.rows || image_0.cols != image_1.cols)
+        throw OperationException("Image sizes do not match", shared_from_this());
+
+    cv::Mat result;
+    cv::add(image_0, image_1, result);
+    // TODO: check variable image depth
+
+    return std::make_shared<Image>(result);
+}
+
+SharedVariable ImageSubtract::run(std::vector<SharedVariable> inputs, ContextHandle context) noexcept(false) {
+
+    if (inputs.size() != 2) 
+        throw OperationException("Incorrect number of parameters", shared_from_this());
+
+    cv::Mat image_0 = Image::get_value(inputs[0]);
+    cv::Mat image_1 = Image::get_value(inputs[1]);
+
+    if (image_0.channels() != 1 || image_1.channels() != 1)
+        throw OperationException("Image has more than one channel", shared_from_this());
+
+    if (image_0.rows != image_1.rows || image_0.cols != image_1.cols)
+        throw OperationException("Image sizes do not match", shared_from_this());
+
+    cv::Mat result;
+    cv::absdiff(image_0, image_1, result);
+    // TODO: check variable image depth
+
+    return std::make_shared<Image>(result);
+}
+
+SharedVariable ImageMultiply::run(std::vector<SharedVariable> inputs, ContextHandle context) noexcept(false) {
+
+    if (inputs.size() != 2) 
+        throw OperationException("Incorrect number of parameters", shared_from_this());
+
+    cv::Mat image = Image::get_value(inputs[0]);
+    float multiplier = Float::get_value(inputs[1]);
+
+    if (image.channels() != 1)
+        throw OperationException("Image has more than one channel", shared_from_this());
+
+    cv::Mat result;
+    result = multiplier * image; // SATURATION  
+
+    return std::make_shared<Image>(result);
+}
+
+SharedVariable GaussianNoise::run(std::vector<SharedVariable> inputs, ContextHandle context) noexcept(false) {
+
+    if (inputs.size() != 4) 
+        throw OperationException("Incorrect number of parameters", shared_from_this());
+
+    int width = Integer::get_value(inputs[0]);
+    int height = Integer::get_value(inputs[1]);
+    cv::Mat noise = cv::Mat::zeros(cv::Size(height, width), CV_64F);
+
+    std::default_random_engine generator(context->random());
+    std::normal_distribution<float> distribution(Float::get_value(inputs[2]), Float::get_value(inputs[3]));
+
+    for (int y = 0; y < noise.rows; y++) {
+        for (int x = 0; x < noise.cols; x++) {
+            noise.at<float>(y, x) = distribution(generator);
+        }
+    }
+
+    return std::make_shared<Image>(noise);
+}
+
+SharedVariable UniformNoise::run(std::vector<SharedVariable> inputs, ContextHandle context) noexcept(false) {
+
+    if (inputs.size() != 4) 
+        throw OperationException("Incorrect number of parameters", shared_from_this());
+
+    int width = Integer::get_value(inputs[0]);
+    int height = Integer::get_value(inputs[1]);
+    cv::Mat noise = cv::Mat::zeros(cv::Size(height, width), CV_64F);
+
+    std::default_random_engine generator(context->random());
+    std::uniform_real_distribution<float> distribution(Float::get_value(inputs[2]), Float::get_value(inputs[3]));
+
+    for (int y = 0; y < noise.rows; y++) {
+        for (int x = 0; x < noise.cols; x++) {
+            noise.at<float>(y, x) = distribution(generator);
+        }
+    }
+
+    return std::make_shared<Image>(noise);
+}
+
+SharedVariable ImageDropout::run(std::vector<SharedVariable> inputs, ContextHandle context) noexcept(false) {
+
+    if (inputs.size() != 2) 
+        throw OperationException("Incorrect number of parameters", shared_from_this());
+
+    cv::Mat image = Image::get_value(inputs[0]);
+    float dropout_p = Float::get_value(inputs[1]);
+
+    if (image.channels() != 1)
+        throw OperationException("Image has more than one channel", shared_from_this());
+
+    cv::Mat result = image.clone();
+
+    std::default_random_engine generator(context->random());
+    std::uniform_real_distribution<float> distribution(0.0, 1.0);
+
+    for (int y = 0; y < result.rows; y++) {
+        for (int x = 0; x < result.cols; x++) {
+            if (distribution(generator) < dropout_p){
+                result.at<float>(y, x) = 0.0;
+            }
+        }
+    }
+
+    return std::make_shared<Image>(result);
+}
+
+SharedVariable RegionBoundingBox::run(std::vector<SharedVariable> inputs, ContextHandle context) {
+
+    if (inputs.size() != 4) {
+        throw OperationException("Incorrect number of parameters", shared_from_this());
+    }
+
+    int top = Integer::get_value(inputs[1]);    
+    int bottom = Integer::get_value(inputs[2]);  
+    int left = Integer::get_value(inputs[3]);    
+    int right = Integer::get_value(inputs[4]);
+
+    if (top != bottom){
+        if (top > bottom){
+            top = Integer::get_value(inputs[2]);
+            bottom = Integer::get_value(inputs[1]);
+        }
+    }
+    else
+        throw OperationException("Invalid bounding box coordinates", shared_from_this());
+
+    if (left != right){
+        if (left > right){
+            left = Integer::get_value(inputs[4]);
+            right = Integer::get_value(inputs[3]);
+        }
+    }
+    else
+        throw OperationException("Invalid bounding box coordinates", shared_from_this());
+    
+    std::vector<float> b_box = { (float)left, (float)top, (float)right, (float)bottom};
+
+    return std::make_shared<FloatList>(b_box);
+}
+
+/* TODO FIX
+SharedVariable ImageCut::run(std::vector<SharedVariable> inputs, ContextHandle context) {
+
+    if (inputs.size() != 2) {
+        throw OperationException("Incorrect number of parameters", shared_from_this());
+    }
+
+    cv::Mat image = Image::get_value(inputs[0]);
+    std::vector<cv::Point2f> b_box = Points::get_value(inputs[1]);
+
+    for (int y = (int) b_box[0]; y < (int) b_box[1]; y++) {
+        for (int x = (int) b_box[2]; x < (int) b_box[3]; x++) {
+            image.at<float>(y, x) = 0.0;
+        }
+    }
+
+    return std::make_shared<Image>(image);
+}
+*/
 
 }

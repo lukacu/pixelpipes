@@ -72,3 +72,110 @@ class MaskBoundingBox(Node):
 
     def _output(self):
         return types.List(types.Float(), 4)
+
+# NEW OPERATIONS
+
+class ImageAdd(Node):
+
+    source = Input(types.Image(channels=1))
+    add = Input(types.Image(channels=1))
+
+    def operation(self):
+        return engine.ImageAdd()
+
+    def validate(self, **inputs):
+        super().validate(**inputs)
+
+        source = inputs["source"]
+
+        return types.Image(source.width, source.height, 1, 8)
+
+class ImageSubtract(Node):
+
+    source = Input(types.Image(channels=1))
+    subtract = Input(types.Image(channels=1))
+
+    def operation(self):
+        return engine.ImageSubtract()
+
+    def validate(self, **inputs):
+        super().validate(**inputs)
+
+        source = inputs["source"]
+
+        return types.Image(source.width, source.height, 1, 8)
+
+class ImageMultiply(Node):
+
+    source = Input(types.Image(channels=1))
+    multiplier = Input(types.Number())
+
+    def operation(self):
+        return engine.ImageMultiply()
+
+    def validate(self, **inputs):
+        super().validate(**inputs)
+
+        source = inputs["source"]
+
+        return types.Image(source.width, source.height, 1, 8)
+
+class GaussianNoise(Node):
+
+    width = Input(types.Number())
+    height = Input(types.Number())
+
+    def operation(self):
+        return engine.ImageSubtract()
+
+    def validate(self, **inputs):
+        super().validate(**inputs)
+
+        width = inputs["width"]
+        height = inputs["height"]
+
+        return types.Image(width, height, 1, 8)
+
+class UniformNoise(Node):
+
+    width = Input(types.Number())
+    height = Input(types.Number())
+
+    def operation(self):
+        return engine.ImageSubtract()
+
+    def validate(self, **inputs):
+        super().validate(**inputs)
+
+        width = inputs["width"]
+        height = inputs["height"]
+
+        return types.Image(width, height, 1, 8)
+
+class ImageDropout(Node):
+
+    source = Input(types.Image(channels=1))
+    probability = Input(types.Number())
+
+    def operation(self):
+        return engine.ImageSubtract()
+
+    def validate(self, **inputs):
+        super().validate(**inputs)
+
+        source = inputs["source"]
+
+        return types.Image(source.width, source.height, 1, 8)
+
+class RegionBoundingBox(Node):
+
+    top = Input(types.Number())
+    bottom = Input(types.Number())
+    left = Input(types.Number())
+    right = Input(types.Number())
+
+    def operation(self):
+        return engine.ImageSubtract()
+
+    def _output(self):
+        return types.List(types.Float(), 4)

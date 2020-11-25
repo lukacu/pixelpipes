@@ -25,7 +25,7 @@ class BatchIterator(object):
         """
         self._commit = commit
         self._size = size
-        self._index = 0
+        self._index = 1
         self._lock = Condition()
         self._cache = []
         self._partial = None

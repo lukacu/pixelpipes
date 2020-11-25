@@ -230,6 +230,16 @@ PYBIND11_MODULE(engine, m) {
     ADD_OPERATION(Equals);
     ADD_OPERATION(Invert);
     ADD_OPERATION(MaskBoundingBox);
+    // NEW OPERATIONS
+    ADD_OPERATION(ImageAdd);
+    ADD_OPERATION(ImageSubtract);
+    ADD_OPERATION(ImageMultiply);
+    ADD_OPERATION(GaussianNoise);
+    ADD_OPERATION(UniformNoise);
+    ADD_OPERATION(ImageDropout);
+    ADD_OPERATION(RegionBoundingBox);
+    //ADD_OPERATION(ImageCut);
+    //ADD_OPERATION(ImageSolarize);
 
     py::enum_<ImageDepth>(m, "ImageDepth")
     .value("BYTE", ImageDepth::Byte)

@@ -142,15 +142,6 @@ public:
 };
 
 /**
- * @brief Generates a random noise image for a given 
- * 
- */
-class Noise: public Operation {
-public:
-    virtual SharedVariable run(std::vector<SharedVariable> inputs, ContextHandle context) noexcept(false);
-};
-
-/**
  * @brief Returns a bounding of all non-zero elements in an image. Returns a list of four numbers: left, top, right, bottom.
  * 
  */
@@ -158,6 +149,82 @@ class MaskBoundingBox: public Operation {
 public:
     virtual SharedVariable run(std::vector<SharedVariable> inputs, ContextHandle context) noexcept(false);
 };
+
+// NEW OPERATIONS
+
+/**
+ * @brief Adds two images with same size.
+ * 
+ */
+class ImageAdd: public Operation {
+public:
+    virtual SharedVariable run(std::vector<SharedVariable> inputs, ContextHandle context) noexcept(false);
+};
+
+/**
+ * @brief Adds two images with same size.
+ * 
+ */
+class ImageSubtract: public Operation {
+public:
+    virtual SharedVariable run(std::vector<SharedVariable> inputs, ContextHandle context) noexcept(false);
+};
+
+/**
+ * @brief Multiplies image with a scalar.
+ * 
+ */
+class ImageMultiply: public Operation {
+public:
+    virtual SharedVariable run(std::vector<SharedVariable> inputs, ContextHandle context) noexcept(false);
+};
+
+/**
+ * @brief Generates and image with gaussian noise.
+ * 
+ */
+class GaussianNoise: public Operation {
+public:
+    virtual SharedVariable run(std::vector<SharedVariable> inputs, ContextHandle context) noexcept(false);
+};
+
+/**
+ * @brief Generates and image with uniform noise.
+ * 
+ */
+class UniformNoise: public Operation {
+public:
+    virtual SharedVariable run(std::vector<SharedVariable> inputs, ContextHandle context) noexcept(false);
+};
+
+/**
+ * @brief Sets image pixels to zero with probability P.
+ * 
+ */
+class ImageDropout: public Operation {
+public:
+    virtual SharedVariable run(std::vector<SharedVariable> inputs, ContextHandle context) noexcept(false);
+};
+
+/**
+ * @brief Returns a bounding box of custom size.
+ * 
+ */
+class RegionBoundingBox: public Operation {
+public:
+    virtual SharedVariable run(std::vector<SharedVariable> inputs, ContextHandle context) noexcept(false);
+};
+
+/**
+ * @brief Cuts region form an image defined by the bounding box.
+ * 
+ */
+/* TODO FIX
+class ImageCut: public Operation {
+public:
+    virtual SharedVariable run(std::vector<SharedVariable> inputs, ContextHandle context) noexcept(false);
+};
+*/
 
 }
 

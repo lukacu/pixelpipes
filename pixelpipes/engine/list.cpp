@@ -2,7 +2,7 @@
 #include <iostream>
 #include <opencv2/core.hpp>
 #include <opencv2/imgcodecs.hpp>
-
+#include <opencv2/imgproc.hpp>
 
 #include "numbers.hpp"
 #include "list.hpp"
@@ -185,6 +185,10 @@ SharedVariable ImageFileList::get(int index) {
     
     if (image.empty()) {
         throw VariableException("Image not found: " + prefix + list[index]);
+    }
+
+    if (image.channels() == 3) {
+        cv::cvtColor(image, image, cv::COLOR_BGR2RGB);
     }
 
     return std::make_shared<Image>(image);

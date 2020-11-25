@@ -1,11 +1,69 @@
-from attributee import String, Float, Integer, Map, List, Boolean, Number
+import numbers
+
+from attributee import List, Number
 
 from pixelpipes import Node, Input
 import pixelpipes.engine as engine
 import pixelpipes.types as types
 
+def _ensure_node(value):
+    if isinstance(value, NumericNode):
+        return value
+    elif isinstance(value, numbers.Number):
+        return Constant(value=value)
+    else:
+        raise ValueError("Value is not a numeric node")
 
-class UniformDistribution(Node):
+class NumericNode(Node):
+
+    def __add__(self, other):
+        other = _ensure_node(other)
+        return Add(inputs=[self, other])
+
+    def __sub__(self, other):
+        other = _ensure_node(other)
+        return Subtract(a=self, b=other)
+
+    def __mul__(self, other):
+        other = _ensure_node(other)
+        return Multiply(inputs=[self, other])
+
+    def __truediv__(self, other):
+        other = _ensure_node(other)
+        return Divide(a=self, b=other)
+
+    def __pow__(self, other):
+        other = _ensure_node(other)
+        return Power(a=self, b=other)
+
+    def __neg__(self):
+        return Multiply(inputs=[self, -1])
+
+class Constant(NumericNode):
+
+    value = Number()
+
+    def operation(self):
+        return engine.Constant(self.value)
+
+    def _output(self) -> types.Type:
+        return Constant.resolve_type(self.value)
+
+    @staticmethod
+    def resolve_type(value) -> types.Type:
+        if isinstance(value, int):
+            return types.Integer(value)
+        else:
+            return types.Float(value)
+
+    def key(self):
+        typ = Constant.resolve_type(self.value)
+        if isinstance(typ, types.Integer):
+            return ("int", self.value)
+        else:
+            return ("float", self.value)
+
+class UniformDistribution(NumericNode):
 
     min = Input(types.Float())
     max = Input(types.Float())
@@ -16,7 +74,7 @@ class UniformDistribution(Node):
     def operation(self):
         return engine.UniformDistribution()
 
-class NormalDistribution(Node):
+class NormalDistribution(NumericNode):
 
     mean = Input(types.Float(), default=0)
     sigma = Input(types.Float(), default=1)
@@ -27,7 +85,7 @@ class NormalDistribution(Node):
     def operation(self):
         return engine.NormalDistribution()
 
-class Round(Node):
+class Round(NumericNode):
 
     source = Input(types.Float())
 
@@ -37,7 +95,7 @@ class Round(Node):
     def operation(self):
         return engine.Round()
 
-class Associative(Node):
+class Associative(NumericNode):
 
     inputs = List(Input(types.Number()))
 
@@ -74,7 +132,7 @@ class Multiply(Associative):
     def operation(self):
         return engine.Multiply()
 
-class Subtract(Node):
+class Subtract(NumericNode):
 
     a = Input(types.Number())
     b = Input(types.Number())
@@ -90,7 +148,7 @@ class Subtract(Node):
         return types.Integer() if integer else types.Float()
 
 
-class Divide(Node):
+class Divide(NumericNode):
 
     a = Input(types.Number())
     b = Input(types.Number())
@@ -101,7 +159,7 @@ class Divide(Node):
     def _output(self):
         return types.Float()
 
-class Power(Node):
+class Power(NumericNode):
 
     a = Input(types.Number())
     b = Input(types.Number())

@@ -162,15 +162,18 @@ class Compiler(object):
         else:
             raise ValueError("Illegal graph specification")
 
+        # Copy the nodes mapping structure
+        nodes = dict(**nodes)
+
         if self._debug:
             print("Compiling %d source nodes" % len(nodes))
 
         for name, node in nodes.items():
             if isinstance(node, Variable):
                 if variables is not None and node.name in variables:
-                    nodes[name] = Constant(variables[node.name])
+                    nodes[name] = Constant(value=variables[node.name])
                 else:
-                    nodes[name] = Constant(node.default)
+                    nodes[name] = Constant(value=node.default)
 
         inferred_types = self.validate(nodes)
 
