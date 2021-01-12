@@ -1,5 +1,4 @@
-# ifndef __PP_COVERSION_H__
-# define __PP_COVERSION_H__
+#pragma once
 
 //#define NUMPY_IMPORT_ARRAY_RETVAL
 
@@ -13,10 +12,7 @@
 #include <pybind11/functional.h>
 
 #include "engine.hpp"
-#include "numbers.hpp"
-#include "geometry.hpp"
-#include "image.hpp"
-#include "list.hpp"
+#include "types.hpp"
 
 namespace py = pybind11;
 
@@ -175,5 +171,3 @@ public:
 }
 }
 
-
-# endif

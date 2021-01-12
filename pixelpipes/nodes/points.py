@@ -7,6 +7,10 @@ import pixelpipes.types as types
 
 class BoundingBox(Node):
 
+    node_name = "Bounging box"
+    node_description = "Computes an axis aligned bounging box on a set of points"
+    node_category = "points"
+
     points = Input(types.Points())
 
     def _output(self) -> types.Type:
@@ -16,6 +20,10 @@ class BoundingBox(Node):
         return engine.BoundingBox()
 
 class ViewPoints(Node):
+
+    node_name = "View points"
+    node_description = "Transforms points with a given view"
+    node_category = "points"
 
     source = Input(types.Points())
     view = Input(types.View())
@@ -30,3 +38,17 @@ class ViewPoints(Node):
         
         return types.Points(source_type.length)
 
+class PointsFromBoundingBox(Node):
+    """Convert bounding box to points
+
+    Inputs:
+        source: A bounding box
+    """
+
+    source = Input(types.BoundingBox())
+
+    def operation(self):
+        return engine.PointsFromBoundingBox()
+
+    def _output(self) -> types.Type:
+        return types.Points(length=4)

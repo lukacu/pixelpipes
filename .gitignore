@@ -1,3 +1,9 @@
+*.pyd
+*.dll
+build
+attributee
+test_*.py
+ImageDirectory
 ~*
 *.so
 build

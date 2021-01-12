@@ -7,10 +7,8 @@
 
 #include "conversion.hpp"
 #include "engine.hpp"
-#include "numbers.hpp"
-#include "geometry.hpp"
-#include "image.hpp"
-#include "list.hpp"
+#include "types.hpp"
+#include "python.hpp"
 
 namespace py = pybind11;
 
@@ -19,7 +17,6 @@ using namespace pixelpipes;
 const static int initialized = init_conversion();
 
 enum class ConvertOutput {None, Numpy, Torch };
-
 
 class PyPipelineCallback : public PipelineCallback {
   public:
@@ -45,8 +42,14 @@ class PyPipelineCallback : public PipelineCallback {
 
 };
 
-#define ADD_OPERATION(O) {py::class_<O, Operation, std::shared_ptr<O> >(m, #O).def(py::init());}
+std::list<std::function<void(py::module &)>> &initializers() {
+    static std::list<std::function<void(py::module &)>> inits;
+    return inits;
+}
 
+operation_initializer::operation_initializer(std::function<void(py::module &)> initializer) {
+    initializers().push_back(std::move(initializer));
+}
 
 // Solution based on: https://www.pierov.org/2020/03/01/python-custom-exceptions-c-extensions/
 static PyObject *PipelineError_tp_str(PyObject *selfPtr)
@@ -129,6 +132,45 @@ PYBIND11_MODULE(engine, m) {
     .value("NONE", ConvertOutput::None)
     .value("NUMPY", ConvertOutput::Numpy);
 
+    // Enums
+    py::enum_<ComparisonOperation>(m, "Compare")
+    .value("EQUAL", ComparisonOperation::EQUAL)
+    .value("LOWER", ComparisonOperation::LOWER)
+    .value("LOWER_EQUAL", ComparisonOperation::LOWER_EQUAL)
+    .value("GREATER", ComparisonOperation::GREATER)
+    .value("GREATER_EQUAL", ComparisonOperation::GREATER_EQUAL);
+
+    py::enum_<LogicalOperation>(m, "Logical")
+    .value("AND", LogicalOperation::AND)
+    .value("OR", LogicalOperation::OR)
+    .value("NOT", LogicalOperation::NOT);
+
+    py::enum_<ImageDepth>(m, "ImageDepth")
+    .value("BYTE", ImageDepth::Byte)
+    .value("SHORT", ImageDepth::Short)
+    .value("FLOAT", ImageDepth::Float)
+    .value("DOUBLE", ImageDepth::Double);
+
+    py::enum_<BorderStrategy>(m, "BorderStrategy")
+    .value("CONSTANT_HIGH", BorderStrategy::ConstantHigh)
+    .value("CONSTANT_LOW", BorderStrategy::ConstantLow)
+    .value("REPLICATE", BorderStrategy::Replicate)
+    .value("REFLECT", BorderStrategy::Reflect)
+    .value("WRAP", BorderStrategy::Wrap);
+
+    py::enum_<Interpolation>(m, "Interpolation")
+    .value("NEAREST", Interpolation::Nearest)
+    .value("LINEAR", Interpolation::Linear)
+    .value("AREA", Interpolation::Area)
+    .value("CUBIC", Interpolation::Cubic)
+    .value("LANCZOS", Interpolation::Lanczos);
+
+    py::enum_<ContextData>(m, "ContextData")
+    .value("INDEX", ContextData::SampleIndex);
+
+    py::enum_<Distribution>(m, "Distribution")
+    .value("NORMAL", Distribution::Normal)
+    .value("UNIFORM", Distribution::Uniform);
 
     py::class_<Engine, std::shared_ptr<Engine> >(m, "Engine")
     .def(py::init<int>(), py::arg("workers") = 1)
@@ -182,78 +224,22 @@ PYBIND11_MODULE(engine, m) {
     py::class_<Constant, Operation, std::shared_ptr<Constant> >(m, "Constant")
     .def(py::init<SharedVariable>());
 
+    py::class_<Jump, Operation, std::shared_ptr<Jump> >(m, "Jump")
+    .def(py::init<int>());
+
+    py::class_<ConditionalJump, Jump, std::shared_ptr<ConditionalJump> >(m, "ConditionalJump")
+    .def(py::init<DNF, int>());
+
+    py::class_<Conditional, Operation, std::shared_ptr<Conditional> >(m, "Conditional")
+    .def(py::init<DNF>());
+
+    py::class_<ContextQuery, Operation, std::shared_ptr<ContextQuery> >(m, "ContextQuery")
+    .def(py::init<ContextData>());
+
+    py::class_<DebugOutput, Operation, std::shared_ptr<DebugOutput> >(m, "DebugOutput")
+    .def(py::init<std::string>());
+
     ADD_OPERATION(Copy);
-
-    // Numeric Enums
-
-    py::enum_<ComparisonOperation>(m, "Compare")
-    .value("EQUAL", ComparisonOperation::EQUAL)
-    .value("LOWER", ComparisonOperation::LOWER)
-    .value("LOWER_EQUAL", ComparisonOperation::LOWER_EQUAL)
-    .value("GREATER", ComparisonOperation::GREATER)
-    .value("GREATER_EQUAL", ComparisonOperation::GREATER_EQUAL);
-
-    py::enum_<LogicalOperation>(m, "Logical")
-    .value("AND", LogicalOperation::AND)
-    .value("OR", LogicalOperation::OR)
-    .value("NOT", LogicalOperation::NOT);
-
-    // Numeric operations
-    ADD_OPERATION(NormalDistribution);
-    ADD_OPERATION(UniformDistribution);
-    ADD_OPERATION(Round);
-    ADD_OPERATION(Add);
-    ADD_OPERATION(Subtract);
-    ADD_OPERATION(Multiply);
-    ADD_OPERATION(Divide);
-    ADD_OPERATION(Power);
-
-    // View operations
-    ADD_OPERATION(TranslateView);
-    ADD_OPERATION(RotateView);
-    ADD_OPERATION(ScaleView);
-    ADD_OPERATION(IdentityView);
-    ADD_OPERATION(Chain);
-    ADD_OPERATION(ViewPoints);
-    ADD_OPERATION(CenterView);
-    ADD_OPERATION(FocusView);
-    ADD_OPERATION(BoundingBox);
-
-    // Image operations
-
-    py::class_<ViewImage, Operation, std::shared_ptr<ViewImage> >(m, "ViewImage")
-    .def(py::init<bool, BorderStrategy>());
-
-    py::class_<ConvertDepth, Operation, std::shared_ptr<ConvertDepth> >(m, "ConvertDepth")
-    .def(py::init<ImageDepth>());
-
-    ADD_OPERATION(Equals);
-    ADD_OPERATION(Invert);
-    ADD_OPERATION(MaskBoundingBox);
-    // NEW OPERATIONS
-    ADD_OPERATION(ImageAdd);
-    ADD_OPERATION(ImageSubtract);
-    ADD_OPERATION(ImageMultiply);
-    ADD_OPERATION(GaussianNoise);
-    ADD_OPERATION(UniformNoise);
-    ADD_OPERATION(ImageDropout);
-    ADD_OPERATION(RegionBoundingBox);
-    //ADD_OPERATION(ImageCut);
-    //ADD_OPERATION(ImageSolarize);
-
-    py::enum_<ImageDepth>(m, "ImageDepth")
-    .value("BYTE", ImageDepth::Byte)
-    .value("SHORT", ImageDepth::Short)
-    .value("FLOAT", ImageDepth::Float)
-    .value("DOUBLE", ImageDepth::Double);
-
-
-    py::enum_<BorderStrategy>(m, "BorderStrategy")
-    .value("CONSTANT_HIGH", BorderStrategy::ConstantHigh)
-    .value("CONSTANT_LOW", BorderStrategy::ConstantLow)
-    .value("REPLICATE", BorderStrategy::Replicate)
-    .value("REFLECT", BorderStrategy::Reflect)
-    .value("WRAP", BorderStrategy::Wrap);
 
     // Variables 
     py::class_<List, std::shared_ptr<List> >(m, "List");
@@ -261,29 +247,15 @@ PYBIND11_MODULE(engine, m) {
     .def(py::init<std::vector<std::string>, std::string, bool>(), py::arg("list"), py::arg("prefix") = std::string(), py::arg("grayscale") = false);
     py::class_<ImageList, List, std::shared_ptr<ImageList> >(m, "ImageList")
     .def(py::init<std::vector<cv::Mat> >());
-    py::class_<PointsList, List, std::shared_ptr<PointsList> >(m, "PointsList")
-    .def(py::init<std::vector<std::vector<cv::Point2f> > >())
-    .def(py::init<std::vector<cv::Mat> >());
-
+    py::class_<PointList, List, std::shared_ptr<PointList> >(m, "PointList")
+    .def(py::init<std::vector<cv::Point2f> >());
     py::class_<IntegerList, List, std::shared_ptr<IntegerList> >(m, "IntegerList")
     .def(py::init<std::vector<int> >());
-    
     py::class_<FloatList, List, std::shared_ptr<FloatList> >(m, "FloatList")
     .def(py::init<std::vector<float> >());
 
-    py::class_<ListSource, Operation, std::shared_ptr<ListSource> >(m, "ListSource")
-    .def(py::init<std::shared_ptr<List> >());
-
-    ADD_OPERATION(SublistSelect);
-    ADD_OPERATION(FilterSelect);
-    ADD_OPERATION(ListElement);
-    ADD_OPERATION(ListLength);
-
-    py::class_<ListCompare, Operation, std::shared_ptr<ListCompare> >(m, "ListCompare")
-    .def(py::init<ComparisonOperation>());
-
-    py::class_<ListLogical, Operation, std::shared_ptr<ListLogical> >(m, "ListLogical")
-    .def(py::init<LogicalOperation>());
-
+    // Operation initializers
+    for (const auto &initializer : initializers())
+        initializer(m);
 
 }

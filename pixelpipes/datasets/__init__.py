@@ -1,14 +1,18 @@
 
 from attributee import String, Float
 
-from pixelpipes import Copy, Input, Macro, GraphBuilder
+from pixelpipes import Copy, Input, Macro, GraphBuilder, ValidationException
 import pixelpipes.nodes as nodes
 import pixelpipes.types as types
 
-from pixelpipes.resources import Resource, VirtualField
+from pixelpipes.nodes.resources import Resource, VirtualField
 
 class ResourceView(Macro):
     
+    node_name = "Resource View"
+    node_description = "Apply a view transform to resource fields (where possible)"
+    node_category = "resources"
+
     resource = Input(Resource())
     view = Input(types.View())
     width = Input(types.Integer())
@@ -48,11 +52,11 @@ class ResourceView(Macro):
                 element_reference = resource_type.access(field, resource_reference)
                 typ = resource_type.type(field)
                 if isinstance(typ, types.Image):
-                    interpolate = not typ.purpose == types.ImagePurpose.MASK
+                    interpolation = "NEAREST" if typ.purpose == types.ImagePurpose.MASK else "LINEAR"
                     border = "CONSTANT_LOW" if typ.purpose == types.ImagePurpose.MASK else "REPLICATE"
                     nodes.ViewImage(source=element_reference, view=offset_view,
-                        width=width_reference, height=height_reference, interpolate=interpolate, border=border, _name="." + field)
-                elif isinstance(typ, types.Points):
+                        width=width_reference, height=height_reference, interpolation=interpolation, border=border, _name="." + field)
+                elif types.Points().castable(typ):
                     nodes.ViewPoints(source=element_reference, view=offset_view, _name="." + field)
                 else:
                     Copy(source=element_reference, _name="." + field)
@@ -60,6 +64,10 @@ class ResourceView(Macro):
             return builder.nodes()
 
 class ResourceCenter(Macro):
+
+    node_name = "Resource Center"
+    node_description = "Center resource to the information in its field"
+    node_category = "resources"
 
     resource = Input(Resource())
     scale = Input(types.Float(), default=1)
@@ -69,12 +77,12 @@ class ResourceCenter(Macro):
         super().validate(**inputs)
 
         if self.field not in inputs["resource"].fields():
-            raise types.TypeException("Field {} not present in resource".format(self.field))
+            raise ValidationException("Field {} not present in resource".format(self.field), node=self)
 
         typ = inputs["resource"].type(self.field)
 
-        if not isinstance(typ, types.Points) and not isinstance(typ, types.Image):
-            raise types.TypeException("Field {} not point set or image".format(self.field))
+        if not types.Points().castable(typ) and not types.Image().castable(typ):
+            raise ValidationException("Field {} not point set or image: {}".format(self.field, typ), node=self)
 
         return types.View()
 
@@ -89,9 +97,9 @@ class ResourceCenter(Macro):
             field_reference = resource_type.access(self.field, resource_reference)
             typ = resource_type.type(self.field)
 
-            if isinstance(typ, types.Image):
+            if types.Image().castable(typ):
                 bbox = nodes.MaskBoundingBox(source=field_reference)
-            elif isinstance(typ, types.Points):
+            elif types.Points().castable(typ):
                 bbox = nodes.BoundingBox(points=field_reference)
 
             center = nodes.CenterView(source=bbox)

@@ -32,7 +32,14 @@ include_dirs=[
 
 runtime_dirs = []
 library_dirs = []
-libraries = ["opencv_core", "opencv_imgcodecs"]
+
+if os.name == "nt":
+    #opencv_version = "420"
+    opencv_version = "310"
+    libraries = ["opencv_world{}".format(opencv_version)]
+else:
+    libraries = ["opencv_core", "opencv_imgcodecs"]
+    
 define_macros = []
 
 if with_torch:
@@ -50,7 +57,8 @@ if "CONDA_PREFIX" in os.environ:
     conda_path = os.environ["CONDA_PREFIX"]
     library_dirs.append(os.path.join(conda_path, "lib"))
     include_dirs.append(os.path.join(conda_path, "include"))
-    runtime_dirs.append(os.path.join(conda_path, "lib"))
+    if not os.name == "nt":  
+        runtime_dirs.append(os.path.join(conda_path, "lib"))
 
 ext_modules = [
     Extension(

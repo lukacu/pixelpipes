@@ -1,9 +1,10 @@
-from attributee import String, Float, Integer, Map, List, Boolean, Enumeration
+from attributee import String, Float, Integer, Map, List, Boolean, Enumeration, AttributeException
 
-from pixelpipes import Node, Input, wrap_pybind_enum
+from pixelpipes import Node, Input, wrap_pybind_enum, hidden
 import pixelpipes.engine as engine
 import pixelpipes.types as types
 
+@hidden
 class ListSource(Node):
 
     def __init__(self, source, element_type, **kwargs):
@@ -26,6 +27,9 @@ class ListSource(Node):
 
         assert base_typ.castable(element_type)
 
+    def dump(self):
+        raise AttributeException("Node is not serializable")
+
     def duplicate(self, **inputs):
         return self
 
@@ -37,7 +41,11 @@ class ListSource(Node):
 
 class SublistSelect(Node):
 
-    parent = Input(types.List(types.Any()))
+    node_name = "List interval"
+    node_description = "Select an interval from a given list"
+    node_category = "list"
+
+    parent = Input(types.List(types.Primitive()))
     begin = Input(types.Integer())
     end = Input(types.Integer())
 
@@ -54,7 +62,11 @@ class SublistSelect(Node):
 
 class FilterSelect(Node):
 
-    parent = Input(types.List(types.Any()))
+    node_name = "List filter"
+    node_description = "Select elements from source list based on indices in another list"
+    node_category = "list"
+
+    parent = Input(types.List(types.Primitive()))
     filter = Input(types.List(types.Integer()))
 
     def validate(self, **inputs):
@@ -69,8 +81,18 @@ class FilterSelect(Node):
         return engine.FilterSelect()
 
 class ListElement(Node):
+    """Retrieve element
 
-    parent = Input(types.List(types.Any()))
+    Returns an element from a list for a given index
+
+    Inputs:
+        parent: Source list
+        index: Position of the element
+
+    Category: list
+    """
+
+    parent = Input(types.List(types.Primitive()))
     index = Input(types.Integer())
 
     def validate(self, **inputs):
@@ -83,7 +105,7 @@ class ListElement(Node):
 
 class ListLength(Node):
 
-    parent = Input(types.List(types.Any()))
+    parent = Input(types.List(types.Primitive()))
 
     def validate(self, **inputs):
         super().validate(**inputs)
@@ -93,7 +115,30 @@ class ListLength(Node):
     def operation(self):
         return engine.ListLength()
 
+class RepeatElement(Node):
+    """Repeat list element a number of times
 
+    Inputs:
+     - source: Element to replicate
+     - length: how many times to repeat
+
+    Output: List
+
+    Category: list
+    """
+
+    source = Input(types.Primitive())
+    length = Input(types.Integer())
+
+    def validate(self, **inputs):
+        super().validate(**inputs)
+
+        return types.List(inputs["source"], inputs["length"].value)
+
+    def operation(self):
+        return engine.RepeatElement()
+
+@hidden
 class _ListCompare(Node):
 
     a = Input(types.List(types.Number()))
@@ -130,7 +175,6 @@ class ListCompareGreaterEqual(_ListCompare):
 
     def operation(self):
         raise engine.ListCompare(engine.Compare.GREATER_EQUAL)
-
 
 class _ListLogical(Node):
 

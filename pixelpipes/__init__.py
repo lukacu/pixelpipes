@@ -13,10 +13,24 @@ import threading
 import bidict
 
 from attributee import Attributee, Integer, Include, String, List, Object, \
-    Map, Attribute, AttributeException, Undefined, is_undefined
+    Map, Attribute, AttributeException, Undefined, is_undefined, Float
 from attributee.io import Serializable
 from attributee.object import class_fullname
 from attributee.privitives import to_number
+
+class NodeException(Exception):
+
+    def __init__(self, *args, node=None):
+        super().__init__(*args)
+        self._node = node
+
+    @property
+    def node(self):
+        return self._node
+
+class ValidationException(NodeException):
+    pass
+
 
 import pixelpipes.types as types
 import pixelpipes.engine as engine
@@ -31,6 +45,9 @@ def wrap_pybind_enum(bindenum):
             mapping[arg.name] = arg
 
     return mapping
+
+ComparisonOperation = wrap_pybind_enum(engine.Compare)
+LogicalOperation = wrap_pybind_enum(engine.Logical)
 
 _CONTEXT_LOCK = threading.Condition()
 _CONTEXT = threading.local()
@@ -47,12 +64,11 @@ class Input(Attribute):
         assert value is not None
 
         if isinstance(value, Node):
-            with _CONTEXT_LOCK:
-                builders = getattr(_CONTEXT, "builders", [])
-                if len(builders) > 0:
-                    return builders[-1].reference(value)
-                else:
-                    raise AttributeException("Unable to resolve node's reference")
+            builder = GraphBuilder.default()
+            if builder is not None:
+                return builder.reference(value)
+            else:
+                raise AttributeException("Unable to resolve node's reference")
 
         if isinstance(value, Reference):
             return value
@@ -86,7 +102,7 @@ class Reference(object):
     def __init__(self, ref: typing.Union[str, "Reference"]):
         if isinstance(ref, Reference):
             ref = ref.name
-        assert str is not None and isinstance(ref, str) and ref != ""
+        assert ref is not None and isinstance(ref, str) and ref != ""
         self._ref = ref
 
     def __str__(self):
@@ -112,6 +128,15 @@ class Reference(object):
         else:
             return Reference(self.name + str(ref))
 
+    def __eq__(self, ref):
+        if ref is None:
+            return False
+        if isinstance(ref, Reference):
+            return ref.name == self.name
+        if isinstance(ref, str):
+            return ref == self.name
+        return False
+
 class InferredReference(Reference):
 
     def __init__(self, ref: str, typ: types.Type):
@@ -124,22 +149,57 @@ class InferredReference(Reference):
     def type(self):
         return self._typ
 
+def hidden(node_class):
+    node_class.node_hidden_base = node_class
+    return node_class
+
+@hidden
 class Node(Attributee):
 
-    def __init__(self, _name: str = None, _auto: bool = True, **kwargs):
+    def __init__(self, _name: str = None, _auto: bool = True, _origin: "Node" = None, **kwargs):
         """[summary]
 
         Args:
             _name (str, optional): Internal parameter used for context graph builder. Defaults to None.
             _auto (bool, optional): Should a node automatically be added to a context builder. Defaults to True.
         """
-
         super().__init__(**kwargs)
         if _auto:
             with _CONTEXT_LOCK:
                 builders = getattr(_CONTEXT, "builders", [])
                 if len(builders) > 0:
                     builders[-1].add(self, _name)
+
+        if _origin is not None:
+            self._origin = _origin.origin if _origin.origin is not None else _origin
+
+    @classmethod
+    def name(cls):
+        if hasattr(cls, "node_name"):
+            return getattr(cls, "node_name")
+        else:
+            return cls.__name__
+
+    @classmethod
+    def description(cls):
+        if hasattr(cls, "node_descritption"):
+            return getattr(cls, "node_descritption")
+        else:
+            return ""
+
+    @classmethod
+    def category(cls):
+        if hasattr(cls, "node_category"):
+            return getattr(cls, "node_category")
+        else:
+            return ""
+
+    @classmethod
+    def hidden(cls):
+        if hasattr(cls, "node_hidden_base"):
+            return getattr(cls, "node_hidden_base") == cls
+        else:
+            return False
 
     def duplicate(self, **inputs):
         config = self.dump()
@@ -149,14 +209,14 @@ class Node(Attributee):
         return self.__class__(_auto=False, **config)
 
     def validate(self, **inputs):
-        input_types = self._gather_inputs()
+        input_types = self.get_inputs()
         assert len(inputs) == len(input_types)
         for input_name, input_type in input_types:
             if not input_name in inputs:
-                raise ValueError("Input '{}' not available".format(input_name))
+                raise ValidationException("Input '{}' not available".format(input_name), node=self)
             if not input_type.castable(inputs[input_name]):
-                raise ValueError("Input '{}' not of correct type for type {}: {} to {}".format(input_name,
-                    class_fullname(self), input_type, inputs[input_name]))
+                raise ValidationException("Input '{}' not of correct type for type {}: {} to {}".format(input_name,
+                    class_fullname(self), input_type, inputs[input_name]), node=self)
 
         return self._output()
 
@@ -164,45 +224,80 @@ class Node(Attributee):
         return types.Any()
 
     def input_types(self):
-        return [i for _, i in self._gather_inputs()]
+        return [i for _, i in self.get_inputs()]
 
     def input_values(self):
-        return [getattr(self, name) for name, _ in self._gather_inputs()]
+        return [getattr(self, name) for name, _ in self.get_inputs()]
 
     def input_names(self):
-        return [name for name, _ in self._gather_inputs()]
+        return [name for name, _ in self.get_inputs()]
 
-    def _gather_inputs(self):
-        attributes = getattr(self.__class__, "_declared_attributes", {})
-
+    def get_inputs(self):
         references = []
-        for name, attr in attributes.items():
+        for name, attr in self.get_attributes():
             if isinstance(attr, Input):
                 references.append((name, attr.reftype()))
         return references
 
-    def operation(self):
-        raise ValueError("Node not converable to operation")
+    @classmethod
+    def get_attributes(cls):
+        attributes = getattr(cls, "_declared_attributes", {})
 
+        references = []
+        for name, attr in attributes.items():
+            references.append((name, attr))
+        return references
 
+    @property
+    def origin(self):
+        """Only relevant for nodes generated during compilation, makes it easier to 
+        track original node from the source graph. Returns None in other cases.
+        """
+        return self._origin
 
+    def operation(self) -> engine.Operation:
+        raise NodeException("Node not converable to operation", node=self)
+
+@hidden
 class Macro(Node):
 
-    def expand(self, inputs, parent: "Reference"):
+    def expand(self, inputs, parent: str):
         raise NotImplementedError()
 
+class SampleNumber(Node):
+
+    def _output(self):
+        return types.Integer()
+
+    def operation(self):
+        return engine.ContextQuery(engine.ContextData.INDEX)
+
+class DebugOutput(Node):
+
+    source = Input(types.Primitive())
+    prefix = String(default="")
+
+    def validate(self, **inputs):
+        super().validate(**inputs)
+        return inputs["source"]
+
+    def operation(self):
+        return engine.DebugOutput(self.prefix)
+ 
 class Output(Node):
 
-    outputs = List(Input(types.Any()))
+    outputs = List(Input(types.Primitive()))
+
+    identifier = String(default="default")
 
     def _output(self) -> types.Type:
         return None
 
-    def _gather_inputs(self):
+    def get_inputs(self):
         return [(str(i), types.Any()) for i, _ in enumerate(self.outputs)]
 
     def input_values(self):
-        return [self.outputs[int(name)] for name, _ in self._gather_inputs()]
+        return [self.outputs[int(name)] for name, _ in self.get_inputs()]
 
     def operation(self):
         return engine.Output()
@@ -215,9 +310,10 @@ class Output(Node):
             config["outputs"][i] = v
         return self.__class__(**config)
 
+@hidden
 class Copy(Node):
 
-    source = Input(types.Any())
+    source = Input(types.Primitive())
 
     def validate(self, **inputs):
         super().validate(**inputs)
@@ -232,6 +328,15 @@ class GraphBuilder(object):
         self._nodes = bidict.bidict()
         self._count = 0
         self._prefix = prefix if isinstance(prefix, str) else prefix.name
+
+    @staticmethod
+    def default():
+        with _CONTEXT_LOCK:
+            builders = getattr(_CONTEXT, "builders", [])
+            if len(builders) > 0:
+                return builders[-1]
+            else:
+                return None
 
     def __enter__(self):
         with _CONTEXT_LOCK:
@@ -266,7 +371,7 @@ class GraphBuilder(object):
             name = self._prefix + name
 
         if name in self._nodes:
-            raise ValueError("Name already exists: {}".format(name))
+            raise NodeException("Name already exists: {}".format(name), node=name)
 
         self._nodes[name] = node
         return Reference(name)
@@ -276,7 +381,7 @@ class GraphBuilder(object):
         return Reference(name)
 
     def nodes(self):
-        return self._nodes
+        return dict(**self._nodes)
 
     def build(self):
 
@@ -307,8 +412,16 @@ class Graph(Attributee, Serializable):
     name = String(default="Graph")
     nodes = Map(Object(subclass=Node))
 
+    def validate(self):
+        from .compiler import infer_type
+
+        type_cache = {}
+
+        for k in self.nodes.keys():
+            infer_type(Reference(k), self.nodes, type_cache)
+
+        return type_cache
 
 from pixelpipes.engine import Convert
 from pixelpipes.compiler import Compiler
 from pixelpipes.nodes import *
-from pixelpipes.expression import Expression

@@ -1,5 +1,4 @@
-# ifndef __PP_QUEUE_H__
-# define __PP_QUEUE_H__
+#pragma once
 
 #include <thread>
 #include <functional>
@@ -42,5 +41,3 @@ private:
 };
 
 }
-
-#endif

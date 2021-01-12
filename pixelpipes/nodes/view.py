@@ -7,6 +7,10 @@ import pixelpipes.types as types
 
 class TranslateView(Node):
 
+    node_name = "Translate"
+    node_description = "Create a translation view"
+    node_category = "view"
+
     x = Input(types.Float(), default=0)
     y = Input(types.Float(), default=0)
 
@@ -18,6 +22,10 @@ class TranslateView(Node):
 
 class RotateView(Node):
 
+    node_name = "Rotate"
+    node_description = "Create a rotation view"
+    node_category = "view"
+
     angle = Input(types.Float(), default=0)
 
     def _output(self) -> types.Type:
@@ -27,6 +35,10 @@ class RotateView(Node):
         return engine.RotateView()
 
 class ScaleView(Node):
+
+    node_name = "Scale"
+    node_description = "Create a scale view"
+    node_category = "view"
 
     x = Input(types.Float(), default=1)
     y = Input(types.Float(), default=1)
@@ -39,6 +51,10 @@ class ScaleView(Node):
 
 class IdentityView(Node):
 
+    node_name = "Identity"
+    node_description = "Create an identity view"
+    node_category = "view"
+
     def _output(self) -> types.Type:
         return types.View()
 
@@ -46,6 +62,16 @@ class IdentityView(Node):
         return engine.IdentityView()
 
 class Chain(Node):
+    """Chain views
+
+    Multiply a series of views
+
+    Inputs:
+     - inputs: A list of views
+
+    Category: view, geometry
+
+    """
 
     inputs = List(Input(types.View()))
 
@@ -53,10 +79,11 @@ class Chain(Node):
         return types.View()     
 
     def input_values(self):
-        return [self.inputs[int(name)] for name, _ in self._gather_inputs()]
+        return [self.inputs[int(name)] for name, _ in self.get_inputs()]
 
-    def _gather_inputs(self):
+    def get_inputs(self):
         return [(str(k), types.View()) for k, _ in enumerate(self.inputs)]
+
 
     def duplicate(self, **inputs):
         config = self.dump()
@@ -70,6 +97,10 @@ class Chain(Node):
         return engine.Chain()
 
 class AffineView(Macro):
+
+    node_name = "Affine"
+    node_description = "Create an affine transformation view"
+    node_category = "view"
 
     x = Input(types.Float(), default=0)
     y = Input(types.Float(), default=0)
@@ -94,6 +125,10 @@ class AffineView(Macro):
 
 class CenterView(Node):
 
+    node_name = "Center"
+    node_description = "Create a view that centers to a bounding box"
+    node_category = "view"
+
     source = Input(types.BoundingBox())
 
     def _output(self) -> types.Type:
@@ -103,6 +138,10 @@ class CenterView(Node):
         return engine.CenterView()
 
 class FocusView(Node):
+
+    node_name = "Focus"
+    node_description = "Create a view that centers to a bounding box and scales so that bounding box maintains relative scale"
+    node_category = "view"
 
     source = Input(types.BoundingBox())
     scale = Input(types.Float())

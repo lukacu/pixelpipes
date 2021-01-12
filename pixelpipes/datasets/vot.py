@@ -9,7 +9,7 @@ try:
 except ImportError as ie:
     raise RuntimeError("VOT toolkit required") from ie
 
-from pixelpipes.resources import SegmentedResourceListSource, SegmentedResourceList, Resource
+from pixelpipes.nodes.resources import SegmentedResourceListSource, SegmentedResourceList, Resource
 import pixelpipes.engine as engine
 import pixelpipes.types as types
 

@@ -65,11 +65,11 @@ class _Operation(_Expression):
         y = self._right.expand(inputs)
 
         if self._op == '+':
-            return nodes.Add(inputs=[x, y])
+            return nodes.Add(a=x, b=y)
         if self._op == '-':
             return nodes.Subtract(a=x, b=y)
         if self._op == '*':
-            return nodes.Multiply(inputs=[x, y])
+            return nodes.Multiply(a=x, b=y)
         if self._op == '/':
             return nodes.Divide(a=x, b=y)
         if self._op == '^':
@@ -164,6 +164,17 @@ _SYMBOLS = ['+', '-', '*', '/', '^', '(', ')']
 
 class Expression(Macro):
 
+    """Numeric expression with variables
+
+    Macro that expands into an arithmetic expression parsed from an input string.
+
+    Inputs:
+     * source: text representation of arithmetic expression
+     * variables: a map of inputs that are inserted into the expression
+
+    Category: arithmetic, macro
+    """
+
     source = String()
     variables = Map(Input(types.Number()))
 
@@ -171,9 +182,9 @@ class Expression(Macro):
         return types.Float()
 
     def input_values(self):
-        return [self.variables[name] for name, _ in self._gather_inputs()]
+        return [self.variables[name] for name, _ in self.get_inputs()]
 
-    def _gather_inputs(self):
+    def get_inputs(self):
         return [(k, types.Float()) for k in self.variables.keys()]
 
     def duplicate(self, **inputs):
@@ -190,7 +201,7 @@ class Expression(Macro):
             # not parse if empty
             return None
         tree = parser.parse(tokens)
-        with GraphBuilder(prefix=parent.name) as builder:
+        with GraphBuilder(prefix=parent) as builder:
             Copy(source=tree.expand(inputs), _name=parent)
             return builder.nodes()
         

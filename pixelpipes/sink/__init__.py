@@ -112,9 +112,11 @@ class DataLoader(object):
             return batch
 
     def __init__(self, graph: Graph, batch: int, workers: typing.Optional[WorkerPool] = None,
-        variables: typing.Optional[typing.Mapping[str, numbers.Number]] = None):
+        variables: typing.Optional[typing.Mapping[str, numbers.Number]] = None,
+        output: typing.Optional[str] = None):
+
         compiler = Compiler(fixedout=True)
-        self._pipeline = compiler.compile(graph, variables=variables)
+        self._pipeline = compiler.compile(graph, variables=variables, output=output)
         self._workers = workers if workers is not None else WorkerPool()
         self._batch = batch
 

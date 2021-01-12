@@ -1,5 +1,4 @@
-#ifndef __PP_ENGINE_H__
-#define __PP_ENGINE_H__
+#pragma once
 
 #include <memory>
 #include <vector>
@@ -12,48 +11,17 @@
 #include <iostream>
 
 #include "queue.hpp"
-
-#define DEBUG(X) {std::cout << X << std::endl;}
+#include "types.hpp"
 
 namespace pixelpipes {
 
-enum class VariableType {Integer, Float, Image, Points, View, List};
-
 enum class OperationType {Deterministic, Stohastic, Output, Control};
 
-class Variable;
-typedef std::shared_ptr<Variable> SharedVariable;
-
-class Variable {
-public:
-    virtual VariableType type() = 0;
-
-};
-
-template <VariableType T> 
-class TypedVariable {
-public:
-
-    virtual VariableType type() { return T; };
-
-};
+enum class ContextData {SampleIndex};
 
 class Pipeline;
 class OperationException;
 class PipelineException;
-
-class VariableException : public std::exception {
-public:
-
-    VariableException(std::string reason):
-        reason(reason) {}
-
-	const char * what () const throw () {
-    	return reason.c_str();
-    }
-private:
-    std::string reason;
-};
 
 class Context {
 public:
@@ -111,33 +79,100 @@ public:
 
 };
 
-
 class Jump: public Operation {
 public:
 
-    Jump();
+    Jump(int offset);
     ~Jump() = default;
 
     virtual SharedVariable run(std::vector<SharedVariable> inputs, ContextHandle context);
 
 protected:
 
+    int offset;
+
     virtual OperationType type();
 
 };
 
-
-class OperationException : public std::exception {
+class Constant : public Operation {
 public:
 
-    OperationException(std::string reason, SharedOperation operation):
-        reason(reason), operation(operation) {}
+    Constant(SharedVariable value);
 
-	const char * what () const throw () {
-    	return reason.c_str();
-    }
+    virtual SharedVariable run(std::vector<SharedVariable> inputs, ContextHandle context);
+
 private:
-    std::string reason;
+
+    SharedVariable value;
+
+};
+
+typedef std::vector<std::vector<bool> > DNF;
+
+class ConditionalJump: public Jump {
+public:
+
+    ConditionalJump(DNF condition, int offset);
+    ~ConditionalJump() = default;
+
+    virtual SharedVariable run(std::vector<SharedVariable> inputs, ContextHandle context);
+
+private:
+
+    DNF condition;
+
+};
+
+class Conditional: public Operation {
+public:
+
+    Conditional(DNF condition);
+    ~Conditional() = default;
+
+    virtual SharedVariable run(std::vector<SharedVariable> inputs, ContextHandle context);
+
+private:
+
+    DNF condition;
+
+};
+
+class ContextQuery: public Operation {
+public:
+
+    ContextQuery(ContextData query);
+    ~ContextQuery() = default;
+
+    virtual SharedVariable run(std::vector<SharedVariable> inputs, ContextHandle context);
+
+protected:
+
+    ContextData query;
+
+};
+
+class DebugOutput: public Operation {
+public:
+
+    DebugOutput(std::string prefix);
+    ~DebugOutput() = default;
+
+    virtual SharedVariable run(std::vector<SharedVariable> inputs, ContextHandle context);
+
+protected:
+
+    std::string prefix;
+
+};
+
+class OperationException : public BaseException {
+public:
+
+    OperationException(std::string reason, SharedOperation operation): BaseException(reason), operation(operation) {}
+
+private:
+
     SharedOperation operation;
 };
 
@@ -176,22 +211,13 @@ public:
 };
 
 
-class PipelineException : public std::exception {
+class PipelineException : public BaseException {
 public:
 
-    PipelineException(std::string reason, SharedPipeline pipeline, int operation):
-        reason(reason), pipeline(pipeline), _operation(operation) {}
-
-    const char * what () const throw () {
-        return reason.c_str();
-    }
-
-	int operation () const throw () {
-    	return _operation;
-    }
+    PipelineException(std::string reason, SharedPipeline pipeline, int operation);
+	int operation () const throw ();
 
 private:
-    std::string reason;
     SharedPipeline pipeline;
     int _operation;
 };
@@ -226,18 +252,11 @@ private:
 
 };
 
-class EngineException : public std::exception {
+class EngineException : public BaseException {
 public:
 
-    EngineException(std::string reason): reason(reason) {}
+    EngineException(std::string reason);
 
-	const char * what () const throw () {
-    	return reason.c_str();
-    }
-private:
-    std::string reason;
 };
 
 }
-
-#endif
