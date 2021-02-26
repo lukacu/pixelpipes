@@ -358,7 +358,7 @@ REGISTER_OPERATION_FUNCTION(ListArithmetic, ArithmeticOperation);
 // TODO: better detecton of integer lists vs float
 SharedVariable ListBuild(std::vector<SharedVariable> inputs, ContextHandle context) {
 
-    VERIFY(inputs.size() == 0, "No inputs");
+    VERIFY(inputs.size() > 0, "No inputs");
 
     if (inputs[0]->type() == VariableType::Integer) {
 

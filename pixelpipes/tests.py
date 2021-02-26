@@ -5,6 +5,8 @@ import numpy as np
 
 from pixelpipes import *
 from pixelpipes.nodes.resources import *
+from pixelpipes.nodes.flow import Switch
+from pixelpipes.nodes.expression import Expression
 
 class TestPipes(unittest.TestCase):
 
@@ -21,7 +23,7 @@ class TestPipes(unittest.TestCase):
         compiler = Compiler()
         graph = builder.build()
         pipeline = compiler.compile(graph)
-        sample = pipeline.run(1, engine.Convert.NUMPY)
+        sample = pipeline.run(1)
 
         self.assertIsInstance(sample[0], np.ndarray)
         self.assertIsInstance(sample[1], np.ndarray)
@@ -41,7 +43,7 @@ class TestPipes(unittest.TestCase):
         compiler = Compiler()
         graph = builder.build()
         pipeline = compiler.compile(graph)
-        sample = pipeline.run(1, engine.Convert.NUMPY)
+        sample = pipeline.run(1)
 
         self.assertIs(sample[0].dtype, np.dtype('ubyte'))
         self.assertIs(sample[1].dtype, np.dtype('short'))
@@ -57,7 +59,7 @@ class TestPipes(unittest.TestCase):
         compiler = Compiler()
         graph = builder.build()
         pipeline = compiler.compile(graph)
-        sample = pipeline.run(1, engine.Convert.NUMPY)
+        sample = pipeline.run(1)
 
         self.assertIsInstance(sample[0], np.ndarray)
         self.assertIsInstance(sample[1], np.ndarray)
@@ -69,13 +71,13 @@ class TestPipes(unittest.TestCase):
         n3 = builder.add(ExtractField(resource=n2, field="image"))
 
         n4 = builder.add(ImageSubtract(source_1=n3, source_2=n3))  
-        n5 = builder.add(ImageAdd(source_1=n4, source_2=n3))
+        n5 = builder.add(ImageAdd(source1=n4, source2=n3))
 
         builder.add(Output(outputs=[n3, n5]))
         compiler = Compiler()
         graph = builder.build()
         pipeline = compiler.compile(graph)
-        sample = pipeline.run(1, engine.Convert.NUMPY)
+        sample = pipeline.run(1)
 
         np.testing.assert_array_equal(sample[0], sample[1])
 
@@ -94,7 +96,7 @@ class TestPipes(unittest.TestCase):
         compiler = Compiler()
         graph = builder.build()
         pipeline = compiler.compile(graph)
-        sample = pipeline.run(1, engine.Convert.NUMPY)
+        sample = pipeline.run(1)
 
         np.testing.assert_array_equal(sample[0], sample[1])
 
@@ -110,7 +112,7 @@ class TestPipes(unittest.TestCase):
         compiler = Compiler()
         graph = builder.build()
         pipeline = compiler.compile(graph)
-        sample = pipeline.run(1, engine.Convert.NUMPY)
+        sample = pipeline.run(1)
 
         np.testing.assert_array_equal(sample[0], sample[1])
 
@@ -130,7 +132,7 @@ class TestPipes(unittest.TestCase):
         compiler = Compiler()
         graph = builder.build()
         pipeline = compiler.compile(graph)
-        sample = pipeline.run(1, engine.Convert.NUMPY)
+        sample = pipeline.run(1)
 
         self.assertIsInstance(sample[0], np.ndarray)
         self.assertIsInstance(sample[1], np.ndarray)
@@ -152,7 +154,7 @@ class TestPipes(unittest.TestCase):
         compiler = Compiler()
         graph = builder.build()
         pipeline = compiler.compile(graph)
-        sample = pipeline.run(1, engine.Convert.NUMPY)
+        sample = pipeline.run(1)
 
         np.testing.assert_array_equal(sample[0], sample[1])
 
@@ -192,13 +194,32 @@ class TestPipes(unittest.TestCase):
         graph = builder.build()
         pipeline = compiler.compile(graph)
 
-        sample = pipeline.run(1, engine.Convert.NUMPY)
+        sample = pipeline.run_numpy(1)
 
         self.assertIsInstance(sample[0], np.ndarray)
         self.assertEqual(sample[0][0], 5)
         self.assertIsInstance(sample[1], np.ndarray)
 
     def test_jumps(self):
+
+        from pixelpipes.compiler import Conditional
+
+        with GraphBuilder() as graph:
+            v1 = Variable(name="v1", default=0)
+            v2 = Variable(name="v2", default=0)
+            v3 = Variable(name="v3", default=0)
+            v4 = Variable(name="v4", default=0)
+            v5 = Variable(name="v5", default=0)
+            v6 = Variable(name="v6", default=0)
+
+            #Conditional(true=Conditional(true=Conditional(true=)), false=0, condition=v1)
+
+
+            #Output(outputs=[Switch(inputs=[d, b, a - b], weights=[0.5, 0.5, 0.5])])
+       
+
+
+    def test_predictive(self):
 
         with GraphBuilder() as graph:
             a = Constant(value=20)

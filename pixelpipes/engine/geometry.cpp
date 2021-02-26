@@ -145,7 +145,7 @@ public:
 
             cv::perspectiveTransform(points, points2, transform);
 
-        } catch (cv::Exception cve) {
+        } catch (cv::Exception &cve) {
             throw (OperationException(cve.what(), shared_from_this()));
         }
 

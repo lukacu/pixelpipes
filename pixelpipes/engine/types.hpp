@@ -125,13 +125,15 @@ private:
 class Point: public TypedVariable<VariableType::Point> {
 public:
 
-    Point(cv::Point2f value): value(value) {};
+    Point(cv::Point2f value);
+
+    Point(float x, float y);
 
     ~Point() = default;
 
-    cv::Point2f get() const { return value; };
+    cv::Point2f get() const;
 
-    //static cv::Point2f get_value(SharedVariable v) ;
+    static cv::Point2f get_value(SharedVariable v) ;
 
     virtual void print(std::ostream& os) const;
 
@@ -179,6 +181,8 @@ public:
      * @return cv::Mat Internal image representation
      */
     static cv::Mat get_value(SharedVariable v);
+
+    static bool is(SharedVariable v);
 
     virtual void print(std::ostream& os) const;
 
@@ -333,5 +337,23 @@ typedef ContainerList<float, Float> FloatList;
 typedef ContainerList<int, Integer> IntegerList;
 
 typedef ContainerList<cv::Point2f, Point> PointList;
+
+class TableList: public List {
+public:
+
+    TableList(const cv::Mat source);
+    ~TableList() = default;
+
+    virtual size_t size() const;
+
+    virtual VariableType element_type() const;
+
+    virtual SharedVariable get(int index) const;
+
+private:
+
+    cv::Mat source;
+
+};
 
 }

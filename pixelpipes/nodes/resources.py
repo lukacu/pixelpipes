@@ -7,7 +7,7 @@ from attributee import String
 from attributee.containers import Map
 from attributee.object import class_fullname
 
-from pixelpipes import Macro, Input, Copy,  Constant, GraphBuilder, hidden
+from pixelpipes import Macro, Input, Copy, GraphBuilder, hidden, Constant
 from pixelpipes.types import List, Image, Complex, Integer, TypeException
 import pixelpipes.nodes as nodes
 import pixelpipes.types as types
@@ -119,7 +119,7 @@ class ResourceList(Complex):
         return self._fields[name]
 
     def meta(self) -> typing.Mapping[str, typing.Union[types.Type, VirtualField]]:
-        return {k: v for k, v in self.elements() if k not in self._fields}
+        return {k: v for k, v in self.elements.items() if k not in self._fields}
 
     def virtual(self, field: str) -> bool:
         return field in self._fields and isinstance(self._fields[field], VirtualField)
@@ -169,8 +169,8 @@ class SegmentedResourceList(ResourceList):
 @hidden
 class ResourceListSource(Macro):
 
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
         self._cache_id = (class_fullname(self), make_hash(self.dump()))
 
     def _output(self):
@@ -190,7 +190,7 @@ class ResourceListSource(Macro):
                     continue
                 if field not in data["lists"]:
                     raise ValueError("Real field not backed up by a list")
-                nodes.ListSource(data["lists"][field], typ, _name="." + field)
+                nodes.ListSource(data["lists"][field], element_type=typ, _name="." + field)
             return builder.nodes()
 
     def _get_data(self):
@@ -226,9 +226,9 @@ class SegmentedResourceListSource(ResourceListSource):
                 beginnings.append(endings[-1]+1)
                 endings.append(endings[-1]+l)
 
-            nodes.ListSource(engine.IntegerList(beginnings), types.Integer(), _name="._begin")
-            nodes.ListSource(engine.IntegerList(endings), types.Integer(), _name="._end")
-            nodes.ListSource(engine.IntegerList(segments), types.Integer(), _name="._length")
+            nodes.ListSource(engine.IntegerList(beginnings), _name="._begin")
+            nodes.ListSource(engine.IntegerList(endings), _name="._end")
+            nodes.ListSource(engine.IntegerList(segments), _name="._length")
 
             graph.update(builder.nodes())
             return graph

@@ -2,7 +2,6 @@
 
 import torch
 
-from pixelpipes.engine import Convert
 from pixelpipes.sink import BatchIterator, DataLoader
 
 class TorchDataLoader(DataLoader):
@@ -21,25 +20,25 @@ class TorchDataLoader(DataLoader):
 
     def _commit(self, index):
         try:
-            return self._workers.submit(self._pipeline.run, index, Convert.TORCH)
+            return self._workers.submit(self._pipeline.run_torch, index)
         except RuntimeError:
             return None
 
     def __iter__(self):
-        return TorchDataLoader._TorchBatchIterator(self._commit, self._batch)
+        return TorchDataLoader._TorchBatchIterator(self._commit, self._batch, offset=self._offset)
 
 def _test_loader():
 
     from pixelpipes import GraphBuilder, Output
-    from pixelpipes.nodes import UniformDistribution
-    from pixelpipes.expression import Expression
+    from pixelpipes.nodes import UniformDistribution, MakePoint
+    from pixelpipes.nodes.expression import Expression
 
-    builder = GraphBuilder()
-    n1 = builder.add(UniformDistribution(min=5, max=10))
-    n2 = builder.add(UniformDistribution(min=15, max=500))
-    n3 = builder.add(Expression(source="((x - y) * 2)", variables=dict(x=n1, y=n2)))
+    with GraphBuilder() as builder:
+        n1 = builder.add(UniformDistribution(5, 10))
+        n2 = builder.add(UniformDistribution(15, 500))
+        n3 = builder.add(Expression("((x - y) * 2)", variables=dict(x=n1, y=n2)))
 
-    builder.add(Output(outputs=[n3]))
+        builder.add(Output([n3, MakePoint(n1, n2)]))
 
     loader = TorchDataLoader(builder.build(), batch=100, workers=5)
 

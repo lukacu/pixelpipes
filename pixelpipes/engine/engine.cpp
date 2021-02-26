@@ -407,7 +407,7 @@ void Engine::run(std::string name, unsigned long index, std::shared_ptr<Pipeline
         try {
             auto result = pipeline->run(index); 
             callback->done(result);
-        } catch (PipelineException pe) {
+        } catch (PipelineException &pe) {
             callback->error(pe);
         }
     } );

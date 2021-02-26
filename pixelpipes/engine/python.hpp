@@ -49,7 +49,7 @@ public:
             //return apply(std::forward<Fn>(fn), inputs, context, args);
             //return fn(inputs, context, std::forward<Args>(args)...);
 
-        } catch (VariableException e) {
+        } catch (VariableException &e) {
             throw OperationException(e.what(), this->shared_from_this());
         }
 

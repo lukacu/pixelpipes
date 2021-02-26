@@ -73,6 +73,9 @@ class Union(Type):
                 return common
         return Any()
 
+    def __str__(self):
+        return "[" + "; ".join([str(x) for x in self._union]) + "]"
+
 class ParametricType(Type):
 
     def __init__(self, *parameters):
@@ -117,6 +120,9 @@ class ParametricType(Type):
 
         return True
 
+    def castable(self, typ: Type) -> bool:
+        raise NotImplementedError()
+
 class Number(ParametricType):
     """Base class for integer or float values.
     """
@@ -139,7 +145,13 @@ class Number(ParametricType):
         return self.fixed()
 
     def __str__(self):
-        return super().__str__() + " ({})".format(self.value)
+        if self.value is not None:
+            return super().__str__() + " ({})".format(self.value)
+        else:
+            return super().__str__()
+
+    def fixed(self):
+        return True
 
 class Integer(Number):
 
@@ -196,20 +208,26 @@ class Image(ParametricType):
         channels: typing.Optional[int] = None, depth: typing.Optional[int] = None,
         purpose: typing.Optional[ImagePurpose] = None):
 
-        super().__init__("width", "height", "channels", "depth", "purpose")
+        super().__init__("width", "height", "channels", "depth")
 
         self._set("width", width)
         self._set("height", height)
         self._set("channels", channels)
         self._set("depth", depth)
-        self._set("purpose", purpose)
+        #self._set("purpose", purpose)
+        self._purpose = purpose
 
     def __str__(self):
         return super().__str__() + " ({} x {} x {}, {} bit for {})".format(self.width, self.height, self.channels, self.depth, self.purpose)
 
+    @property
+    def purpose(self):
+        return self._purpose
+
     def common(self, typ: "Type") -> "Type":
         if isinstance(typ, Image):
-            return Image(**self._common_parameters(typ))
+            purpose = self._purpose if self._purpose == typ.purpose else None
+            return Image(purpose=purpose, **self._common_parameters(typ))
         else:
             return Any()
 
@@ -238,6 +256,9 @@ class List(ParametricType):
                 raise TypeException("Complex type cannot be an element of a list")
         self._type = element_type if element_type is not None else Any()
         self._set("length", length)
+
+    def __str__(self):
+        return super().__str__() + " ({} x {})".format(self.element, self.length)
 
     def fixed(self):
         return super().fixed() and self._type is not None
@@ -330,8 +351,9 @@ class Complex(Type):
             return None
         return self._elements[key]
 
+    @property
     def elements(self):
-        return self._elements.items()
+        return self._elements
 
     def access(self, element: str, parent: "Reference"):
         from pixelpipes import Reference

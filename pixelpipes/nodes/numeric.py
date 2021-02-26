@@ -191,6 +191,22 @@ class Modulo(_BinaryOperator):
     def _compute(self, a, b):
         return types.Integer(a % b)
 
+class Maximum(_BinaryOperator):
+
+    def operation(self):
+        return engine.Maximum()
+
+    def _compute(self, a, b):
+        return Constant.resolve_type(max(a, b))
+
+class Minimum(_BinaryOperator):
+
+    def operation(self):
+        return engine.Minimum()
+
+    def _compute(self, a, b):
+        return Constant.resolve_type(min(a, b))
+
 class Threshold(Node):
 
     threshold = Number()
@@ -238,7 +254,6 @@ class _ThresholdsComparison(Node):
 class ThresholdsConjunction(_ThresholdsComparison):
 
     def operation(self):
-        print(type(self.comparison[0]))
         return engine.ThresholdsConjunction(self.thresholds, self.comparison)
 
 class ThresholdsDisjunction(_ThresholdsComparison):

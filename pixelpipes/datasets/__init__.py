@@ -4,6 +4,9 @@ from attributee import String, Float
 from pixelpipes import Copy, Input, Macro, GraphBuilder, ValidationException
 import pixelpipes.nodes as nodes
 import pixelpipes.types as types
+from pixelpipes.nodes.numeric import UniformDistribution, Add, Subtract, Divide
+from pixelpipes.nodes.image import GetImageProperties
+from pixelpipes.nodes.complex import GetElement
 
 from pixelpipes.nodes.resources import Resource, VirtualField
 
@@ -64,6 +67,17 @@ class ResourceView(Macro):
             return builder.nodes()
 
 class ResourceCenter(Macro):
+    """Center view to mask or bounding box
+
+    Returns a view that centers to a given mask or a bounding box
+
+    Inputs:
+      - resource
+      - scale
+      - field
+
+    Category: resource, view, macro
+    """
 
     node_name = "Resource Center"
     node_description = "Center resource to the information in its field"
@@ -106,5 +120,51 @@ class ResourceCenter(Macro):
             focus = nodes.FocusView(source=bbox, scale=scale_reference)
 
             nodes.Chain(inputs=[focus, center], _name=parent)
+
+            return builder.nodes()
+
+
+
+class RandomPatch(Macro):
+    """Generates a random patch view for a given image
+
+    Returns a view that centers to a given mask or a bounding box
+
+    Inputs:
+      - source
+      - scale
+      - field
+
+    Category: resource, view, macro
+    """
+
+    source = Input(types.Image())
+    padding = Input(types.Integer())
+    width = Input(types.Integer())
+    height = Input(types.Integer())
+
+    def _output(self):
+        return types.View()
+
+    def expand(self, inputs, parent: "Reference"):
+
+        with GraphBuilder(prefix=parent) as builder:
+
+            image, _ = inputs["source"]
+            padding, _ = inputs["padding"]
+            width, _ = inputs["width"]
+            height, _ = inputs["height"]
+
+            properties = GetImageProperties(source=image)
+            image_width = GetElement(source=properties, element="width")
+            image_height = GetElement(source=properties, element="height")
+
+            offsetx = Add(padding, Divide(width, 2))
+            offsety = Add(padding, Divide(height, 2))
+
+            x = UniformDistribution(min=offsetx, max=Subtract(image_width, offsetx))
+            y = UniformDistribution(min=offsety, max=Subtract(image_height, offsety))
+
+            nodes.TranslateView(x=-x, y=-y, _name=parent)
 
             return builder.nodes()

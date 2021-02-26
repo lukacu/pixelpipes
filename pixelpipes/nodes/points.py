@@ -1,7 +1,6 @@
 
-from attributee import String, Float, Integer, Map, List, Boolean, Number
-
-from pixelpipes import Node, Input
+from pixelpipes import Node, Input, Macro
+from pixelpipes.nodes.list import ListBuild
 import pixelpipes.engine as engine
 import pixelpipes.types as types
 
@@ -37,6 +36,71 @@ class ViewPoints(Node):
         source_type = inputs["source"]
         
         return types.Points(source_type.length)
+
+class PointsCenter(Node):
+    """Points center
+    
+    Computes center of point set as an average of all coordinates
+
+    Inputs:
+        source: A list of points
+
+    Category: points
+    """
+
+    source = Input(types.Points())
+
+    def operation(self):
+        return engine.PointsCenter()
+
+    def _output(self) -> types.Type:
+        return types.Point()
+
+class MakePoint(Node):
+    """Make point
+    
+    Creates a point from two numerical inputs
+
+    Inputs:
+     - x: X coordinate
+     - y: Y coordinate
+
+    Category: points
+    """
+
+    x = Input(types.Number())
+    y = Input(types.Number())
+
+    def operation(self):
+        return engine.PointFromInputs()
+
+    def _output(self) -> types.Type:
+        return types.Point()
+
+class MakeBounds(Macro):
+    """Make bounding box
+    
+    Creates a bounding box from four values.
+
+    Inputs:
+     - left: left bound
+     - top: top bound
+     - right: right bound
+     - bottom: bottom bound
+
+    Category: points
+    """
+
+    left = Input(types.Number())
+    top = Input(types.Number())
+    right = Input(types.Number())
+    bottom = Input(types.Number())
+
+    def _output(self) -> types.Type:
+        return types.BoundingBox()
+
+    def expand(self, inputs, parent: str):
+        return ListBuild([inputs["left"][0], inputs["top"][0], inputs["right"][0], inputs["bottom"][0]])
 
 class PointsFromBoundingBox(Node):
     """Convert bounding box to points

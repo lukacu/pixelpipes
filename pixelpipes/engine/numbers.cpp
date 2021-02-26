@@ -195,6 +195,49 @@ public:
 
 REGISTER_OPERATION(Modulo);
 
+
+SharedVariable Maximum(std::vector<SharedVariable> inputs, ContextHandle context) {
+
+    VERIFY(inputs.size() > 1, "Illegal number of inputs, at least one required");
+
+    float value = Float::get_value(inputs[0]);
+    bool integer = true;
+
+    for (auto input : inputs) {
+        integer &= input->type() == VariableType::Integer;
+        value = std::max(value, Float::get_value(input));
+    }
+
+    if (integer)
+        return std::make_shared<Integer>((int)value);
+    else
+        return std::make_shared<Float>(value);
+
+}
+
+REGISTER_OPERATION_FUNCTION(Maximum);
+
+SharedVariable Minimum(std::vector<SharedVariable> inputs, ContextHandle context) {
+
+    VERIFY(inputs.size() > 1, "Illegal number of inputs, at least one required");
+
+    float value = Float::get_value(inputs[0]);
+    bool integer = true;
+
+    for (auto input : inputs) {
+        integer &= input->type() == VariableType::Integer;
+        value = std::min(value, Float::get_value(input));
+    }
+
+    if (integer)
+        return std::make_shared<Integer>((int)value);
+    else
+        return std::make_shared<Float>(value);
+
+}
+
+REGISTER_OPERATION_FUNCTION(Minimum);
+
 inline bool compare_values(float a, float b, ComparisonOperation operation) {
 
     switch (operation) {

@@ -1,14 +1,14 @@
-from attributee import String, Float, Integer, Map, List, Boolean, Enumeration, AttributeException
+from attributee import AttributeException, List
 
-from pixelpipes import Node, Input, wrap_pybind_enum, hidden
+from pixelpipes import Node, Input, hidden
 import pixelpipes.engine as engine
 import pixelpipes.types as types
 
 @hidden
 class ListSource(Node):
 
-    def __init__(self, source, element_type, **kwargs):
-        super().__init__(**kwargs)
+    def __init__(self, source, *args, element_type=None, **kwargs):
+        super().__init__(*args, **kwargs)
         self._source = source
         self._type = element_type
 
@@ -20,14 +20,20 @@ class ListSource(Node):
             base_typ =  types.Image()
         elif isinstance(self._source, engine.ImageList):
             base_typ = types.Image()
-        elif isinstance(self._source, engine.PointsList):
+        elif isinstance(self._source, engine.PointList):
             base_typ = types.Points()
+        elif isinstance(self._source, engine.TableList):
+            base_typ = types.List(types.Number())
         else:
             raise types.TypeException("Cannot determine output type for list")
 
-        assert base_typ.castable(element_type)
+        if self._type is not None:
+            assert base_typ.castable(element_type)
+        else:
+            self._type = base_typ
 
-    def dump(self):
+    def dump(self, ignore=None):
+        # TODO: can we make list serializable?
         raise AttributeException("Node is not serializable")
 
     def duplicate(self, **inputs):
@@ -114,6 +120,41 @@ class ListLength(Node):
 
     def operation(self):
         return engine.ListLength()
+
+class ListBuild(Node):
+    """Build list
+
+    Builds list from inputs. All inputs should be of the same type as the first input, it determines
+    the type of a list.
+
+    Inputs:
+      - inputs: Inputs to put in a list
+
+    Category: list
+    """
+
+    inputs = List(Input(types.Number()))
+
+    def input_values(self):
+        return [self.inputs[int(name)] for name, _ in self.get_inputs()]
+
+    def get_inputs(self):
+        return [(str(k), types.Number()) for k, _ in enumerate(self.inputs)]
+
+    def duplicate(self, **inputs):
+        config = self.dump()
+        for k, v in inputs.items():
+            i = int(k)
+            assert i >= 0 and i < len(config["inputs"])
+            config["inputs"][i] = v
+        return self.__class__(**config)
+
+    def validate(self, **inputs):
+        super().validate(**inputs)
+        return types.List(inputs["0"], len(inputs))
+
+    def operation(self):
+        return engine.ListBuild()
 
 class RepeatElement(Node):
     """Repeat list element a number of times

@@ -8,7 +8,7 @@
 #include "numpy/ndarrayobject.h"
 
 #include "conversion.hpp"
-
+ 
 
 //#define NUMPY_IMPORT_ARRAY_RETVAL NULL
 
@@ -82,37 +82,56 @@ torch::Tensor tensorFromMat(cv::Mat &mat) {
     return tensor;
 }
 
-py::object torchFromVariable(pixelpipes::SharedVariable variable) {
-    py::gil_scoped_acquire gil;
-    torch::Tensor tensor;
+torch::Tensor tensorFromVariable(pixelpipes::SharedVariable variable) {
+
     switch (variable->type()) {
         case pixelpipes::VariableType::Integer: {
-            tensor = torch::empty({1}, torch::kInt32);
+            torch::Tensor tensor = torch::empty({1}, torch::kInt32);
             auto a = tensor.accessor<int, 1>();
             a[0] = std::static_pointer_cast<pixelpipes::Integer>(variable)->get();
-            break;
+            return tensor;
         }
         case pixelpipes::VariableType::Float: {
-            tensor = torch::empty({1}, torch::kF32);
+            torch::Tensor tensor = torch::empty({1}, torch::kF32);
             auto a = tensor.accessor<float, 1>();
             a[0] = std::static_pointer_cast<pixelpipes::Float>(variable)->get();
-            break;
+            return tensor;
+        }
+        case pixelpipes::VariableType::Point: {
+            torch::Tensor tensor = torch::empty({2}, torch::kF32);
+            cv::Point2f p = std::static_pointer_cast<pixelpipes::Point>(variable)->get();
+            auto a = tensor.accessor<float, 1>();
+            a[0] = p.x;
+            a[1] = p.y;
+            return tensor;
         }
         case pixelpipes::VariableType::View: {
             cv::Mat m(std::static_pointer_cast<pixelpipes::View>(variable)->get());
-            tensor = tensorFromMat(m);
-            break;
+            return tensorFromMat(m);
         }
         case pixelpipes::VariableType::Image: {
             cv::Mat m(std::static_pointer_cast<pixelpipes::Image>(variable)->get());
-            tensor = tensorFromMat(m);
-            break;
+            return tensorFromMat(m);
+        }
+        case pixelpipes::VariableType::List: {
+            pixelpipes::SharedList list = std::static_pointer_cast<pixelpipes::List>(variable);
+            std::vector<torch::Tensor> planes(list->size());
+            for (size_t i = 0; i < list->size(); i++) {
+                torch::Tensor t = tensorFromVariable(list->get(i));
+                //std::cout << t.defined() << std::endl;
+                planes[i] = t;
+            }
+            return torch::stack(planes, 0);
         }
         default:
-           tensor = torch::zeros({0}, torch::kF32); 
-           break;
+           return torch::zeros({0}, torch::kF32); 
     }
 
+}
+
+py::object torchFromVariable(pixelpipes::SharedVariable variable) {
+
+    torch::Tensor tensor = tensorFromVariable(variable);
     return py::reinterpret_steal<py::object>(THPVariable_Wrap(torch::autograd::Variable(tensor)));
 
 }
@@ -120,22 +139,23 @@ py::object torchFromVariable(pixelpipes::SharedVariable variable) {
 #endif
 
 py::object numpyFromVariable(pixelpipes::SharedVariable variable) {
-    py::gil_scoped_acquire gil;
+
     switch (variable->type()) {
         case pixelpipes::VariableType::Integer: {
             py::array_t<int> a({1});
             a.mutable_data(0)[0] = std::static_pointer_cast<pixelpipes::Integer>(variable)->get();
-            //npy_intp siz[] = {1};
-            //PyArrayObject *a = PyArray_SimpleNew(1, siz, NPY_INT);
-            //PyArray_SETITEM(a, PyArray_GETPTR1(a, 0), std::static_pointer_cast<pixelpipes::Integer>(variable)->get());
             return a;
         }
         case pixelpipes::VariableType::Float: {
             py::array_t<float> a({1});
             a.mutable_data(0)[0] = std::static_pointer_cast<pixelpipes::Float>(variable)->get();
-            //npy_intp siz[] = {1};
-            //PyArrayObject *a = PyArray_SimpleNew(1, siz, NPY_FLOAT);
-            //PyArray_SETITEM(a, PyArray_GETPTR1(a, 0), std::static_pointer_cast<pixelpipes::Float>(variable)->get());
+            return a;
+        }
+        case pixelpipes::VariableType::Point: {
+            py::array_t<float> a({2});
+            cv::Point2f p = std::static_pointer_cast<pixelpipes::Point>(variable)->get();
+            a.mutable_data(0)[0] = p.x;
+            a.mutable_data(0)[1] = p.y;
             return a;
         }
         case pixelpipes::VariableType::View: {
@@ -155,13 +175,81 @@ py::object numpyFromVariable(pixelpipes::SharedVariable variable) {
 }
 
 
+py::object pythonFromVariable(pixelpipes::SharedVariable src) {
+
+    switch (src->type()) {
+        case pixelpipes::VariableType::Integer: {
+            return py::int_(std::static_pointer_cast<pixelpipes::Integer>(src)->get());
+        }
+        case pixelpipes::VariableType::Float: {
+            //float value = std::static_pointer_cast<pixelpipes::Float>(src)->get();
+            //return py::reinterpret_borrow<py::object>(PyFloat_FromDouble((double) value));
+            return py::float_(std::static_pointer_cast<pixelpipes::Float>(src)->get());
+        }
+        case pixelpipes::VariableType::View: {
+            cv::Mat m(std::static_pointer_cast<pixelpipes::View>(src)->get());
+            return convert_mat_numpy(m);
+        }
+        case pixelpipes::VariableType::Point: {
+            cv::Point2f p = std::static_pointer_cast<pixelpipes::Point>(src)->get();
+            return convert_point_tuple(p);
+        }
+        case pixelpipes::VariableType::List: {
+            pixelpipes::SharedList list = std::static_pointer_cast<pixelpipes::List>(src);
+            py::list result(list->size());
+            for (size_t i = 0; i < list->size(); i++) {
+                result[i] = pythonFromVariable(list->get(i));
+            }
+            return result;
+        }
+        case pixelpipes::VariableType::Image: {
+            cv::Mat m(std::static_pointer_cast<pixelpipes::Image>(src)->get());
+            return convert_mat_numpy(m);
+        }
+        default:
+            return py::none(); 
+    }
+
+}
+
 using namespace cv;
 
-bool convert_numpy(py::handle src, cv::Mat *value) {
+bool convert_numpy_mat(py::handle src, cv::Mat *value) {
     NDArrayConverter cvt;
     if (!src || src.is_none() || !PyArray_Check(src.ptr())) { return false; }
     *value = cvt.toMat(src.ptr());
     return true;
+}
+
+py::object convert_mat_numpy(cv::Mat src) {
+    NDArrayConverter cvt;
+    return py::reinterpret_steal<py::object>(cvt.toNDArray(src));
+}
+
+bool convert_tuple_point(py::handle src, cv::Point2f *dst) {
+    PyObject *v;
+    if (!src || src.is_none() || !PyTuple_Check(src.ptr())) return false;
+    PyObject *source = src.ptr();
+    if (PyTuple_Size(source) != 2) return false;
+
+    v = PyTuple_GetItem(source, 0);
+    if (src.is_none() || !PyFloat_Check(source)) return false;
+    dst->x = PyFloat_AsDouble(v);
+
+    v = PyTuple_GetItem(source, 1);
+    if (src.is_none() || !PyFloat_Check(source)) return false;
+    dst->y = PyFloat_AsDouble(v);
+
+    return true;
+
+}
+
+py::object convert_point_tuple(cv::Point2f src) {
+    py::tuple result(2);
+    result[0] = PyFloat_FromDouble(src.x);
+    result[1] = PyFloat_FromDouble(src.y);
+
+    return result;
 }
 
 #if CV_MAJOR_VERSION > 3

@@ -50,8 +50,23 @@ void Float::print(std::ostream& os) const {
     os << value;
 }
 
+Point::Point(cv::Point2f value): value(value) {};
+
+Point::Point(float x, float y): value(cv::Point2f(x, y)) {};
+
+cv::Point2f Point::get() const { return value; };
+
 void Point::print(std::ostream& os) const {
     os << value;
+}
+
+cv::Point2f Point::get_value(SharedVariable v) {
+    VERIFY((bool) v, "Uninitialized variable");
+
+    if (v->type() != VariableType::Point)
+        throw VariableException("Not a point value");
+
+    return std::static_pointer_cast<Point>(v)->get();
 }
 
 View::View(const cv::Matx33f value): value(value) {};
@@ -76,12 +91,15 @@ Image::Image(const cv::Mat value): value(value) {};
 cv::Mat Image::get() { return value; };
 
 cv::Mat Image::get_value(SharedVariable v) {
-    VERIFY((bool) v, "Uninitialized variable");
-
-    if (v->type() != VariableType::Image)
-        throw VariableException("Not an image value");
+    VERIFY(Image::is(v), "Not an image");
 
     return std::static_pointer_cast<Image>(v)->get();
+}
+
+bool Image::is(SharedVariable v) {
+    VERIFY((bool) v, "Uninitialized variable");
+
+    return (v->type() == VariableType::Image);
 }
 
 void Image::print(std::ostream& os) const {
@@ -136,7 +154,7 @@ MappedList::MappedList(SharedList list, std::vector<int> map): list(list), map(m
     }
 
     for (auto index : map) {
-        if (index < 0 || index >= list->size())
+        if (index < 0 || index >= (int) list->size())
             throw VariableException("Illegal list index");
     }
 
@@ -156,7 +174,7 @@ VariableType MappedList::element_type() const {
 
 SharedVariable MappedList::get(int index) const {
 
-    if (index < 0 || index >= map.size()) {
+    if (index < 0 || index >= (int) map.size()) {
         throw VariableException("Index out of range");
     }
 
@@ -202,5 +220,41 @@ SharedVariable ImageFileList::get(int index) const {
     return std::make_shared<Image>(image);
  
 }
+
+TableList::TableList(const cv::Mat source) : source(source) {
+
+    VERIFY(source.channels() == 1, "Only 2D source supported");
+    VERIFY(source.cols > 0 && source.rows > 0, "Table must not be empty");
+
+}
+
+size_t TableList::size() const {
+    return source.rows;
+}
+
+VariableType TableList::element_type() const {
+
+    if (source.depth() < 3) {
+        return VariableType::Integer;
+    } else {
+        return VariableType::Float;
+    }
+
+}
+
+SharedVariable TableList::get(int index) const {
+
+    if (source.depth() < 3) {
+        std::vector<int> row;
+        source.row(index).copyTo(row);
+        return std::make_shared<IntegerList>(row);
+    } else {
+        std::vector<float> row;
+        source.row(index).copyTo(row);
+        return std::make_shared<FloatList>(row);
+    }
+
+}
+
 
 }

@@ -7,7 +7,9 @@ from itertools import combinations
 
 from intbitset import intbitset
 
-from pixelpipes import Graph, GraphBuilder, Reference, Output, Node, Macro, Copy, DebugOutput, Input, NodeException, ValidationException
+from pixelpipes import Graph, GraphBuilder, Reference, \
+    Output, Node, Macro, Copy, DebugOutput, Input, \
+    NodeException, ValidationException, Pipeline
 from pixelpipes.nodes import Constant, Variable
 import pixelpipes.types as types
 import pixelpipes.engine as engine
@@ -127,7 +129,6 @@ class BranchSet(object):
 
     def __init__(self, variables):
         self._variables = variables
-        self._used = set()
         self._branches = []
 
     def add(self, **variables):
@@ -232,7 +233,7 @@ class Compiler(object):
             debug (bool, optional): Print a lot of debug messages. Defaults to False.
         """
         self._fixedout = fixedout
-        self._debug = debug
+        self._debug_enabled = debug
         self._predictive = predictive
 
     def validate(self, graph: typing.Union[Graph, typing.Mapping[str, Node]]):
@@ -249,8 +250,13 @@ class Compiler(object):
         Returns:
             dict: resolved types of all nodes
         """
+        output_groups = []
+
         if isinstance(graph, Graph):
             nodes = graph.nodes
+            output_groups = graph.groups
+        elif isinstance(graph, GraphBuilder):
+            nodes = graph.nodes()
         elif isinstance(graph, typing.Mapping):
             nodes = graph
         else:
@@ -285,8 +291,11 @@ class Compiler(object):
                     if not out_a.castable(out_b):
                         raise ValidationException("Incompatible inputs for output node {}".format(output))
 
-        for name, node in nodes.items():
-            self._print("Node {} ({}), inferred type: {}", name, node.__class__.__name__, type_cache[name])
+        if output_groups and len(outputs) != len(output_groups):
+            raise ValidationException("Provided output group assignment does not match the size of the output")
+
+        #for name, node in nodes.items():
+        #    self._debug("Node {} ({}), inferred type: {}", name, node.__class__.__name__, type_cache[name])
 
         return type_cache
 
@@ -308,10 +317,12 @@ class Compiler(object):
         if GraphBuilder.default() is not None:
             raise CompilerException("Cannot compile within graph builder scope")
 
+        output_groups = []
         if isinstance(graph, Graph):
             nodes = graph.nodes
+            output_groups = graph.groups
         elif isinstance(graph, GraphBuilder):
-            nodes = graph.build().nodes
+            nodes = graph.nodes()
         elif isinstance(graph, typing.Mapping):
             nodes = graph
         else:
@@ -320,7 +331,7 @@ class Compiler(object):
         # Copy the nodes mapping structure
         nodes = dict(**nodes)
 
-        self._print("Compiling {} source nodes", len(nodes))
+        self._debug("Compiling {} source nodes", len(nodes))
 
         for name, node in nodes.items():
             if isinstance(node, Variable):
@@ -355,7 +366,11 @@ class Compiler(object):
 
             subgraph = node.expand(inputs, name)
 
-            self._print("Expanding macro node {} to {} nodes", name, len(subgraph))
+            # Special case where only a single node is returned
+            if isinstance(subgraph, Node):
+                subgraph = {name : subgraph}
+
+            self._debug("Expanding macro node {} to {} nodes", name, len(subgraph))
 
             for subname, _ in subgraph.items():
                 infer_type(Reference(subname), subgraph, inferred_types)
@@ -381,7 +396,7 @@ class Compiler(object):
 
         expanded = builder.nodes()
 
-        self._print("Expanded graph to {} nodes", len(expanded))
+        self._debug("Expanded graph to {} nodes", len(expanded))
 
         self.validate(expanded)
 
@@ -398,7 +413,7 @@ class Compiler(object):
                     raise CompilerException("Only one output node required")
             elif isinstance(node, Copy):
                 aliases[aliases.get(name, name)] = aliases.get(node.source.name, node.source.name)
-            elif isinstance(node, DebugOutput) and not self._debug:
+            elif isinstance(node, DebugOutput) and not self._debug_enabled:
                 aliases[aliases.get(name, name)] = aliases.get(node.source.name, node.source.name)
             elif isinstance(node, Constant):
                 if node.key() in values:
@@ -423,7 +438,7 @@ class Compiler(object):
 
         optimized = builder.nodes()
 
-        self._print("Optimized graph to {} nodes", len(optimized))
+        self._debug("Optimized graph to {} nodes", len(optimized))
 
         def traverse(nodes, start, depthfirst=True, stack=None):
             if not start in nodes:
@@ -475,19 +490,18 @@ class Compiler(object):
                 for sub_node in tree_false.difference(common):
                     dependencies.setdefault(sub_node, set()).add(node.condition.name)
 
-            #print([node for node in optimized[name].input_values()])
             dependencies.setdefault(name, set()).update([node.name for node in optimized[name].input_values()])
 
-        self._print("Resolving dependencies")
+        self._debug("Resolving dependencies")
 
         if not self._predictive:
-            self._print("Jump optimization not disabled, skipping")
+            self._debug("Jump optimization not disabled, skipping")
             # Do not process jumps, just sort operations according to their dependencies
             ordered = [(level, item) for level, sublist in enumerate(_toposort(dependencies)) for item in sublist]
             ordered = sorted(ordered)
             operations = [(name, optimized[name].operation(), [r.name for r in optimized[name].input_values()]) for _, name in ordered]
         else:
-            self._print("Calculating branch sets")
+            self._debug("Calculating branch sets")
             branches = {}
             for name, stack in traverse(optimized, output_node, stack=[]):
                 branches.setdefault(name, BranchSet(conditions))
@@ -515,7 +529,7 @@ class Compiler(object):
             state = []
 
             for level, condition, name in ordered:
-                self._print("{}, {}: {}", level, name, converter.text(condition))
+                self._debug("{}, {}: {}", level, name, converter.text(condition))
                 if condition != state:
                     if not pending is None:
                         current_position = len(operations)
@@ -541,12 +555,17 @@ class Compiler(object):
             input_indices = [indices[name] for name in inputs]
             indices[name] = pipeline.append(operation, input_indices)
             assert indices[name] >= 0
-            self._print("{} ({}): {} ({})", indices[name], name,
+            self._debug("{} ({}): {} ({})", indices[name], name,
                     operation.__class__.__name__, ", ".join(["{} ({})".format(i, n) for i, n in zip(input_indices, inputs)]))
 
-        pipeline.finalize()
-        return pipeline
+        output_types = [inferred_types[ref.name] for ref in optimized[output_node].input_values()]
 
-    def _print(self, message: str, *args, **kwargs):
-        if self._debug:
+        if not output_groups:
+            output_groups = ["default" for _ in output_types]
+
+        pipeline.finalize()
+        return Pipeline(pipeline, output_groups, output_types)
+
+    def _debug(self, message: str, *args, **kwargs):
+        if self._debug_enabled:
             print(message.format(*args, **kwargs))

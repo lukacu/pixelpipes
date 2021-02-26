@@ -186,14 +186,18 @@ PYBIND11_MODULE(engine, m) {
     .def("finalize", &Pipeline::finalize, "Finalize pipeline")
     .def("append", &Pipeline::append, "Add operation to pipeline")
     .def("run", [](Pipeline& p, unsigned long index, ConvertOutput convert) {
-        py::gil_scoped_release gil; // release GIL lock
-        std::vector<SharedVariable> result = p.run(index);
+        std::vector<SharedVariable> result;
+
+        { // release GIL lock when running pure C++, acquire it when we are converting data
+            py::gil_scoped_release gil;
+            result = p.run(index);
+        }
 
         std::vector<py::object> transformed;
         for (auto element : result) {
             switch (convert) {
                 case ConvertOutput::None: {
-                    transformed.push_back(py::cast(element));
+                    transformed.push_back(pythonFromVariable(element));
                     break;
                 }
                 case ConvertOutput::Numpy: {
@@ -242,7 +246,9 @@ PYBIND11_MODULE(engine, m) {
     ADD_OPERATION(Copy);
 
     // Variables 
-    py::class_<List, std::shared_ptr<List> >(m, "List");
+    py::class_<List, std::shared_ptr<List> >(m, "List")
+    .def("get", &List::get, "Get element")
+    .def("size", &List::size, "List size");
     py::class_<ImageFileList, List, std::shared_ptr<ImageFileList> >(m, "ImageFileList")
     .def(py::init<std::vector<std::string>, std::string, bool>(), py::arg("list"), py::arg("prefix") = std::string(), py::arg("grayscale") = false);
     py::class_<ImageList, List, std::shared_ptr<ImageList> >(m, "ImageList")
@@ -253,6 +259,8 @@ PYBIND11_MODULE(engine, m) {
     .def(py::init<std::vector<int> >());
     py::class_<FloatList, List, std::shared_ptr<FloatList> >(m, "FloatList")
     .def(py::init<std::vector<float> >());
+    py::class_<TableList, List, std::shared_ptr<TableList> >(m, "TableList")
+    .def(py::init<cv::Mat>());
 
     // Operation initializers
     for (const auto &initializer : initializers())

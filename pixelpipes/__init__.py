@@ -11,12 +11,17 @@ import typing
 import logging
 import threading
 import bidict
+import enum
 
 from attributee import Attributee, Integer, Include, String, List, Object, \
-    Map, Attribute, AttributeException, Undefined, is_undefined, Float
+    Map, Attribute, AttributeException, Undefined, is_undefined, Float, Nested, \
+    Enumeration
 from attributee.io import Serializable
 from attributee.object import class_fullname
-from attributee.privitives import to_number
+from attributee.primitives import to_number
+
+def with_torch():
+    return engine.torch
 
 class NodeException(Exception):
 
@@ -86,7 +91,7 @@ class Input(Attribute):
         if isinstance(self._type, types.Number):
             return to_number(value)
 
-        raise AttributeException("Illegal value")
+        raise AttributeException("Illegal value: {}".format(value))
 
     def dump(self, value):
         if isinstance(value, Reference):
@@ -156,14 +161,17 @@ def hidden(node_class):
 @hidden
 class Node(Attributee):
 
-    def __init__(self, _name: str = None, _auto: bool = True, _origin: "Node" = None, **kwargs):
+    def __init__(self, *args, _name: str = None, _auto: bool = True, _origin: "Node" = None, **kwargs):
         """[summary]
 
         Args:
             _name (str, optional): Internal parameter used for context graph builder. Defaults to None.
             _auto (bool, optional): Should a node automatically be added to a context builder. Defaults to True.
         """
-        super().__init__(**kwargs)
+        super().__init__(*args, **kwargs)
+
+        self._cache = {}
+
         if _auto:
             with _CONTEXT_LOCK:
                 builders = getattr(_CONTEXT, "builders", [])
@@ -220,9 +228,6 @@ class Node(Attributee):
 
         return self._output()
 
-    def _output(self) -> types.Type:
-        return types.Any()
-
     def input_types(self):
         return [i for _, i in self.get_inputs()]
 
@@ -232,20 +237,20 @@ class Node(Attributee):
     def input_names(self):
         return [name for name, _ in self.get_inputs()]
 
+    def _output(self) -> types.Type:
+        return types.Any()
+
     def get_inputs(self):
+        if "inputs" in self._cache:
+            return self._cache["inputs"]
+
         references = []
-        for name, attr in self.get_attributes():
+        for name, attr in self.attributes().items():
             if isinstance(attr, Input):
                 references.append((name, attr.reftype()))
-        return references
 
-    @classmethod
-    def get_attributes(cls):
-        attributes = getattr(cls, "_declared_attributes", {})
+        self._cache["inputs"] = references
 
-        references = []
-        for name, attr in attributes.items():
-            references.append((name, attr))
         return references
 
     @property
@@ -383,7 +388,7 @@ class GraphBuilder(object):
     def nodes(self):
         return dict(**self._nodes)
 
-    def build(self):
+    def build(self, groups=None):
 
         nodes = {}
 
@@ -392,7 +397,7 @@ class GraphBuilder(object):
             node["type"] = class_fullname(v)
             nodes[k] = node
 
-        return Graph(nodes=nodes)
+        return Graph(nodes=nodes, groups=groups or list())
 
     def __contains__(self, node):
         return node in self._nodes.inverse
@@ -411,6 +416,7 @@ class Graph(Attributee, Serializable):
 
     name = String(default="Graph")
     nodes = Map(Object(subclass=Node))
+    groups = List(String(), default=[])
 
     def validate(self):
         from .compiler import infer_type
@@ -422,6 +428,31 @@ class Graph(Attributee, Serializable):
 
         return type_cache
 
-from pixelpipes.engine import Convert
+class Pipeline(object):
+    """Wrapper for the C++ pipeline object
+    """
+
+    def __init__(self, pipeline, groups, types):
+        self._pipeline = pipeline
+        self._groups = groups
+        self._types = types
+        if engine.torch:
+            self.run_torch = lambda x: self._pipeline.run(x, engine.Convert.TORCH)
+    
+    def run(self, index):
+        return self._pipeline.run(index)
+
+    def run_numpy(self, index):
+        return self._pipeline.run(index, engine.Convert.NUMPY)
+
+    def output_size(self):
+        return len(self._groups)
+
+    def output_group(self, i):
+        return self._groups[i]
+
+    def output_type(self, i):
+        return self._types[i]
+
 from pixelpipes.compiler import Compiler
-from pixelpipes.nodes import *
+from pixelpipes.nodes import Constant

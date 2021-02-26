@@ -1,14 +1,150 @@
 
-from attributee import Float, Integer, Enumeration
+import numpy as np
 
-from pixelpipes import Node, Input, wrap_pybind_enum
+from attributee import Enumeration, Boolean
+from attributee.object import Callable
+
+from pixelpipes import Node, Input, wrap_pybind_enum, hidden, GraphBuilder, Macro
+from pixelpipes.nodes.list import ListElement
 import pixelpipes.engine as engine
 import pixelpipes.types as types
 
-class ViewImage(Node):
+def ImageProperties():
+    return types.Complex({"width": types.Integer(), "height": types.Integer(), "channels": types.Integer(), "depth": types.Integer()})
 
-    node_name = "Image view"
-    node_description = "Apply a view transformation to image"
+@hidden
+class ImageLoader(Node):
+    """Constant in-memory image, preloaded when the graph is compiled
+
+    Provides a way to inject a single in-memory image into the pipeline.
+
+    Inputs:
+     - loader: A callback that should return the image, it will be called
+     internally when data is required. Should be serializable.
+
+    Category: image, input
+    """
+
+    loader = Callable()
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self._source = None
+        
+    def _load(self):
+        if self._source is not None:
+            return self._source
+        
+        source = self.loader()
+
+        width = source.shape[1]
+        height = source.shape[0]
+        if len(source.shape) < 3:
+            channels = 1
+        else:
+            channels = source.shape[2]
+
+        if source.dtype == np.uint8:
+            depth = 8
+        elif source.dtype == np.int16:
+            depth = 16
+        elif source.dtype == np.float32:
+            depth = 32
+        elif source.dtype == np.float64:
+            depth = 64
+        else:
+            raise types.TypeException("Unsupported depth")
+
+        self._source = (source, types.Image(width, height, channels, depth))
+        return self._source
+
+    def validate(self, **inputs):
+        super().validate(**inputs)
+        _, typ = self._load()
+        return typ
+
+    def operation(self):
+        source, _ = self._load()
+        return engine.Constant(source)
+
+    # Prevent errors when cloning during compilation
+    def duplicate(self, **inputs):
+        return self
+
+@hidden
+class _GetImageProperties(Node):
+    """Get image properties
+
+    Returns a list of properties of the source image: width, height, channels, depth.
+    All four are returned in a integer list.
+
+    Inputs:
+     - source: Image for which properties are returned
+
+    Category: image
+    """
+
+    source = Input(types.Image())
+
+    def operation(self):
+        return engine.GetImageProperties()
+
+    def validate(self, **inputs):
+        super().validate(**inputs)
+        return types.List(types.Integer(), 4)
+
+class GetImageProperties(Macro):
+    """Get image properties
+
+    Returns a structure of properties of the source image: width, height, channels, depth.
+    All four elements are integers.
+
+    Inputs:
+     - source: Image for which properties are returned
+
+    Category: image
+    """
+
+    source = Input(types.Image())
+
+    def validate(self, **inputs):
+        super().validate(**inputs)
+        return ImageProperties()
+
+    def expand(self, inputs, parent: "Reference"):
+
+        with GraphBuilder(prefix=parent) as builder:
+
+            source_reference, _ = inputs["source"]
+            
+            properties = _GetImageProperties(source=source_reference)
+
+            ListElement(parent=properties, index=0, _name=".width")
+            ListElement(parent=properties, index=1, _name=".height")
+            ListElement(parent=properties, index=2, _name=".channels")
+            ListElement(parent=properties, index=3, _name=".depth")
+
+            return builder.nodes()
+
+
+class ViewImage(Node):
+    """Image view
+
+    Apply a view transformation to image
+
+    Inputs:
+     - source:
+     - view:
+     - width:
+     - height:
+     - interpolation:
+     - border:
+
+    Category: image, geometry
+    """
+
+    node_name = ""
+    node_description = ""
     node_category = "image"
 
     source = Input(types.Image())
@@ -180,8 +316,10 @@ class Merge(Node):
 class Polygon(Node):
     """Draw a polygon to a canvas of a given size
 
-    Args:
-        Node ([type]): [description]
+    Inputs:
+      - source: list of points
+      - width: output width
+      - height: height
 
     Returns:
         [type]: [description]
@@ -213,7 +351,7 @@ class Moments(Node):
     def validate(self, **inputs):
         super().validate(**inputs)
 
-        return types.List()
+        return types.List(types.Float())
 
 class MaskBoundingBox(Node):
 
@@ -291,8 +429,8 @@ class ImageAdd(Node):
     node_description = "Adds two images with same size and number of channels"
     node_category = "image"
 
-    source_1 = Input(types.Image())
-    source_2 = Input(types.Image())
+    source1 = Input(types.Union(types.Image(), types.Number()))
+    source2 = Input(types.Union(types.Image(), types.Number()))
 
     def operation(self):
         return engine.ImageAdd()
@@ -300,9 +438,17 @@ class ImageAdd(Node):
     def validate(self, **inputs):
         super().validate(**inputs)
 
-        source = inputs["source_1"]
+        source1 = inputs["source1"]
+        source2 = inputs["source2"]
 
-        return types.Image(source.width, source.height, source.channels, source.depth)
+        if not isinstance(source1, types.Image) and not isinstance(source2, types.Image):
+            raise types.TypeException("At least one input should be an image")
+
+        image = source1 if isinstance(source1, types.Image) else source2
+
+        # TODO: add size verification
+
+        return types.Image(image.width, image.height, image.channels, image.depth)
 
 class ImageSubtract(Node):
 
@@ -364,6 +510,30 @@ class ImageBlend(Node):
 
 # BLURING OPERATIONS
 
+class GaussianFunction(Node):
+    """Gaussian function
+
+    Generate a tabulated Gaussian function
+
+    Category: image, function
+    """
+
+    size_x = Input(types.Integer())
+    size_y = Input(types.Integer())
+    mean_x = Input(types.Float())
+    mean_y = Input(types.Float())
+    sigma_x = Input(types.Float())
+    sigma_y = Input(types.Float())
+    normalize = Boolean(default=False)
+    
+    def operation(self):
+        return engine.MapFunction(0, self.normalize)
+
+    def validate(self, **inputs):
+        super().validate(**inputs)
+
+        return types.Image(inputs["size_x"].value, inputs["size_y"].value, 1, 32, types.ImagePurpose.HEATMAP)
+
 class GaussianBlur(Node):
     
     node_name = "Gaussian Blur"
@@ -387,10 +557,16 @@ class GaussianBlur(Node):
         return types.Image(source.width, source.height, source.channels, source.depth)
 
 class MedianBlur(Node):
-    
-    node_name = "Median Blur"
-    node_description = "Blurs an image using a median filter."
-    node_category = "image"
+    """Median Blur
+
+    Blurs an image using a median filter.
+
+    Inputs:
+     - source: Source image
+     - size: Size of the median window
+
+    Category: image, filters
+    """
 
     source = Input(types.Image())
     size = Input(types.Integer())

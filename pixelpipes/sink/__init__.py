@@ -16,7 +16,7 @@ class BatchIterator(object):
     agnostic multithreaded batching of samples.
     """
 
-    def __init__(self, commit, size: int):
+    def __init__(self, commit, size: int, offset: int = 0):
         """Initialize a new iterator
 
         Args:
@@ -25,7 +25,7 @@ class BatchIterator(object):
         """
         self._commit = commit
         self._size = size
-        self._index = 1
+        self._index = max(0, offset) + 1
         self._lock = Condition()
         self._cache = []
         self._partial = None
@@ -111,14 +111,20 @@ class DataLoader(object):
                 batch.append(np.stack(field, axis=0))
             return batch
 
-    def __init__(self, graph: Graph, batch: int, workers: typing.Optional[WorkerPool] = None,
+    def __init__(self, graph: Graph, batch: int, workers: typing.Optional[typing.Union[int, WorkerPool]] = None,
         variables: typing.Optional[typing.Mapping[str, numbers.Number]] = None,
-        output: typing.Optional[str] = None):
+        output: typing.Optional[str] = None, offset: int = 0):
+
+        if workers is None:
+            workers = WorkerPool()
+        elif isinstance(workers, int):
+            workers = WorkerPool(workers)
 
         compiler = Compiler(fixedout=True)
         self._pipeline = compiler.compile(graph, variables=variables, output=output)
-        self._workers = workers if workers is not None else WorkerPool()
+        self._workers = workers
         self._batch = batch
+        self._offset = offset
 
     def _commit(self, index):
         try:
@@ -127,7 +133,7 @@ class DataLoader(object):
             return None
 
     def __iter__(self):
-        return DataLoader._BatchIterator(self._commit, self._batch)
+        return DataLoader._BatchIterator(self._commit, self._batch, offset=self._offset)
 
 
 try:

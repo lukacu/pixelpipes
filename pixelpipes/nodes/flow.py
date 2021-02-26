@@ -6,6 +6,9 @@ from pixelpipes import types
 
 from pixelpipes.nodes.resources import Resource, ResourceList
 
+from pixelpipes.compiler import Conditional
+
+
 class ConditionalResource(Macro):
     """Conditional selection
     
@@ -30,8 +33,6 @@ class ConditionalResource(Macro):
         return inputs["true"].common(inputs["false"])
 
     def expand(self, inputs, parent: "Reference"):
-
-        from pixelpipes.compiler import Conditional
 
         true_reference, true_type = inputs["true"]
         false_reference, false_type = inputs["false"]
@@ -134,7 +135,6 @@ class Switch(Macro):
         """
 
         from pixelpipes.nodes.numeric import UniformDistribution, Threshold
-        from pixelpipes.compiler import Conditional
 
         resource_type = Resource()
 

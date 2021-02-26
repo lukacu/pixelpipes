@@ -1,3 +1,4 @@
+#include <utility>
 
 #include <opencv2/imgproc.hpp>
 
@@ -37,14 +38,47 @@ inline int interpolate_convert(Interpolation interpolation) {
     }
 }
 
+
+/**
+ * @brief Apply view linear transformation to an image.
+ * 
+ */
+SharedVariable GetImageProperties(std::vector<SharedVariable> inputs, ContextHandle context) {
+
+    VERIFY(inputs.size() == 1, "Incorrect number of parameters");
+
+    cv::Mat image = Image::get_value(inputs[0]);
+    int dtype = -1;
+    switch (image.depth()) {
+        case CV_8U: 
+            dtype = (int)ImageDepth::Byte;
+            break;
+        case CV_16S: 
+            dtype = (int)ImageDepth::Short;
+            break;
+        case CV_32F: 
+            dtype = (int)ImageDepth::Float;
+            break;
+        case CV_64F: 
+            dtype = (int)ImageDepth::Double;
+            break;
+    }
+    
+    return std::make_shared<IntegerList>(std::vector<int>({ image.cols, image.rows, image.channels(), dtype }));
+
+}
+
+REGISTER_OPERATION_FUNCTION(GetImageProperties);
+
+
+
 /**
  * @brief Apply view linear transformation to an image.
  * 
  */
 SharedVariable ViewImage(std::vector<SharedVariable> inputs, ContextHandle context, Interpolation interpolation, BorderStrategy border) {
 
-    if (inputs.size() != 4) 
-        throw VariableException("Incorrect number of parameters");
+    VERIFY(inputs.size() == 4, "Incorrect number of parameters");
 
     int border_value = 0;
     int border_const = 0;
@@ -107,7 +141,7 @@ SharedVariable ConvertDepth(std::vector<SharedVariable> inputs, ContextHandle co
 
     double maxin = maximum_value(image);
     int dtype;
-    double maxout;
+    double maxout = 1;
 
     switch (depth) {
         case ImageDepth::Byte: 
@@ -346,7 +380,7 @@ SharedVariable Polygon(std::vector<SharedVariable> inputs, ContextHandle context
 
         std::vector<cv::Point> v(points.begin(), points.end());
 
-        cv::Mat mat = cv::Mat::zeros(cv::Size(height, width), CV_8UC1);
+        cv::Mat mat = cv::Mat::zeros(cv::Size(width, height), CV_8UC1);
 
         cv::fillPoly(mat, std::vector<std::vector<cv::Point>>({v}), cv::Scalar(255,255,255));
 
@@ -384,7 +418,7 @@ std::vector<float> bounds(cv::Mat image) {
     if (top > bottom)
         return {(float)0, (float)0, (float)image.cols, (float)image.rows};
     else
-        return {(float)left, (float)top, (float)right, (float)bottom};
+        return {(float)left, (float)top, (float)right + 1, (float)bottom + 1};
 
 }
 
@@ -460,24 +494,90 @@ SharedVariable ImageResize(std::vector<SharedVariable> inputs, ContextHandle con
 
 REGISTER_OPERATION_FUNCTION(ImageResize, Interpolation);
 
+cv::Mat replicate_channels(cv::Mat &image, int channels) {
+
+    cv::Mat out;
+    std::vector<cv::Mat> in;
+    for (int i = 0; i < channels; i++) in.push_back(image);
+    cv::merge(in, out);
+
+    return out;
+
+}
+
+cv::Scalar uniform_scalar(float value, int channels) {
+
+    if (channels == 2) return cv::Scalar(value, value);
+    if (channels == 3) return cv::Scalar(value, value, value);
+    if (channels == 4) return cv::Scalar(value, value, value, value);
+    
+    return cv::Scalar(value);
+
+}
+
+std::pair<cv::Mat, cv::Mat> ensure_channels(cv::Mat &image1, cv::Mat &image2) {
+
+    int channels1 = image1.channels();
+    int channels2 = image2.channels();
+
+    if (channels1 != channels2) {
+        if (channels1 == 1) {
+            image1 = replicate_channels(image1, channels2);
+        } else if (channels2 == 1) {
+            image2 = replicate_channels(image2, channels1);
+        } else {
+            throw VariableException("Channel count mismatch");
+        }
+    }
+
+    return std::pair<cv::Mat, cv::Mat>(image1, image2);
+
+}
+
 
 /**
- * @brief Adds two images.
+ * @brief Combines two images of same size (pixel-wise).
  * 
  */
 SharedVariable ImageAdd(std::vector<SharedVariable> inputs, ContextHandle context) noexcept(false) {
 
     VERIFY(inputs.size() == 2, "Incorrect number of parameters");
-
-    cv::Mat image_0 = Image::get_value(inputs[0]);
-    cv::Mat image_1 = Image::get_value(inputs[1]);
-
-    VERIFY(image_0.channels() == image_1.channels(), "Images must have same number of channels");
-    VERIFY(image_0.rows == image_1.rows && image_0.cols == image_1.cols, "Image sizes do not match");
+    VERIFY(Image::is(inputs[0]) || Image::is(inputs[1]), "At least one input should be an image");
 
     cv::Mat result;
-    cv::add(image_0, image_1, result);
-    // cv::add saturates data type
+
+    // Both inputs are images
+    if (Image::is(inputs[0]) && Image::is(inputs[1])) {
+
+        cv::Mat image0 = Image::get_value(inputs[0]);
+        cv::Mat image1 = Image::get_value(inputs[1]);
+
+        VERIFY(image0.rows == image1.rows && image0.cols == image1.cols, "Image sizes do not match");
+
+        auto image_pair = ensure_channels(image0, image1);
+        image0 = image_pair.first;
+        image1 = image_pair.second;
+
+        cv::add(image0, image1, result); // cv::add potentially saturates data type
+
+    } else {
+
+        if (Image::is(inputs[0])) {
+
+            cv::Mat image = Image::get_value(inputs[0]);
+            float value = Float::get_value(inputs[1]);
+
+            result = image + uniform_scalar((value), image.channels()); // TODO: scaling based on input
+
+        } else {
+
+            cv::Mat image = Image::get_value(inputs[1]);
+            float value = Float::get_value(inputs[0]);
+
+            result = image + uniform_scalar((value), image.channels());
+
+        }
+    }
 
     return std::make_shared<Image>(result);
 }
@@ -491,21 +591,19 @@ REGISTER_OPERATION_FUNCTION(ImageAdd);
  */
 SharedVariable ImageSubtract(std::vector<SharedVariable> inputs, ContextHandle context) noexcept(false) {
 
-    if (inputs.size() != 2) 
-        throw VariableException("Incorrect number of parameters");
+    VERIFY(inputs.size() == 2, "Incorrect number of parameters");
 
-    cv::Mat image_0 = Image::get_value(inputs[0]);
-    cv::Mat image_1 = Image::get_value(inputs[1]);
+    cv::Mat image0 = Image::get_value(inputs[0]);
+    cv::Mat image1 = Image::get_value(inputs[1]);
 
-    if (image_0.channels() != image_1.channels())
-        throw VariableException("Images must have same number of channels");
+    VERIFY(image0.rows == image1.rows && image0.cols == image1.cols, "Image sizes do not match");
 
-    if (image_0.rows != image_1.rows || image_0.cols != image_1.cols)
-        throw VariableException("Image sizes do not match");
+    auto image_pair = ensure_channels(image0, image1);
+    image0 = image_pair.first;
+    image1 = image_pair.second;
 
     cv::Mat result;
-    cv::subtract(image_0, image_1, result);
-    // cv::subtract saturates data type
+    cv::subtract(image0, image1, result); // cv::subtract saturates data type
 
     return std::make_shared<Image>(result);
 }
@@ -566,8 +664,7 @@ FILTER AND BLURING OPERATIONS
  */
 SharedVariable GaussianBlur(std::vector<SharedVariable> inputs, ContextHandle context) noexcept(false) {
 
-    if (inputs.size() != 5) 
-        throw VariableException("Incorrect number of parameters");
+    VERIFY(inputs.size() == 5, "Incorrect number of parameters");
 
     cv::Mat image = Image::get_value(inputs[0]);
     int size_x = Integer::get_value(inputs[1]);
@@ -582,6 +679,57 @@ SharedVariable GaussianBlur(std::vector<SharedVariable> inputs, ContextHandle co
 }
 
 REGISTER_OPERATION_FUNCTION(GaussianBlur);
+
+/**
+ * @brief Tabulates a function into a matrix of a given size
+ * 
+ */
+SharedVariable MapFunction(std::vector<SharedVariable> inputs, ContextHandle context, int function, bool normalize) noexcept(false) {
+
+    VERIFY(inputs.size() > 1, "Incorrect number of parameters");
+
+    int size_x = Integer::get_value(inputs[0]);
+    int size_y = Integer::get_value(inputs[1]);
+
+    cv::Mat result(size_y, size_x, CV_32F);
+
+    switch (function) {
+        case 0: {
+            VERIFY(inputs.size() == 6, "Incorrect number of parameters");
+
+            float mean_x = Float::get_value(inputs[2]);
+            float mean_y = Float::get_value(inputs[3]);
+            float sigma_x = Float::get_value(inputs[4]);
+            float sigma_y = Float::get_value(inputs[5]);
+
+            // intialising standard deviation to 1.0 
+            float sigma = 1.0; 
+            float r, s = 2.0 * sigma * sigma; 
+            // sum is for normalization 
+            float sum = 0.0; 
+        
+            // generating 5x5 kernel 
+            for (int x = 0; x < size_x; x++) { 
+                for (int y = 0; y < size_y; y++) {
+                    float px = x - mean_x;
+                    float py = y - mean_y;
+                    r = (px * px) / ( 2 * sigma_x * sigma_x ) + (py * py) / ( 2 * sigma_y * sigma_y );
+                    float v = exp(-r); 
+                    sum += v; 
+                    result.at<float>(y, x) = v;
+                } 
+            } 
+        
+            if (normalize)
+                result /= sum;
+
+        }
+    }
+
+    return std::make_shared<Image>(result);
+}
+
+REGISTER_OPERATION_FUNCTION(MapFunction, int, bool);
 
 /**
  * @brief Blurs an image using a median filter.
