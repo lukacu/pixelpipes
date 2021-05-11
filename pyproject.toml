@@ -1,0 +1,2 @@
+[build-system]
+requires = ["setuptools", "wheel", "setuptools_dso", "pybind11>=2.5.0", "numpy>=1.20", "pip"]

@@ -1,0 +1,2 @@
+exclude pixelpipes/engine/*
+include pixelpipes/engine/*.hpp

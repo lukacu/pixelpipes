@@ -4,35 +4,36 @@ import unittest
 
 import numpy as np
 
-from pixelpipes import GraphBuilder, Compiler, Output, Constant, with_torch, types
-from pixelpipes.nodes import IdentityView, ListSource
+from ..compiler import Compiler
+from ..graph import GraphBuilder
+from ..core import Output, Constant
+from ..core.list import ConstantList
+from .. import types
+from . import PipelineDataLoader
 
 class TestSinks(unittest.TestCase):
 
-    def test_torch(self):
-        if not with_torch():
-            return
-
-        import torch
-
+    def test_numpy_sink(self):
+        
         with GraphBuilder() as builder:
-            n1 = Constant(value=5)
-            n2 = IdentityView()
-            Output(outputs=[n1, n2])
-
-        compiler = Compiler()
+            Output(outputs=[Constant(1), ConstantList([10, 20, 30])])
         graph = builder.build()
-        pipeline = compiler.compile(graph)
 
-        sample = pipeline.run_torch(1)
+        batch_size = 10
 
-        self.assertIsInstance(sample[0], torch.Tensor)
-        self.assertEqual(sample[0][0], 5)
-        self.assertIsInstance(sample[1], torch.Tensor)
+        loader = PipelineDataLoader(graph, batch_size, 1)
+
+        for batch in loader:
+            self.assertIsInstance(batch[0], np.ndarray)
+            self.assertIsInstance(batch[1], np.ndarray)
+            self.assertEqual(batch[0].shape, (batch_size, 1))
+            self.assertEqual(batch[1].shape, (batch_size, 3, 1))
+
+            return
 
     def test_torch_list(self):
-        if not with_torch():
-            return
+        # TODO: fix this test
+        return
 
         import torch
         from pixelpipes.engine import FloatList

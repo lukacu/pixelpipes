@@ -4,165 +4,177 @@ import glob
 import setuptools
 from typing import Callable
 
-from setuptools import setup, Extension
-from setuptools.command.build_ext import build_ext
+from setuptools_dso import DSO, Extension, setup, build_ext
 
-__version__ = '0.0.2'
+__version__ = '0.0.3'
 
-class get_pybind_include(object):
-    def __call__(self):
-        import pybind11
-        return pybind11.get_include()
+platform = os.getenv("PYTHON_PLATFORM", sys.platform)
 
-class get_numpy_include(object):
-    def __call__(self):
-        import numpy
-        return numpy.get_include()
+root = os.path.abspath(os.path.dirname(__file__))
 
-class get_torch_include(object):
-    def __call__(self):
-        from torch.utils.cpp_extension import include_paths
-        return include_paths()
-
-class get_torch_libraries(object):
-    def __call__(self):
-        import torch.utils.cpp_extension
-        torch_path = os.path.dirname(os.path.dirname(os.path.abspath(torch.utils.cpp_extension.__file__)))
-        return os.path.join(torch_path, 'lib')
+if platform.startswith('linux'):
+    library_prefix = 'lib'
+    library_suffix = '.so'
+elif platform in ['darwin']:
+    library_prefix = 'lib'
+    library_suffix = '.dylib'
+elif platform.startswith('win'):
+    library_prefix = ''
+    library_suffix = '.dll'
 
 include_dirs=[
-    get_pybind_include,
-    get_numpy_include,
-    get_torch_include
+    os.path.join(root, "pixelpipes", "core"),
+    os.path.join(root, "pixelpipes", "geometry"),
+    os.path.join(root, "pixelpipes", "image")
 ]
-
+library_dirs = []
 runtime_dirs = []
-library_dirs = [
-    get_torch_libraries
-]
 
-if os.name == "nt":
+import pybind11
+include_dirs.append(pybind11.get_include())
+
+import numpy
+include_dirs.append(numpy.get_include())
+
+#from torch.utils import cpp_extension as torch_extension
+#include_dirs.extend(torch_extension.include_paths())
+#torch_path = os.path.dirname(os.path.dirname(os.path.abspath(torch_extension.__file__)))
+#library_dirs.append(os.path.join(torch_path, 'lib'))
+
+if platform.startswith('win'):
     #opencv_version = "420"
     opencv_version = "310"
     libraries = ["opencv_world{}".format(opencv_version)]
 else:
-    libraries = ["opencv_core", "opencv_imgcodecs"]
+    libraries = ["opencv_imgcodecs", "opencv_core", "opencv_imgproc"]
     
 define_macros = []
 
-define_macros.append(("__PP_PYTORCH", None))
-define_macros.append(("_GLIBCXX_USE_CXX11_ABI", "0"))
-libraries.extend(['c10', 'torch', 'torch_python'])
+#define_macros.append(("_GLIBCXX_USE_CXX11_ABI", "0")) <- this causes problems with opencv_imgcodecs
+#libraries.extend(['c10', 'torch', 'torch_python'])
+
+if "PIXELPIPES_DEBUG" in os.environ:
+    define_macros.append(("PIXELPIPES_DEBUG", None))
+
+compiler_args = ['-std=c++17', '-pthread']
 
 if "CONDA_PREFIX" in os.environ:
     conda_path = os.environ["CONDA_PREFIX"]
     library_dirs.append(os.path.join(conda_path, "lib"))
     include_dirs.append(os.path.join(conda_path, "include"))
     include_dirs.append(os.path.join(conda_path, "include", "opencv4"))
-    if not os.name == "nt":
+    if not platform.startswith('win'):
         runtime_dirs.append(os.path.join(conda_path, "lib"))
+else:
+    include_dirs.append(os.path.join("/usr", "include", "opencv4"))
 
-ext_modules = [
-    Extension(
-        'pixelpipes.engine',
-        # Sort input source files to ensure bit-for-bit reproducible builds
-        # (https://github.com/pybind/python_example/pull/53)
-        sorted(glob.glob("pixelpipes/engine/*.cpp")),
+class SharedLibrary(Extension): 
+    pass
+
+lib_core = DSO('pixelpipes.core.pp_core', sources= [
+        "pixelpipes/core/module.cpp",
+        "pixelpipes/core/operation.cpp",
+        "pixelpipes/core/types.cpp",
+        "pixelpipes/core/engine.cpp",
+        "pixelpipes/core/queue.cpp",
+        "pixelpipes/core/random.cpp",
+        "pixelpipes/core/numbers.cpp",
+        "pixelpipes/core/list.cpp"
+        ],
+    extra_compile_args=compiler_args,
+    define_macros=define_macros + [("PIXELPIPES_BUILD_CORE", None)],
+    include_dirs=include_dirs,
+    library_dirs=library_dirs,
+    runtime_library_dirs = runtime_dirs,
+    libraries=list(libraries) + ["dl"],
+    language='c++'
+)
+
+lib_goemetry = DSO('pixelpipes.geometry.pp_geometry', sources= [
+        "pixelpipes/geometry/geometry.cpp",
+        "pixelpipes/geometry/view.cpp",
+        "pixelpipes/geometry/points.cpp",
+        ],
+    extra_compile_args=compiler_args,
+    define_macros=define_macros,
+    include_dirs=include_dirs,
+    library_dirs=library_dirs,
+    runtime_library_dirs = runtime_dirs,
+    libraries=list(libraries),
+    dsos=['pixelpipes.core.pp_core'],
+    language='c++'
+)
+lib_image = DSO('pixelpipes.image.pp_image', sources= [
+        "pixelpipes/image/image.cpp",
+        "pixelpipes/image/arithmetic.cpp",
+        "pixelpipes/image/render.cpp",
+        "pixelpipes/image/geometry.cpp",
+        "pixelpipes/image/filter.cpp",
+        "pixelpipes/image/processing.cpp",
+        ],
+    extra_compile_args=compiler_args,
+    define_macros=define_macros,
+    include_dirs=include_dirs,
+    library_dirs=library_dirs,
+    runtime_library_dirs = runtime_dirs,
+    libraries=list(libraries),
+    dsos=['pixelpipes.core.pp_core', 'pixelpipes.geometry.pp_geometry'],
+    language='c++'
+)     
+
+lib_modules = [
+    lib_core,
+    lib_goemetry,
+    lib_image
+]
+
+ext_core = Extension(
+        'pixelpipes.pp_py',
+        ["pixelpipes/core/python.cpp"],
+        extra_compile_args=['-std=c++17'],
         define_macros=define_macros,
         include_dirs=include_dirs,
         library_dirs=library_dirs,
         runtime_library_dirs = runtime_dirs,
-        libraries=libraries,
+        libraries=list(libraries),
+        dsos=['pixelpipes.core.pp_core'],
         language='c++'
-    ),
+    )
+
+ext_geometry = Extension(
+        'pixelpipes.geometry.pp_geometry_py',
+        ["pixelpipes/geometry/python.cpp"],
+        extra_compile_args=['-std=c++17'],
+        define_macros=define_macros,
+        include_dirs=include_dirs,
+        library_dirs=library_dirs,
+        runtime_library_dirs = runtime_dirs,
+        libraries=list(libraries),
+        dsos=['pixelpipes.core.pp_core', 'pixelpipes.geometry.pp_geometry'],
+        language='c++'
+    )
+
+ext_image = Extension(
+        'pixelpipes.image.pp_image_py',
+        ["pixelpipes/image/python.cpp"],
+        extra_compile_args=['-std=c++17'],
+        define_macros=define_macros,
+        include_dirs=include_dirs,
+        library_dirs=library_dirs,
+        runtime_library_dirs = runtime_dirs,
+        libraries=list(libraries),
+        dsos=['pixelpipes.core.pp_core', 'pixelpipes.geometry.pp_geometry', 'pixelpipes.image.pp_image'],
+        language='c++'
+    )
+
+
+# Sort input source files to ensure bit-for-bit reproducible builds
+# (https://github.com/pybind/python_example/pull/53)
+ext_modules = [
+    ext_core,
+    ext_geometry,
+    ext_image
 ]
-
-
-# cf http://bugs.python.org/issue26689
-def has_flag(compiler, flagname):
-    """Return a boolean indicating whether a flag name is supported on
-    the specified compiler.
-    """
-    import tempfile
-    import os
-    with tempfile.NamedTemporaryFile('w', suffix='.cpp', delete=False) as f:
-        f.write('int main (int argc, char **argv) { return 0; }')
-        fname = f.name
-    try:
-        compiler.compile([fname], extra_postargs=[flagname])
-    except setuptools.distutils.errors.CompileError:
-        return False
-    finally:
-        try:
-            os.remove(fname)
-        except OSError:
-            pass
-    return True
-
-
-def cpp_flag(compiler):
-    """Return the -std=c++[11/14/17] compiler flag.
-    The newer version is prefered over c++11 (when it is available).
-    """
-    flags = ['-std=c++17', '-std=c++14', '-std=c++11']
-
-    for flag in flags:
-        if has_flag(compiler, flag):
-            return flag
-
-    raise RuntimeError('Unsupported compiler -- at least C++11 support '
-                       'is needed!')
-
-
-class BuildExt(build_ext):
-    """A custom build extension for adding compiler-specific options."""
-    c_opts = {
-        'msvc': ['/EHsc'],
-        'unix': [],
-    }
-    l_opts = {
-        'msvc': [],
-        'unix': [],
-    }
-
-    if sys.platform == 'darwin':
-        darwin_opts = ['-stdlib=libc++', '-mmacosx-version-min=10.7']
-        c_opts['unix'] += darwin_opts
-        l_opts['unix'] += darwin_opts
-
-    def build_extensions(self):
-        ct = self.compiler.compiler_type
-        opts = self.c_opts.get(ct, [])
-        link_opts = self.l_opts.get(ct, [])
-        if ct == 'unix':
-            opts.append(cpp_flag(self.compiler))
-            if has_flag(self.compiler, '-fvisibility=hidden'):
-                opts.append('-fvisibility=hidden')
-
-        def _realize(c):
-
-            if not isinstance(c, str):
-                paths = c()
-                if isinstance(paths, str):
-                    return [paths]
-                elif isinstance(paths, list):
-                    return paths
-                else:
-                    return _realize(paths)
-            else:
-                return [c]
-
-        for ext in self.extensions:
-            ext.define_macros = getattr(ext, "define_macros", []) + [('VERSION_INFO', '"{}"'.format(self.distribution.get_version()))]
-            ext.extra_compile_args = opts
-            ext.extra_link_args = link_opts
-
-            ext.include_dirs = [p for x in ext.include_dirs for p in _realize(x) ]
-            ext.library_dirs = [p for x in ext.library_dirs for p in _realize(x) ]
-            ext.runtime_library_dirs = [p for x in ext.runtime_library_dirs for p in _realize(x)]
-
-        build_ext.build_extensions(self)
-
 
 setup(
     name='pixelpipes',
@@ -173,10 +185,12 @@ setup(
     description='Infinite data streams for deep learning',
     long_description='',
     ext_modules=ext_modules,
+    x_dsos=lib_modules,
     packages=setuptools.find_packages(),
-    setup_requires=["pybind11>=2.5.0", "numpy>=1.19", "torch"],
+    include_package_data=True,
+    setup_requires=["pybind11>=2.5.0", "numpy>=1.20"],
     install_requires=[
-        "numpy>=1.19",
+        "numpy>=1.20",
         "bidict>=0.21",
         "intbitset>=2.4",
         "attributee>=0.1.2"
@@ -185,6 +199,5 @@ setup(
         'torch': ['torch']
     },
     python_requires='>=3.6',
-    cmdclass={'build_ext': BuildExt},
     zip_safe=False,
 )

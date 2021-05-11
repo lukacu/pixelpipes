@@ -1,49 +1,42 @@
-
+import typing
+import numbers
+from pixelpipes.graph import Graph
 
 import torch
+import numpy as np
 
-from pixelpipes.sink import BatchIterator, DataLoader
+from .. import types
+from . import BatchIterator, PipelineDataLoader, WorkerPool
 
-class TorchDataLoader(DataLoader):
+def _transform_image(tensor: torch.Tensor):
+    if tensor.ndimension() == 4:
+        return tensor.permute((0, 3, 1, 2))
+    return tensor
+
+class TorchDataLoader(PipelineDataLoader):
 
     class _TorchBatchIterator(BatchIterator):
 
+        def __init__(self, commit, size: int, offset: int, transformers):
+            super().__init__(commit, size, offset=offset)
+            self._transformers = transformers
+
         def _reduce(self, samples):
-
             batch = []
-
             for i in range(len(samples[0])):
                 field = [x[i] for x in samples]
-                batch.append(torch.stack(field, dim=0))
-
-            return batch
-
-    def _commit(self, index):
-        try:
-            return self._workers.submit(self._pipeline.run_torch, index)
-        except RuntimeError:
-            return None
+                batch.append(torch.from_numpy(np.stack(field, axis=0)))
+            return [transformer(item) for item, transformer in zip(batch, self._transformers)]
 
     def __iter__(self):
-        return TorchDataLoader._TorchBatchIterator(self._commit, self._batch, offset=self._offset)
+        return TorchDataLoader._TorchBatchIterator(self._commit, self._batch, offset=self._offset, transformers=self._transformers)
 
-def _test_loader():
-
-    from pixelpipes import GraphBuilder, Output
-    from pixelpipes.nodes import UniformDistribution, MakePoint
-    from pixelpipes.nodes.expression import Expression
-
-    with GraphBuilder() as builder:
-        n1 = builder.add(UniformDistribution(5, 10))
-        n2 = builder.add(UniformDistribution(15, 500))
-        n3 = builder.add(Expression("((x - y) * 2)", variables=dict(x=n1, y=n2)))
-
-        builder.add(Output([n3, MakePoint(n1, n2)]))
-
-    loader = TorchDataLoader(builder.build(), batch=100, workers=5)
-
-    for _, sample in zip(range(100), loader):
-        print(sample)
-
-if __name__ == '__main__':
-    _test_loader()
+    def __init__(self, graph: Graph, batch: int, workers: typing.Optional[typing.Union[int, WorkerPool]],
+         variables: typing.Optional[typing.Mapping[str, numbers.Number]], output: typing.Optional[str], offset: int):
+        super().__init__(graph, batch, workers=workers, variables=variables, output=output, offset=offset)
+        self._transformers = []
+        for _, typ in self._outputs():
+            if isinstance(typ, types.Image):
+                self._transformers.append(_transform_image)
+            else:
+                self._transformers.append(lambda x: x)

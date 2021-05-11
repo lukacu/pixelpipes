@@ -1,5 +1,5 @@
 
-import pixelpipes.engine as engine
+raise NotImplementedError("This module is still work in progress, do not import it")
 
 _CACHE_STACK = []
 

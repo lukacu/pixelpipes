@@ -1,6 +1,7 @@
 
 import typing
 from enum import Enum
+import numbers
 
 class TypeException(Exception):
 
@@ -51,7 +52,7 @@ class Any(Type):
         return True
 
 class Union(Type):
-    """Denotes type that accepts any of the given inputs.
+    """Denotes type that accepts any of the given inputs. Do not nest unions.
     """
 
     def __init__(self, *args: Type):
@@ -80,6 +81,13 @@ class ParametricType(Type):
 
     def __init__(self, *parameters):
         super().__setattr__("_parameters", {parameter: None for parameter in parameters})
+
+    def duplicate(self, **kwargs):
+        params = dict(**self._parameters)
+        for key, value in kwargs.items():
+            if key in params:
+                params[key] = value
+        return self.__class__(**params)
 
     def _set(self, key, value):
         self._parameters[key] = value
@@ -131,9 +139,13 @@ class Number(ParametricType):
         super().__init__("value")
 
     def castable(self, typ: Type):
+        if isinstance(typ, Union):
+            typ = typ.common(self)
         return isinstance(typ, Number) and self._common_parameters(typ)
 
     def common(self, typ: "Type") -> "Type":
+        if isinstance(typ, Union):
+            return typ.common(self)
         if isinstance(typ, Number):
             return Number()
         else:
@@ -160,6 +172,8 @@ class Integer(Number):
         self._set("value", int(value) if value is not None else None)
 
     def castable(self, typ: Type):
+        if isinstance(typ, Union):
+            typ = typ.common(self)
         return isinstance(typ, Integer) and self._common_parameters(typ)
 
     def common(self, typ: "Type") -> "Type":
@@ -179,20 +193,6 @@ class Float(Number):
             return Float(**self._common_parameters(typ))
         else:
             return super().common(typ)
-
-class View(Type):
-    """Represents a 3x3 linear transformation matrix.
-    """
-
-    def castable(self, typ: Type):
-        return isinstance(typ, View)
-
-class Point(Type):
-    """Represents a two-dimensional point.
-    """
-
-    def castable(self, typ: Type):
-        return isinstance(typ, Point)
 
 class ImagePurpose(Enum):
     VISUAL = 1
@@ -267,6 +267,11 @@ class List(ParametricType):
     def element(self):
         return self._type
 
+    def __getitem__(self, i):
+        if i < 0 or (self.length is not None and i >= self.length):
+            raise TypeException("Index out of bounds")
+        return self._type
+
     def castable(self, typ: Type):
         return isinstance(typ, List) and self._common_parameters(typ) and self._type.castable(typ.element)
 
@@ -276,20 +281,47 @@ class List(ParametricType):
         else:
             return Any()
 
-def BoundingBox():
-    return List(Float(), 4)
+class ConstantList(List):
+    """Type that represents a list of elements.
+    """
 
-def Rectangle():
-    return List(Float(), 4)
+    def __init__(self, data: typing.List[numbers.Number]):
+        """[summary]
 
-def Points(length=None):
-    return List(Point(), length)
+        Args:
+            data (typing.List[numbers.Number]): Data for the list
 
-def Primitive():
-    return Union(Number(), Image(), View(), Point(), List())
+        Raises:
+            TypeException: in case of incorrect element type.
+        """
+        if not all([x is None or isinstance(x, numbers.Number) for x in data]):
+            raise TypeException("List data must be numerical") 
+        element_type = Integer() if all([x is None or isinstance(x, int) for x in data]) else Float()
+        super().__init__(element_type, len(data))
+        self._data = data
 
+    def __getitem__(self, i):
+        if i < 0 or (self.length is not None and i >= self.length):
+            raise TypeException("Index out of bounds")
+        return Integer(self._data[i]) if isinstance(self.element, Integer) else Float(self._data[i])
+
+class Primitive(Type):
+    """Denotes type that accepts any non-complex type.
+    """
+
+    def castable(self, typ: Type) -> bool:
+        return not isinstance(typ, Complex)
+
+    def fixed(self) -> bool:
+        return False
+
+    def common(self, typ: "Type") -> "Type":
+        if isinstance(typ, Complex):
+            return Any()
+        return typ
 class Complex(Type):
-    """Base class for all non-primitive types. Complex type is essentially a flat structure key-value type.
+    """Base class for all non-primitive types. Complex type is essentially a flat structure key-value type that simplifies handling
+    several inputs in parallel.
     """
 
     def __init__(self, elements: typing.Optional[typing.Dict[str, Type]] = None):
@@ -356,7 +388,7 @@ class Complex(Type):
         return self._elements
 
     def access(self, element: str, parent: "Reference"):
-        from pixelpipes import Reference
+        from pixelpipes.node import Reference
         if not element in self:
             raise TypeException("Element {} not found in complex resource".format(element))
         return Reference(parent + "." + element)

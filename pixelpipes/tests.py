@@ -1,223 +1,102 @@
-
 import unittest
-
 import numpy as np
 
-from pixelpipes import *
-from pixelpipes.nodes.resources import *
-from pixelpipes.nodes.flow import Switch
-from pixelpipes.nodes.expression import Expression
+from .core import Constant, Output, SampleNumber
+from .core.numbers import Floor, Round, UniformDistribution
+from .core.expression import Expression
+from .core.flow import Switch
+from .core.list import ConstantList, ConstantTable, ListElement
+from .graph import GraphBuilder
+from .compiler import Compiler, Conditional
 
-class TestPipes(unittest.TestCase):
+class TestPipes(unittest.TestCase):    
 
-    def test_dropout_operations(self):
-        builder = GraphBuilder()
-        n1 = builder.add(ImageDirectory(path="./pixelpipes/test_img"))
-        n2 = builder.add(GetRandomResource(resources=n1))
-        n3 = builder.add(ExtractField(resource=n2, field="image"))
+    """
+    core/numerical.py
+    """
 
-        n4 = builder.add(ImageCoarseDropout(source=n3, probability=0.5, size_percent=0.5))
-        n5 = builder.add(ImageDropout(source=n3, probability=0.5))
-
-        builder.add(Output(outputs=[n4, n5]))
-        compiler = Compiler()
-        graph = builder.build()
-        pipeline = compiler.compile(graph)
-        sample = pipeline.run(1)
-
-        self.assertIsInstance(sample[0], np.ndarray)
-        self.assertIsInstance(sample[1], np.ndarray)
-
-    def test_convert_depth(self): 
-        builder = GraphBuilder()
-        n1 = builder.add(ImageDirectory(path="./pixelpipes/test_img"))
-        n2 = builder.add(GetRandomResource(resources=n1))
-        n3 = builder.add(ExtractField(resource=n2, field="image"))
-
-        n4 = builder.add(ConvertDepth(source=n3, depth="BYTE"))
-        n5 = builder.add(ConvertDepth(source=n3, depth="SHORT"))
-        n6 = builder.add(ConvertDepth(source=n3, depth="FLOAT"))
-        n7 = builder.add(ConvertDepth(source=n3, depth="DOUBLE"))
-
-        builder.add(Output(outputs=[n4, n5, n6, n7]))
-        compiler = Compiler()
-        graph = builder.build()
-        pipeline = compiler.compile(graph)
-        sample = pipeline.run(1)
-
-        self.assertIs(sample[0].dtype, np.dtype('ubyte'))
-        self.assertIs(sample[1].dtype, np.dtype('short'))
-        self.assertIs(sample[2].dtype, np.dtype('float32'))
-        self.assertIs(sample[3].dtype, np.dtype('float64'))
-
-    def test_noise_generation(self):
-        builder = GraphBuilder()
-        n1 = builder.add(NormalNoise(width=10, height=10, mean=0.5, std=0.05))  
-        n2 = builder.add(UniformNoise(width=10, height=10, min=0.0, max=1.0))
-
-        builder.add(Output(outputs=[n1, n2]))
-        compiler = Compiler()
-        graph = builder.build()
-        pipeline = compiler.compile(graph)
-        sample = pipeline.run(1)
-
-        self.assertIsInstance(sample[0], np.ndarray)
-        self.assertIsInstance(sample[1], np.ndarray)
-
-    def test_add_subtract(self):
-        builder = GraphBuilder()
-        n1 = builder.add(ImageDirectory(path="./pixelpipes/test_img"))
-        n2 = builder.add(GetRandomResource(resources=n1))
-        n3 = builder.add(ExtractField(resource=n2, field="image"))
-
-        n4 = builder.add(ImageSubtract(source_1=n3, source_2=n3))  
-        n5 = builder.add(ImageAdd(source1=n4, source2=n3))
-
-        builder.add(Output(outputs=[n3, n5]))
-        compiler = Compiler()
-        graph = builder.build()
-        pipeline = compiler.compile(graph)
-        sample = pipeline.run(1)
-
-        np.testing.assert_array_equal(sample[0], sample[1])
-
-    def test_multiply(self):
-        builder = GraphBuilder()
-        n1 = builder.add(ImageDirectory(path="./pixelpipes/test_img"))
-        n2 = builder.add(GetRandomResource(resources=n1))
-        n3 = builder.add(ExtractField(resource=n2, field="image"))
-
-        # CONVERT TO FLOAT TO AVOID ROUNDING ERRORS
-        n4 = builder.add(ConvertDepth(source=n3, depth="FLOAT"))
-        n5 = builder.add(ImageMultiply(source=n4, multiplier=0.5))  
-        n6 = builder.add(ImageMultiply(source=n5, multiplier=2.0))  
-
-        builder.add(Output(outputs=[n4, n6]))
-        compiler = Compiler()
-        graph = builder.build()
-        pipeline = compiler.compile(graph)
-        sample = pipeline.run(1)
-
-        np.testing.assert_array_equal(sample[0], sample[1])
-
-    def test_blend(self):
-        builder = GraphBuilder()
-        n1 = builder.add(ImageDirectory(path="./pixelpipes/test_img"))
-        n2 = builder.add(GetRandomResource(resources=n1))
-        n3 = builder.add(ExtractField(resource=n2, field="image"))
-
-        n4 = builder.add(ImageBlend(source_1=n3, source_2=n3, alpha=0.5))  
-
-        builder.add(Output(outputs=[n3, n4]))
-        compiler = Compiler()
-        graph = builder.build()
-        pipeline = compiler.compile(graph)
-        sample = pipeline.run(1)
-
-        np.testing.assert_array_equal(sample[0], sample[1])
-
-    def test_filter_operations(self):
-        builder = GraphBuilder()
-        n1 = builder.add(ImageDirectory(path="./pixelpipes/test_img"))
-        n2 = builder.add(GetRandomResource(resources=n1))
-        n3 = builder.add(ExtractField(resource=n2, field="image"))
-
-        n4 = builder.add(GaussianBlur(source=n3, size_x=3, size_y=3, sigma_x=1.0, sigma_y=1.0))
-        n5 = builder.add(ConvertDepth(source=n3, depth="BYTE"))
-        n6 = builder.add(MedianBlur(source=n5, size=7))
-        n7 = builder.add(AverageBlur(source=n3, size=7))
-        n8 = builder.add(BilateralFilter(source=n3, d=5, sigma_color=5, sigma_space=5))
-
-        builder.add(Output(outputs=[n4, n6, n7, n8]))
-        compiler = Compiler()
-        graph = builder.build()
-        pipeline = compiler.compile(graph)
-        sample = pipeline.run(1)
-
-        self.assertIsInstance(sample[0], np.ndarray)
-        self.assertIsInstance(sample[1], np.ndarray)
-        self.assertIsInstance(sample[2], np.ndarray)
-        self.assertIsInstance(sample[3], np.ndarray)
-
-    def test_channel_extract_merge(self):
-        builder = GraphBuilder()
-        n1 = builder.add(ImageDirectory(path="./pixelpipes/test_img"))
-        n2 = builder.add(GetRandomResource(resources=n1))
-        n3 = builder.add(ExtractField(resource=n2, field="image"))
-
-        n4 = builder.add(Channel(source=n3, index=0))
-        n5 = builder.add(Channel(source=n3, index=1))
-        n6 = builder.add(Channel(source=n3, index=2))
-        n7 = builder.add(Merge(source_0=n4, source_1=n5, source_2=n6))
-
-        builder.add(Output(outputs=[n3, n7]))
-        compiler = Compiler()
-        graph = builder.build()
-        pipeline = compiler.compile(graph)
-        sample = pipeline.run(1)
-
-        np.testing.assert_array_equal(sample[0], sample[1])
-
-    def test_numerical(self):
-        builder = GraphBuilder()
-        n1 = builder.add(Constant(value=5))
-        n2 = builder.add(Constant(value=15))
-        n3 = builder.add(Expression(source="((x ^ 2 - y) * 2) / 5 + 2", variables=dict(x=n1, y=n2)))
-
-        builder.add(Output(outputs=[n3]))
-        compiler = Compiler()
-        graph = builder.build()
-        pipeline = compiler.compile(graph)
-
-        self.assertEqual(pipeline.run(1)[0], 6)
-
-    def test_view(self):
-        with GraphBuilder() as builder:
-            n1 = AffineView(x=0, y=1)
-            n2 = RotateView(angle=3)
-
-            Output(outputs=[Chain(inputs=[n1, n2])])
-        compiler = Compiler()
-        pipeline = compiler.compile(builder)
-        pipeline.run(1)
-
-        # TODO: calculate transform manually, compare matrices
-        #self.assertEqual(pipeline.run(1)[0], 3)
-
-    def test_numpy_out(self):
-        builder = GraphBuilder()
-        n1 = builder.add(Constant(value=5))
-        n2 = builder.add(IdentityView())
-
-        builder.add(Output(outputs=[n1, n2]))
-        compiler = Compiler()
-        graph = builder.build()
-        pipeline = compiler.compile(graph)
-
-        sample = pipeline.run_numpy(1)
-
-        self.assertIsInstance(sample[0], np.ndarray)
-        self.assertEqual(sample[0][0], 5)
-        self.assertIsInstance(sample[1], np.ndarray)
-
-    def test_jumps(self):
-
-        from pixelpipes.compiler import Conditional
+    def test_expression(self):
 
         with GraphBuilder() as graph:
-            v1 = Variable(name="v1", default=0)
-            v2 = Variable(name="v2", default=0)
-            v3 = Variable(name="v3", default=0)
-            v4 = Variable(name="v4", default=0)
-            v5 = Variable(name="v5", default=0)
-            v6 = Variable(name="v6", default=0)
+            n1 = Constant(value=5)
+            n2 = Constant(value=15)
+            n3 = Expression(source="((x ^ 2 - y) * 2) / 5 + 2", variables=dict(x=n1, y=n2))
+            Output(outputs=[n3])
 
-            #Conditional(true=Conditional(true=Conditional(true=)), false=0, condition=v1)
+        pipeline = Compiler.compile_graph(graph)
+        sample = pipeline.run(1)
+
+        self.assertEqual(sample[0], 6)
+
+    def test_arithmetic(self):
+
+        with GraphBuilder() as graph:
+            n1 = Constant(6)
+            n2 = Constant(3)
+            Output(outputs=[n1+n2, n1-n2, n1*n2, n1/n2, n1**n2, n1%n2, -n1])
+
+        pipeline = Compiler.compile_graph(graph)
+        sample = pipeline.run(1)
+
+        self.assertEqual(sample[0], 9)
+        self.assertEqual(sample[1], 3)
+        self.assertEqual(sample[2], 18)
+        self.assertEqual(sample[3], 2)
+        self.assertEqual(sample[4], 216)
+        self.assertEqual(sample[5], 0)
+        self.assertEqual(sample[6], -6)
+
+    def test_uniform_sampling(self):
+
+        a = 1.5
+        b = 3
+
+        with GraphBuilder() as graph:
+            bb = Constant(a)
+            Output(outputs=[UniformDistribution(a, b), bb])
+
+        pipeline = Compiler.compile_graph(graph)
+
+        for i in range(3):
+            sample = pipeline.run(i)
+            self.assertGreaterEqual(sample[0], a)
+            self.assertLess(sample[0], b)
+
+    def test_list(self):
+
+        with GraphBuilder() as graph:
+            n1 = ConstantList([0, 1, 2])
+            Output(outputs=[n1])
+
+        pipeline = Compiler.compile_graph(graph)
+        sample = pipeline.run(1)
+        np.testing.assert_array_equal(sample[0], [[0], [1], [2]])
+
+    def test_table(self):
+
+        with GraphBuilder() as graph:
+            n = ConstantTable([[0, 1, 2], [3, 4, 5]])
+            Output(outputs=[ListElement(n, 0)])
+
+        pipeline = Compiler.compile_graph(graph)
+        sample = pipeline.run(1)
+        np.testing.assert_array_equal(sample[0], [[0], [1], [2]])
 
 
-            #Output(outputs=[Switch(inputs=[d, b, a - b], weights=[0.5, 0.5, 0.5])])
-       
+    def test_jumps(self):
+        with GraphBuilder() as graph:
+            c1 = Round(Floor(SampleNumber() / 4) % 2)
+            c2 = Round(Floor(SampleNumber() / 2) % 2)
+            c3 = (Round(SampleNumber() % 2))
+            n1 = Conditional(true=1, false=0, condition=c1)
+            n2 = Conditional(true=(n1*2)+1, false=n1*2, condition=c2)
+            n3 = Conditional(true=(n2*2)+1, false=n2*2, condition=c3)
+            Output([n3])
 
+        pipeline = Compiler.compile_graph(graph)
+        for i in range(8):
+            sample = pipeline.run(i)
+            self.assertEqual(sample[0], i)
 
     def test_predictive(self):
 
@@ -229,7 +108,7 @@ class TestPipes(unittest.TestCase):
             b = Constant(value=4)
             Output(outputs=[Switch(inputs=[d, b, a - b], weights=[0.5, 0.5, 0.5])])
 
-        pipeline1 = Compiler().compile(graph)
+        pipeline1 = Compiler.compile_graph(graph)
         pipeline2 = Compiler(predictive=False).compile(graph)
 
         for i in range(1, 100):

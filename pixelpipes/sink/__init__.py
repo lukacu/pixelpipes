@@ -8,8 +8,8 @@ import numbers
 
 import numpy as np
 
-from pixelpipes import Graph, Compiler
-from pixelpipes.engine import Convert
+from ..graph import Graph
+from ..compiler import Compiler
 
 class BatchIterator(object):
     """Abstract batch iterator base with most functionality for consumer
@@ -29,7 +29,7 @@ class BatchIterator(object):
         self._lock = Condition()
         self._cache = []
         self._partial = None
-        self._cache_size = 2
+        self._cache_size = 10
         self._cache_start = 0
         self._exception = None
 
@@ -100,7 +100,44 @@ class WorkerPool(ThreadPoolExecutor):
     def __init__(self, max_workers: int = 1):
         super().__init__(max_workers=max_workers, thread_name_prefix="pixelpipes_worker")
 
-class DataLoader(object):
+class AbstractDataLoader(object):
+
+    class _BatchIterator(BatchIterator):
+
+        def _reduce(self, samples):
+            batch = []
+            for i in range(len(samples[0])):
+                field = [x[i] for x in samples]
+                batch.append(np.stack(field, axis=0))
+            return batch
+
+    def __init__(self, batch: int, workers: typing.Optional[typing.Union[int, WorkerPool]] = None, offset: int = 0):
+        if workers is None:
+            workers = WorkerPool()
+        elif isinstance(workers, int):
+            workers = WorkerPool(workers)
+
+        self._workers = workers
+        self._batch = batch
+        self._offset = offset
+
+    def _commit(self, index):
+        raise NotImplementedError()
+
+    def __iter__(self):
+        return AbstractDataLoader._BatchIterator(self._commit, self._batch, offset=self._offset)
+
+    def benchmark(self, n = 100):
+        import time
+
+        start = time.perf_counter()
+
+        for i in zip(range(n), self):
+            pass
+
+        return (time.perf_counter() - start) / n
+
+class PipelineDataLoader(AbstractDataLoader):
 
     class _BatchIterator(BatchIterator):
 
@@ -115,26 +152,23 @@ class DataLoader(object):
         variables: typing.Optional[typing.Mapping[str, numbers.Number]] = None,
         output: typing.Optional[str] = None, offset: int = 0):
 
-        if workers is None:
-            workers = WorkerPool()
-        elif isinstance(workers, int):
-            workers = WorkerPool(workers)
+        super().__init__(batch, workers, offset)
 
         compiler = Compiler(fixedout=True)
         self._pipeline = compiler.compile(graph, variables=variables, output=output)
-        self._workers = workers
-        self._batch = batch
-        self._offset = offset
+
+    def _outputs(self):
+        return self._pipeline.outputs()
 
     def _commit(self, index):
         try:
-            return self._workers.submit(self._pipeline.run, index, Convert.NUMPY)
+            return self._workers.submit(self._pipeline.run, index)
         except RuntimeError:
             return None
 
-    def __iter__(self):
-        return DataLoader._BatchIterator(self._commit, self._batch, offset=self._offset)
-
+    @property
+    def pipeline(self):
+        return self._pipeline
 
 try:
     import torch
