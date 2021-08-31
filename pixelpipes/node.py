@@ -8,6 +8,7 @@ from attributee import Attributee, Attribute, AttributeException, Undefined, is_
 
 from attributee.object import class_fullname
 from attributee.primitives import Enumeration, to_number
+from numpy import isin
 
 import pixelpipes.types as types
 
@@ -175,13 +176,15 @@ class InferredReference(Reference):
         if i == 1:
             return self.type
 
+        if isinstance(self._typ, types.Complex) and isinstance(i, str):
+            return self._typ.access(i, self)
+        
     def __neg__(self):
         return _UnaryOperationWrapper(self, UnaryOperation.NEGATE)
 
 def hidden(node_class):
     node_class.node_hidden_base = node_class
     return node_class
-
 
 def _ensure_node(value):
     from .graph import GraphBuilder
@@ -206,13 +209,13 @@ _operation_registry = {}
 class Node(Attributee):
 
     def __init__(self, *args, _name: str = None, _auto: bool = True, _origin: "Node" = None, **kwargs):
-        """Node constructor, please do not overload it directly, override _init method to add custom 
-        initialization code.
-
-        Args:
-            _name (str, optional): Internal parameter used for context graph builder. Defaults to None.
-            _auto (bool, optional): Should a node automatically be added to a context builder. Defaults to True.
-        """
+        #Node constructor, please do not overload it directly, override _init method to add custom 
+        #initialization code.
+        #
+        #Args:
+        #    _name (str, optional): Internal parameter used for context graph builder. Defaults to None.
+        #    _auto (bool, optional): Should a node automatically be added to a context builder. Defaults to True.
+        
         super().__init__(*args, **kwargs)
 
         self._cache = {}

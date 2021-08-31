@@ -15,8 +15,8 @@ class ImageNoise(Macro):
     """Apply gaussian noise to an image
 
     Inputs:
-      - source: Input image
-      - amount: Amount of noise
+        - source: Input image
+        - amount: Amount of noise
 
     Category: image, augmentation, noise
     """
@@ -46,8 +46,8 @@ class ImageBrightness(Macro):
     """Change image brightness
 
     Inputs:
-      - source: Input image
-      - amount: Amount of noise
+        - source: Input image
+        - amount: Amount of noise
 
     Category: image, augmentation
     """
@@ -71,13 +71,12 @@ class ImagePiecewiseAffine(Macro):
     """Piecewise affine transformation of image. This augmentation creates a grid of random perturbations and
     interpolates this transformation over the entire image.
 
-
     Inputs:
-      - source: Input image
-      - amount: Amount of petrubations
+        - source: Input image
+        - amount: Amount of petrubations
 
     Arguments:
-      - subdivision: Number of points
+        - subdivision: Number of points
 
     Category: image, augmentation
     """

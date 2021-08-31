@@ -407,15 +407,20 @@ public:
     virtual bool is_scalar() const { return false; }
 
     inline static bool is(SharedVariable v) {
-        return ((bool) v && v->type() == ListType);
+        return ((bool) v && !v->is_scalar());
     }
 
     inline static bool is_list(SharedVariable v) {
-        return ((bool) v && v->type() == ListType);
+        return ((bool) v && !v->is_scalar());
     }
 
     inline static bool is_list(SharedVariable v, TypeIdentifier type) {
-        return ((bool) v && v->type() == ListType) && std::static_pointer_cast<List>(v)->element_type() == type;
+        return ((bool) v && !v->is_scalar()) && std::static_pointer_cast<List>(v)->element_type() == type;
+    }
+
+    inline static std::shared_ptr<List> get_list(SharedVariable v) {
+        VERIFY(((bool) v && !v->is_scalar()), "Not a list");
+        return std::static_pointer_cast<List>(v);
     }
 
     inline static size_t length(SharedVariable v) {
@@ -450,45 +455,6 @@ public:
 };
 
 typedef std::shared_ptr<List> SharedList;
-class Sublist: public List {
-public:
-    Sublist(SharedList list, int from, int to);
-
-    ~Sublist() = default;
-
-    virtual size_t size() const;
-
-    virtual TypeIdentifier element_type() const;
-
-    virtual SharedVariable get(int index) const; 
-
-private:
-
-    SharedList list;
-
-    int from, to;
-
-};
-
-class MappedList: public List {
-public:
-    MappedList(SharedList list, std::vector<int> map);
-
-    ~MappedList() = default;
-
-    virtual size_t size() const;
-
-    virtual TypeIdentifier element_type() const;
-
-    virtual SharedVariable get(int index) const; 
-
-private:
-
-    SharedList list;
-
-    std::vector<int> map;
-
-};
 
 template<typename C>
 class ContainerList: public List {

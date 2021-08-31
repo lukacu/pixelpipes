@@ -1,10 +1,171 @@
 
 #include <iostream>
+#include <algorithm>
 
 #include <pixelpipes/operation.hpp>
 
 namespace pixelpipes {
 
+
+class Sublist: public List {
+public:
+    Sublist(SharedList list, int from, int to) : list(list), from(from), to(to) {
+
+        if (!list) {
+            throw VariableException("Empty parent list");
+        }
+
+        if (to < from || to >= (int) list->size() || from < 0) {
+            throw VariableException("Illegal sublist range");
+        }
+
+    }
+
+    ~Sublist() = default;
+
+    virtual size_t size() const {
+
+        return to - from + 1;
+
+    }
+
+    virtual TypeIdentifier element_type() const {
+
+        return list->element_type();
+
+    }
+
+    virtual SharedVariable get(int index) const {
+
+        index += from;
+
+        if (index < 0 || index > to) {
+            throw VariableException("Index out of range");
+        }
+
+        return list->get(index);
+
+    }
+
+
+private:
+
+    SharedList list;
+
+    int from, to;
+
+};
+
+class CompositeList: public List {
+public:
+    CompositeList(std::initializer_list<SharedList> ilists) : lists{ilists} {
+
+        VERIFY(lists.size() > 0, "At least one list required");
+
+        TypeIdentifier etype = lists[0]->element_type();
+
+        for (SharedList l : lists) {
+            VERIFY(l->element_type() == etype, "Inconsitent list types");
+        }
+
+    }
+
+    CompositeList(std::vector<SharedList> lists) : lists{lists} {
+
+        VERIFY(lists.size() > 0, "At least one list required");
+
+        TypeIdentifier etype = lists[0]->element_type();
+
+        for (SharedList l : lists) {
+            VERIFY(l->element_type() == etype, "Inconsitent list types");
+        }
+
+    }
+
+    ~CompositeList() = default;
+
+    virtual size_t size() const {
+        size_t total = 0;
+
+        for (SharedList l : lists) {
+            total = l->size();
+        }
+
+        return total;
+    }
+
+    virtual TypeIdentifier element_type() const {
+        return lists[0]->element_type();
+    }
+
+    virtual SharedVariable get(int index) const {
+
+        if (index < 0)
+            throw VariableException("Index out of range");
+
+        for (SharedList l : lists) {
+            if (index < l->size())
+                return l->get(index);
+            index -= l->size() - 1;
+        }
+
+        throw VariableException("Index out of range");
+
+    }
+
+private:
+
+    std::vector<SharedList> lists;
+
+};
+
+class MappedList: public List {
+public:
+    MappedList(SharedList list, std::vector<int> map) : list(list), map(map) {
+
+        if (!list) {
+            throw VariableException("Empty parent list");
+        }
+
+        for (auto index : map) {
+            if (index < 0 || index >= (int) list->size())
+                throw VariableException("Illegal list index");
+        }
+
+    }
+
+    ~MappedList() = default;
+
+    virtual size_t size() const {
+
+        return map.size();
+
+    }
+
+    virtual TypeIdentifier element_type() const  {
+
+        return list->element_type();
+
+    }
+
+
+    virtual SharedVariable get(int index) const {
+
+        if (index < 0 || index >= (int) map.size()) {
+            throw VariableException("Index out of range");
+        }
+
+        return list->get(map[index]);
+
+    }
+
+private:
+
+    SharedList list;
+
+    std::vector<int> map;
+
+};
 class ConstantList: public List {
 public:
     ConstantList(SharedVariable value, int length) : value(value), length(length) {}
@@ -35,7 +196,7 @@ SharedVariable SublistSelect(std::vector<SharedVariable> inputs, ContextHandle c
 
     VERIFY(inputs.size() == 3, "Incorrect number of parameters");
 
-    SharedList list = std::static_pointer_cast<List>(inputs[0]);
+    SharedList list = List::get_list(inputs[0]);
     int begin = Integer::get_value(inputs[1]);
     int end = Integer::get_value(inputs[2]);
 
@@ -44,6 +205,27 @@ SharedVariable SublistSelect(std::vector<SharedVariable> inputs, ContextHandle c
 }
 
 REGISTER_OPERATION_FUNCTION("list_sublist", SublistSelect);
+
+/**
+ * @brief Returns a concatenation of given input lists.
+ * 
+ */
+SharedVariable ListConcatenate(std::vector<SharedVariable> inputs, ContextHandle context) {
+
+    VERIFY(inputs.size() > 1, "Incorrect number of parameters");
+
+    std::vector<SharedList> lists;
+
+    for (size_t i = 0; i < inputs.size(); i++) {
+        lists.push_back(List::get_list(inputs[i]));
+    }
+
+    return std::make_shared<CompositeList>(lists);
+
+}
+
+REGISTER_OPERATION_FUNCTION("list_concatenate", ListConcatenate);
+
 
 /**
  * @brief Filters a list with another list used as a mask.
@@ -56,8 +238,8 @@ SharedVariable FilterSelect(std::vector<SharedVariable> inputs, ContextHandle co
     if (List::is_list(inputs[0]) && List::is_list(inputs[1], IntegerType))
         throw VariableException("Not a list");
 
-    SharedList list = std::static_pointer_cast<List>(inputs[0]);
-    SharedList filter = std::static_pointer_cast<List>(inputs[1]);
+    SharedList list = List::get_list(inputs[0]);
+    SharedList filter = List::get_list(inputs[1]);
 
     if (list->size() != filter->size())
         throw VariableException("Filter length mismatch");
@@ -77,6 +259,37 @@ SharedVariable FilterSelect(std::vector<SharedVariable> inputs, ContextHandle co
 REGISTER_OPERATION_FUNCTION("list_filter", FilterSelect);
 
 /**
+ * @brief Maps elements from a list to another list using a list of indices.
+ * 
+ */
+SharedVariable ListRemap(std::vector<SharedVariable> inputs, ContextHandle context) {
+
+    VERIFY(inputs.size() == 2, "Incorrect number of parameters");
+
+    if (List::is_list(inputs[0]) && List::is_list(inputs[1], IntegerType))
+        throw VariableException("Not a list");
+
+    SharedList list = List::get_list(inputs[0]);
+    SharedList map = List::get_list(inputs[1]);
+
+    int length = list->size();
+
+    std::vector<int> remap;
+
+    for (size_t i = 0; i < map->size(); i++) {
+        int k = Integer::get_value(map->get(i));
+        if (k < 0 || k >= length)
+            throw VariableException("Index out of bounds");
+        remap.push_back(k);
+    } 
+
+    return std::make_shared<MappedList>(list, remap);
+
+}
+
+REGISTER_OPERATION_FUNCTION("list_remap", ListRemap);
+
+/**
  * @brief Returns an element from a given list.
  * 
  */
@@ -84,7 +297,7 @@ SharedVariable ListElement(std::vector<SharedVariable> inputs, ContextHandle con
 
     VERIFY(inputs.size() == 2, "Incorrect number of parameters");
 
-    SharedList list = std::static_pointer_cast<List>(inputs[0]);
+    SharedList list = List::get_list(inputs[0]);
     int index = Integer::get_value(inputs[1]);
 
     return list->get(index);
@@ -113,6 +326,105 @@ SharedVariable RepeatElement(std::vector<SharedVariable> inputs, ContextHandle c
 REGISTER_OPERATION_FUNCTION("list_repeat", RepeatElement);
 
 /**
+ * @brief Returns a list from start to end with linear progression over length elements.
+ * 
+ */
+SharedVariable RangeList(std::vector<SharedVariable> inputs, ContextHandle context, bool round) {
+
+    VERIFY(inputs.size() == 3, "Incorrect number of parameters");
+
+    float start = Float::get_value(inputs[0]);
+    float end = Float::get_value(inputs[1]);
+    size_t length = (size_t) Integer::get_value(inputs[2]);
+
+    VERIFY(length >= 1, "List length should be 1 or more");
+
+    if (round) {
+        std::vector<int> data;
+        for (size_t i = 0; i < length; i++) {
+            data.push_back((int) ((i / (float) length) * (end - start) + start));
+        }
+
+        return std::make_shared<IntegerList>(data);
+
+    } else {
+
+        std::vector<float> data;
+        for (size_t i = 0; i < length; i++) {
+            data.push_back( (i / (float) length) * (end - start) + start );
+        }
+
+        return std::make_shared<FloatList>(data);
+    }
+
+}
+
+REGISTER_OPERATION_FUNCTION("list_range", RangeList, bool);
+
+class PermutationGenerator {
+public:
+
+    PermutationGenerator(ContextHandle context) : generator(StohasticOperation::create_generator(context)) { }
+
+    int operator()(int lim) {
+
+        std::uniform_int_distribution<int> distribution(0, lim);
+
+        return distribution(generator);
+    }
+
+private:
+
+    RandomGenerator generator;
+
+};
+
+
+/**
+ * @brief Creates a permutation mapping.
+ * 
+ */
+SharedVariable ListPermute(std::vector<SharedVariable> inputs, ContextHandle context) {
+    
+    VERIFY(inputs.size() == 1, "Incorrect number of parameters");
+
+    SharedList list = List::get_list(inputs[0]);
+
+    size_t length = list->size();
+
+    std::vector<int> indices;
+    for (size_t i = 0; i < length; i++) {
+        indices.push_back(i);
+    }
+    std::random_shuffle(indices.begin(), indices.end(), PermutationGenerator(context));
+
+    return std::make_shared<MappedList>(list, indices);
+}
+
+REGISTER_OPERATION_FUNCTION_WITH_BASE("list_permute", ListPermute, StohasticOperation);
+
+/**
+ * @brief Creates a random permutation of indices from 0 to length.
+ * 
+ */
+SharedVariable MakePermutation(std::vector<SharedVariable> inputs, ContextHandle context) {
+    
+    VERIFY(inputs.size() == 1, "Incorrect number of parameters");
+
+    size_t length = (size_t) Integer::get_value(inputs[0]);
+
+    std::vector<int> indices;
+    for (size_t i = 0; i < length; i++) {
+        indices.push_back(i);
+    }
+    std::random_shuffle(indices.begin(), indices.end(), PermutationGenerator(context));
+
+    return std::make_shared<IntegerList>(indices);
+}
+
+REGISTER_OPERATION_FUNCTION_WITH_BASE("list_permutation", MakePermutation, StohasticOperation);
+
+/**
  * @brief Returns a scalar length of an input list.
  * 
  */
@@ -120,7 +432,7 @@ SharedVariable ListLength(std::vector<SharedVariable> inputs, ContextHandle cont
 
     VERIFY(inputs.size() == 1, "Incorrect number of parameters");
 
-    SharedList list = std::static_pointer_cast<List>(inputs[0]);
+    SharedList list = List::get_list(inputs[0]);
 
     return std::make_shared<Integer>((int) list->size());
 
@@ -138,7 +450,7 @@ SharedVariable ListCompare(std::vector<SharedVariable> inputs, ContextHandle con
 
     VERIFY(List::is_list(inputs[0], IntegerType) || List::is_list(inputs[0], FloatType), "Not an numeric list");
 
-    SharedList a = std::static_pointer_cast<List>(inputs[0]);
+    SharedList a = List::get_list(inputs[0]);
     SharedList b;
 
     if (inputs[1]->type() == IntegerType || inputs[1]->type() == FloatType) {
@@ -146,7 +458,7 @@ SharedVariable ListCompare(std::vector<SharedVariable> inputs, ContextHandle con
     } else if (List::is_list(inputs[1], IntegerType) || List::is_list(inputs[1], FloatType)) {
         throw VariableException("Not an numeric list");
     } else {
-        b = std::static_pointer_cast<List>(inputs[1]);
+        b = List::get_list(inputs[1]);
     }
 
     if (a->size() != b->size())
@@ -207,8 +519,8 @@ SharedVariable ListLogical(std::vector<SharedVariable> inputs, ContextHandle con
         if (!(List::is_list(inputs[0], IntegerType) && List::is_list(inputs[1], IntegerType)))
             throw VariableException("Not an integer list");
 
-        SharedList a = std::static_pointer_cast<List>(inputs[0]);
-        SharedList b = std::static_pointer_cast<List>(inputs[1]);
+        SharedList a = List::get_list(inputs[0]);
+        SharedList b = List::get_list(inputs[1]);
 
         if (a->size() != b->size())
             throw VariableException("Filter length mismatch");
@@ -229,8 +541,8 @@ SharedVariable ListLogical(std::vector<SharedVariable> inputs, ContextHandle con
         if (!(List::is_list(inputs[0], IntegerType) && List::is_list(inputs[1], IntegerType)))
             throw VariableException("Not an integer list");
 
-        SharedList a = std::static_pointer_cast<List>(inputs[0]);
-        SharedList b = std::static_pointer_cast<List>(inputs[1]);
+        SharedList a = List::get_list(inputs[0]);
+        SharedList b = List::get_list(inputs[1]);
 
         if (a->size() != b->size())
             throw VariableException("Filter length mismatch");
@@ -252,7 +564,7 @@ SharedVariable ListLogical(std::vector<SharedVariable> inputs, ContextHandle con
         if (!List::is_list(inputs[0], IntegerType))
             throw VariableException("Not an integer list");
 
-        SharedList a = std::static_pointer_cast<List>(inputs[0]);
+        SharedList a = List::get_list(inputs[0]);
 
         std::vector<int> result;
 
@@ -278,8 +590,8 @@ SharedVariable ListArithmetic(std::vector<SharedVariable> inputs, ContextHandle 
 
     VERIFY(List::is_list(inputs[0], FloatType) && List::is_list(inputs[1], FloatType), "Not a float list");
 
-    SharedList a = std::static_pointer_cast<List>(inputs[0]);
-    SharedList b = std::static_pointer_cast<List>(inputs[1]);
+    SharedList a = List::get_list(inputs[0]);
+    SharedList b = List::get_list(inputs[1]);
 
     if (a->size() != b->size())
         throw VariableException("Filter length mismatch");

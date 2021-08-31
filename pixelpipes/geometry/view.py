@@ -7,10 +7,16 @@ from ..node import Node, Macro, Input, Reference
 from ..graph import GraphBuilder
 
 class TranslateView(Node):
+    """Translate View
+    
+    Create a translation view.
 
-    node_name = "Translate"
-    node_description = "Create a translation view"
-    node_category = "view"
+    Inputs:
+        - x: X direction translation
+        - y: y direction translation
+
+    Category: View
+    """
 
     x = Input(types.Float(), default=0)
     y = Input(types.Float(), default=0)
@@ -22,10 +28,15 @@ class TranslateView(Node):
         return "geometry:translate",
 
 class RotateView(Node):
+    """Rotate View
+    
+    Create a rotation view.
 
-    node_name = "Rotate"
-    node_description = "Create a rotation view"
-    node_category = "view"
+    Inputs:
+        - angle: Rotation angle
+
+    Category: View
+    """
 
     angle = Input(types.Float(), default=0)
 
@@ -36,10 +47,16 @@ class RotateView(Node):
         return "geometry:rotate",
 
 class ScaleView(Node):
+    """Scale View
+    
+    Create a scale view.
 
-    node_name = "Scale"
-    node_description = "Create a scale view"
-    node_category = "view"
+    Inputs:
+        - x: X direction scaling
+        - y: y direction scaling
+
+    Category: View
+    """
 
     x = Input(types.Float(), default=1)
     y = Input(types.Float(), default=1)
@@ -51,10 +68,12 @@ class ScaleView(Node):
         return "geometry:scale",
 
 class IdentityView(Node):
+    """Identity View
+    
+    Create an identity view.
 
-    node_name = "Identity"
-    node_description = "Create an identity view"
-    node_category = "view"
+    Category: View
+    """
 
     def _output(self) -> types.Type:
         return View()
@@ -68,7 +87,7 @@ class Chain(Node):
     Multiply a series of views
 
     Inputs:
-     - inputs: A list of views
+        - inputs: A list of views
 
     Category: view, geometry
 
@@ -96,10 +115,19 @@ class Chain(Node):
         return "geometry:chain",
 
 class AffineView(Macro):
+    """Affine View
+    
+    Create an affine transformation view.
 
-    node_name = "Affine"
-    node_description = "Create an affine transformation view"
-    node_category = "view"
+    Inputs:
+        - x: X direction scaling
+        - y: y direction scaling
+        - angle: Rotation angle
+        - sx: X skew?
+        - sy: Y skew?
+
+    Category: View
+    """
 
     x = Input(types.Float(), default=0)
     y = Input(types.Float(), default=0)
@@ -123,10 +151,15 @@ class AffineView(Macro):
             return builder.nodes()
 
 class CenterView(Node):
+    """Center View
+    
+    Create a view that centers to a bounding box.
 
-    node_name = "Center"
-    node_description = "Create a view that centers to a bounding box"
-    node_category = "view"
+    Inputs:
+        - source: A bounding box type
+
+    Category: View
+    """
 
     source = Input(BoundingBox())
 
@@ -137,10 +170,16 @@ class CenterView(Node):
         return "geometry:center_view",
 
 class FocusView(Node):
+    """Focus View
+    
+    Create a view that centers to a bounding box and scales so that bounding box maintains relative scale.
 
-    node_name = "Focus"
-    node_description = "Create a view that centers to a bounding box and scales so that bounding box maintains relative scale"
-    node_category = "view"
+    Inputs:
+        - source: A bounding box type
+        - scale: Scaling factor
+
+    Category: View
+    """
 
     source = Input(BoundingBox())
     scale = Input(types.Float())

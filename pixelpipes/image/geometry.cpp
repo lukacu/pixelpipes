@@ -222,7 +222,7 @@ SharedVariable ImageResize(std::vector<SharedVariable> inputs, ContextHandle con
 
         cv::Mat image = Image::get_value(inputs[0]);
 
-        int scale = Float::get_value(inputs[1]);
+        float scale = Float::get_value(inputs[1]);
 
         cv::Mat result;
         cv::resize(image, result, cv::Size(), scale, scale, interpolate_convert(interpolation));

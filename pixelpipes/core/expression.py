@@ -172,8 +172,8 @@ class Expression(Macro):
     Macro that expands into an arithmetic expression parsed from an input string.
 
     Inputs:
-     * source: text representation of arithmetic expression
-     * variables: a map of inputs that are inserted into the expression
+        - source: text representation of arithmetic expression
+        - variables: a map of inputs that are inserted into the expression
 
     Category: arithmetic, macro
     """
@@ -190,12 +190,12 @@ class Expression(Macro):
     def get_inputs(self):
         return [(k, types.Float()) for k in self.variables.keys()]
 
-    def duplicate(self, **inputs):
+    def duplicate(self, _origin=None, **inputs):
         config = self.dump()
         for k, v in inputs.items():
             assert k in config["variables"]
             config["variables"][k] = v
-        return self.__class__(**config)
+        return self.__class__(_origin=_origin, **config)
 
     def expand(self, inputs, parent: "Reference"):
         parser = _Parser()

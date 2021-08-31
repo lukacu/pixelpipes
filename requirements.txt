@@ -1,0 +1,7 @@
+numpy
+pybind11
+bidict
+intbitset
+attributee
+setuptools
+setuptools_dso

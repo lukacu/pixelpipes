@@ -7,10 +7,16 @@ from ..node import Node, Input, NodeException, hidden, BinaryOperation, UnaryOpe
 from .. import types
 
 class UniformDistribution(Node):
+    """Uniform distribution
 
-    node_name = "Uniform distribution"
-    node_description = "Samples values between min and max"
-    node_category = "numeric"
+    Samples values between min and max.
+
+    Inputs:
+        - min: Minimun value
+        - max: Maximum value
+
+    Category: numeric
+    """
 
     min = Input(types.Float())
     max = Input(types.Float())
@@ -22,10 +28,16 @@ class UniformDistribution(Node):
         return "random_uniform",
 
 class NormalDistribution(Node):
+    """Normal distribution
 
-    node_name = "Normal distribution"
-    node_description = "Samples values between from normal distribution"
-    node_category = "numeric"
+    Samples values between from normal distribution.
+
+    Inputs:
+        - mean: Mean value of normal distribution
+        - sigma: Standard deviation
+
+    Category: numeric
+    """
 
     mean = Input(types.Float(), default=0)
     sigma = Input(types.Float(), default=1)
@@ -37,10 +49,15 @@ class NormalDistribution(Node):
         return "random_normal",
 
 class Round(Node):
+    """Round
 
-    node_name = "Round"
-    node_description = "Round number and convert to integer"
-    node_category = "numeric"
+    Round number and convert to integer.
+
+    Inputs:
+        - source: Number to be rounded
+
+    Category: numeric
+    """
 
     source = Input(types.Float())
 
@@ -56,6 +73,15 @@ class Round(Node):
         return "numbers_round",
 
 class Floor(Node):
+    """Floor
+
+    Floor number and convert to integer.
+
+    Inputs:
+        - source: Number on which floor operation is performed
+
+    Category: numeric
+    """
 
     source = Input(types.Float())
 
@@ -71,6 +97,15 @@ class Floor(Node):
         return "numbers_floor",
 
 class Ceil(Node):
+    """Ceil
+
+    Ceil number and convert to integer.
+
+    Inputs:
+        - source: Number on which ceil operation is performed
+
+    Category: numeric
+    """
 
     source = Input(types.Float())
 
@@ -251,13 +286,13 @@ class _ThresholdsComparison(Node):
     def get_inputs(self):
         return [(str(k), types.Number()) for k, _ in enumerate(self.inputs)]
 
-    def duplicate(self, **inputs):
+    def duplicate(self, _origin=None, **inputs):
         config = self.dump()
         for k, v in inputs.items():
             i = int(k)
             assert i >= 0 and i < len(config["inputs"])
             config["inputs"][i] = v
-        return self.__class__(**config)
+        return self.__class__(_origin=_origin, **config)
 
     def _output(self):
         return types.Integer()

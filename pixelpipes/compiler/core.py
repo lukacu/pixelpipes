@@ -11,7 +11,7 @@ from ..graph import Graph, GraphBuilder
 from pixelpipes.core import Copy, DebugOutput, Output, create_pipeline
 import pixelpipes.types as types
 
-from .utilities import BranchSet, Counter, infer_type, toposort
+from .utilities import BranchSet, Counter, infer_type, merge, toposort
 
 from . import CompilerException, Conditional, Variable
 from ..core import make_operation, create_pipeline
@@ -299,10 +299,11 @@ class Compiler(object):
                 # Required by both branches (A - B) + C
                 common = tree_true.intersection(tree_false).union(tree_condition)
 
-                for sub_node in tree_true.difference(common):
-                    dependencies.setdefault(sub_node, set()).add(node.condition.name)
-                for sub_node in tree_false.difference(common):
-                    dependencies.setdefault(sub_node, set()).add(node.condition.name)
+                if node.condition.name not in common:
+                    for sub_node in tree_true.difference(common):
+                        dependencies.setdefault(sub_node, set()).add(node.condition.name)
+                    for sub_node in tree_false.difference(common):
+                        dependencies.setdefault(sub_node, set()).add(node.condition.name)
 
             dependencies.setdefault(name, set()).update([node.name for node in optimized[name].input_values()])
 
@@ -324,6 +325,13 @@ class Compiler(object):
             ordered = sorted(ordered)
             operations = [(name, operation_data(optimized[name]), [r.name for r in optimized[name].input_values()]) for _, name in ordered]
         else:
+
+            def merge_branch(branch, condition, value = None):
+                if condition in branch:
+                    del branch[condition]
+                elif value is not None:
+                    branch[condition] = value
+
             self._debug("Calculating branch sets")
             branches = {}
             for name, stack in traverse(optimized, output_node, stack=[]):
@@ -334,11 +342,12 @@ class Compiler(object):
                         condition = optimized[node]
                         ancestor = stack[i+1]
                         if condition.condition == ancestor:
+                            merge_branch(branch, condition.condition.name)
                             break
                         elif condition.true == ancestor:
-                            branch[condition.condition.name] = True
+                            merge_branch(branch, condition.condition.name, True)
                         elif condition.false == ancestor:
-                            branch[condition.condition.name] = False
+                            merge_branch(branch, condition.condition.name, False)
 
                 branches[name].add(**branch)
 
@@ -357,12 +366,11 @@ class Compiler(object):
             # dependencies to maintain a valid order
             for name, node_branches in branches.items():
                 dependencies.setdefault(name, set()).update(node_branches.used())
-
+                
             # Insert partiton information into the sorting criteria, group instructions within levels by their
             # partition sets
             ordered = [(level, branches[item].condition(), item) for level, sublist in enumerate(toposort(dependencies)) for item in sublist]
             ordered = sorted(ordered)
-
 
             operations = []
 

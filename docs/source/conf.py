@@ -5,6 +5,9 @@
 import os
 import sys
 
+sys.path.insert(0, os.path.abspath('../..'))
+
+
 # -- General configuration ------------------------------------------------
 
 extensions = ['sphinx.ext.autodoc']
@@ -41,7 +44,7 @@ release = version
 # Usually you set "language" from the command line for these cases.
 language = None
 
-exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store']
+exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store', '**/*setup*']
 
 pygments_style = 'sphinx'
 
@@ -49,9 +52,9 @@ todo_include_todos = False
 
 html_theme = 'sphinx_rtd_theme'
 
-html_static_path = ['_static']
+html_static_path = [] # html_static_path = ['_static']
 
-htmlhelp_basename = 'pixepipesdocs'
+htmlhelp_basename = 'pixelpipesdocs'
 
 # -- Options for LaTeX output ---------------------------------------------
 
@@ -89,9 +92,11 @@ texinfo_documents = [
      'Miscellaneous'),
 ]
 
+"""
 def setup(app):
     app.connect('source-read', generate_node_list)
 
 
 def generate_node_list():
     pass
+"""

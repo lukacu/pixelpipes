@@ -37,7 +37,7 @@ items in the preceeding sets.
         yield ordered
         data = {item: (dep - ordered) for item, dep in data.items() if item not in ordered}
     if len(data) != 0:
-        raise CompilerException('Cyclic dependency detected among nodes: {}'.format(', '.join(repr(x) for x in data.items())))
+        raise CompilerException('Cyclic dependency detected among nodes: {}'.format(', '.join(repr(x) for x in data.keys())))
 
 def infer_type(node: str, nodes: typing.Mapping[str, Node], type_cache: typing.Mapping[str, types.Type] = None) -> types.Type:
     """Computes output type for a given node by recursively computing types of its dependencies and
@@ -135,8 +135,8 @@ class BranchSet(object):
         self._branches = []
 
     def add(self, **variables):
-        pos = intbitset([self._variables[x] for x, v in variables.items() if x in self._variables and v])
-        neg = intbitset([self._variables[x] for x, v in variables.items() if x in self._variables and not v])
+        pos = intbitset([self._variables[x] for x, v in variables.items() if x in self._variables and v is not None and v])
+        neg = intbitset([self._variables[x] for x, v in variables.items() if x in self._variables and v is not None and not v])
 
         self._branches = _insert_minterm(self._branches, (pos, neg))
 

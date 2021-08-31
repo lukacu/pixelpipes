@@ -9,6 +9,16 @@ class GaussianFunction(Node):
 
     Generate a tabulated Gaussian function
 
+    Inputs:
+        - source: source image
+        - size_x: gaussian kernel size X
+        - size_y: gaussian kernel size Y
+        - mean_x: gaussian kernel mean in X direction
+        - mean_y: gaussian kernel mean in Y direction
+        - sigma_x: gaussian kernel standard deviation in X direction
+        - sigma_y: gaussian kernel standard deviation in Y direction
+        - normalize: TODO
+
     Category: image, function
     """
 
@@ -34,11 +44,11 @@ class GaussianBlur(Node):
     Blurs an image using a gaussian filter.
 
     Inputs:
-     - source: source image
-     - size_x: gaussian kernel size X
-     - size_y: gaussian kernel size Y
-     - sigma_x: gaussian kernel standard deviation in X direction
-     - sigma_y: gaussian kernel standard deviation in Y direction
+        - source: source image
+        - size_x: gaussian kernel size X
+        - size_y: gaussian kernel size Y
+        - sigma_x: gaussian kernel standard deviation in X direction
+        - sigma_y: gaussian kernel standard deviation in Y direction
 
     Category: image, filters
     Tags: image, blur
@@ -66,8 +76,8 @@ class MedianBlur(Node):
     Blurs an image using a median filter.
 
     Inputs:
-     - source: source image
-     - size: size of the median window
+        - source: source image
+        - size: size of the median window
 
     Category: image, filters
     Tags: image, blur
@@ -142,8 +152,8 @@ class BilateralFilter(Node):
 
         return types.Image(source.width, source.height, source.channels, source.depth)
 
-class ImageFilter(Node):
-    """Image filter
+class LinearFilter(Node):
+    """Linear filter
 
     Convolves an image with a custom kernel.
 

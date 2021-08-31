@@ -45,10 +45,6 @@ class ImageDropout(Node):
     Tags: image
     """
 
-    node_name = "Image Dropout"
-    node_description = "Sets image pixels to zero with probability p"
-    node_category = "image"
-
     source = Input(types.Image())
     probability = Input(types.Float())
 

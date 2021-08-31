@@ -92,6 +92,7 @@ class ImageSubtract(Node):
         return _infer_type(source1, source2)
 
 _register_image_operation(BinaryOperation.SUBTRACT, ImageSubtract)
+
 class ImageMultiply(Node):
     """Image multiply
 

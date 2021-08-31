@@ -89,11 +89,17 @@ class DividePoints(_ArithmeticPointsOperation):
 for op, cb in [(BinaryOperation.ADD, AddPoints), (BinaryOperation.SUBTRACT, SubtractPoints), (BinaryOperation.MULIPLY, MultiplyPoints), (BinaryOperation.DIVIDE, DividePoints)]:
     Node.register_operation(op, cb, _infer_type_points, Points(), PointsBroadcastType)
     Node.register_operation(op, cb, _infer_type_points, PointsBroadcastType, Points())
-class PointsBounds(Node):
 
-    node_name = "Bounging box"
-    node_description = "Computes an axis aligned bounging box on a set of points"
-    node_category = "points"
+class PointsBounds(Node):
+    """Points Bounds
+
+    Computes an axis aligned bounging box on a set of points
+
+    Inputs:
+        - points: A list of points
+
+    Category: points
+    """
 
     points = Input(Points())
 
@@ -103,24 +109,31 @@ class PointsBounds(Node):
     def operation(self):
         return "geometry:bounding_box",
 
+# TODO: move to view.py
 class ViewPoints(Node):
+    """View Points
+    
+    Transforms points with a given view.
 
-    node_name = "View points"
-    node_description = "Transforms points with a given view"
-    node_category = "points"
+    Inputs:
+        - source: A list of points
+        - view: View type
+
+    Category: points
+    """
 
     source = Input(Points())
     view = Input(View())
 
     def operation(self):
-        return "geometry:points_view",
+        return "geometry:view_points",
 
     def validate(self, **inputs):
         super().validate(**inputs)
 
         source_type = inputs["source"]
         
-        return types.Points(source_type.length)
+        return Points(source_type.length)
 
 class PointsCenter(Node):
     """Points center
@@ -128,7 +141,7 @@ class PointsCenter(Node):
     Computes center of point set as an average of all coordinates
 
     Inputs:
-        source: A list of points
+        - source: A list of points
 
     Category: points
     """
@@ -147,8 +160,8 @@ class MakePoint(Node):
     Creates a point from two numerical inputs
 
     Inputs:
-     - x: X coordinate
-     - y: Y coordinate
+        - x: X coordinate
+        - y: Y coordinate
 
     Category: points
     """
@@ -168,8 +181,8 @@ class MakePoints(Node):
     Creates a list of points from an even number of numerical inputs
 
     Inputs:
-     - x: X coordinate
-     - y: Y coordinate
+        - x: X coordinate
+        - y: Y coordinate
 
     Category: points
     """
@@ -194,13 +207,13 @@ class MakePoints(Node):
     def get_inputs(self):
         return [(str(k), types.Number()) for k, _ in enumerate(self.inputs)]
 
-    def duplicate(self, **inputs):
+    def duplicate(self, _origin=None, **inputs):
         config = self.dump()
         for k, v in inputs.items():
             i = int(k)
             assert i >= 0 and i < len(config["inputs"])
             config["inputs"][i] = v
-        return self.__class__(**config)
+        return self.__class__(_origin=_origin, **config)
 
 
 class MakeRectangle(Macro):
@@ -209,10 +222,10 @@ class MakeRectangle(Macro):
     Creates a bounding box from four values.
 
     Inputs:
-     - left: left bound
-     - top: top bound
-     - right: right bound
-     - bottom: bottom bound
+        - left: left bound
+        - top: top bound
+        - right: right bound
+        - bottom: bottom bound
 
     Category: points
     """
@@ -223,6 +236,9 @@ class MakeRectangle(Macro):
     bottom = Input(types.Number())
 
     def _output(self) -> types.Type:
+        return Rectangle()
+
+    def operation(self):
         return "geometry:bounding_box",
 
     def expand(self, inputs, parent: str):
@@ -232,7 +248,9 @@ class PointsFromRectangle(Node):
     """Convert bounding box to points
 
     Inputs:
-        source: A bounding box
+        - source: A bounding box
+
+    Category: points
     """
 
     source = Input(Rectangle())

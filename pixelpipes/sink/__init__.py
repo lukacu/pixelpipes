@@ -3,7 +3,7 @@ import time
 import typing
 from functools import partial
 from concurrent.futures import ThreadPoolExecutor
-from threading import Condition
+from threading import Condition, Thread
 import numbers
 
 import numpy as np

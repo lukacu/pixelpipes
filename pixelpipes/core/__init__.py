@@ -27,6 +27,9 @@ ComparisonOperations = get_enum("comparison")
 LogicalOperations = get_enum("logical")
 ArithmeticOperations = get_enum("arithmetic")
 class Constant(Node):
+    """ Constant 
+
+    """
 
     node_name = "Constant"
     node_description = "Outputs a constant number"
@@ -93,13 +96,13 @@ class Output(Node):
     def operation(self):
         return "_output",
 
-    def duplicate(self, **inputs):
+    def duplicate(self, _origin=None, **inputs):
         config = self.dump()
         for k, v in inputs.items():
             i = int(k)
             assert i >= 0 and i < len(config["outputs"])
             config["outputs"][i] = v
-        return self.__class__(**config)
+        return self.__class__(_origin=_origin, **config)
 
 @hidden
 class Copy(Node):

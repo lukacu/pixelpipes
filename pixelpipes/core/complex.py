@@ -13,8 +13,8 @@ class GetElement(Macro):
     enabling processing of that data.
 
     Inputs:
-     - source: Input resource
-     - field: Name of the structure field
+        - source: Input resource
+        - field: Name of the structure field
 
     Category: complex
     """

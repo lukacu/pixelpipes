@@ -11,12 +11,12 @@ from pixelpipes.image.image import ImageFileList
 
 from ..types import Type
 
-from ..node import hidden, Macro, Input, Reference
+from ..node import ValidationException, hidden, Macro, Input, Reference
 from ..core import Constant, Copy
 from ..graph import GraphBuilder
 from pixelpipes.types import List, Image, Complex, Integer, TypeException
 import pixelpipes.types as types
-from ..core.list import ListElement, ListLength, RepeatElement, SublistSelect, ConstantList
+from ..core.list import ListElement, ListLength, ListPermutation, ListRemap, RepeatElement, SublistSelect, ConstantList
 
 _RESOURCE_CACHE = dict()
 
@@ -39,7 +39,7 @@ def make_hash(o):
 
     return hash(freeze(o)) 
 
-class VirtualField(object):
+class ResourceField:
 
     def __init__(self, typ: types.Type):
         self._typ = typ
@@ -47,6 +47,10 @@ class VirtualField(object):
     @property
     def type(self) -> types.Type:
         return self._typ
+class VirtualField(ResourceField):
+
+    def __init__(self, typ: types.Type):
+        super().__init__(typ)
 
     def generate(self, parent, resource):
         raise NotImplementedError()
@@ -256,7 +260,7 @@ class ImageDirectory(ResourceListSource):
         return {"lists": {"image": (ImageFileList, files, path)}, "size": len(files)}
 
     def fields(self):
-        return dict(image=Image())
+        return dict(image=Image(channels=3, depth=8))
 
 class GetResourceListLength(Macro):
 
@@ -357,9 +361,7 @@ class GetLastResource(Macro):
             if resources_type.size is not None:
                 last = resources_type.size - 1
             else:
-                real_fields = [n for n in resources_type.fields() if not resources_type.virtual(n)]
-                field = real_fields[0]
-                length = ListLength(parent=resources_type.access(field, inputs["resources"]))
+                length = GetResourceListLength(inputs["resources"])
                 last = Add(a=length, b=int(-1))
 
             resource_type = resources_type.element()
@@ -399,11 +401,8 @@ class GetRandomResource(Macro):
             if resources_type.size is not None:
                 generator = UniformDistribution(min=0, max=resources_type.size-1)
             else:
-                real_fields = [n for n in resources_type.fields() if not resources_type.virtual(n)]
-                field = real_fields[0]
-                length = ListLength(parent=resources_type.access(field, inputs["resources"]))
-                last = Add(a=length, b=int(-1))
-                generator = UniformDistribution(min=0, max=last)
+                length = GetResourceListLength(inputs["resources"])
+                generator = UniformDistribution(min=0, max=length-1)
 
             index = Round(generator)
 
@@ -417,6 +416,41 @@ class GetRandomResource(Macro):
 
             return builder.nodes()
 
+class PermuteResources(Macro):
+    """Permute resource list
+
+    Randomly permutes the resource list
+
+    Inputs:
+     - resources: Resource list that is sampled for elements
+
+    Category: resources, sampling
+    """
+
+    resources = Input(ResourceList())
+
+    def validate(self, **inputs):
+        super().validate(**inputs)
+
+        return inputs["resources"]
+
+    def expand(self, inputs, parent: "Reference"):
+
+        resources_type = inputs["resources"].type
+
+        with GraphBuilder(prefix=parent) as builder:
+
+            if resources_type.size is not None:
+                indices = ListPermutation(resources_type.size-1)
+            else:
+                length = GetResourceListLength(inputs["resources"])
+                indices = ListPermutation(min=0, max=length-1)
+
+            for field, _ in resources_type.fields().items():
+                if not resources_type.virtual(field):
+                    ListRemap(field, indices, _name="." + field)
+
+            return builder.nodes()
 class ExtractField(Macro):
     """Extract field from resource
 
@@ -475,6 +509,7 @@ class GetResourceInterval(Macro):
             for field in resources_type.fields():
                 if resources_type.virtual(field):
                     continue
+
                 SublistSelect(parent=resources_type.access(field, inputs["resources"]), \
                     begin=inputs["begin"], end=inputs["end"], _name="." + field)
 
@@ -546,6 +581,40 @@ class GetRandomResourceSegment(Macro):
             
             return builder.nodes()
 
+class PermuteResourceSegments(Macro):
+    
+    resources = Input(SegmentedResourceList())
+
+    def validate(self, **inputs):
+        super().validate(**inputs)
+        return inputs["resources"]
+
+    def expand(self, inputs, parent: "Reference"):
+
+        resources_type = inputs["resources"].type
+
+        with GraphBuilder(prefix=parent) as builder:
+
+            if resources_type.total() is not None:
+                indices = ListPermutation(resources_type.total()-1)
+            else:
+                field = next(resources_type.fields())
+                total = ListLength(parent=resources_type.access("_begin", inputs["resources"]))
+                last = Add(a=total, b=int(-1))
+                indices = ListPermutation(max=last)
+
+            ListRemap(resources_type.access("_begin", inputs["resources"]), indices, _name="._begin")
+            ListRemap(resources_type.access("_end", inputs["resources"]), indices, _name="._end")
+            ListRemap(resources_type.access("_length", inputs["resources"]), indices, _name="._length")
+
+            for field in resources_type.fields():
+                if resources_type.virtual(field):
+                    continue
+                Copy(field, _name="." + field)
+            
+            return builder.nodes()
+
+
 
 class MakeResource(Macro):
     """Generate a resource
@@ -566,16 +635,15 @@ class MakeResource(Macro):
     def get_inputs(self):
         return [(k, types.Primitive()) for k in self.fields.keys()]
 
-    def duplicate(self, **inputs):
+    def duplicate(self, _origin=None, **inputs):
         config = self.dump()
         for k, v in inputs.items():
             assert k in config["fields"]
             config["fields"][k] = v
-        return self.__class__(**config)
+        return self.__class__(_origin=_origin, **config)
 
     def validate(self, **inputs):
         super().validate(**inputs)
-
         return Resource(inputs)
 
     def expand(self, inputs, parent: "Reference"):
@@ -584,6 +652,46 @@ class MakeResource(Macro):
 
             for name, _ in self.fields.items():
                 Copy(source=inputs[name], _name="." + name)
+
+            return builder.nodes()
+        
+
+class AppendField(Macro):
+    """Append a field to a resource
+
+    Macro that generates a resource from an input resource and another field
+
+    Inputs:
+     - source: a map of inputs that are inserted into the expression
+
+    Category: resource, macro
+    """
+
+    source = Input(Resource())
+    name = String()
+    value = Input(types.Primitive())
+
+    def validate(self, **inputs):
+        super().validate(**inputs)
+
+        fields = dict(**inputs["source"].fields())
+        if self.name in fields:
+            raise ValidationException("Field already exists, cannot override")
+
+        fields[self.name] = inputs["value"]
+
+        return Resource(fields)
+
+    def expand(self, inputs, parent: "Reference"):
+        
+        with GraphBuilder(prefix=parent) as builder:
+
+            resource_type = inputs["source"].type
+
+            for field, typ in resource_type.fields().items():
+                Copy(source=resource_type.access(field, inputs["source"]), _name="." + field)
+                
+            Copy(source=inputs["value"], _name="." + self.name)
 
             return builder.nodes()
         

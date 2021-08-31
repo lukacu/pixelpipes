@@ -101,9 +101,7 @@ SharedVariable LinearFilter(std::vector<SharedVariable> inputs, ContextHandle co
     VERIFY(inputs.size() == 2, "Incorrect number of parameters");
 
     cv::Mat image = Image::get_value(inputs[0]);
-    //cv::Mat kernel = Image::get_value(inputs[1]);
-    // TEMP TEST FIX
-    cv::Mat kernel = cv::Mat::ones(5, 5, CV_32F)/(float)(25);
+    cv::Mat kernel = Image::get_value(inputs[1]);
 
     VERIFY(kernel.channels() == 1, "Kernel has more than one channel");
 
