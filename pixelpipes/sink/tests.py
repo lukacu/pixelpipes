@@ -5,15 +5,13 @@ import unittest
 import numpy as np
 
 from ..compiler import Compiler
-from ..graph import GraphBuilder
-from ..core import Output, Constant
-from ..core.list import ConstantList
-from .. import types
+from ..graph import GraphBuilder, Output, Constant
+from ..list import ConstantList
 from . import PipelineDataLoader
 
 class TestSinks(unittest.TestCase):
 
-    def test_sink_PipelineDataLoader(self):
+    def test_numpy_sink(self):
         
         with GraphBuilder() as builder:
             Output(outputs=[Constant(1), ConstantList([10, 20, 30])])
@@ -28,11 +26,12 @@ class TestSinks(unittest.TestCase):
             self.assertIsInstance(batch[1], np.ndarray)
             self.assertEqual(batch[0].shape, (batch_size, 1))
             self.assertEqual(batch[1].shape, (batch_size, 3, 1))
+
             return
 
-    """
-    # TODO FIX
     def test_torch_list(self):
+        # TODO: fix this test
+        return
 
         import torch
         from pixelpipes.engine import FloatList
@@ -48,4 +47,3 @@ class TestSinks(unittest.TestCase):
 
         self.assertIsInstance(sample[0], torch.Tensor)
         self.assertEqual(sample[0][0], 0.5)
-    """

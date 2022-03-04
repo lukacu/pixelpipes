@@ -1,10 +1,10 @@
 
 from attributee.primitives import Integer
 from pixelpipes.image.geometry import ImageRemap, Resize
-from ..node import Macro, Input, Reference, types
+from ..node import Macro, Input, Reference, SeedInput, types
 from ..graph import GraphBuilder
 from ..core import Constant
-from ..core.numbers import Round
+from ..core.numbers import Add, Round
 
 from ..core.complex import GetElement
 from . import GetImageProperties, ConvertDepth
@@ -15,14 +15,15 @@ class ImageNoise(Macro):
     """Apply gaussian noise to an image
 
     Inputs:
-        - source: Input image
-        - amount: Amount of noise
+      - source: Input image
+      - amount: Amount of noise
 
     Category: image, augmentation, noise
     """
     
     source = Input(types.Image(depth=8))
     amount = Input(types.Float())
+    seed = SeedInput()
 
     def validate(self, **inputs):
         super().validate(**inputs)
@@ -35,7 +36,7 @@ class ImageNoise(Macro):
             width = GetElement(properties, element="width")
             height = GetElement(properties, element="height")
 
-            noise = NormalNoise(width=width, height=height, mean=0, std=inputs["amount"])
+            noise = NormalNoise(width=width, height=height, mean=0, std=inputs["amount"], seed=inputs["seed"])
 
             ConvertDepth(ConvertDepth(inputs["source"], "Double") + noise, depth="Byte", _name=parent)
 
@@ -46,8 +47,8 @@ class ImageBrightness(Macro):
     """Change image brightness
 
     Inputs:
-        - source: Input image
-        - amount: Amount of noise
+      - source: Input image
+      - amount: Amount of noise
 
     Category: image, augmentation
     """
@@ -71,12 +72,13 @@ class ImagePiecewiseAffine(Macro):
     """Piecewise affine transformation of image. This augmentation creates a grid of random perturbations and
     interpolates this transformation over the entire image.
 
+
     Inputs:
-        - source: Input image
-        - amount: Amount of petrubations
+      - source: Input image
+      - amount: Amount of petrubations
 
     Arguments:
-        - subdivision: Number of points
+      - subdivision: Number of points
 
     Category: image, augmentation
     """
@@ -84,6 +86,7 @@ class ImagePiecewiseAffine(Macro):
     source = Input(types.Image())
     amount = Input(types.Float())
     subdivision = Integer(val_min=2, default=4)
+    seed = SeedInput()
 
     def validate(self, **inputs):
         super().validate(**inputs)
@@ -96,8 +99,8 @@ class ImagePiecewiseAffine(Macro):
             width = GetElement(properties, element="width")
             height = GetElement(properties, element="height")
 
-            x = ConvertDepth(Resize(UniformNoise(self.subdivision, self.subdivision, -inputs["amount"], inputs["amount"]), width, height, interpolation="Linear") + LinearImage(width, height, 0, width, flip=False), "Float")
-            y = ConvertDepth(Resize(UniformNoise(self.subdivision, self.subdivision, -inputs["amount"], inputs["amount"]), width, height, interpolation="Linear") + LinearImage(width, height, 0, height, flip=True), "Float")
+            x = ConvertDepth(Resize(UniformNoise(self.subdivision, self.subdivision, -inputs["amount"], inputs["amount"], seed=inputs["seed"]), width, height, interpolation="Linear") + LinearImage(width, height, 0, width, flip=False), "Float")
+            y = ConvertDepth(Resize(UniformNoise(self.subdivision, self.subdivision, -inputs["amount"], inputs["amount"], seed=Add(inputs["seed"], 1)), width, height, interpolation="Linear") + LinearImage(width, height, 0, height, flip=True), "Float")
 
             ImageRemap(inputs["source"], x, y, interpolation="Linear", border="Reflect", _name=parent)
 

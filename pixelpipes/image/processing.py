@@ -1,5 +1,5 @@
 
-from ..node import Input, Node
+from ..node import Input, Node, SeedInput
 from .. import types
 from ..geometry.types import BoundingBox
 
@@ -45,8 +45,13 @@ class ImageDropout(Node):
     Tags: image
     """
 
+    node_name = "Image Dropout"
+    node_description = "Sets image pixels to zero with probability p"
+    node_category = "image"
+
     source = Input(types.Image())
     probability = Input(types.Float())
+    seed = SeedInput()
 
     def operation(self):
         return "image:dropout",
@@ -75,6 +80,7 @@ class ImageCoarseDropout(Node):
     source = Input(types.Image())
     probability = Input(types.Float())
     size_percent = Input(types.Float())
+    seed = SeedInput()
 
     def operation(self):
         return "image:coarse_dropout",

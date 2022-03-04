@@ -98,7 +98,7 @@ class ParametricType(Type):
         super().__setattr__(key, value)
 
     def __getattr__(self, key):
-        if key in self._parameters:
+        if key != "_parameters" and key in self._parameters:
             return self._parameters[key]
         return object.__getattribute__(self, key)
 
@@ -325,7 +325,7 @@ class Complex(Type):
     """
 
     def __init__(self, elements: typing.Optional[typing.Dict[str, Type]] = None):
-        """[summary]
+        """Creates a new complex type by defining all its fields.
 
         Args:
             elements (typing.Optional[typing.Dict[str, Type]], optional): Type structure. Defaults to None.
@@ -339,7 +339,17 @@ class Complex(Type):
             assert all([isinstance(x, Type) for x in elements.values()])
         self._elements = elements
 
-    def castable(self, typ: "Type"):
+    def castable(self, typ: "Type") -> bool:
+        """Checks if one complex type can be casted to another, this means that the parameter
+        type has all the fields of this type and that all field types can be casted to their
+        corresponding field types.
+
+        Args:
+            typ (Type): Type to test for compatibility
+
+        Returns:
+            bool: True if type is compatible
+        """
         if not isinstance(typ, Complex):
             return False
 

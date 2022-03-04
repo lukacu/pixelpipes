@@ -3,7 +3,7 @@
 from attributee import String, Number
 
 from .. import types
-from ..node import Node, Input
+from ..graph import Node, Input
 
 class CompilerException(Exception):
     pass

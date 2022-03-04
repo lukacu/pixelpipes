@@ -71,15 +71,24 @@ else:
 class SharedLibrary(Extension): 
     pass
 
-lib_core = DSO('pixelpipes.core.pp_core', sources= [
-        "pixelpipes/core/module.cpp",
-        "pixelpipes/core/operation.cpp",
-        "pixelpipes/core/types.cpp",
-        "pixelpipes/core/engine.cpp",
-        "pixelpipes/core/queue.cpp",
-        "pixelpipes/core/random.cpp",
-        "pixelpipes/core/numbers.cpp",
-        "pixelpipes/core/list.cpp"
+lib_core = DSO('pixelpipes.pixelpipes', sources= [
+        "src/queue.cpp",
+        "src/random.cpp",
+        "src/module.cpp",
+        "src/operation.cpp",
+        "src/types.cpp",
+        "src/pipeline.cpp",
+        "src/numbers.cpp",
+        "src/list.cpp",
+        "src/geometry/geometry.cpp",
+        "src/geometry/view.cpp",
+        "src/geometry/points.cpp",
+        "pixelpipes/image/image.cpp",
+        "pixelpipes/image/arithmetic.cpp",
+        "pixelpipes/image/render.cpp",
+        "pixelpipes/image/geometry.cpp",
+        "pixelpipes/image/filter.cpp",
+        "pixelpipes/image/processing.cpp",
         ],
     extra_compile_args=compiler_args,
     define_macros=define_macros + [("PIXELPIPES_BUILD_CORE", None)],
@@ -89,81 +98,21 @@ lib_core = DSO('pixelpipes.core.pp_core', sources= [
     libraries=list(libraries) + ["dl"],
     language='c++'
 )
-
-lib_goemetry = DSO('pixelpipes.geometry.pp_geometry', sources= [
-        "pixelpipes/geometry/geometry.cpp",
-        "pixelpipes/geometry/view.cpp",
-        "pixelpipes/geometry/points.cpp",
-        ],
-    extra_compile_args=compiler_args,
-    define_macros=define_macros,
-    include_dirs=include_dirs,
-    library_dirs=library_dirs,
-    runtime_library_dirs = runtime_dirs,
-    libraries=list(libraries),
-    dsos=['pixelpipes.core.pp_core'],
-    language='c++'
-)
-lib_image = DSO('pixelpipes.image.pp_image', sources= [
-        "pixelpipes/image/image.cpp",
-        "pixelpipes/image/arithmetic.cpp",
-        "pixelpipes/image/render.cpp",
-        "pixelpipes/image/geometry.cpp",
-        "pixelpipes/image/filter.cpp",
-        "pixelpipes/image/processing.cpp",
-        ],
-    extra_compile_args=compiler_args,
-    define_macros=define_macros,
-    include_dirs=include_dirs,
-    library_dirs=library_dirs,
-    runtime_library_dirs = runtime_dirs,
-    libraries=list(libraries),
-    dsos=['pixelpipes.core.pp_core', 'pixelpipes.geometry.pp_geometry'],
-    language='c++'
-)     
-
+    
 lib_modules = [
-    lib_core,
-    lib_goemetry,
-    lib_image
+    lib_core
 ]
 
 ext_core = Extension(
-        'pixelpipes.pp_py',
-        ["pixelpipes/core/python.cpp"],
+        'pixelpipes.pypixelpipes',
+        ["src/python/wrapper.cpp"],
         extra_compile_args=['-std=c++17'],
         define_macros=define_macros,
         include_dirs=include_dirs,
         library_dirs=library_dirs,
         runtime_library_dirs = runtime_dirs,
         libraries=list(libraries),
-        dsos=['pixelpipes.core.pp_core'],
-        language='c++'
-    )
-
-ext_geometry = Extension(
-        'pixelpipes.geometry.pp_geometry_py',
-        ["pixelpipes/geometry/python.cpp"],
-        extra_compile_args=['-std=c++17'],
-        define_macros=define_macros,
-        include_dirs=include_dirs,
-        library_dirs=library_dirs,
-        runtime_library_dirs = runtime_dirs,
-        libraries=list(libraries),
-        dsos=['pixelpipes.core.pp_core', 'pixelpipes.geometry.pp_geometry'],
-        language='c++'
-    )
-
-ext_image = Extension(
-        'pixelpipes.image.pp_image_py',
-        ["pixelpipes/image/python.cpp"],
-        extra_compile_args=['-std=c++17'],
-        define_macros=define_macros,
-        include_dirs=include_dirs,
-        library_dirs=library_dirs,
-        runtime_library_dirs = runtime_dirs,
-        libraries=list(libraries),
-        dsos=['pixelpipes.core.pp_core', 'pixelpipes.geometry.pp_geometry', 'pixelpipes.image.pp_image'],
+        dsos=['pixelpipes.pixelpipes'],
         language='c++'
     )
 
@@ -193,7 +142,7 @@ setup(
         "numpy>=1.20",
         "bidict>=0.21",
         "intbitset>=2.4",
-        "attributee>=0.1.2"
+        "attributee>=0.1.7"
     ],
     extras_require = {
         'torch': ['torch']

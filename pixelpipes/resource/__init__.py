@@ -1,43 +1,37 @@
 
 import os
-from pixelpipes.core.numbers import Add, Round, UniformDistribution
+from pathlib import Path
+
 import typing
-from collections import Mapping
+import json
+import hashlib
 
 from attributee import String
 from attributee.containers import Map
 from attributee.object import class_fullname
-from pixelpipes.image.image import ImageFileList
+
+
+from pixelpipes.utilities import PersistentDict
 
 from ..types import Type
-
-from ..node import ValidationException, hidden, Macro, Input, Reference
-from ..core import Constant, Copy
-from ..graph import GraphBuilder
+from ..graph import GraphBuilder, SeedInput, ValidationException, hidden, Macro, Input, Reference, Constant, Copy
 from pixelpipes.types import List, Image, Complex, Integer, TypeException
 import pixelpipes.types as types
-from ..core.list import ListElement, ListLength, ListPermutation, ListRemap, RepeatElement, SublistSelect, ConstantList
+from ..list import ListElement, ListLength, ListPermutation, ListRemap, RepeatElement, SublistSelect, ConstantList
+from ..numbers import Add, Round, UniformDistribution
 
-_RESOURCE_CACHE = dict()
+_RESOURCE_CACHE = PersistentDict(os.environ.get("PIXELPIPES_CACHE", os.path.join(Path.home(), ".cache/pixelpipes")))
 
 def make_hash(o):
     """
     makes a hash out of anything that contains only list,dict and hashable types including string and numeric types
     """
 
-    def freeze(o):
-        if isinstance(o, (tuple, list)):
-            return tuple((freeze(e) for e in o))
+    sha1 = hashlib.sha1()
 
-        if isinstance(o, Mapping):
-            return tuple(sorted((k, freeze(v)) for k, v in o.items()))
+    sha1.update(json.dumps(o, sort_keys=True).encode("utf-8"))
 
-        if isinstance(o, (set, frozenset)):
-            return tuple(sorted(freeze(e) for e in o))
-            
-        return o
-
-    return hash(freeze(o)) 
+    return sha1.hexdigest()
 
 class ResourceField:
 
@@ -105,6 +99,12 @@ class ResourceList(Complex):
         super().__init__(elements)
         self._fields = fields
         self._size = size
+
+    def castable(self, typ: "Type") -> bool:
+        if not isinstance(typ, ResourceList):
+            return False
+
+        return super().castable(typ)
 
     @property
     def size(self):
@@ -178,7 +178,7 @@ class SegmentedResourceList(ResourceList):
 class ResourceListSource(Macro):
 
     def _init(self):
-        self._cache_id = (class_fullname(self), make_hash(self.dump()))
+        self._cache_id = class_fullname(self) + "@" + make_hash(self.dump())
 
     def _output(self):
         return ResourceList(self.fields(), self.size)
@@ -204,7 +204,9 @@ class ResourceListSource(Macro):
 
     def _get_data(self):
         if not self._cache_id in _RESOURCE_CACHE:
-            _RESOURCE_CACHE[self._cache_id] = self._load()
+            data = self._load()
+            _RESOURCE_CACHE[self._cache_id] = data
+            return data
         return _RESOURCE_CACHE[self._cache_id]
 
     def fields(self):
@@ -247,20 +249,6 @@ class SegmentedResourceListSource(ResourceListSource):
 
     def _load(self):
         raise NotImplementedError()
-
-class ImageDirectory(ResourceListSource):
-
-    EXTENSIONS = [".jpg", ".jpeg", ".png"]
-
-    path = String()
-
-    def _load(self):
-        files = [fi for fi in os.listdir(self.path) if os.path.splitext(fi)[1].lower() in ImageDirectory.EXTENSIONS]
-        path = self.path if self.path.endswith(os.sep) else (self.path + os.sep)
-        return {"lists": {"image": (ImageFileList, files, path)}, "size": len(files)}
-
-    def fields(self):
-        return dict(image=Image(channels=3, depth=8))
 
 class GetResourceListLength(Macro):
 
@@ -386,6 +374,7 @@ class GetRandomResource(Macro):
     """
 
     resources = Input(ResourceList())
+    seed = SeedInput()
 
     def validate(self, **inputs):
         super().validate(**inputs)
@@ -399,10 +388,10 @@ class GetRandomResource(Macro):
         with GraphBuilder(prefix=parent) as builder:
 
             if resources_type.size is not None:
-                generator = UniformDistribution(min=0, max=resources_type.size-1)
+                generator = UniformDistribution(min=0, max=resources_type.size-1, seed=self.seed)
             else:
                 length = GetResourceListLength(inputs["resources"])
-                generator = UniformDistribution(min=0, max=length-1)
+                generator = UniformDistribution(min=0, max=length-1, seed=self.seed)
 
             index = Round(generator)
 
@@ -548,6 +537,7 @@ class GetResourceSegment(Macro):
 class GetRandomResourceSegment(Macro):
     
     resources = Input(SegmentedResourceList())
+    seed = SeedInput()
 
     def validate(self, **inputs):
         super().validate(**inputs)
@@ -562,12 +552,12 @@ class GetRandomResourceSegment(Macro):
 
 
             if resources_type.total() is not None:
-                generator = UniformDistribution(min=0, max=resources_type.total()-1)
+                generator = UniformDistribution(min=0, max=resources_type.total()-1, seed=self.seed)
             else:
                 field = next(resources_type.fields())
                 total = ListLength(parent=resources_type.access("_begin", inputs["resources"]))
                 last = Add(a=total, b=int(-1))
-                generator = UniformDistribution(min=0, max=last)
+                generator = UniformDistribution(min=0, max=last, seed=self.seed)
 
             index = Round(generator)
 

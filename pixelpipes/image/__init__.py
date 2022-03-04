@@ -1,19 +1,35 @@
 
 import os
 
-from ..core import load_operation_module, get_enum
+from attributee import String
+
+from .. import LazyLoadEnum, load_module
 
 # Load dependendent module to avoid loading it with current module in a wrong namespace (this should be resolved someday)
 from .. import geometry 
+from .. import types
 
-load_operation_module(os.path.join(os.path.dirname(__file__), "libpp_image.so"))
+load_module("image")
 
-# Import Python extensions
-from . import pp_image_py
+ImageDepth = LazyLoadEnum("depth")
+InterpolationMode = LazyLoadEnum("interpolation")
+BorderStrategy = LazyLoadEnum("border")
 
-ImageDepth = get_enum("depth")
-InterpolationMode = get_enum("interpolation")
-BorderStrategy = get_enum("border")
+from ..resource import ResourceListSource
+
+class ImageDirectory(ResourceListSource):
+
+    EXTENSIONS = [".jpg", ".jpeg", ".png"]
+
+    path = String()
+
+    def _load(self):
+        files = [fi for fi in os.listdir(self.path) if os.path.splitext(fi)[1].lower() in ImageDirectory.EXTENSIONS]
+        path = self.path if self.path.endswith(os.sep) else (self.path + os.sep)
+        return {"lists": {"image": (ImageFileList, files, path)}, "size": len(files)}
+
+    def fields(self):
+        return dict(image=types.Image(channels=3, depth=8))
 
 from .image import *
 from .augmentation import *

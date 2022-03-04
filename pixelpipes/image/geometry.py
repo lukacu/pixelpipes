@@ -7,7 +7,6 @@ from .. import types
 from . import BorderStrategy, InterpolationMode
 
 from ..geometry.types import BoundingBox, View
-
 class Scale(Node):
     """Scale
 
@@ -138,16 +137,10 @@ class Resize(Node):
         return types.Image(inputs["width"].value, inputs["height"].value, source.channels, source.depth, purpose=source.purpose)
 
 class MaskBoundingBox(Node):
-    """Mask Bounding Box
 
-    Compute a bounding box of a single-channel image and returns bounding box.
-
-    Inputs:
-        - source: source image
-        
-    Category: image, basic
-    Tags: image
-    """
+    node_name = "Mask bounding box"
+    node_description = "Compute a bounding box of a single-channel image and returns bounding box."
+    node_category = "image"
 
     source = Input(types.Image(channels=1))
 
@@ -189,15 +182,19 @@ class ViewImage(Node):
     Apply a view transformation to image
 
     Inputs:
-        - source: source image
-        - view: view type
-        - width: width
-        - height: height 
-        - interpolation: interpolation type enumeration
-        - border: border type enumeration
+     - source:
+     - view:
+     - width:
+     - height:
+     - interpolation:
+     - border:
 
     Category: image, geometry
     """
+
+    node_name = ""
+    node_description = ""
+    node_category = "image"
 
     source = Input(types.Image())
     view = Input(View())

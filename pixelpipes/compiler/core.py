@@ -1,20 +1,15 @@
 
 
-from pixelpipes.node import InferredReference, Macro, Node, NodeException, Reference, ValidationException
-from pixelpipes import Pipeline
-from pixelpipes.core.numbers import Constant
 import typing
 import numbers
 
-from ..graph import Graph, GraphBuilder
-
-from pixelpipes.core import Copy, DebugOutput, Output, create_pipeline
-import pixelpipes.types as types
-
-from .utilities import BranchSet, Counter, infer_type, merge, toposort
-
+from ..graph import Graph, GraphBuilder, InferredReference, Macro, Node, NodeException, Reference, ValidationException, Constant, Copy, DebugOutput, Output
+from .. import Pipeline, PipelineOperation, types
+from ..numbers import Constant
+from .utilities import BranchSet, Counter, infer_type, toposort
 from . import CompilerException, Conditional, Variable
-from ..core import make_operation, create_pipeline
+from ..graph import OperationIndex, RandomSeed, SampleIndex
+
 
 class Compiler(object):
     """Compiler object contains utilities to validate a graph and compiles it to a pipeline
@@ -23,10 +18,11 @@ class Compiler(object):
     """
 
     @staticmethod
-    def compile_graph(graph, variables: typing.Optional[typing.Mapping[str, numbers.Number]] = None,
-            output: typing.Optional[str] = None, fixedout: bool = False) -> Pipeline:
+    def build_graph(graph: typing.Union[Graph, typing.Mapping[str, Node]], 
+                      variables: typing.Optional[typing.Mapping[str, numbers.Number]] = None,
+                      output: typing.Optional[str] = None, fixedout: bool = False) -> Pipeline:
         compiler = Compiler(fixedout)
-        return compiler.compile(graph, variables, output)
+        return compiler.build(graph, variables, output)
 
     def __init__(self, fixedout=False, predictive=True, debug=False):
         """[summary]
@@ -78,36 +74,51 @@ class Compiler(object):
 
         if self._debug_enabled:
             for name, node in nodes.items():
-                self._debug("Node {} ({}), inferred type: {}", name, node.__class__.__name__, type_cache[name])
+                self._debug("Node {} ({}), inferred type: {}", name,
+                            node.__class__.__name__, type_cache[name])
 
         output_types = None
 
         for output in outputs:
-            inputs = [infer_type(i, nodes, type_cache) for i in nodes[output].input_values()]
+            inputs = [infer_type(i, nodes, type_cache)
+                      for i in nodes[output].input_values()]
 
             for i, output_type in enumerate(inputs):
                 if self._fixedout and not output_type.fixed():
-                    raise ValidationException("Output {} not fixed for output node {}: {}".format(i, output, output_type), output)
+                    raise ValidationException("Output {} not fixed for output node {}: {}".format(
+                        i, output, output_type), output)
                 if isinstance(output_type, types.Complex):
-                    raise ValidationException("Output {} is an complex type for output node {}: {}".format(i, output, output_type), output)
+                    raise ValidationException("Output {} is an complex type for output node {}: {}".format(
+                        i, output, output_type), output)
 
             if output_types is None:
                 output_types = inputs
             else:
                 if len(output_types) != len(inputs):
-                    raise ValidationException("Unexpected number of inputs for output node {}".format(output), output)
+                    raise ValidationException(
+                        "Unexpected number of inputs for output node {}".format(output), output)
                 for out_a, out_b in zip(output_types, inputs):
                     if not out_a.castable(out_b):
-                        raise ValidationException("Incompatible inputs for output node {}".format(output), output)
+                        raise ValidationException(
+                            "Incompatible inputs for output node {}".format(output), output)
 
         if output_groups and len(outputs) != len(output_groups):
-            raise ValidationException("Provided output group assignment does not match the size of the output")
+            raise ValidationException(
+                "Provided output group assignment does not match the size of the output")
 
         return type_cache
 
+    def build(self, graph: typing.Union[Graph, typing.Mapping[str, Node]],
+                variables: typing.Optional[typing.Mapping[str,
+                                                          numbers.Number]] = None,
+                output: typing.Optional[str] = None) -> Pipeline:
+
+        return Pipeline(self.compile(graph, variables, output))
+
     def compile(self, graph: typing.Union[Graph, typing.Mapping[str, Node]],
-            variables: typing.Optional[typing.Mapping[str, numbers.Number]] = None,
-            output: typing.Optional[str] = None) -> Pipeline:
+                variables: typing.Optional[typing.Mapping[str,
+                                                          numbers.Number]] = None,
+                output: typing.Optional[str] = None) -> typing.Iterable[PipelineOperation]:
         """Compile a graph into a pipeline of native operations.
 
         Args:
@@ -121,12 +132,11 @@ class Compiler(object):
         """
 
         if GraphBuilder.default() is not None:
-            raise CompilerException("Cannot compile within graph builder scope")
+            raise CompilerException(
+                "Cannot compile within graph builder scope")
 
-        output_groups = []
         if isinstance(graph, Graph):
             nodes = graph.nodes
-            output_groups = graph.groups
         elif isinstance(graph, GraphBuilder):
             nodes = graph.nodes()
         elif isinstance(graph, typing.Mapping):
@@ -151,40 +161,63 @@ class Compiler(object):
         builder = GraphBuilder()
         constants = Counter()
 
-        def normalize_input(node):
+        def normalize_input(input_value):
+            if not isinstance(input_value, Reference):
+                input_name = "constant%d" % constants()
+                input_type = Constant.resolve_type(input_value)
+                input_value = builder.add(
+                    Constant(value=input_value, _auto=False), input_name)
+                inferred_types[input_name] = input_type
+            elif input_value.name == "[random]":
+                input_name = "random%d" % constants()
+                input_type = types.Integer()
+                input_value = builder.add(RandomSeed(_auto=False), input_name)
+                inferred_types[input_name] = input_type
+            elif input_value.name == "[sample]":
+                input_type = types.Integer()
+                if "__sample" not in inferred_types:
+                    input_value = builder.add(
+                        SampleIndex(_auto=False), "__sample")
+                    inferred_types["__sample"] = input_type
+                else:
+                    input_value = Reference("@__sample")
+            elif input_value.name == "[operation]":
+                input_name = "operation%d" % constants()
+                input_type = types.Integer()
+                input_value = builder.add(
+                    OperationIndex(_auto=False), input_name)
+                inferred_types[input_name] = input_type
+            else:
+                input_type = inferred_types[input_value.name]
+            return input_value, input_type
+
+        def normalize_inputs(node):
             inputs = {}
             for input_name, input_value in zip(node.input_names(), node.input_values()):
-                if not isinstance(input_value, Reference):
-                    constant_node = Constant(value=input_value, _auto=False)
-                    constant_name = "constant%d" % constants()
-                    inputs[input_name] = builder.add(constant_node, constant_name)
-                else:
-                    inputs[input_name] = input_value
+                input_value, _ = normalize_input(input_value)
+                inputs[input_name] = input_value
 
             return inputs
 
         def expand_macro(name, node):
             inputs = {}
             for input_name, input_value in zip(node.input_names(), node.input_values()):
-                if not isinstance(input_value, Reference):
-                    constant_name = "constant%d" % constants()
-                    constant_node = builder.add(Constant(value=input_value, _auto=False), constant_name)
-                    inputs[input_name] = InferredReference(constant_node, Constant.resolve_type(input_value))
-                    inferred_types[constant_name] = Constant.resolve_type(input_value)
-                else:
-                    inputs[input_name] = InferredReference(input_value, inferred_types[input_value.name])
+                input_value, input_type = normalize_input(input_value)
+                inputs[input_name] = InferredReference(input_value, input_type)
 
             try:
                 subgraph = node.expand(inputs, name)
 
             except Exception as ee:
-                raise CompilerException("Exception during macro {} expansion".format(name)) from ee
+                raise CompilerException(
+                    "Exception during macro {} expansion".format(name)) from ee
 
             # Special case where only a single node is returned
             if isinstance(subgraph, Node):
-                subgraph = {name : subgraph}
+                subgraph = {name: subgraph}
 
-            self._debug("Expanding macro node {} to {} nodes", name, len(subgraph))
+            self._debug("Expanding macro node {} to {} nodes",
+                        name, len(subgraph))
 
             for subname, _ in subgraph.items():
                 infer_type(Reference(subname), subgraph, inferred_types)
@@ -193,19 +226,20 @@ class Compiler(object):
 
             for subname, subnode in subgraph.items():
                 if subname != name and not subname.startswith(name + "."):
-                    raise NodeException("Expanded node has illegal name {}, must start with {}.".format(subname, name), node=name)
+                    raise NodeException("Expanded node has illegal name {}, must start with {}.".format(
+                        subname, name), node=name)
                 if isinstance(subnode, Macro):
                     expand_macro(subname, subnode)
                 else:
-                    inputs = normalize_input(subnode)
-                    builder.add(subnode.duplicate(_origin=node, **inputs), subname)
-
+                    inputs = normalize_inputs(subnode)
+                    builder.add(subnode.duplicate(
+                        _origin=node, **inputs), subname)
 
         for name, node in nodes.items():
             if isinstance(node, Macro):
                 expand_macro(name, node)
             else:
-                inputs = normalize_input(node)
+                inputs = normalize_inputs(node)
                 builder.add(node.duplicate(**inputs), name)
 
         expanded = builder.nodes()
@@ -226,9 +260,11 @@ class Compiler(object):
                 elif output is None and output_node is not None:
                     raise CompilerException("Only one output node required")
             elif isinstance(node, Copy):
-                aliases[aliases.get(name, name)] = aliases.get(node.source.name, node.source.name)
+                aliases[aliases.get(name, name)] = aliases.get(
+                    node.source.name, node.source.name)
             elif isinstance(node, DebugOutput) and not self._debug_enabled:
-                aliases[aliases.get(name, name)] = aliases.get(node.source.name, node.source.name)
+                aliases[aliases.get(name, name)] = aliases.get(
+                    node.source.name, node.source.name)
             elif isinstance(node, Constant):
                 if node.key() in values:
                     aliases[aliases.get(name, name)] = values[node.key()]
@@ -237,7 +273,8 @@ class Compiler(object):
 
         if output_node is None:
             if output is not None:
-                raise CompilerException("Output node {} not found".format(output))
+                raise CompilerException(
+                    "Output node {} not found".format(output))
             else:
                 raise CompilerException("No output node found")
 
@@ -247,7 +284,8 @@ class Compiler(object):
             if name not in aliases:
                 inputs = {}
                 for input_name, input_value in zip(node.input_names(), node.input_values()):
-                    inputs[input_name] = Reference(aliases.get(input_value.name, input_value))
+                    inputs[input_name] = Reference(
+                        aliases.get(input_value.name, input_value))
                 builder.add(node.duplicate(**inputs), name)
 
         optimized = builder.nodes()
@@ -286,7 +324,7 @@ class Compiler(object):
                 #
                 # We add this constraints also in case we do not use predicitive jumps to maintain
                 # the order of operations for comparison.
-                
+
                 # Only register conditon once, do not use sets to preserve order
                 if not node.condition.name in conditions:
                     conditions.append(node.condition.name)
@@ -297,15 +335,19 @@ class Compiler(object):
                 # List of nodes required to process condition
                 tree_condition = set(traverse(optimized, node.condition.name))
                 # Required by both branches (A - B) + C
-                common = tree_true.intersection(tree_false).union(tree_condition)
+                common = tree_true.intersection(
+                    tree_false).union(tree_condition)
 
                 if node.condition.name not in common:
                     for sub_node in tree_true.difference(common):
-                        dependencies.setdefault(sub_node, set()).add(node.condition.name)
+                        dependencies.setdefault(
+                            sub_node, set()).add(node.condition.name)
                     for sub_node in tree_false.difference(common):
-                        dependencies.setdefault(sub_node, set()).add(node.condition.name)
+                        dependencies.setdefault(
+                            sub_node, set()).add(node.condition.name)
 
-            dependencies.setdefault(name, set()).update([node.name for node in optimized[name].input_values()])
+            dependencies.setdefault(name, set()).update(
+                [node.name for node in optimized[name].input_values()])
 
         self._debug("Resolving dependencies")
 
@@ -315,18 +357,21 @@ class Compiler(object):
         def operation_data(node):
             meta = node.operation()
             if not isinstance(meta, (tuple, list)):
-                raise CompilerException("Illegal operation data for node: %s" % node)
+                raise CompilerException(
+                    "Illegal operation data for node: %s" % node)
             return meta
 
         if not self._predictive:
             self._debug("Jump optimization not disabled, skipping")
             # Do not process jumps, just sort operations according to their dependencies
-            ordered = [(level, item) for level, sublist in enumerate(toposort(dependencies)) for item in sublist]
+            ordered = [(level, item) for level, sublist in enumerate(
+                toposort(dependencies)) for item in sublist]
             ordered = sorted(ordered)
-            operations = [(name, operation_data(optimized[name]), [r.name for r in optimized[name].input_values()]) for _, name in ordered]
+            operations = [(name, operation_data(optimized[name]), [
+                           r.name for r in optimized[name].input_values()]) for _, name in ordered]
         else:
 
-            def merge_branch(branch, condition, value = None):
+            def merge_branch(branch, condition, value=None):
                 if condition in branch:
                     del branch[condition]
                 elif value is not None:
@@ -345,19 +390,21 @@ class Compiler(object):
                             merge_branch(branch, condition.condition.name)
                             break
                         elif condition.true == ancestor:
-                            merge_branch(branch, condition.condition.name, True)
+                            merge_branch(
+                                branch, condition.condition.name, True)
                         elif condition.false == ancestor:
-                            merge_branch(branch, condition.condition.name, False)
+                            merge_branch(
+                                branch, condition.condition.name, False)
 
                 branches[name].add(**branch)
 
             #print("digraph pixelpipes {")
-            #for k, deps in dependencies.items():
+            # for k, deps in dependencies.items():
             #    k = k.replace(".", "_")
             #    for v in deps:
             #        v = v.replace(".", "_")
             #        print("   %s -> %s; " % (k, v))
-            #print("}")
+            # print("}")
 
             converter = BranchSet(conditions)
 
@@ -365,11 +412,13 @@ class Compiler(object):
             # redundant in certain branch, we have to add these condition nodes to its
             # dependencies to maintain a valid order
             for name, node_branches in branches.items():
-                dependencies.setdefault(name, set()).update(node_branches.used())
-                
+                dependencies.setdefault(name, set()).update(
+                    node_branches.used())
+
             # Insert partiton information into the sorting criteria, group instructions within levels by their
             # partition sets
-            ordered = [(level, branches[item].condition(), item) for level, sublist in enumerate(toposort(dependencies)) for item in sublist]
+            ordered = [(level, branches[item].condition(), item) for level,
+                       sublist in enumerate(toposort(dependencies)) for item in sublist]
             ordered = sorted(ordered)
 
             operations = []
@@ -379,13 +428,16 @@ class Compiler(object):
 
             for level, condition, name in ordered:
                 if self._debug_enabled:
-                    self._debug("{}, {}: {}", level, name, converter.text(condition))
+                    self._debug("{}, {}: {}", level, name,
+                                converter.text(condition))
                 if condition != state:
                     if not pending is None:
                         current_position = len(operations)
                         pending_position, pending_negate, pending_inputs = pending
-                        cjump = ("_cjump", pending_negate, current_position - 1 - pending_position)
-                        operations[pending_position] = ("GOTO: %d" % current_position, cjump, pending_inputs)
+                        cjump = ("_cjump", pending_negate,
+                                 current_position - 1 - pending_position)
+                        operations[pending_position] = (
+                            "GOTO: %d" % current_position, cjump, pending_inputs)
                         pending = None
 
                     equation, inputs = converter.function(condition)
@@ -395,27 +447,16 @@ class Compiler(object):
 
                     state = condition
 
-                operations.append((name, operation_data(optimized[name]), [r.name for r in optimized[name].input_values()]))
+                operations.append((name, operation_data(optimized[name]), [
+                                  r.name for r in optimized[name].input_values()]))
 
-        pipeline = create_pipeline()
-        indices = {}
-
-        # Assemble the low-level pipeline
+        pipeline_operations = []
+    
+        # Assemble a list of pipeline operations
         for name, data, inputs in operations:
-            operation = make_operation(*data)
-            input_indices = [indices[name] for name in inputs]
-            indices[name] = pipeline.append(operation, input_indices)
-            assert indices[name] >= 0
-            self._debug("{} ({}): {} ({})", indices[name], name,
-                    data[0], ", ".join(["{} ({})".format(i, n) for i, n in zip(input_indices, inputs)]))
+            pipeline_operations.append(PipelineOperation(name, data[0], list(data[1:]), inputs))
 
-        output_types = [inferred_types[ref.name] for ref in optimized[output_node].input_values()]
-
-        if not output_groups:
-            output_groups = ["default" for _ in output_types]
-
-        pipeline.finalize()
-        return Pipeline(pipeline, output_groups, output_types, [data[0] for _, data, _ in operations])
+        return pipeline_operations
 
     def _debug(self, message: str, *args, **kwargs):
         if self._debug_enabled:

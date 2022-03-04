@@ -28,14 +28,6 @@ pixelpipes.core.flow module
    :undoc-members:
    :show-inheritance:
 
-pixelpipes.core.libpp\_core module
-----------------------------------
-
-.. automodule:: pixelpipes.core.libpp_core
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
 pixelpipes.core.list module
 ---------------------------
 
@@ -48,14 +40,6 @@ pixelpipes.core.numbers module
 ------------------------------
 
 .. automodule:: pixelpipes.core.numbers
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
-pixelpipes.core.pp\_core\_dsoinfo module
-----------------------------------------
-
-.. automodule:: pixelpipes.core.pp_core_dsoinfo
    :members:
    :undoc-members:
    :show-inheritance:

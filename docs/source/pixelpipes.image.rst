@@ -44,30 +44,6 @@ pixelpipes.image.image module
    :undoc-members:
    :show-inheritance:
 
-pixelpipes.image.libpp\_image module
-------------------------------------
-
-.. automodule:: pixelpipes.image.libpp_image
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
-pixelpipes.image.pp\_image\_dsoinfo module
-------------------------------------------
-
-.. automodule:: pixelpipes.image.pp_image_dsoinfo
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
-pixelpipes.image.pp\_image\_py module
--------------------------------------
-
-.. automodule:: pixelpipes.image.pp_image_py
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
 pixelpipes.image.processing module
 ----------------------------------
 

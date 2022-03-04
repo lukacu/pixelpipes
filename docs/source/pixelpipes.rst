@@ -1,4 +1,4 @@
-Pixelpipes package
+pixelpipes package
 ==================
 
 Subpackages
@@ -37,14 +37,6 @@ pixelpipes.node module
 ----------------------
 
 .. automodule:: pixelpipes.node
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
-pixelpipes.pp\_py module
-------------------------
-
-.. automodule:: pixelpipes.pp_py
    :members:
    :undoc-members:
    :show-inheritance:

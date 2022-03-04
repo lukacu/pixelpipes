@@ -1,6 +1,6 @@
 from attributee import Boolean
 
-from ..node import Input, Node
+from ..node import Input, Node, SeedInput
 from .. import types
 from ..geometry.types import Points
 
@@ -21,8 +21,9 @@ class NormalNoise(Node):
 
     width = Input(types.Integer())
     height = Input(types.Integer())
-    mean = Input(types.Float())
-    std = Input(types.Float())
+    mean = Input(types.Float(), default=0)
+    std = Input(types.Float(), default=1)
+    seed = SeedInput()
     
     def operation(self):
         return "image:normal_noise",
@@ -45,6 +46,7 @@ class UniformNoise(Node):
         - height: noise image height
         - min: minimum value of uniform distribution
         - max: maximum value of uniform distribution
+        - seed: use this seed for random generator
 
     Category: image, noise
     Tags: image, noise
@@ -52,8 +54,9 @@ class UniformNoise(Node):
 
     width = Input(types.Integer())
     height = Input(types.Integer())
-    min = Input(types.Float())
-    max = Input(types.Float())
+    min = Input(types.Float(), default=0)
+    max = Input(types.Float(), default=1)
+    seed = SeedInput()
 
     def operation(self):
         return "image:uniform_noise",
@@ -99,16 +102,15 @@ class LinearImage(Node):
 
         return types.Image(width, height, 1, 64, types.ImagePurpose.HEATMAP)
 
+# OTHER OPERATIONS
+
 class Polygon(Node):
     """Draw a polygon to a canvas of a given size
 
     Inputs:
-        - source: list of points
-        - width: output width
-        - height: height
-
-    Category: image, other
-    Tags: image
+      - source: list of points
+      - width: output width
+      - height: height
 
     Returns:
         [type]: [description]

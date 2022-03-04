@@ -3,10 +3,10 @@ from typing import Optional
 from attributee import List
 from attributee.primitives import Enumeration
 
-from ..node import BinaryOperation, Node, Input, Macro, ValidationException
+from ..graph import BinaryOperation, Node, Input, Macro, ValidationException
 
-from ..core import ArithmeticOperations, types
-from ..core.list import ListBuild
+from .. import ArithmeticOperations, types
+from ..list import ListBuild
 from .types import Point, Points, Rectangle, View
 
 PointsBroadcastType = types.Union(types.Float(), Point(), Points())
@@ -89,17 +89,11 @@ class DividePoints(_ArithmeticPointsOperation):
 for op, cb in [(BinaryOperation.ADD, AddPoints), (BinaryOperation.SUBTRACT, SubtractPoints), (BinaryOperation.MULIPLY, MultiplyPoints), (BinaryOperation.DIVIDE, DividePoints)]:
     Node.register_operation(op, cb, _infer_type_points, Points(), PointsBroadcastType)
     Node.register_operation(op, cb, _infer_type_points, PointsBroadcastType, Points())
-
 class PointsBounds(Node):
-    """Points Bounds
 
-    Computes an axis aligned bounging box on a set of points
-
-    Inputs:
-        - points: A list of points
-
-    Category: points
-    """
+    node_name = "Bounging box"
+    node_description = "Computes an axis aligned bounging box on a set of points"
+    node_category = "points"
 
     points = Input(Points())
 
@@ -111,16 +105,10 @@ class PointsBounds(Node):
 
 # TODO: move to view.py
 class ViewPoints(Node):
-    """View Points
-    
-    Transforms points with a given view.
 
-    Inputs:
-        - source: A list of points
-        - view: View type
-
-    Category: points
-    """
+    node_name = "View points"
+    node_description = "Transforms points with a given view"
+    node_category = "points"
 
     source = Input(Points())
     view = Input(View())
@@ -141,7 +129,7 @@ class PointsCenter(Node):
     Computes center of point set as an average of all coordinates
 
     Inputs:
-        - source: A list of points
+        source: A list of points
 
     Category: points
     """
@@ -160,8 +148,8 @@ class MakePoint(Node):
     Creates a point from two numerical inputs
 
     Inputs:
-        - x: X coordinate
-        - y: Y coordinate
+     - x: X coordinate
+     - y: Y coordinate
 
     Category: points
     """
@@ -181,8 +169,8 @@ class MakePoints(Node):
     Creates a list of points from an even number of numerical inputs
 
     Inputs:
-        - x: X coordinate
-        - y: Y coordinate
+     - x: X coordinate
+     - y: Y coordinate
 
     Category: points
     """
@@ -222,10 +210,10 @@ class MakeRectangle(Macro):
     Creates a bounding box from four values.
 
     Inputs:
-        - left: left bound
-        - top: top bound
-        - right: right bound
-        - bottom: bottom bound
+     - left: left bound
+     - top: top bound
+     - right: right bound
+     - bottom: bottom bound
 
     Category: points
     """
@@ -248,9 +236,7 @@ class PointsFromRectangle(Node):
     """Convert bounding box to points
 
     Inputs:
-        - source: A bounding box
-
-    Category: points
+        source: A bounding box
     """
 
     source = Input(Rectangle())

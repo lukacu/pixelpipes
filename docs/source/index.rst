@@ -20,7 +20,7 @@ Index
 .. toctree::
    :maxdepth: 2
 
-   setup_pixelpipes
-   pixelpipes
+   api
    examples
    custom_modules
+   modules

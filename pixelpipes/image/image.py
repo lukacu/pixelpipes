@@ -2,13 +2,13 @@
 from numbers import Number
 
 from pixelpipes.graph import GraphBuilder
-from pixelpipes.node import Input, Macro, Node, hidden
+from pixelpipes.graph import Input, Macro, Node, hidden
 import numpy as np
 
 from attributee import Enumeration, Boolean, Attribute, AttributeException, List, String
 from attributee.object import Callable
 
-from pixelpipes.core.list import ListElement
+from pixelpipes.list import ListElement
 import pixelpipes.types as types
 
 from ..geometry.types import View
@@ -66,7 +66,8 @@ class ConstantImage(Node):
     Provides a way to inject a numpy array object as image into the pipeline.
 
     Inputs:
-     - source: A Numpy type image
+     - loader: A callback that should return the image, it will be called
+     internally when data is required. Should be serializable.
 
     Category: image, input
     """
@@ -87,9 +88,6 @@ class ConstantImage(Node):
 
 class ConstantImageList(Node):
     """Constant in-memory image list.
-
-    Inputs:
-     - source: An image list
 
     Category: image, input
     """
@@ -185,6 +183,7 @@ class ImageFileList(Node):
 
     def operation(self):
         return "image:filelist", self.files, self.prefix, self.grayscale
+
 @hidden
 class _GetImageProperties(Node):
     """Get image properties
@@ -291,17 +290,10 @@ class Grayscale(Node):
         return types.Image(source.width, source.height, 1, source.depth)
 
 class Threshold(Node):
-    """Threshold
-
-    Sets pixels with values above threshold to zero
-
-    Inputs:
-        - source: source image
-        - threshold: threshold value
-
-    Category: image, basic
-    Tags: image
-    """     
+    
+    node_name = "Threshold"
+    node_description = "Sets pixels with values above threshold to zero"
+    node_category = "image"
 
     source = Input(types.Image(channels=1))
     threshold = Input(types.Float())
@@ -317,16 +309,10 @@ class Threshold(Node):
         return types.Image(source.width, source.height, 1, source.depth)
 
 class Invert(Node):
-    """Invert
-
-    Inverts pixel values
-
-    Inputs:
-        - source: source image
-
-    Category: image, basic
-    Tags: image
-    """   
+    
+    node_name = "Image invert"
+    node_description = "Inverts pixel values"
+    node_category = "image"
 
     source = Input(types.Image())
 
@@ -341,17 +327,10 @@ class Invert(Node):
         return types.Image(source.width, source.height, source.channels, source.depth)
     
 class Equals(Node):
-    """Equal
 
-    Test if individual pixels match a value, returns binary mask
-
-    Inputs:
-        - source: source image
-        - value: value to compare
-
-    Category: image, basic
-    Tags: image
-    """   
+    node_name = "Pixel equal"
+    node_description = "Test if individual pixels match a value, returns binary mask"
+    node_category = "image"
 
     source = Input(types.Image(channels=1))
     #value = Input(types.Float())
@@ -423,16 +402,10 @@ class Merge(Node):
 
 
 class Moments(Node):
-    """Moments
-
-    Calculates image moments.
-
-    Inputs:
-        - source: source image
-
-    Category: image, basic
-    Tags: image
-    """
+    
+    node_name = "Moments"
+    node_description = "Calculates image moments."
+    node_category = "image"
 
     source = Input(types.Image())
     binary = Boolean(default=True)
@@ -444,3 +417,4 @@ class Moments(Node):
         super().validate(**inputs)
 
         return types.List(types.Float())
+

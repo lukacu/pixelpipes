@@ -1,11 +1,12 @@
 
 from functools import reduce as _reduce
 import typing
+import inspect
 
 from intbitset import intbitset
 
 from . import CompilerException
-from ..node import Node, Reference, ValidationException
+from ..graph import Node, Reference, ValidationException
 
 from .. import types
 
@@ -39,12 +40,12 @@ items in the preceeding sets.
     if len(data) != 0:
         raise CompilerException('Cyclic dependency detected among nodes: {}'.format(', '.join(repr(x) for x in data.keys())))
 
-def infer_type(node: str, nodes: typing.Mapping[str, Node], type_cache: typing.Mapping[str, types.Type] = None) -> types.Type:
+def infer_type(node: typing.Union[Reference, int, float, typing.Type[Node]], nodes: typing.Mapping[str, Node], type_cache: typing.Mapping[str, types.Type] = None) -> types.Type:
     """Computes output type for a given node by recursively computing types of its dependencies and
     calling validate method of a node with the information about their computed output types.
 
     Args:
-        node (str): Name of the node
+        node (typing.Union[Reference, int, float, typing.Type[Node]]): Reference of the node or raw value
         nodes (typing.Mapping[str, Node]): Mapping of all nodes in the graph
         type_cache (typing.Mapping[str, types.Type], optional): Optional cache for already computed types.
             Makes repetititve calls much faster. Defaults to None.
@@ -61,6 +62,7 @@ def infer_type(node: str, nodes: typing.Mapping[str, Node], type_cache: typing.M
             return types.Integer(node)
         if isinstance(node, float):
             return types.Float(node)
+        raise ValidationException("Illegal reference type: %s" % node)
 
     name = node.name
 
@@ -68,7 +70,9 @@ def infer_type(node: str, nodes: typing.Mapping[str, Node], type_cache: typing.M
         return type_cache[name]
 
     if name not in nodes:
-        raise ValidationException("Node reference {} not found".format(node), node=node)
+        if name in ["[random]", "[sample]", "[operation]"]:
+            return types.Integer()
+        raise ValidationException("Node reference {} not found".format(node))
 
     try:
 
@@ -80,7 +84,7 @@ def infer_type(node: str, nodes: typing.Mapping[str, Node], type_cache: typing.M
         return output_type
 
     except ValidationException as e:
-        raise ValidationException("Node {}: {}".format(name, str(e)), node=node)
+        raise ValidationException("Node {}: {}".format(name, str(e)), node=nodes[name])
 
 
 def merge(i, j):

@@ -1,26 +1,100 @@
 from __future__ import absolute_import
+from typing import Iterable, Mapping
 
 __version__ = "0.0.3"
 
 import os
 import logging
+from collections import namedtuple
 
 import pixelpipes.types as types
 
 _logger = logging.getLogger(__name__)
 
+def load_module(name):
+    from . import pypixelpipes
+    return pypixelpipes.load(name)
+
 def include_directories():
+    # TODO
     root = os.path.dirname(__file__)
     return [os.path.join(root, "core"), os.path.join(root, "geometry"), os.path.join(root, "image")]
+
+class LazyLoadEnum(Mapping):
+
+    def __init__(self, name):
+        self._name = name
+        self._data = None
+
+    def _load(self):
+        if not self._data:
+            from . import pypixelpipes
+            self._data = pypixelpipes.enum(self._name)
+
+    def __getitem__(self, key):
+        self._load()
+        return self._data[key]
+
+    def __len__(self):
+        self._load()
+        return len(self._data)
+
+    def __iter__(self):
+        self._load()
+        return iter(self._data)
+
+ContextFields = LazyLoadEnum("context")
+ComparisonOperations = LazyLoadEnum("comparison")
+LogicalOperations = LazyLoadEnum("logical")
+ArithmeticOperations = LazyLoadEnum("arithmetic")
+
+PipelineOperation = namedtuple("PipelineOperation", ["id", "name", "arguments", "inputs"])
+
+def write_pipeline(filename: str, operations: Iterable[PipelineOperation]):
+        from . import pypixelpipes
+
+        writer = pypixelpipes.PipelineWriter()
+
+        indices = {}
+        for op in operations:
+            input_indices = [indices[id] for id in op.inputs]
+            indices[op.id] = writer.append(op.name, op.arguments, input_indices)
+            assert indices[op.id] >= 0
+
+        writer.write(filename)
+
+def read_pipeline(filename: str):
+    from . import pypixelpipes
+
+    reader = pypixelpipes.PipelineReader()
+    pipeline = reader.read(filename)
+
+    return Pipeline(pipeline)
+
 class Pipeline(object):
     """Wrapper for the C++ pipeline object, includes metadata
     """
 
-    def __init__(self, pipeline, groups, types, operations):
-        self._pipeline = pipeline
-        self._groups = groups
-        self._types = types
-        self._operations = operations
+    def __init__(self, data: Iterable[PipelineOperation]):
+
+        from . import pypixelpipes
+
+
+        if isinstance(data, pypixelpipes.Pipeline):
+            self._pipeline = data
+        else:
+            self._pipeline = pypixelpipes.Pipeline()
+
+            indices = {}
+
+            for op in data:
+                input_indices = [indices[id] for id in op.inputs]
+                indices[op.id] = self._pipeline.append(op.name, op.arguments, input_indices)
+                assert indices[op.id] >= 0
+                #self._debug("{} ({}): {} ({})", indices[op.id], op.id,
+                #            op.name, ", ".join(["{} ({})".format(i, n) for i, n in zip(input_indices, op.inputs)]))
+
+            self._pipeline.finalize()
 
     def __len__(self):
         return len(self._operations)
@@ -28,17 +102,8 @@ class Pipeline(object):
     def run(self, index):
         return self._pipeline.run(index)
 
-    def output_size(self):
-        return len(self._groups)
-
-    def output_group(self, i):
-        return self._groups[i]
-
-    def output_type(self, i):
-        return self._types[i]
-
     def outputs(self):
-        return zip(self._groups, self._types)
+        return []
 
     def stats(self):
         stats = self._pipeline.operation_time()

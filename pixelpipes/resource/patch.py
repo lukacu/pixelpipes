@@ -2,16 +2,14 @@
 from attributee import String, Float
 from pixelpipes.image.geometry import MaskBoundingBox
 
-from ..core import Copy
 from .. import types
-from ..node import types, Input, Macro, ValidationException, Reference
-from ..core.numbers import UniformDistribution, Add, Subtract, Divide
-from ..core.complex import GetElement
+from ..graph import types, Input, Macro, ValidationException, Reference, Copy, GraphBuilder
+from ..numbers import UniformDistribution, Add, Subtract, Divide
+from ..complex import GetElement
 from ..geometry.view import CenterView, FocusView, TranslateView, Chain
 from ..geometry.points import ViewPoints
 from ..geometry.rectangle import PointsBounds
 from ..geometry.types import View, Points
-from ..graph import GraphBuilder
 
 from ..image import GetImageProperties
 from ..image.geometry import ViewImage
@@ -89,8 +87,8 @@ class ResourceCenter(Macro):
     node_category = "resources"
 
     resource = Input(Resource())
-    scale = Input(types.Float(), default=1)
     field = String(default="region")
+    scale = Input(types.Float(), default=1)
 
     def validate(self, **inputs):
         super().validate(**inputs)
