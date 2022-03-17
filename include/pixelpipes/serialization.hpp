@@ -9,90 +9,140 @@
 #include <pixelpipes/operation.hpp>
 #include <pixelpipes/pipeline.hpp>
 
-namespace pixelpipes {
+namespace pixelpipes
+{
 
-typedef std::function<void(SharedVariable, std::ostream&)> VariableWriter;
+    typedef std::function<void(SharedVariable, std::ostream &)> VariableWriter;
 
-typedef std::function<SharedVariable(std::istream&)> VariableReader;
+    typedef std::function<SharedVariable(std::istream &)> VariableReader;
 
-class PIXELPIPES_API SerializationException : public BaseException {
-public:
-    SerializationException(std::string reason);
-};
+    class PIXELPIPES_API SerializationException : public BaseException
+    {
+    public:
+        SerializationException(std::string reason);
+    };
 
-class PipelineWriter: public std::enable_shared_from_this<PipelineWriter> {
-public:
+    class PipelineWriter : public std::enable_shared_from_this<PipelineWriter>
+    {
+    public:
+        PipelineWriter();
 
-    PipelineWriter();
+        ~PipelineWriter() = default;
 
-    ~PipelineWriter() = default;
+        void write(std::ostream &target);
 
-    void write(std::ostream& target);
+        void write(std::string &target);
 
-    void write(std::string& target);
+        int append(std::string name, std::vector<SharedVariable> args, std::vector<int> inputs);
 
-    int append(std::string name, std::vector<SharedVariable> args, std::vector<int> inputs);
+        template <typename T>
+        static void register_writer(VariableWriter writer)
+        {
 
-    template<typename T>
-    static void register_writer(VariableWriter writer) {
+            Type<T> variable_type;
 
-        Type<T> variable_type;
+            register_writer(variable_type.identifier, variable_type.name, writer);
+        }
 
-        register_writer(variable_type.identifier, variable_type.name, writer);
+    private:
+        typedef std::tuple<std::string, std::vector<int>, std::vector<int>> OperationData;
+        typedef std::tuple<VariableWriter, TypeName, SharedModule> WriterData;
+        typedef std::map<TypeIdentifier, WriterData> WriterMap;
 
-    }
+        static WriterMap &writers();
 
-private:
+        static void register_writer(TypeIdentifier identifier, std::string_view name, VariableWriter writer);
 
-    typedef std::tuple<std::string, std::vector<int>, std::vector<int> > OperationData;
-    typedef std::tuple<VariableWriter, TypeName, SharedModule> WriterData;
-    typedef std::map<TypeIdentifier, WriterData> WriterMap;
+        std::set<SharedModule> used_modules;
+        std::set<TypeIdentifier> used_types;
 
-    static WriterMap& writers();
+        std::vector<SharedVariable> variables;
+        std::vector<OperationData> operations;
+    };
 
-    static void register_writer(TypeIdentifier identifier, std::string_view name, VariableWriter writer);
+    class PipelineReader : public std::enable_shared_from_this<PipelineReader>
+    {
+    public:
+        PipelineReader();
 
-    std::set<SharedModule> used_modules;
-    std::set<TypeIdentifier> used_types;
+        ~PipelineReader() = default;
 
-    std::vector<SharedVariable> variables;
-    std::vector<OperationData> operations;
+        SharedPipeline read(std::istream &target);
 
-};
+        SharedPipeline read(std::string &target);
 
-class PipelineReader: public std::enable_shared_from_this<PipelineReader> {
-public:
+        template <typename T>
+        static void register_reader(VariableReader reader)
+        {
 
-    PipelineReader();
+            Type<T> variable_type;
 
-    ~PipelineReader() = default;
+            register_reader(variable_type.identifier, variable_type.name, reader);
+        }
 
-    SharedPipeline read(std::istream& target);
+    private:
+        typedef std::tuple<VariableReader, TypeName, SharedModule> ReaderData;
+        typedef std::map<TypeIdentifier, ReaderData> ReaderMap;
 
-    SharedPipeline read(std::string& target);
+        static ReaderMap &readers();
 
-    template<typename T>
-    static void register_reader(VariableReader reader) {
+        static void register_reader(TypeIdentifier identifier, std::string_view name, VariableReader reader);
+    };
 
-        Type<T> variable_type;
+#define PIXELPIPES_REGISTER_READER(T, F) static AddModuleInitializer CONCAT(__reader_init_, __COUNTER__)([]() { PipelineReader::register_reader<T>(F); })
+#define PIXELPIPES_REGISTER_WRITER(T, F) static AddModuleInitializer CONCAT(__writer_init_, __COUNTER__)([]() { PipelineWriter::register_writer<T>(F); })
 
-        register_reader(variable_type.identifier, variable_type.name, reader);
+    template <typename T>
+    T read_t(std::istream &source)
+    {
+        T v;
+        source.read((char *)&v, sizeof(T));
+        return v;
+    };
 
+    template <typename T>
+    void write_t(std::ostream &target, T i)
+    {
+        target.write((char *)&i, sizeof(T));
+    };
 
-    }
+    template <>
+    inline void write_t(std::ostream &target, bool b)
+    {
+        unsigned char c = b ? 0xFF : 0;
+        target.write((const char *)&c, sizeof(unsigned char));
+    };
 
-private:
+    template <>
+    inline bool read_t(std::istream &source)
+    {
+        char c;
+        source.read(&c, sizeof(unsigned char));
+        return c > 0;
+    };
 
-    typedef std::tuple<VariableReader, TypeName, SharedModule> ReaderData;
-    typedef std::map<TypeIdentifier, ReaderData> ReaderMap;
+    template <>
+    inline void write_t(std::ostream &target, std::string s)
+    {
+        size_t len = s.size();
+        write_t(target, len);
+        target.write(&s[0], len);
+    };
 
-    static ReaderMap& readers();
-
-    static void register_reader(TypeIdentifier identifier, std::string_view name, VariableReader reader);
-
-};
-
-#define PIXELPIPES_REGISTER_READER(T, F) static AddModuleInitializer CONCAT(__reader_init_, __COUNTER__) ([]() { PipelineReader::register_reader<T> ( F ); } )
-#define PIXELPIPES_REGISTER_WRITER(T, F) static AddModuleInitializer CONCAT(__writer_init_, __COUNTER__) ([]() { PipelineWriter::register_writer<T> ( F ); } )
+    template <>
+    inline std::string read_t(std::istream &source)
+    {
+        try
+        {
+            size_t len = read_t<size_t>(source);
+            std::string res(len, ' ');
+            source.read(&res[0], len);
+            return res;
+        }
+        catch (std::bad_alloc &exception)
+        {
+            throw SerializationException("Unable to allocate a string");
+        }
+    };
 
 }

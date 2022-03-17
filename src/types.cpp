@@ -33,7 +33,7 @@ void List::describe(std::ostream& os) const {
 }
 
 TypeIdentifier List::type() const {
-    return list_type();
+    return GetTypeIdentifier<List>();
 }
 
 }

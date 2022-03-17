@@ -600,7 +600,7 @@ class GraphBuilder(object):
 
     def build(self, groups=None):
 
-        return Graph(nodes=self._nodes, groups=groups or list())
+        return Graph(nodes=self._nodes)
 
     def rename(self, node: Node, newname: str):
         if not node in self._nodes.inverse:

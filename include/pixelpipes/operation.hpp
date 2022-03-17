@@ -230,10 +230,6 @@ bool is_operation_registered(const std::string& key);
 template <typename OperationClass = Operation, typename ...Args>
 void register_operation(const std::string& key) {
 
-    if (is_operation_registered(key)) {
-        throw ModuleException(std::string("Name already used: ") + key);
-    }
-
     register_operation(key, OperationFactory<OperationClass, Args...>::new_instance, OperationFactory<OperationClass, Args...>::arguments);
 
 }

@@ -1,6 +1,5 @@
 
-#include <pixelpipes/operation.hpp>
-#include <pixelpipes/geometry.hpp>
+#include "common.hpp"
 
 namespace pixelpipes {
 
@@ -12,11 +11,11 @@ SharedVariable PointsCenter(std::vector<SharedVariable> inputs) {
     SharedList list = List::cast(inputs[0]);
     cv::Point2f accumulator;
     for (size_t i = 0; i < list->size(); i++) {
-        accumulator += Point2D::get_value(list->get(i));
+        accumulator += extract<cv::Point2f>(list->get(i));
     }
     accumulator /= (float) list->size();
 
-    return std::make_shared<Point2D>(accumulator);
+    return wrap(accumulator);
 
 }
 
@@ -33,7 +32,7 @@ SharedVariable PointsFromRectangle(std::vector<SharedVariable> inputs) {
     float right = Float::get_value(list->get(2));
     float bottom = Float::get_value(list->get(3));
 
-    return std::make_shared<Point2DList>(std::vector<cv::Point2f>({cv::Point2f(left, top), cv::Point2f(right, top), cv::Point2f(right, bottom), cv::Point2f(left, bottom)}));
+    return std::make_shared<Point2DList>(std::vector<Point2D>({Point2D{left, top}, Point2D{right, top}, Point2D{right, bottom}, Point2D{left, bottom}}));
 
 }
 
@@ -52,10 +51,10 @@ SharedVariable PointsFromInputs(std::vector<SharedVariable> inputs) {
 
     VERIFY(inputs.size() % 2 == 0, "Incorrect number of parameters, number should be even");
 
-    std::vector<cv::Point2f> result;
+    std::vector<Point2D> result;
 
     for (size_t i = 0; i < inputs.size(); i+=2) {
-        result.push_back(cv::Point2f(Float::get_value(inputs[i]), Float::get_value(inputs[i+1])));
+        result.push_back(Point2D{Float::get_value(inputs[i]), Float::get_value(inputs[i+1])});
     }
 
     return std::make_shared<Point2DList>(result);
@@ -68,11 +67,11 @@ SharedVariable PointsFromList(std::vector<SharedVariable> inputs) {
     VERIFY(inputs.size() == 1, "Incorrect number of parameters");
     VERIFY(IS_NUMERIC_LIST(inputs[0]) && List::length(inputs[0]) % 2 == 0, "Not a float list with even element count");
 
-    std::vector<cv::Point2f> result;
+    std::vector<Point2D> result;
 
     SharedList list = List::cast(inputs[0]);
     for (size_t i = 0; i < list->size(); i+=2) {
-        result.push_back(cv::Point2f(Float::get_value(list->get(i)), Float::get_value(list->get(i+1))));
+        result.push_back(Point2D{Float::get_value(list->get(i)), Float::get_value(list->get(i+1))});
     }
 
     return std::make_shared<Point2DList>(result);
@@ -85,14 +84,14 @@ SharedVariable RandomPoints(std::vector<SharedVariable> inputs, int count) {
 
     VERIFY(inputs.size() == 1, "Incorrect number of parameters");
 
-    std::vector<cv::Point2f> data(count);
+    std::vector<Point2D> data(count);
 
     RandomGenerator generator = StohasticOperation::create_generator(inputs[0]);
 
     std::uniform_real_distribution<float> distribution(-1, 1);
 
     for (int i = 0; i < count; i++) {
-        data.push_back(cv::Point2f(distribution(generator), distribution(generator)));
+        data.push_back(Point2D{distribution(generator), distribution(generator)});
     }
 
     return std::make_shared<Point2DList>(data);
@@ -100,20 +99,22 @@ SharedVariable RandomPoints(std::vector<SharedVariable> inputs, int count) {
 
 REGISTER_OPERATION_FUNCTION_WITH_BASE("random", RandomPoints, StohasticOperation, int);
 
-inline void execute_operation(ArithmeticOperation op, std::vector<cv::Point2f>& points0, std::vector<cv::Point2f>& points1, std::vector<cv::Point2f>& result) {
+inline void execute_operation(ArithmeticOperation op, std::vector<Point2D>& points0, std::vector<Point2D>& points1, std::vector<Point2D>& result) {
 
         result.resize(points0.size());
 
         switch (op) {
             case ArithmeticOperation::ADD: {
                 for (size_t i = 0; i < points0.size(); i++) {
-                    result[i] = points0[i] + points1[i];
+                    result[i].x = points0[i].x + points1[i].x;
+                    result[i].y = points0[i].y + points1[i].y;
                 }
                 break;
             }
             case ArithmeticOperation::SUBTRACT: {
                 for (size_t i = 0; i < points0.size(); i++) {
-                    result[i] = points0[i] - points1[i];
+                    result[i].x = points0[i].x - points1[i].x;
+                    result[i].y = points0[i].y - points1[i].y;
                 }
                 break;
             }
@@ -148,20 +149,22 @@ inline void execute_operation(ArithmeticOperation op, std::vector<cv::Point2f>& 
 SharedVariable PointArithmeticOperation(std::vector<SharedVariable> inputs, ArithmeticOperation op) {
 
     VERIFY(inputs.size() == 2, "Incorrect number of parameters");
-    VERIFY(Point2D::is(inputs[0]) || Point2D::is(inputs[1]), "At least one input should be a point");
+    VERIFY(Point2DVariable::is(inputs[0]) || Point2DVariable::is(inputs[1]), "At least one input should be a point");
 
-    cv::Point2f result;
+    Point2D result;
 
-    cv::Point2f point0 = Point2D::get_value(inputs[0]);
-    cv::Point2f point1 = Point2D::get_value(inputs[1]);
+    Point2D point0 = extract<Point2D>(inputs[0]);
+    Point2D point1 = extract<Point2D>(inputs[1]);
 
     switch (op) {
         case ArithmeticOperation::ADD: {
-            result = point0 + point1;
+            result.x = point0.x + point1.x;
+            result.y = point0.y + point1.y;
             break;
         }
         case ArithmeticOperation::SUBTRACT: {
-            result = point0 - point1;
+            result.x = point0.x - point1.x;
+            result.y = point0.y - point1.y;
             break;
         }
         case ArithmeticOperation::MULTIPLY: {
@@ -184,7 +187,7 @@ SharedVariable PointArithmeticOperation(std::vector<SharedVariable> inputs, Arit
         }
     }
 
-    return std::make_shared<Point2D>(result);
+    return wrap(result);
 }
 
 REGISTER_OPERATION_FUNCTION("point_arithmetic", PointArithmeticOperation, ArithmeticOperation);
@@ -192,20 +195,21 @@ REGISTER_OPERATION_FUNCTION("point_arithmetic", PointArithmeticOperation, Arithm
 SharedVariable PointsArithmeticOperation(std::vector<SharedVariable> inputs, ArithmeticOperation op) {
 
     VERIFY(inputs.size() == 2, "Incorrect number of parameters");
-    VERIFY(Point2DList::is(inputs[0]) || Point2DList::is(inputs[1]), "At least one input should be list of points");
 
-    std::vector<cv::Point2f> result;
+    VERIFY(Point2DList::is_list(inputs[0]) || Point2DList::is_list(inputs[1]), "At least one input should be list of points");
+
+    std::vector<Point2D> result;
 
     // Both inputs are lists
-    if (List::is(inputs[0]) && Point2DList::is(inputs[1])) {
+    if (List::is(inputs[0]) && List::is_list(inputs[1], Point2DType)) {
 
         SharedList list0 = List::cast(inputs[0]);
         SharedList list1 = List::cast(inputs[1]);
 
         VERIFY(list0->size() == list1->size(), "List sizes do not match");
 
-        auto points0 = list0->elements<cv::Point2f>();
-        auto points1 = list1->elements<cv::Point2f>();
+        auto points0 = list0->elements<Point2D>();
+        auto points1 = list1->elements<Point2D>();
 
         execute_operation(op, points0, points1, result);
 
@@ -215,10 +219,10 @@ SharedVariable PointsArithmeticOperation(std::vector<SharedVariable> inputs, Ari
 
             SharedList list0 = List::cast(inputs[0]);
             result.resize(list0->size());
-            std::vector<cv::Point2f> points0 = list0->elements<cv::Point2f>();
+            std::vector<Point2D> points0 = list0->elements<Point2D>();
 
-            cv::Point2f value = Point2D::is(inputs[1]) ? Point2D::get_value(inputs[1]) : cv::Point2f(Float::get_value(inputs[1]), Float::get_value(inputs[1]));
-            std::vector<cv::Point2f> points1(points0.size(), value);
+            Point2D value = extract<Point2D>(inputs[1]);
+            std::vector<Point2D> points1(points0.size(), value);
 
             execute_operation(op, points0, points1, result);
 
@@ -226,10 +230,10 @@ SharedVariable PointsArithmeticOperation(std::vector<SharedVariable> inputs, Ari
 
             SharedList list1 = List::cast(inputs[1]);
             result.resize(list1->size());
-            std::vector<cv::Point2f> points1 = list1->elements<cv::Point2f>();
+            std::vector<Point2D> points1 = list1->elements<Point2D>();
 
-            cv::Point2f value = Point2D::is(inputs[0]) ? Point2D::get_value(inputs[0]) : cv::Point2f(Float::get_value(inputs[0]), Float::get_value(inputs[0]));
-            std::vector<cv::Point2f> points0(points1.size(), value);
+            Point2D value = extract<Point2D>(inputs[0]);
+            std::vector<Point2D> points0(points1.size(), value);
 
             execute_operation(op, points0, points1, result);
 

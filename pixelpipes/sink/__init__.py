@@ -155,7 +155,7 @@ class PipelineDataLoader(AbstractDataLoader):
         super().__init__(batch, workers, offset)
 
         compiler = Compiler(fixedout=True)
-        self._pipeline = compiler.compile(graph, variables=variables, output=output)
+        self._pipeline = compiler.build(graph, variables=variables, output=output)
 
     def _outputs(self):
         return self._pipeline.outputs()

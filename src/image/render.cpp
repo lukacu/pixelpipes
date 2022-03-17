@@ -4,6 +4,8 @@
 #include <pixelpipes/image.hpp>
 #include <pixelpipes/geometry.hpp>
 
+#include "common.hpp"
+
 namespace pixelpipes {
 
 /**
@@ -19,7 +21,7 @@ SharedVariable Polygon(std::vector<SharedVariable> inputs) noexcept(false) {
     int width = Integer::get_value(inputs[1]);
     int height = Integer::get_value(inputs[2]);
 
-    std::vector<cv::Point2f> points = List::cast(inputs[0])->elements<cv::Point2f>();
+    std::vector<cv::Point2f> points = extract<std::vector<cv::Point2f>>(inputs[0]);
 
     try {
 
@@ -29,7 +31,7 @@ SharedVariable Polygon(std::vector<SharedVariable> inputs) noexcept(false) {
 
         cv::fillPoly(mat, std::vector<std::vector<cv::Point>>({v}), cv::Scalar(255,255,255));
 
-        return std::make_shared<Image>(mat);
+        return wrap(mat);
 
     } catch (cv::Exception& cve) {
         throw VariableException(cve.what());
@@ -61,7 +63,7 @@ SharedVariable NormalNoise(std::vector<SharedVariable> inputs) noexcept(false) {
 	cv::Mat noise(height, width, CV_64F);
 	generator.fill(noise, cv::RNG::NORMAL, mean, std);
 
-    return std::make_shared<Image>(noise);
+    return wrap(noise);
 }
 
 REGISTER_OPERATION_FUNCTION_WITH_BASE("normal_noise", NormalNoise, StohasticOperation);
@@ -83,7 +85,7 @@ SharedVariable UniformNoise(std::vector<SharedVariable> inputs) noexcept(false) 
 	cv::Mat noise(height, width, CV_64F);
 	generator.fill(noise, cv::RNG::UNIFORM, min, max);
 
-    return std::make_shared<Image>(noise);
+    return wrap(noise);
 }
 
 REGISTER_OPERATION_FUNCTION_WITH_BASE("uniform_noise", UniformNoise, StohasticOperation);
@@ -122,7 +124,7 @@ SharedVariable Linear(std::vector<SharedVariable> inputs, bool flip) noexcept(fa
         }
     }
 
-    return std::make_shared<Image>(result);
+    return wrap(result);
 }
 
 REGISTER_OPERATION_FUNCTION("linear", Linear, bool);

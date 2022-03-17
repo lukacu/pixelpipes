@@ -170,8 +170,8 @@ class Expression(Macro):
     Macro that expands into an arithmetic expression parsed from an input string.
 
     Inputs:
-     * source: text representation of arithmetic expression
-     * variables: a map of inputs that are inserted into the expression
+        - source: text representation of arithmetic expression
+        - variables: a map of inputs that are inserted into the expression
 
     Category: arithmetic, macro
     """

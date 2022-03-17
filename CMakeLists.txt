@@ -20,7 +20,7 @@ if(BUILD_DEBUG)
     add_definitions(-DPIXELPIPES_SOURCE_COMPILE_ROOT="${CMAKE_CURRENT_SOURCE_DIR}/src/")
 endif()
 
-FIND_PACKAGE(OpenCV REQUIRED core imgproc video calib3d)
+FIND_PACKAGE(OpenCV REQUIRED core imgproc imgcodecs video calib3d)
 
 SET(CORE_SOURCE
     src/queue.cpp
@@ -38,8 +38,28 @@ SET(CORE_SOURCE
 INCLUDE_DIRECTORIES(${OpenCV_INCLUDE_DIRS} include/)
 
 ADD_LIBRARY(pixelpipes SHARED ${CORE_SOURCE})
-TARGET_LINK_LIBRARIES(pixelpipes ${OpenCV_LIBS})
-target_compile_definitions(pixelpipes PUBLIC PIXELPIPES_BUILD_CORE)
+TARGET_LINK_LIBRARIES(pixelpipes)
+target_compile_definitions(pixelpipes PRIVATE PIXELPIPES_BUILD_CORE)
+
+ADD_LIBRARY(pixelpipes_geometry SHARED 
+    src/geometry/common.cpp
+    src/geometry/points.cpp
+    src/geometry/view.cpp
+    )
+
+TARGET_LINK_LIBRARIES(pixelpipes_geometry pixelpipes ${OpenCV_LIBS})
+
+ADD_LIBRARY(pixelpipes_image SHARED 
+    src/image/common.cpp
+    src/image/arithmetic.cpp
+    src/image/filter.cpp
+    src/image/geometry.cpp
+    src/image/processing.cpp
+    src/image/render.cpp
+    )
+
+TARGET_LINK_LIBRARIES(pixelpipes_image pixelpipes ${OpenCV_LIBS})
+
 
 # CMake config file
 INCLUDE(CMakePackageConfigHelpers)
@@ -60,7 +80,10 @@ endif()
 
 INCLUDE_DIRECTORIES(${PYTHON_INCLUDE_DIR} ${NUMPY_INCLUDE_DIR})
 
-ADD_LIBRARY(pypixelpipes SHARED src/python/wrapper.cpp)
+ADD_LIBRARY(pypixelpipes SHARED 
+    src/python/wrapper.cpp
+    src/python/image.cpp 
+)
 
 TARGET_LINK_LIBRARIES(pypixelpipes pixelpipes)
 
@@ -74,7 +97,7 @@ set_target_properties(
 
 IF (BUILD_INLINE)
 
-    set_target_properties(pixelpipes pypixelpipes
+    set_target_properties(pixelpipes pypixelpipes pixelpipes_geometry pixelpipes_image
         PROPERTIES
         LIBRARY_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/pixelpipes"
         RUNTIME_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/pixelpipes"

@@ -11,43 +11,63 @@ namespace pixelpipes
 
     SerializationException::SerializationException(std::string reason) : BaseException(reason) {}
 
-    void write_size(std::ostream &target, size_t i)
+    template <>
+    void write_t(std::ostream &target, DNF s)
     {
-
-        target.write((char *)&i, sizeof(size_t));
+        write_t(target, s.size());
+        for (auto x : s)
+        {
+            write_t(target, x.size());
+            for (auto d : x)
+                write_t<bool>(target, d); // Explicit type needed
+        }
     };
 
-    template <typename T>
-    T read_t(std::istream &source)
+    template <>
+    DNF read_t(std::istream &source)
     {
-        T v;
-        source.read((char *)&v, sizeof(T));
-        return v;
-    };
-
-    void write_string(std::ostream &target, std::string s)
-    {
-
-        size_t len = s.size();
-
-        write_size(target, len);
-        target.write(&s[0], len);
-    };
-
-    std::string read_string(std::istream &source)
-    {
-
         size_t len = read_t<size_t>(source);
-        std::string res(len, ' ');
-        source.read(&res[0], len);
-        return res;
+        std::vector<std::vector<bool>> data;
+        data.reserve(len);
+
+        for (size_t i = 0; i < len; i++)
+        {
+            std::vector<bool> clause;
+            size_t n = read_t<size_t>(source);
+            for (size_t j = 0; j < n; j++)
+                clause.push_back(read_t<bool>(source));
+            data.push_back(clause);
+        }
+        return DNF(data);
     };
 
     template <typename T>
-    void write_t(std::ostream &target, T i)
+    void write_v(std::ostream &source, const std::vector<T> &list)
     {
+        write_t(source, list.size());
+        for (size_t i = 0; i < list.size(); i++)
+        {
+            write_t(source, list[i]);
+        }
+    };
 
-        target.write((char *)&i, sizeof(T));
+    template <typename T>
+    std::vector<T> read_v(std::istream &source)
+    {
+        try
+        {
+            size_t len = read_t<size_t>(source);
+            std::vector<T> list;
+            for (size_t i = 0; i < len; i++)
+            {
+                list.push_back(read_t<T>(source));
+            }
+            return list;
+        }
+        catch (std::bad_alloc &exception)
+        {
+            throw SerializationException("Unable to allocate an array");
+        }
     };
 
     PIXELPIPES_REGISTER_WRITER(int, [](SharedVariable v, std::ostream &target)
@@ -64,13 +84,24 @@ namespace pixelpipes
                                {
     bool b = Boolean::get_value(v);
     unsigned char c = b ? 0xFF : 0;
-
     target.write((const char *) &c, 1); });
 
     PIXELPIPES_REGISTER_WRITER(std::string, [](SharedVariable v, std::ostream &target)
                                {
     std::string s = String::get_value(v);
-    write_string(target, s); });
+    write_t(target, s); });
+
+    PIXELPIPES_REGISTER_WRITER(std::vector<int>, [](SharedVariable v, std::ostream &target)
+                               { write_v(target, List::get_list(v, IntegerType)->elements<int>()); });
+    PIXELPIPES_REGISTER_WRITER(std::vector<float>, [](SharedVariable v, std::ostream &target)
+                               { write_v(target, List::get_list(v, FloatType)->elements<float>()); });
+    PIXELPIPES_REGISTER_WRITER(std::vector<bool>, [](SharedVariable v, std::ostream &target)
+                               { write_v(target, List::get_list(v, BooleanType)->elements<bool>()); });
+    PIXELPIPES_REGISTER_WRITER(std::vector<std::string>, [](SharedVariable v, std::ostream &target)
+                               { write_v(target, List::get_list(v, StringType)->elements<std::string>()); });
+
+    PIXELPIPES_REGISTER_WRITER(DNF, [](SharedVariable v, std::ostream &target)
+                               { write_t(target, ContainerVariable<DNF>::get_value(v)); });
 
     PIXELPIPES_REGISTER_WRITER(Point2D, [](SharedVariable v, std::ostream &target)
                                {
@@ -94,18 +125,25 @@ namespace pixelpipes
 
     PIXELPIPES_REGISTER_READER(int, [](std::istream &source)
                                { return std::make_shared<Integer>(read_t<int>(source)); });
-
     PIXELPIPES_REGISTER_READER(float, [](std::istream &source)
                                { return std::make_shared<Float>(read_t<float>(source)); });
-
     PIXELPIPES_REGISTER_READER(bool, [](std::istream &source)
-                               {
-    char c;
-    source.read(&c, 1);
-    return std::make_shared<Boolean>(c > 0); });
+                               { return std::make_shared<Boolean>(read_t<bool>(source)); });
+
+    PIXELPIPES_REGISTER_READER(std::vector<int>, [](std::istream &source)
+                               { return std::make_shared<IntegerList>(read_v<int>(source)); });
+    PIXELPIPES_REGISTER_READER(std::vector<float>, [](std::istream &source)
+                               { return std::make_shared<FloatList>(read_v<float>(source)); });
+    PIXELPIPES_REGISTER_READER(std::vector<bool>, [](std::istream &source)
+                               { return std::make_shared<BooleanList>(read_v<bool>(source)); });
+    PIXELPIPES_REGISTER_READER(std::vector<std::string>, [](std::istream &source)
+                               { return std::make_shared<StringList>(read_v<std::string>(source)); });
+
+    PIXELPIPES_REGISTER_READER(DNF, [](std::istream &source)
+                               { return wrap(read_t<DNF>(source)); });
 
     PIXELPIPES_REGISTER_READER(std::string, [](std::istream &source)
-                               { return std::make_shared<String>(read_string(source)); });
+                               { return std::make_shared<String>(read_t<std::string>(source)); });
 
     PIXELPIPES_REGISTER_READER(Point2D, [](std::istream &source)
                                { return std::make_shared<Point2DVariable>(read_t<Point2D>(source)); });
@@ -130,11 +168,11 @@ namespace pixelpipes
 
         // First, write the modules that have to be loaded
 
-        write_size(target, used_modules.size());
+        write_t(target, used_modules.size());
 
         for (auto m : used_modules)
         {
-            write_string(target, m->name());
+            write_t(target, m->name());
         }
 
         // Map variable types used to names
@@ -147,17 +185,17 @@ namespace pixelpipes
             type_mapping.insert({std::get<1>(writers().find(t)->second), counter++});
         }
 
-        write_size(target, type_mapping.size());
+        write_t(target, type_mapping.size());
 
         for (auto t : type_mapping)
         {
-            write_string(target, std::string(t.first));
+            write_t(target, std::string(t.first));
             write_t(target, t.second);
         }
 
         // Write the operations with their arguments
 
-        write_size(target, variables.size());
+        write_t(target, variables.size());
 
         for (auto var : variables)
         {
@@ -172,20 +210,20 @@ namespace pixelpipes
 
         // Write the input dependencies for operations (the pipeline stuff)
 
-        write_size(target, operations.size());
+        write_t(target, operations.size());
 
         for (auto op : operations)
         {
 
-            write_string(target, std::get<0>(op));
+            write_t(target, std::get<0>(op));
 
-            write_size(target, std::get<1>(op).size());
+            write_t(target, std::get<1>(op).size());
             for (auto i : std::get<1>(op))
             {
                 write_t(target, i);
             }
 
-            write_size(target, std::get<2>(op).size());
+            write_t(target, std::get<2>(op).size());
             for (auto i : std::get<2>(op))
             {
                 write_t(target, i);
@@ -243,7 +281,7 @@ namespace pixelpipes
             }
             else
             {
-                throw SerializationException("Writer not found");
+                throw SerializationException(Formatter() << "Writer " << name << " not found");
             }
         }
 
@@ -275,7 +313,7 @@ namespace pixelpipes
             if (std::get<1>(d.second) == name)
             {
 
-                throw SerializationException("Writer already registered with this type name");
+                throw SerializationException(Formatter() << "Writer already registered for name " << name);
             }
         }
 
@@ -309,7 +347,7 @@ namespace pixelpipes
 
             for (size_t i = 0; i < module_count; i++)
             {
-                auto module_name = read_string(source);
+                std::string module_name = read_t<std::string>(source);
                 Module::load(module_name);
             }
         }
@@ -324,7 +362,7 @@ namespace pixelpipes
 
             for (size_t i = 0; i < count; i++)
             {
-                std::string type_name = read_string(source);
+                std::string type_name = read_t<std::string>(source);
                 int code = read_t<int>(source);
 
                 bool found = false;
@@ -342,7 +380,7 @@ namespace pixelpipes
 
                 if (!found)
                 {
-                    throw SerializationException("Reader not found");
+                    throw SerializationException(Formatter() << "Reader " << type_name << " not found");
                 }
             }
         }
@@ -387,7 +425,7 @@ namespace pixelpipes
             for (size_t i = 0; i < count; i++)
             {
 
-                std::string name = read_string(source);
+                std::string name = read_t<std::string>(source);
 
                 auto argument_count = read_t<size_t>(source);
 
@@ -398,14 +436,7 @@ namespace pixelpipes
                     arguments.push_back(variables[read_t<int>(source)]);
                 }
 
-                auto input_count = read_t<size_t>(source);
-
-                std::vector<int> inputs;
-
-                for (size_t j = 0; j < input_count; j++)
-                {
-                    inputs.push_back(read_t<int>(source));
-                }
+                std::vector<int> inputs = read_v<int>(source);
 
                 pipeline->append(name, arguments, inputs);
             }
@@ -451,7 +482,7 @@ namespace pixelpipes
             if (std::get<1>(d.second) == name)
             {
 
-                throw SerializationException("Reader already registered with this type name");
+                throw SerializationException(Formatter() << "Reader already registered for name " << name);
             }
         }
 

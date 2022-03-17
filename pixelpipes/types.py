@@ -398,7 +398,7 @@ class Complex(Type):
         return self._elements
 
     def access(self, element: str, parent: "Reference"):
-        from pixelpipes.node import Reference
+        from pixelpipes.graph import Reference
         if not element in self:
             raise TypeException("Element {} not found in complex resource".format(element))
         return Reference(parent + "." + element)

@@ -47,12 +47,6 @@ public:
 
     }
 
-protected:
-
-    virtual TypeIdentifier list_type() const {
-        return list->type();
-    }
-
 private:
 
     SharedList list;
@@ -118,12 +112,6 @@ public:
 
     }
 
-protected:
-
-    virtual TypeIdentifier list_type() const {
-        return lists[0]->type();
-    }
-
 private:
 
     std::vector<SharedList> lists;
@@ -170,13 +158,6 @@ public:
 
     }
 
-protected:
-
-    virtual TypeIdentifier list_type() const {
-        return list->type();
-    }
-
-
 private:
 
     SharedList list;
@@ -203,12 +184,6 @@ public:
 
     virtual SharedVariable get(int index) const {
         return value;
-    }
-
-protected:
-
-    virtual TypeIdentifier list_type() const {
-        return Type<std::vector<T>>::identifier;
     }
 
 private:

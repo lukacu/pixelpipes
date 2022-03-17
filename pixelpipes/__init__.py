@@ -1,5 +1,8 @@
 from __future__ import absolute_import
+from importlib.util import module_from_spec
 from typing import Iterable, Mapping
+
+import os
 
 __version__ = "0.0.3"
 
@@ -10,6 +13,10 @@ from collections import namedtuple
 import pixelpipes.types as types
 
 _logger = logging.getLogger(__name__)
+
+modules_path = os.environ.get("PIXELPIPES_MODULES_PATH", "").split(os.pathsep)
+modules_path.insert(0, os.path.dirname(__file__))
+os.environ["PIXELPIPES_MODULES_PATH"] = os.pathsep.join(modules_path)
 
 def load_module(name):
     from . import pypixelpipes
@@ -33,6 +40,9 @@ class LazyLoadEnum(Mapping):
 
     def __getitem__(self, key):
         self._load()
+        if isinstance(key, int):
+            if key in self._data.values():
+                return key
         return self._data[key]
 
     def __len__(self):

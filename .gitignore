@@ -1,12 +1,15 @@
 *.pyd
 *.dll
-build
-attributee
-test_*.py
-ImageDirectory
-~*
 *.so
+*.pyc
+.*
+~*
+pp_*.py
+test_*.py
 build
+dist
+datasets
+img
 __pycache__
 *.pyc
 tmp
@@ -15,3 +18,4 @@ dist
 *_dsoinfo.py
 temp
 .*
+*.code-workspace

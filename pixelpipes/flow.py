@@ -14,9 +14,9 @@ class ConditionalResource(Macro):
     the "condition" is not zero, otherwise output of branch "false" will be selected.
 
     Inputs:
-     * true (Complex): Use this data if condition is true
-     * false (Primitve): Use this data if condition is false
-     * condition (Integer): Condition to test
+        - true (Complex): Use this data if condition is true
+        - false (Primitve): Use this data if condition is false
+        - condition (Integer): Condition to test
 
     Category: flow, resource
     """
@@ -86,8 +86,8 @@ class Switch(Macro):
     """Random switch between multiple branches
 
     Inputs:
-        inputs: Input branches
-        weights: Corresponing branch probabilities
+        - inputs: Input branches
+        - weights: Corresponing branch probabilities
 
     Category: core
     Tags: random, switch

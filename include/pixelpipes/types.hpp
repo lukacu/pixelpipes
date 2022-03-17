@@ -1,6 +1,7 @@
 #pragma once
 #include <memory>
 #include <vector>
+#include <array>
 #include <type_traits>
 #include <string_view>
 #include <map>
@@ -384,19 +385,24 @@ public:
     virtual bool is_scalar() const { return false; }
 
     inline static bool is(SharedVariable v) {
-        return ((bool) v && !v->is_scalar());
+        return ((bool) v && v->type() == GetTypeIdentifier<List>());
     }
 
     inline static bool is_list(SharedVariable v) {
-        return ((bool) v && !v->is_scalar());
+        return ((bool) v && List::is(v));
     }
 
     inline static bool is_list(SharedVariable v, TypeIdentifier type) {
-        return ((bool) v && !v->is_scalar()) && std::static_pointer_cast<List>(v)->element_type() == type;
+        return ((bool) v && List::is(v)) && std::static_pointer_cast<List>(v)->element_type() == type;
     }
 
     inline static std::shared_ptr<List> get_list(SharedVariable v) {
-        VERIFY(((bool) v && !v->is_scalar()), "Not a list");
+        VERIFY(is_list(v), "Not a list");
+        return std::static_pointer_cast<List>(v);
+    }
+
+    inline static std::shared_ptr<List> get_list(SharedVariable v, TypeIdentifier type) {
+        VERIFY(is_list(v, type), "Not a list");
         return std::static_pointer_cast<List>(v);
     }
 
@@ -415,7 +421,7 @@ public:
     }
 
     // Slow default template version
-    template<class C> std::vector<C> elements() {
+    template<class C> const std::vector<C> elements() const {
 
         std::vector<C> result;
 
@@ -428,10 +434,6 @@ public:
     }
 
     virtual void describe(std::ostream& os) const;
-
-protected:
-
-    virtual TypeIdentifier list_type() const = 0;
 
 
 };
@@ -447,27 +449,21 @@ public:
     ContainerList(const std::vector<C> list) : list(list) {};
     ~ContainerList() = default;
 
-    inline static bool is(SharedVariable v) {
-        return ((bool) v && v->type() == Type<std::vector<C>>::identifier);
+    inline static bool is_list(SharedVariable v) {
+        return List::is_list(v, GetTypeIdentifier<C>());
     }
 
     virtual size_t size() const { return list.size(); }
 
     virtual TypeIdentifier element_type() const { return Type<C>::identifier; };
 
-   // virtual SharedVariable get(int index) const { return std::make_shared<std::conditional<is_vector<C>::value, ContainerList<typename C::value_type>, ScalarVariable<C>>>(list[index]); }
-
     virtual SharedVariable get(int index) const { return std::make_shared<ScalarVariable<C>>(list[index]); }
 
-    std::vector<C> elements() {
+    const std::vector<C> elements() const {
 
         return list;
 
     }
-
-protected:
-
-    virtual TypeIdentifier list_type() const { return Type<std::vector<C> >::identifier; };
 
 private:
 
@@ -529,11 +525,6 @@ public:
         return source;
 
     }
-
-protected:
-
-    virtual TypeIdentifier list_type() const { return Type<std::vector<std::vector<T>>>::identifier; };
-
 
 private:
 

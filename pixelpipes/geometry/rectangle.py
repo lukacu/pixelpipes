@@ -9,6 +9,18 @@ from .. import types
 from .types import Rectangle
 
 class MakeRectangle(Node): 
+    """Make Rectangle
+    
+    Creates a bounding box from four values.
+
+    Inputs:
+        - x1: left bound
+        - x2: right bound
+        - y1: top bound
+        - y2: bottom bound
+
+    Category: Rectangle
+    """
 
     x1 = Input(types.Integer())
     x2 = Input(types.Integer())
@@ -22,6 +34,16 @@ class MakeRectangle(Node):
         return Rectangle()
 
 class ResizeRectangle(Macro):
+    """Resize Rectangle
+    
+    Scales existing rectangle by a factor.
+
+    Inputs:
+        - source: A rectangle type
+        - factor: Scaling factor
+
+    Category: Rectangle
+    """
 
     source = Input(Rectangle())
     factor = Input(types.Float())
@@ -42,6 +64,15 @@ class ResizeRectangle(Macro):
         return builder.nodes()
 
 class RectangleArea(Macro):
+    """Rectangle Area
+    
+    Calculates and area under rectangle.
+
+    Inputs:
+        - source: A rectangle type
+
+    Category: Rectangle
+    """
 
     source = Input(Rectangle())
 

@@ -2,21 +2,27 @@
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
 #include <pybind11/functional.h>
+#include <pybind11/numpy.h>
 
+#include <pixelpipes/types.hpp>
 #include <pixelpipes/pipeline.hpp>
 #include <pixelpipes/module.hpp>
 #include <pixelpipes/operation.hpp>
 #include <pixelpipes/serialization.hpp>
-
-//#include <pixelpipes/geometry.hpp>
-
+#include <pixelpipes/geometry.hpp>
+#include <pixelpipes/image.hpp>
 #include <pixelpipes/python.hpp>
-
-#include <numpy/arrayobject.h>
 
 namespace py = pybind11;
 
 using namespace pixelpipes;
+
+// image.cpp
+SharedVariable wrap_image(py::object src);
+py::object extract_image(SharedVariable src);
+SharedVariable wrap_image_list(py::object src);
+py::object extract_image_list(SharedVariable src);
+
 
 //const static int initialized = init_conversion();
 void register_python_wrappers(Module& m);
@@ -212,7 +218,7 @@ typedef void (*PythonInitalizerCallback) (PythonModule&);
 
 py::array numpyFromVariable(pixelpipes::SharedVariable variable) {
 
-    if (!variable->is_scalar()) {
+    if (List::is(variable)) {
         pixelpipes::SharedList list = std::static_pointer_cast<pixelpipes::List>(variable);
         if (!list->size()) {
             return py::array();
@@ -399,6 +405,10 @@ PYBIND11_MODULE(pypixelpipes, m) {
     registry.register_enumeration<ArithmeticOperation>("arithmetic");
     registry.register_enumeration<ContextData>("context"); 
 
+    registry.register_enumeration<ImageDepth>("depth"); 
+    registry.register_enumeration<Interpolation>("interpolation"); 
+    registry.register_enumeration<BorderStrategy>("border"); 
+
     py::class_<Pipeline, std::shared_ptr<Pipeline> >(m, "Pipeline")
     .def(py::init<>())
     .def("finalize", &Pipeline::finalize, "Finalize pipeline")
@@ -520,9 +530,7 @@ PYBIND11_MODULE(pypixelpipes, m) {
 
     registry.register_wrapper(DNFType, &wrap_dnf_clause, false);
 
-
-/*
-PIXELPIPES_PYTHON_REGISTER_WRAPPER(Point2DType, [](py::object src) {
+    registry.register_wrapper(Point2DType, [](py::object src) {
 
         if  (py::tuple::check_(src)) {
             py::tuple tuple(src);
@@ -534,55 +542,47 @@ PIXELPIPES_PYTHON_REGISTER_WRAPPER(Point2DType, [](py::object src) {
             }
         }
 
-        return empty<Point2D>();
+        return empty<Point2DVariable>();
 
-    } );
+    });
 
-PIXELPIPES_PYTHON_REGISTER_EXTRACTOR(Point2DType, [](SharedVariable src) {
+    registry.register_extractor(Point2DType, [](SharedVariable src) {
 
-        cv::Point2f point = Point2D::get_value(src);
-
+        Point2D point = extract<Point2D>(src);
         py::array_t<float> result({2});
-
         *result.mutable_data(0) = point.x;
         *result.mutable_data(1) = point.y;
-
         return result;
 
-    } );
+    });
 
-PIXELPIPES_PYTHON_REGISTER_WRAPPER(View2DType, [](py::object src) {
+    registry.register_extractor(View2DType, [](SharedVariable src) {
 
-        if  (py::tuple::check_(src)) {
-            py::tuple tuple(src);
-            if (tuple.size() == 2) {
-                py::float_ x(tuple[0]);
-                py::float_ y(tuple[1]);
-
-                return MAKE_POINT(x, y);
-            }
-        }
-
-        return empty<Point2D>();
-
-    } );
-
-PIXELPIPES_PYTHON_REGISTER_EXTRACTOR(View2DType, [](SharedVariable src) {
-
-        cv::Matx33f mat = View2D::get_value(src);
+        View2D view = View2DVariable::get_value(src);
 
         py::array_t<float> result({3, 3});
 
-        for (int i = 0; i < 3; i++) {
-            *result.mutable_data(i, 0) = mat(i, 0);
-            *result.mutable_data(i, 1) = mat(i, 1);
-            *result.mutable_data(i, 2) = mat(i, 2);
-        }
+        *result.mutable_data(0, 0) = view.m00;
+        *result.mutable_data(0, 1) = view.m01;
+        *result.mutable_data(0, 2) = view.m02;
+        *result.mutable_data(1, 0) = view.m10;
+        *result.mutable_data(1, 1) = view.m11;
+        *result.mutable_data(1, 2) = view.m12;
+        *result.mutable_data(2, 0) = view.m20;
+        *result.mutable_data(2, 1) = view.m21;
+        *result.mutable_data(2, 2) = view.m22;
 
         return result;
 
-    } );
+    });
 
-*/
+    registry.register_wrapper(ImageType, &wrap_image);
+
+    registry.register_extractor(ImageType, &extract_image);
+
+    registry.register_wrapper(ImageListType, &wrap_image_list);
+
+    registry.register_extractor(ImageListType, &extract_image_list);
+
 
 }

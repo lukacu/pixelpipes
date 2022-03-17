@@ -77,8 +77,8 @@ public:
 #endif
 
 #define PIXELPIPES_MODULE(N) \
-std::list<ModuleInitializer> & ( __pixelpipes_ ## N ## _module_initializers() { static std::list<ModuleInitializer> inits;  return inits; } \
-AddModuleInitializer::AddModuleInitializer(ModuleInitializer initializer) { ( __pixelpipes_ ## N ## _module_initializers)().push_back(initializer); } \
+std::list<pixelpipes::ModuleInitializer> & ( __pixelpipes_ ## N ## _module_initializers )() { static std::list<pixelpipes::ModuleInitializer> inits;  return inits; } \
+pixelpipes::AddModuleInitializer::AddModuleInitializer(pixelpipes::ModuleInitializer initializer) { ( __pixelpipes_ ## N ## _module_initializers)().push_back(initializer); } \
 extern "C" { \
 const char* pixelpipes_module = STRINGIFY(N); \
 void pixelpipes_module_init() { \

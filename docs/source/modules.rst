@@ -5,3 +5,4 @@ pixelpipes
    :maxdepth: 4
 
    pixelpipes
+   setup

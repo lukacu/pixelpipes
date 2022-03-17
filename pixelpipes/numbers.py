@@ -1,15 +1,19 @@
 from attributee import List, Number, Enumeration
 
-from . import ComparisonOperations
-
+from . import ComparisonOperations, types
 from .graph import Node, Input, NodeException, SeedInput, hidden, BinaryOperation, UnaryOperation, Constant
-from . import types
 
 class UniformDistribution(Node):
+    """Uniform distribution
 
-    node_name = "Uniform distribution"
-    node_description = "Samples values between min and max"
-    node_category = "numeric"
+    Samples values between min and max.
+
+    Inputs:
+        - min: Minimun value
+        - max: Maximum value
+
+    Category: numeric
+    """
 
     min = Input(types.Float())
     max = Input(types.Float())
@@ -22,10 +26,16 @@ class UniformDistribution(Node):
         return "random_uniform",
 
 class NormalDistribution(Node):
+    """Normal distribution
 
-    node_name = "Normal distribution"
-    node_description = "Samples values between from normal distribution"
-    node_category = "numeric"
+    Samples values between from normal distribution.
+
+    Inputs:
+        - mean: Mean value of normal distribution
+        - sigma: Standard deviation
+
+    Category: numeric
+    """
 
     mean = Input(types.Float(), default=0)
     sigma = Input(types.Float(), default=1)
@@ -38,9 +48,12 @@ class NormalDistribution(Node):
         return "random_normal",
 
 class Round(Node):
+    """Round
 
-    """Round number to closest integer.
+    Round number to closest integer and convert to integer type.
 
+    Inputs:
+        - source: Number to be rounded
 
     Category: numeric
     """
@@ -59,6 +72,15 @@ class Round(Node):
         return "numbers_round",
 
 class Floor(Node):
+    """Floor
+
+    Floor number and convert to integer.
+
+    Inputs:
+        - source: Number on which floor operation is performed
+
+    Category: numeric
+    """
 
     source = Input(types.Float())
 
@@ -74,6 +96,15 @@ class Floor(Node):
         return "numbers_floor",
 
 class Ceil(Node):
+    """Ceil
+
+    Ceil number and convert to integer.
+
+    Inputs:
+        - source: Number on which ceil operation is performed
+
+    Category: numeric
+    """
 
     source = Input(types.Float())
 
@@ -264,17 +295,6 @@ class _ThresholdsComparison(Node):
 
     def _output(self):
         return types.Integer()
-
-class ThresholdsConjunction(_ThresholdsComparison):
-
-    def operation(self):
-        return engine.ThresholdsConjunction(self.thresholds, self.comparison)
-
-class ThresholdsDisjunction(_ThresholdsComparison):
-
-    def operation(self):
-        return engine.ThresholdsDisjunction(self.thresholds, self.comparison)
-
 
 def _numeric_unary_generator(proto, a):
     refa, typa = tuple(a)

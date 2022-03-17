@@ -1,6 +1,6 @@
 from attributee import Boolean
 
-from ..node import Input, Node, SeedInput
+from ..graph import Input, Node, SeedInput
 from .. import types
 from ..geometry.types import Points
 
@@ -102,15 +102,16 @@ class LinearImage(Node):
 
         return types.Image(width, height, 1, 64, types.ImagePurpose.HEATMAP)
 
-# OTHER OPERATIONS
-
 class Polygon(Node):
     """Draw a polygon to a canvas of a given size
 
     Inputs:
-      - source: list of points
-      - width: output width
-      - height: height
+        - source: list of points
+        - width: output width
+        - height: height
+
+    Category: image, other
+    Tags: image
 
     Returns:
         [type]: [description]

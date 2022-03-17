@@ -4,22 +4,10 @@
 #include <pixelpipes/image.hpp>
 #include <pixelpipes/geometry.hpp>
 
+#include "common.hpp"
+
 namespace pixelpipes {
 
-inline int maximum_value(cv::Mat image) {
-
-    switch (image.depth()) {
-    case CV_8U:
-        return 255;
-    case CV_16S:
-        return 255 * 255;
-    case CV_32F:
-    case CV_64F:
-        return 1;
-    default:
-        throw VariableException("Unsupported image depth");
-    }
-}
 
 inline int interpolate_convert(Interpolation interpolation) {
 
@@ -37,6 +25,21 @@ inline int interpolate_convert(Interpolation interpolation) {
     }
 }
 
+SharedVariable Transpose(std::vector<SharedVariable> inputs) noexcept(false) {
+
+    VERIFY(inputs.size() == 1, "Incorrect number of parameters");
+
+    cv::Mat image = extract<cv::Mat>(inputs[0]);
+
+    cv::Mat result;
+    
+    cv::transpose(image, result);  
+       
+    return wrap(result);
+}  
+
+REGISTER_OPERATION_FUNCTION("transpose", Transpose);
+
 
 /**
  * @brief Apply view linear transformation to an image.
@@ -49,30 +52,10 @@ SharedVariable ViewImage(std::vector<SharedVariable> inputs, Interpolation inter
     int border_value = 0;
     int border_const = 0;
 
-    switch (border) {
-    case BorderStrategy::ConstantHigh:
-        border_const = cv::BORDER_CONSTANT;
-        border_value = 1;
-        break;
-    case BorderStrategy::ConstantLow:
-        border_const = cv::BORDER_CONSTANT;
-        border_value = 0;
-        break;
-    case BorderStrategy::Replicate:
-        border_const = cv::BORDER_REPLICATE;
-        break;
-    case BorderStrategy::Reflect:
-        border_const = cv::BORDER_REFLECT;
-        break;
-    case BorderStrategy::Wrap:
-        border_const = cv::BORDER_WRAP;
-        break;
-    default:
-        throw VariableException("Illegal border strategy value");
-    }
+    border_const = ocv_border_type(border, &border_value);
 
-    cv::Mat image = Image::get_value(inputs[0]);
-    cv::Matx33f transform = View2D::get_value(inputs[1]);
+    cv::Mat image = extract<cv::Mat>(inputs[0]);
+    cv::Matx33f transform = extract<cv::Matx33f>(inputs[1]);
 
     int width = Integer::get_value(inputs[2]);
     int height = Integer::get_value(inputs[3]);
@@ -87,7 +70,7 @@ SharedVariable ViewImage(std::vector<SharedVariable> inputs, Interpolation inter
         throw VariableException(cve.what());
     }
 
-    return std::make_shared<Image>(output);
+    return wrap(output);
 
 }
 
@@ -104,31 +87,11 @@ SharedVariable RemapImage(std::vector<SharedVariable> inputs, Interpolation inte
     int border_value = 0;
     int border_const = 0;
 
-    switch (border) {
-    case BorderStrategy::ConstantHigh:
-        border_const = cv::BORDER_CONSTANT;
-        border_value = 1;
-        break;
-    case BorderStrategy::ConstantLow:
-        border_const = cv::BORDER_CONSTANT;
-        border_value = 0;
-        break;
-    case BorderStrategy::Replicate:
-        border_const = cv::BORDER_REPLICATE;
-        break;
-    case BorderStrategy::Reflect:
-        border_const = cv::BORDER_REFLECT;
-        break;
-    case BorderStrategy::Wrap:
-        border_const = cv::BORDER_WRAP;
-        break;
-    default:
-        throw VariableException("Illegal border strategy value");
-    }
+    border_const = ocv_border_type(border, &border_value);
 
-    cv::Mat image = Image::get_value(inputs[0]);
-    cv::Mat x = Image::get_value(inputs[1]);
-    cv::Mat y = Image::get_value(inputs[2]);
+    cv::Mat image = extract<cv::Mat>(inputs[0]);
+    cv::Mat x = extract<cv::Mat>(inputs[1]);
+    cv::Mat y = extract<cv::Mat>(inputs[2]);
 
     cv::Mat output;
 
@@ -140,7 +103,7 @@ SharedVariable RemapImage(std::vector<SharedVariable> inputs, Interpolation inte
         throw VariableException(cve.what());
     }
 
-    return std::make_shared<Image>(output);
+    return wrap(output);
 
 }
 
@@ -177,7 +140,7 @@ SharedVariable MaskBounds(std::vector<SharedVariable> inputs) noexcept(false) {
 
     VERIFY(inputs.size() == 1, "Incorrect number of parameters");
 
-    cv::Mat image = Image::get_value(inputs[0]);
+    cv::Mat image = extract<cv::Mat>(inputs[0]);
 
     VERIFY(image.channels() == 1, "Image has more than one channel");
 
@@ -208,7 +171,7 @@ SharedVariable ImageResize(std::vector<SharedVariable> inputs, Interpolation int
 
     if (inputs.size() == 3) {
 
-        cv::Mat image = Image::get_value(inputs[0]);
+        cv::Mat image = extract<cv::Mat>(inputs[0]);
 
         int width = Integer::get_value(inputs[1]);
         int height = Integer::get_value(inputs[2]);
@@ -216,18 +179,18 @@ SharedVariable ImageResize(std::vector<SharedVariable> inputs, Interpolation int
         cv::Mat result;
         cv::resize(image, result, cv::Size(height, width), 0, 0, interpolate_convert(interpolation));
 
-        return std::make_shared<Image>(result);
+        return wrap(result);
 
     } else if (inputs.size() == 2) {
 
-        cv::Mat image = Image::get_value(inputs[0]);
+        cv::Mat image = extract<cv::Mat>(inputs[0]);
 
-        int scale = Float::get_value(inputs[1]);
+        float scale = Float::get_value(inputs[1]);
 
         cv::Mat result;
         cv::resize(image, result, cv::Size(), scale, scale, interpolate_convert(interpolation));
 
-        return std::make_shared<Image>(result);
+        return wrap(result);
 
     } else {
         throw VariableException("Incorrect number of parameters");
@@ -244,7 +207,7 @@ SharedVariable Rotate(std::vector<SharedVariable> inputs) noexcept(false) {
 
     VERIFY(inputs.size() == 2, "Incorrect number of parameters");
 
-    cv::Mat image = Image::get_value(inputs[0]);
+    cv::Mat image = extract<cv::Mat>(inputs[0]);
     int clockwise = Integer::get_value(inputs[1]);
     
     cv::Mat result;
@@ -259,7 +222,7 @@ SharedVariable Rotate(std::vector<SharedVariable> inputs) noexcept(false) {
         cv::flip(image, result, -1);
     }
 
-    return std::make_shared<Image>(result);
+    return wrap(result);
 }  
 
 REGISTER_OPERATION_FUNCTION("rotate", Rotate);
@@ -273,13 +236,13 @@ SharedVariable Flip(std::vector<SharedVariable> inputs) noexcept(false) {
     
     VERIFY(inputs.size() == 2, "Incorrect number of parameters");
 
-    cv::Mat image = Image::get_value(inputs[0]);
+    cv::Mat image = extract<cv::Mat>(inputs[0]);
     int flip_code = Integer::get_value(inputs[1]);
     
     cv::Mat result;
     cv::flip(image, result, flip_code); 
 
-    return std::make_shared<Image>(result);
+    return wrap(result);
 }
 
 REGISTER_OPERATION_FUNCTION("flip", Flip);
@@ -293,7 +256,7 @@ SharedVariable ImageCrop(std::vector<SharedVariable> inputs) {
     VERIFY(inputs.size() == 2, "Incorrect number of parameters");
     VERIFY(List::is_list(inputs[1], FloatType), "Not a float list");
 
-    cv::Mat image = Image::get_value(inputs[0]);
+    cv::Mat image = extract<cv::Mat>(inputs[0]);
     auto bbox = std::static_pointer_cast<List>(inputs[1]);
 
     float x1 = Float::get_value(bbox->get(0));
@@ -303,7 +266,7 @@ SharedVariable ImageCrop(std::vector<SharedVariable> inputs) {
     
     cv::Mat result = image(cv::Rect(x1,y1,x2-x1,y2-y1)).clone();
 
-    return std::make_shared<Image>(result);
+    return wrap(result);
 }
 
 REGISTER_OPERATION_FUNCTION("crop", ImageCrop);

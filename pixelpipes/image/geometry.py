@@ -1,12 +1,13 @@
 
 from attributee import Enumeration
 
-from ..node import Input, Node, ValidationException
+from ..graph import Input, Node, ValidationException
 from .. import types
 
 from . import BorderStrategy, InterpolationMode
 
 from ..geometry.types import BoundingBox, View
+
 class Scale(Node):
     """Scale
 
@@ -43,6 +44,25 @@ class Scale(Node):
             height = int(inputs["scale"].value * source.height)
 
         return types.Image(width, height, source.channels, source.depth, purpose=source.purpose)
+
+class Transpose(Node):
+    """Transpose
+
+    Transposes image, replacing width for height
+
+    Category: image, basic
+    Tags: image
+    """
+
+    source = Input(types.Image())
+
+    def operation(self):
+        return "image:transpose",
+
+    def validate(self, **inputs):
+        super().validate(**inputs)
+        source = inputs["source"]
+        return types.Image(source.height, source.width, source.channels, source.depth)
 
 class Rotate(Node):
     """Rotate
@@ -137,10 +157,16 @@ class Resize(Node):
         return types.Image(inputs["width"].value, inputs["height"].value, source.channels, source.depth, purpose=source.purpose)
 
 class MaskBoundingBox(Node):
+    """Mask Bounding Box
 
-    node_name = "Mask bounding box"
-    node_description = "Compute a bounding box of a single-channel image and returns bounding box."
-    node_category = "image"
+    Compute a bounding box of a single-channel image and returns bounding box.
+
+    Inputs:
+        - source: source image
+        
+    Category: image, basic
+    Tags: image
+    """
 
     source = Input(types.Image(channels=1))
 
@@ -182,19 +208,15 @@ class ViewImage(Node):
     Apply a view transformation to image
 
     Inputs:
-     - source:
-     - view:
-     - width:
-     - height:
-     - interpolation:
-     - border:
+        - source: source image
+        - view: view type
+        - width: width
+        - height: height 
+        - interpolation: interpolation type enumeration
+        - border: border type enumeration
 
     Category: image, geometry
     """
-
-    node_name = ""
-    node_description = ""
-    node_category = "image"
 
     source = Input(types.Image())
     view = Input(View())

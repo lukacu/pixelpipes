@@ -14,10 +14,10 @@ from .compiler import Compiler, Conditional
 class TestPipes(unittest.TestCase):    
 
     """
-    core/numerical.py
+    core/expression.py
     """
 
-    def test_expression(self):
+    def test_core_Expression(self):
 
         with GraphBuilder() as graph:
             n1 = Constant(value=5)
@@ -26,29 +26,33 @@ class TestPipes(unittest.TestCase):
             Output(outputs=[n3])
 
         pipeline = Compiler.build_graph(graph)
-        sample = pipeline.run(1)
+        output = pipeline.run(1)
 
-        self.assertEqual(sample[0], 6)
+        self.assertEqual(output[0], 6)
 
-    def test_arithmetic(self):
+    def test_core_Operations(self):
 
         with GraphBuilder() as graph:
-            n1 = Constant(6)
-            n2 = Constant(3)
+            n1 = Constant(value=6)
+            n2 = Constant(value=3)
             Output(outputs=[n1+n2, n1-n2, n1*n2, n1/n2, n1**n2, n1%n2, -n1])
 
         pipeline = Compiler.build_graph(graph)
-        sample = pipeline.run(1)
+        output = pipeline.run(1)
 
-        self.assertEqual(sample[0], 9)
-        self.assertEqual(sample[1], 3)
-        self.assertEqual(sample[2], 18)
-        self.assertEqual(sample[3], 2)
-        self.assertEqual(sample[4], 216)
-        self.assertEqual(sample[5], 0)
-        self.assertEqual(sample[6], -6)
+        self.assertEqual(output[0], 9)
+        self.assertEqual(output[1], 3)
+        self.assertEqual(output[2], 18)
+        self.assertEqual(output[3], 2)
+        self.assertEqual(output[4], 216)
+        self.assertEqual(output[5], 0)
+        self.assertEqual(output[6], -6)
 
-    def test_uniform_sampling(self):
+    """
+    core/numbers.py
+    """
+
+    def test_core_UniformDistribution(self):
 
         a = 1.5
         b = 3
@@ -60,11 +64,15 @@ class TestPipes(unittest.TestCase):
         pipeline = Compiler.build_graph(graph)
 
         for i in range(3):
-            sample = pipeline.run(i)
-            self.assertGreaterEqual(sample[0], a)
-            self.assertLess(sample[0], b)
+            output = pipeline.run(i)
+            self.assertGreaterEqual(output[0], a)
+            self.assertLess(output[0], b)
 
-    def test_list(self):
+    """
+    core/list.py
+    """
+
+    def test_core_ConstantList(self):
 
         with GraphBuilder() as graph:
             n1 = ConstantList([0, 1, 2])
@@ -74,7 +82,7 @@ class TestPipes(unittest.TestCase):
         sample = pipeline.run(1)
         np.testing.assert_array_equal(sample[0], [[0], [1], [2]])
 
-    def test_list_range(self):
+    def test_core_ListRange(self):
 
         with GraphBuilder() as graph:
             r1 = ListRange(0, 10, 10, True)
@@ -86,7 +94,7 @@ class TestPipes(unittest.TestCase):
         np.testing.assert_array_equal(sample[0], np.array([range(0, 10, 1)], dtype=np.int32).T)
         np.testing.assert_array_equal(sample[1], np.array([range(0, 10, 1)], dtype=np.float32).T / 2)
 
-    def test_table(self):
+    def test_core_ConstantTable(self):
 
         with GraphBuilder() as graph:
             n = ConstantTable([[0, 1, 2], [3, 4, 5]])
@@ -96,8 +104,8 @@ class TestPipes(unittest.TestCase):
         sample = pipeline.run(1)
         np.testing.assert_array_equal(sample[0], [[0], [1], [2]])
 
+    def test_compiler_Conditional_0(self):
 
-    def test_jumps(self):
         with GraphBuilder() as graph:
             c1 = Round(Floor(SampleIndex() / 4) % 2)
             c2 = Round(Floor(SampleIndex() / 2) % 2)
@@ -109,10 +117,13 @@ class TestPipes(unittest.TestCase):
 
         pipeline = Compiler.build_graph(graph)
         for i in range(8):
-            sample = pipeline.run(i)
-            self.assertEqual(sample[0], i)
+            output = pipeline.run(i)
+            self.assertEqual(output[0], i)
 
-    def test_predictive1(self):
+    """
+    TODO FIX test_compiler_Conditional_1
+
+    def test_compiler_Conditional_1(self):
 
         with GraphBuilder() as graph:
             a = UniformDistribution(0, 30)
@@ -126,9 +137,33 @@ class TestPipes(unittest.TestCase):
         for i in range(1, 100):
             a = pipeline.run(i)
             self.assertEqual(a[0] if a[0] > 15 else a[1], a[2])
+            Output(outputs=[a, b, d])
+      
+        pipeline = Compiler(debug=False).compile_graph(graph)
 
+        for i in range(1, 100):
+            a = pipeline.run(i)
+            self.assertEqual(a[0] if a[0] + a[1] > 15 else a[1], a[2])
+    """
 
-    def test_predictive2(self):
+    """
+    PROPOSED FIX for test_compiler_Conditional_1 
+    """
+    def test_compiler_Conditional_1(self):
+
+        with GraphBuilder() as graph:
+            a = Round(UniformDistribution(0, 30))
+            b = Constant(value=3)
+            d = Conditional(a, b, a > 15)
+            Output(outputs=[a, b, d])
+      
+        pipeline = Compiler().build(graph)
+
+        for i in range(1, 100):
+            a = pipeline.run(i)
+            self.assertEqual(a[0] if a[0] > 15 else a[1], a[2])
+
+    def test_compiler_Conditional_Switch(self):
 
         # Does not work at the moment, the result is not the same because of the order of random generators
         # TODO: this has to be fixed

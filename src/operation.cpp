@@ -42,7 +42,7 @@ bool is_operation_registered(const std::string& key) {
 SharedOperation make_operation(const std::string& key, std::vector<SharedVariable> inputs) {
 
     if (!is_operation_registered(key)) {
-        throw ModuleException(std::string("Name not found: ") + key); // TODO: RegistryException
+        throw ModuleException(Formatter() << "Name not found: " << key); // TODO: RegistryException
     }
 
     auto op = std::get<0>(get_operation(key))(inputs);
@@ -53,7 +53,7 @@ SharedOperation make_operation(const std::string& key, std::vector<SharedVariabl
 OperationDescription describe_operation(const std::string& key) {
 
     if (!is_operation_registered(key)) {
-        throw ModuleException(std::string("Name not found: ") + key); // TODO: RegistryException
+        throw ModuleException(Formatter() << "Name not found: " << key); // TODO: RegistryException
     }
 
     return {std::get<2>(get_operation(key)), std::get<1>(get_operation(key))()};
@@ -66,8 +66,12 @@ void register_operation(const std::string& key, OperationConstructor constructor
 
     std::string global_key = (context) ? (context->name() + ":" + key) : key;
 
-    registry().insert(RegistryMap::value_type(key, Factory(constructor, describer, context)));
-    DEBUGMSG("Registering operation: %s \n", key.c_str());
+    if (is_operation_registered(global_key)) {
+        throw ModuleException(Formatter() << "Name already used: " << global_key);
+    }
+
+    registry().insert(RegistryMap::value_type(global_key, Factory(constructor, describer, context)));
+    DEBUGMSG("Registering operation: %s \n", global_key.c_str());
 
 }
 

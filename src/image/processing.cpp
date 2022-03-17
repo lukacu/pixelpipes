@@ -12,8 +12,8 @@ SharedVariable ImageBlend(std::vector<SharedVariable> inputs) {
 
     VERIFY(inputs.size() == 3, "Incorrect number of parameters");
 
-    cv::Mat image_0 = Image::get_value(inputs[0]);
-    cv::Mat image_1 = Image::get_value(inputs[1]);
+    cv::Mat image_0 = extract<cv::Mat>(inputs[0]);
+    cv::Mat image_1 = extract<cv::Mat>(inputs[1]);
     float alpha = Float::get_value(inputs[2]);  
     float beta = (1 - alpha);
 
@@ -21,7 +21,7 @@ SharedVariable ImageBlend(std::vector<SharedVariable> inputs) {
 
     cv::addWeighted(image_0, alpha, image_1, beta, 0.0, result);
 
-    return std::make_shared<Image>(result);
+    return wrap(result);
 }
 
 REGISTER_OPERATION_FUNCTION("blend", ImageBlend);
@@ -34,7 +34,7 @@ SharedVariable ImageDropout(std::vector<SharedVariable> inputs) noexcept(false) 
 
     VERIFY(inputs.size() == 3, "Incorrect number of parameters");
 
-    cv::Mat image = Image::get_value(inputs[0]);
+    cv::Mat image = extract<cv::Mat>(inputs[0]);
     float dropout_p = Float::get_value(inputs[1]);
 
 	cv::RNG generator(Integer::get_value(inputs[2]));
@@ -84,7 +84,7 @@ SharedVariable ImageDropout(std::vector<SharedVariable> inputs) noexcept(false) 
         }
     }
 
-    return std::make_shared<Image>(result);
+    return wrap(result);
 }
 
 REGISTER_OPERATION_FUNCTION("dropout", ImageDropout);
@@ -98,7 +98,7 @@ SharedVariable ImageCoarseDropout(std::vector<SharedVariable> inputs) noexcept(f
 
     VERIFY(inputs.size() == 4, "Incorrect number of parameters");
 
-    cv::Mat image = Image::get_value(inputs[0]);
+    cv::Mat image = extract<cv::Mat>(inputs[0]);
     float dropout_p = Float::get_value(inputs[1]);
     float dropout_size = Float::get_value(inputs[2]);
 
@@ -172,7 +172,7 @@ SharedVariable ImageCoarseDropout(std::vector<SharedVariable> inputs) noexcept(f
         }
     }
 
-    return std::make_shared<Image>(result);
+    return wrap(result);
 }
 
 REGISTER_OPERATION_FUNCTION("coarse_dropout", ImageCoarseDropout);
@@ -186,7 +186,7 @@ SharedVariable ImageCut(std::vector<SharedVariable> inputs) {
     VERIFY(inputs.size() == 2, "Incorrect number of parameters");
     VERIFY(List::is_list(inputs[1], FloatType), "Not a float list");
 
-    cv::Mat image = Image::get_value(inputs[0]);
+    cv::Mat image = extract<cv::Mat>(inputs[0]);
     auto bbox = std::static_pointer_cast<List>(inputs[1]);
 
     float left = Float::get_value(bbox->get(0));
@@ -237,7 +237,7 @@ SharedVariable ImageCut(std::vector<SharedVariable> inputs) {
         }
     }
 
-    return std::make_shared<Image>(result);
+    return wrap(result);
 }
 
 REGISTER_OPERATION_FUNCTION("cut", ImageCut);
@@ -251,7 +251,7 @@ SharedVariable ImageSolarize(std::vector<SharedVariable> inputs) {
 
     VERIFY(inputs.size() == 2, "Incorrect number of parameters");
 
-    cv::Mat image = Image::get_value(inputs[0]);
+    cv::Mat image = extract<cv::Mat>(inputs[0]);
     
     VERIFY(image.channels() == 1, "Image has more than one channel");
 
@@ -282,7 +282,7 @@ SharedVariable ImageSolarize(std::vector<SharedVariable> inputs) {
         }
     }
 
-    return std::make_shared<Image>(result);
+    return wrap(result);
 }
 
 REGISTER_OPERATION_FUNCTION("solarize", ImageSolarize);

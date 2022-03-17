@@ -38,127 +38,174 @@ namespace pixelpipes
     PIXELPIPES_CONVERT_ENUM(BorderStrategy);
     PIXELPIPES_CONVERT_ENUM(ImageDepth);
 
-    typedef std::function<void()> DescructorCallback;
-
     typedef struct Chunk
     {
-        char *pointer;
+        unsigned char *pointer;
         size_t length;
 
         bool operator==(const Chunk &rhs) const { return pointer == rhs.pointer && length == rhs.length; }
     } Chunk;
 
-    class ImageDataIterator : public std::iterator<std::input_iterator_tag, Chunk>
+    static const Chunk end{0, 0};
+
+    class ChunkCursor
     {
     public:
-        ImageDataIterator &operator++()
+        virtual const Chunk current() const = 0;
+        virtual void increment() = 0;
+    };
+
+    class ImageChunkIterator : public std::iterator<std::input_iterator_tag, Chunk>
+    {
+    public:
+        ImageChunkIterator(std::shared_ptr<ChunkCursor> impl);
+
+        inline ImageChunkIterator &operator++()
         {
-            increment();
+            impl->increment();
             return *this;
         }
-        /*ImageDataIterator operator++(int)
+        inline ImageChunkIterator operator++(int)
         {
-            ImageDataIterator tmp(*this);
+            ImageChunkIterator tmp(*this);
             operator++();
             return tmp;
-        }*/
-        bool operator==(const ImageDataIterator &rhs) const { return current() == rhs.current(); }
-        bool operator!=(const ImageDataIterator &rhs) const { return ! (rhs.current() == current()); }
-        Chunk &operator*() { return current(); }
+        }
+        inline bool operator==(const ImageChunkIterator &rhs) const { return impl->current() == rhs.impl->current(); }
+        inline bool operator!=(const ImageChunkIterator &rhs) const { return !(rhs.impl->current() == impl->current()); }
+        inline const Chunk operator*() { return impl->current(); }
+        inline const Chunk operator->() { return impl->current(); }
 
     protected:
-        virtual Chunk &current() const = 0;
-        virtual void increment() = 0;
-
+        std::shared_ptr<ChunkCursor> impl;
     };
 
-    class ImageData : public std::enable_shared_from_this<ImageData>
-    {
-    public:
-        virtual ~ImageData() = default;
-
-        virtual ImageDepth depth() const = 0;
-
-        virtual size_t shape(size_t i) const = 0;
-
-        virtual const std::vector<size_t> shape() const = 0;
-
-        virtual size_t stride(size_t i) const = 0;
-
-        virtual size_t ndims() const = 0;
-
-        virtual TypeIdentifier backend() const = 0;
-
-        virtual ImageDataIterator& begin() = 0;
-
-        virtual ImageDataIterator& end() = 0;
-    };
-
-    class BufferImage : public ImageData
-    {
-    public:
-        BufferImage(detail::any_container<size_t> dims, ImageDepth depth);
-
-        virtual ~BufferImage();
-
-        virtual ImageDepth depth() const;
-
-        virtual size_t shape(size_t i) const;
-
-        virtual const std::vector<size_t> shape() const;
-
-        virtual size_t stride(size_t i) const;
-
-        virtual size_t ndims() const;
-
-        virtual TypeIdentifier backend() const;
-
-        virtual ImageDataIterator& begin();
-
-        virtual ImageDataIterator& end();
-
-    private:
-
-        ImageDepth data_depth;
-
-        std::vector<size_t> dimensions;
-
-        unsigned char* buffer;
-
-    };
+    class ImageData;
 
     typedef std::shared_ptr<ImageData> Image;
 
     constexpr static TypeIdentifier ImageType = GetTypeIdentifier<Image>();
 
-    PIXELPIPES_TYPE_NAME(Image, "image");
-
-    class ImageVariable : public ContainerVariable<Image>
+    class ImageData : public Variable
     {
     public:
-        ImageVariable(Image value);
-        ~ImageVariable() = default;
+        inline static bool is(SharedVariable v)
+        {
+            return (v->type() == ImageType);
+        }
+
+        virtual TypeIdentifier type() const;
+
+        virtual bool is_scalar() const;
 
         virtual void describe(std::ostream &os) const;
+
+        virtual ~ImageData() = default;
+
+        virtual ImageDepth depth() const = 0;
+
+        virtual size_t element() const;
+
+        virtual size_t width() const = 0;
+
+        virtual size_t height() const = 0;
+
+        virtual size_t channels() const = 0;
+
+        virtual TypeIdentifier backend() const = 0;
+
+        virtual ImageChunkIterator begin() const;
+
+        virtual ImageChunkIterator end() const;
+
+        virtual size_t rowstep() const = 0;
+
+        virtual size_t colstep() const = 0;
+
+        virtual unsigned char *data() const = 0;
     };
 
-    typedef ContainerList<Image> ImageList;
+    class BufferImage : public ImageData
+    {
+    public:
+        BufferImage(size_t width, size_t height, size_t channels, ImageDepth depth);
+
+        virtual ~BufferImage();
+
+        virtual ImageDepth depth() const;
+
+        virtual size_t width() const;
+
+        virtual size_t height() const;
+
+        virtual size_t channels() const;
+
+        virtual TypeIdentifier backend() const;
+
+        virtual size_t rowstep() const;
+
+        virtual size_t colstep() const;
+
+        virtual unsigned char *data() const;
+
+    private:
+        ImageDepth image_depth;
+
+        size_t image_width;
+
+        size_t image_height;
+
+        size_t image_channels;
+
+        unsigned char *buffer;
+    };
+
+    PIXELPIPES_TYPE_NAME(Image, "image");
+
+    class ImageList : public List
+    {
+    public:
+        ImageList(std::vector<Image> images);
+
+        ~ImageList() = default;
+
+        virtual size_t size() const;
+
+        virtual TypeIdentifier element_type() const;
+
+        virtual SharedVariable get(int index) const;
+
+    private:
+        std::vector<Image> images;
+    };
 
     constexpr static TypeIdentifier ImageListType = Type<std::vector<Image>>::identifier;
+
+    PIXELPIPES_TYPE_NAME(std::vector<Image>, "image_list");
 
     template <>
     inline Image extract(const SharedVariable v)
     {
-        if (!ImageVariable::is(v))
+        if (!ImageData::is(v))
             throw VariableException("Not an image type");
 
-        return std::static_pointer_cast<ImageVariable>(v)->get();
+        return std::static_pointer_cast<ImageData>(v);
     }
 
     template <>
-    inline SharedVariable wrap(const Image v)
+    inline std::vector<Image> extract(const SharedVariable v)
     {
-        return std::make_shared<ImageVariable>(v);
+        VERIFY((bool)v, "Uninitialized variable");
+
+        return ImageList::cast(v)->elements<Image>();
     }
+
+    template <>
+    inline SharedVariable wrap(const std::vector<Image> v)
+    {
+        return std::make_shared<ImageList>(v);
+    }
+
+    void copy(const Image source, Image destination);
 
 }

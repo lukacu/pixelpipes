@@ -1,8 +1,8 @@
 
 from attributee import String
 
-from . import types, Copy
-from .graph import Macro, Input, Reference, GraphBuilder
+from . import types
+from .graph import Macro, Input, Reference, GraphBuilder, Copy
 
 class GetElement(Macro):
     """Extract field from a complex structure type
@@ -11,8 +11,8 @@ class GetElement(Macro):
     enabling processing of that data.
 
     Inputs:
-     - source: Input resource
-     - field: Name of the structure field
+        - source: Input resource
+        - field: Name of the structure field
 
     Category: complex
     """

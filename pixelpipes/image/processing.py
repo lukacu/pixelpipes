@@ -1,5 +1,5 @@
 
-from ..node import Input, Node, SeedInput
+from ..graph import Input, Node, SeedInput
 from .. import types
 from ..geometry.types import BoundingBox
 
@@ -44,10 +44,6 @@ class ImageDropout(Node):
     Category: image, other
     Tags: image
     """
-
-    node_name = "Image Dropout"
-    node_description = "Sets image pixels to zero with probability p"
-    node_category = "image"
 
     source = Input(types.Image())
     probability = Input(types.Float())

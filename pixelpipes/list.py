@@ -1,11 +1,18 @@
 from attributee.primitives import Boolean
 from attributee import List, Primitive
 
-from . import ComparisonOperations, LogicalOperations
-from .graph import Node, Input, SeedInput, ValidationException, hidden
-import pixelpipes.types as types
+from . import ComparisonOperations, LogicalOperations, types
+from .graph import Node, Input, SeedInput, ValidationException, hidden, Macro, GraphBuilder, Reference
+from .numbers import Round, UniformDistribution
 
 class ConstantList(Node):
+    """Constant List
+
+    Inputs:
+        - source: List type
+
+    Category: list
+    """
 
     source = List(Primitive())
 
@@ -24,6 +31,13 @@ class ConstantList(Node):
         return "_constant", list(self.source)
 
 class ConstantTable(Node):
+    """Constant Table
+
+    Inputs:
+        - source: Table type
+
+    Category: list
+    """
 
     source = List(List(Primitive()), separator=";")
 
@@ -112,10 +126,17 @@ class ListConcatenate(Node):
     def operation(self):
         return "list_concatenate",
 class FilterSelect(Node):
+    """List filter
 
-    node_name = "List filter"
-    node_description = "Select elements from source list based on indices in another list"
-    node_category = "list"
+    Select an interval from a given list.
+
+    Inputs:
+        - parent: A list type
+        - being: Sublist starting index
+        - end: Sublist last index
+
+    Category: list
+    """
 
     parent = Input(types.List(types.Primitive()))
     filter = Input(types.List(types.Integer()))
@@ -136,6 +157,11 @@ class ListRemap(Node):
     
     Maps elements from source list to a result list using indices from indices list.
 
+    Inputs:
+        - source: A list type
+        - indicies: A list of integers
+
+    Category: list
     """
 
     source = Input(types.List(types.Primitive()))
@@ -153,6 +179,13 @@ class ListRange(Node):
 
     Generates a list of numbers from start to end of a given length
 
+    Inputs:
+        - start: Starting number
+        - end: Ending number
+        - length: List length
+        - round: Boolean
+
+    Category: list
     """
 
     start = Input(types.Float())
@@ -173,6 +206,10 @@ class ListPermute(Node):
 
     Randomly permutes an input list
 
+    Inputs:
+        - source: A list type
+
+    Category: list
     """
 
     source = Input(types.List(types.Primitive()))
@@ -190,9 +227,13 @@ class ListPermutation(Node):
 
     Generates a list of numbers from 0 to length in random order.
 
+    Inputs:
+        - length: List length
+
+    Category: list
     """
 
-    lenght = Input(types.Integer())
+    length = Input(types.Integer())
 
     def validate(self, **inputs):
         super().validate(**inputs)
@@ -200,14 +241,15 @@ class ListPermutation(Node):
 
     def operation(self):
         return "list_permutation",
+
 class ListElement(Node):
     """Retrieve element
 
     Returns an element from a list for a given index
 
     Inputs:
-        parent: Source list
-        index: Position of the element
+        - parent: Source list
+        - index: Position of the element
 
     Category: list
     """
@@ -229,6 +271,15 @@ class ListElement(Node):
         return "list_element",
 
 class ListLength(Node):
+    """List Length
+
+    Returns a list length
+
+    Inputs:
+        - parent: Source list
+
+    Category: list
+    """
 
     parent = Input(types.List(types.Primitive()))
 
@@ -247,7 +298,7 @@ class ListBuild(Node):
     the type of a list.
 
     Inputs:
-      - inputs: Inputs to put in a list
+        - inputs: Inputs to put in a list
 
     Category: list
     """
@@ -279,8 +330,8 @@ class RepeatElement(Node):
     """Repeat list element a number of times
 
     Inputs:
-     - source: Element to replicate
-     - length: how many times to repeat
+        - source: Element to replicate
+        - length: how many times to repeat
 
     Output: List
 
@@ -297,6 +348,27 @@ class RepeatElement(Node):
 
     def operation(self):
         return "list_repeat",
+
+
+class RandomListElement(Macro):
+
+    source = Input(types.List(types.Primitive()))
+
+    def validate(self, **inputs):
+        super().validate(**inputs)
+
+        return inputs["source"].element
+
+    def expand(self, inputs, parent: "Reference"):
+
+        with GraphBuilder(prefix=parent) as builder:
+
+            length = inputs["source"].type.length
+            generator = UniformDistribution(min=0, max=length-1)
+            index = Round(generator)
+            ListElement(parent=inputs["source"], index=index, _name=parent)
+
+            return builder.nodes()
 
 @hidden
 class _ListCompare(Node):

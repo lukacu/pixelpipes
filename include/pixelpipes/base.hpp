@@ -2,6 +2,7 @@
 #pragma once
 
 #include <cstdio>
+#include <sstream>
 #include <type_traits>
 
 #ifdef _WIN32
@@ -20,10 +21,16 @@
 #define PIXELPIPES_INTERNAL
 #endif
 
+#ifdef _WIN32
+const std::string os_pathsep(";");
+#else
+const std::string os_pathsep(":");
+#endif
+
 #ifdef PIXELPIPES_DEBUG
 #define DEBUGMSG(...)        \
     {                        \
-        printf(__VA_ARGS__); \
+        std::printf(__VA_ARGS__); \
     }
 #else
 #define DEBUGMSG(...) \
@@ -33,7 +40,7 @@
 
 #define PRINTMSG(...)        \
     {                        \
-        printf(__VA_ARGS__); \
+        std::printf(__VA_ARGS__); \
     }
 
 #define _STRINGIFY_IMPL(X) #X
@@ -176,6 +183,35 @@ namespace pixelpipes
         const T *const TypeIdentifierToken<T>::id = nullptr;
 
     }
+
+    class Formatter
+    {
+    public:
+        Formatter() {}
+        ~Formatter() {}
+
+        template <typename Type>
+        Formatter & operator << (const Type & value)
+        {
+            stream << value;
+            return *this;
+        }
+
+        std::string str() const         { return stream.str(); }
+        operator std::string () const   { return stream.str(); }
+
+        enum ConvertToString 
+        {
+            to_str
+        };
+        std::string operator >> (ConvertToString) { return stream.str(); }
+
+    private:
+        std::stringstream stream;
+
+        Formatter(const Formatter &);
+        Formatter & operator = (Formatter &);
+    };
 
     class PIXELPIPES_API BaseException : public std::exception
     {

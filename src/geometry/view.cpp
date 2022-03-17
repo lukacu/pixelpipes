@@ -1,10 +1,7 @@
 #include <cmath>
 #include <limits>
 
-#include <pixelpipes/operation.hpp>
-#include <pixelpipes/geometry.hpp>
-
-#include <opencv2/core.hpp>
+#include "common.hpp"
 
 namespace pixelpipes {
 
@@ -24,7 +21,7 @@ public:
             0, 1, y,
             0, 0, 1);
 
-        return std::make_shared<View2D>(m);
+        return wrap(m);
 
     }
 
@@ -47,7 +44,7 @@ public:
             std::sin(r), std::cos(r), 0,
             0, 0, 1);
 
-        return std::make_shared<View2D>(m);
+        return wrap(m);
 
     }
 
@@ -71,7 +68,7 @@ public:
             0, y, 0,
             0, 0, 1);
 
-        return std::make_shared<View2D>(m);
+        return wrap(m);
 
     }
 
@@ -92,7 +89,7 @@ public:
             0, 1, 0,
             0, 0, 1);
 
-        return std::make_shared<View2D>(m);
+        return wrap(m);
 
     }
 
@@ -115,13 +112,13 @@ public:
             0, 0, 1);
 
         for (auto input : inputs) {
-            cv::Matx33f view = View2D::get_value(input);
+            cv::Matx33f view = extract<cv::Matx33f>(input);
 
             m = m * view;
 
         }
 
-        return std::make_shared<View2D>(m);
+        return wrap(m);
 
     }
 
@@ -138,7 +135,7 @@ public:
         verify(List::is_list(inputs[0], Point2DType), "Not a list of points");
 
         std::vector<cv::Point2f> points = List::cast(inputs[0])->elements<cv::Point2f>();
-        cv::Matx33f transform = View2D::get_value(inputs[1]);
+        cv::Matx33f transform = extract<cv::Matx33f>(inputs[1]);
 
         std::vector<cv::Point2f> points2;
 
@@ -151,7 +148,7 @@ public:
         }
 
 
-        return std::make_shared<Point2DList>(points2);
+        return wrap(points2);
 
     }
 
@@ -182,7 +179,7 @@ public:
             0, 1, -(top + bottom) / 2,
             0, 0, 1);
 
-        return std::make_shared<View2D>(m);
+        return wrap(m);
 
 
     }
@@ -219,7 +216,7 @@ public:
             0, scale, 0,
             0, 0, 1);
 
-        return std::make_shared<View2D>(m);
+        return wrap(m);
 
 
     }

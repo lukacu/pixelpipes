@@ -3,6 +3,11 @@
 
 #include <pixelpipes/operation.hpp>
 #include <pixelpipes/geometry.hpp>
+#include <pixelpipes/module.hpp>
+
+#include "common.hpp"
+
+PIXELPIPES_MODULE(geometry);
 
 namespace pixelpipes {
 

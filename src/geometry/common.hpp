@@ -1,64 +1,12 @@
 
-#pragma once 
 
-#include <pixelpipes/types.hpp>
-#include <pixelpipes/image.hpp>
+#include <pixelpipes/operation.hpp>
 #include <pixelpipes/geometry.hpp>
 
 #include <opencv2/core.hpp>
 
-#define CV_EX_WRAP(S) try { S ; } catch ( cv::Exception& e ) { throw pixelpipes::VariableException(e.what()); }
-
 namespace pixelpipes
 {
-
-    class MatImage : public ImageData
-    {
-    public:
-        MatImage(cv::Mat data);
-
-        virtual ~MatImage();
-
-        virtual ImageDepth depth() const;
-
-        virtual size_t width() const;
-
-        virtual size_t height() const;
-
-        virtual size_t channels() const;
-
-        virtual TypeIdentifier backend() const;
-
-        virtual size_t rowstep() const;
-
-        virtual size_t colstep() const;
-
-        virtual size_t element() const;
-
-        virtual unsigned char* data() const;
-
-        static cv::Mat make(const Image image);
-
-        static cv::Mat wrap(const Image image);
-
-        cv::Mat mat;
-    };
-
-    template <>
-    inline cv::Mat extract(const SharedVariable v)
-    {
-        if (!ImageData::is(v))
-            throw VariableException("Not an image value");
-
-        Image image = std::static_pointer_cast<ImageData>(v);
-
-        if (image->backend() == Type<cv::Mat>::identifier)
-        {
-            return std::static_pointer_cast<MatImage>(v)->mat;
-        }
-
-        return MatImage::wrap(image);
-    }
 
     template <>
     inline cv::Point2f extract(const SharedVariable v)
@@ -86,6 +34,12 @@ namespace pixelpipes
     }
 
     template <>
+    inline SharedVariable wrap(const cv::Point2f v)
+    {
+        return std::make_shared<Point2DVariable>(Point2D{v.x, v.y});
+    }
+
+    template <>
     inline std::vector<cv::Point2f> extract(const SharedVariable v)
     {
         VERIFY((bool)v, "Uninitialized variable");
@@ -102,6 +56,19 @@ namespace pixelpipes
 
         return convert;
     }
+
+    template <>
+    inline SharedVariable wrap(const std::vector<cv::Point2f> v)
+    {
+
+        std::vector<Point2D> convert; convert.reserve(v.size());
+        for (auto p : v) {
+            convert.push_back(Point2D{p.x, p.y});
+        }
+
+        return wrap(convert);
+    }
+
 
     template <>
     inline cv::Matx33f extract(const SharedVariable v)
@@ -124,30 +91,5 @@ namespace pixelpipes
 
         return std::make_shared<View2DVariable>(d);
     }
-
-    template <>
-    inline SharedVariable wrap(const cv::Mat v)
-    {
-        return std::make_shared<MatImage>(v);
-    }
-
-    inline int maximum_value(cv::Mat image)
-    {
-
-        switch (image.depth())
-        {
-        case CV_8U:
-            return 255;
-        case CV_16S:
-            return 255 * 255;
-        case CV_32F:
-        case CV_64F:
-            return 1;
-        default:
-            throw VariableException("Unsupported image depth");
-        }
-    }
-
-    int ocv_border_type(BorderStrategy b, int* value);
 
 }

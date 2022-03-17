@@ -10,11 +10,21 @@ typedef struct Point2D {
 
 } Point2D;
 
+inline std::ostream& operator<<(std::ostream& os, const Point2D& p) {
+    os << "Point2D x=" << p.x << ", y=" << p.y;
+    return os;
+}
+
 typedef struct point3D {
 
     float x; float y; float z;
 
 } Point3D;
+
+inline std::ostream& operator<<(std::ostream& os, const Point3D& p) {
+    os << "Point3D x=" << p.x << ", y=" << p.y << ", z=" << p.z;
+    return os;
+}
 
 typedef struct View2D {
 
@@ -24,6 +34,11 @@ typedef struct View2D {
 
 } View2D;
 
+inline std::ostream& operator<<(std::ostream& os, const View2D& p) {
+    os << "View2D";
+    return os;
+}
+
 typedef struct View3D {
 
     float m00; float m01; float m02; float m03;
@@ -32,6 +47,11 @@ typedef struct View3D {
     float m30; float m31; float m32; float m33;
 
 } View3D;
+
+inline std::ostream& operator<<(std::ostream& os, const View3D& p) {
+    os << "View3D";
+    return os;
+}
 
 constexpr static TypeIdentifier Point2DType = GetTypeIdentifier<Point2D>();
 constexpr static TypeIdentifier Point3DType = GetTypeIdentifier<Point3D>();
@@ -48,6 +68,9 @@ typedef ContainerVariable<View3D> View3DVariable;
 typedef ContainerList<Point2D> Point2DList;
 typedef ContainerList<Point3D> Point3DList;
 
+constexpr static TypeIdentifier Point2DListType = GetTypeIdentifier<std::vector<Point2D>>();
+constexpr static TypeIdentifier Point3DListType = GetTypeIdentifier<std::vector<Point3D>>();
+
 PIXELPIPES_TYPE_NAME(Point2D, "point2");
 PIXELPIPES_TYPE_NAME(Point3D, "point3");
 
@@ -58,7 +81,7 @@ PIXELPIPES_TYPE_NAME(std::vector<Point2D>, "point2_list");
 PIXELPIPES_TYPE_NAME(std::vector<Point3D>, "point3_list");
 
 template<>
-Point2D extract(const SharedVariable v) {
+inline Point2D extract(const SharedVariable v) {
     VERIFY((bool) v, "Uninitialized variable");
 
     if (v->type() == FloatType) {
@@ -78,13 +101,13 @@ Point2D extract(const SharedVariable v) {
 }
 
 template<>
-SharedVariable wrap(const Point2D v) {
+inline SharedVariable wrap(const Point2D v) {
     return std::make_shared<Point2DVariable>(v);
 }
 
 
 template<>
-Point3D extract(const SharedVariable v) {
+inline Point3D extract(const SharedVariable v) {
     VERIFY((bool) v, "Uninitialized variable");
 
     if (v->type() == FloatType) {
@@ -104,12 +127,12 @@ Point3D extract(const SharedVariable v) {
 }
 
 template<>
-SharedVariable wrap(const Point3D v) {
+inline SharedVariable wrap(const Point3D v) {
     return std::make_shared<Point3DVariable>(v);
 }
 
 template<>
-View2D extract(const SharedVariable v) {
+inline View2D extract(const SharedVariable v) {
     VERIFY((bool) v, "Uninitialized variable");
 
     if (v->type() != View2DType)
@@ -119,13 +142,13 @@ View2D extract(const SharedVariable v) {
 }
 
 template<>
-SharedVariable wrap(const View2D v) {
+inline SharedVariable wrap(const View2D v) {
     return std::make_shared<View2DVariable>(v);
 }
 
 
 template<>
-View3D extract(const SharedVariable v) {
+inline View3D extract(const SharedVariable v) {
     VERIFY((bool) v, "Uninitialized variable");
 
     if (v->type() != View3DType)
@@ -135,58 +158,29 @@ View3D extract(const SharedVariable v) {
 }
 
 template<>
-SharedVariable wrap(const View3D v) {
+inline SharedVariable wrap(const View3D v) {
     return std::make_shared<View3DVariable>(v);
 }
 
-/*
-template<typename T>
-struct Conversion <T, typename std::enable_if<std::is_same<T, cv::Point2f>::value, T >::type> {
+template<>
+inline std::vector<Point2D> extract(const SharedVariable v) {
+    VERIFY((bool) v, "Uninitialized variable");
 
-    static T extract(const SharedVariable v) {
-        VERIFY((bool) v, "Uninitialized variable");
-
-        if (v->type() == FloatType) {
-            float value = Float::get_value(v);
-            return cv::Point2f(value, value);
-        }
-
-        if (v->type() == IntegerType) {
-            int value = Integer::get_value(v);
-            return cv::Point2f(value, value);
-        }
-
-        if (v->type() != Point2DType)
-            throw VariableException("Not a point value");
-
-        return std::static_pointer_cast<Point2D>(v)->get();
+    if (Point2DVariable::is(v)) {
+        auto p = extract<Point2D>(v);
+        return std::vector<Point2D>{p};
+    } else {
+        return Point2DList::cast(v)->elements<Point2D>();
     }
+}
 
-    static SharedVariable wrap(const T v) {
-        return std::make_shared<Point2D>(v);
-    }
+template<>
+inline SharedVariable wrap(const std::vector<Point2D> v) {
+    return std::make_shared<Point2DList>(v);
+}
 
-};*/
-/*
-template<typename T>
-struct Conversion <T, typename std::enable_if<std::is_same<T, cv::Matx33f>::value, T >::type> {
 
-    static T extract(const SharedVariable v) {
-        VERIFY((bool) v, "Uninitialized variable");
-
-        if (v->type() != View2DType)
-            throw VariableException("Not a view value");
-
-        return std::static_pointer_cast<View2D>(v)->get();
-    }
-
-    static SharedVariable wrap(const T v) {
-        return std::make_shared<View2D>(v);
-    }
-
-};
-*/
-#define MAKE_POINT(X, Y) std::make_shared<Point2D>(Point2D{X, Y})
+#define MAKE_POINT(X, Y) std::make_shared<Point2DVariable>(Point2D{X, Y})
 
 #define IS_NUMERIC_LIST(V) ((List::is_list(V, FloatType) || List::is_list(V, IntegerType)))
 #define IS_RECTANGLE(V) ((List::is_list(V, FloatType) || List::is_list(V, IntegerType)) && List::length(V) == 4)
