@@ -11,7 +11,7 @@
 #include <iostream>
 
 #include <pixelpipes/base.hpp>
-#include <pixelpipes/types.hpp>
+#include <pixelpipes/token.hpp>
 #include <pixelpipes/operation.hpp>
 
 namespace pixelpipes { 
@@ -25,7 +25,7 @@ public:
     Output();
     ~Output();
 
-    virtual SharedVariable run(std::vector<SharedVariable> inputs);
+    virtual SharedToken run(std::vector<SharedToken> inputs);
 
 protected:
 
@@ -39,7 +39,7 @@ public:
     Jump(int offset);
     ~Jump() = default;
 
-    virtual SharedVariable run(std::vector<SharedVariable> inputs);
+    virtual SharedToken run(std::vector<SharedToken> inputs);
 
 protected:
 
@@ -52,13 +52,13 @@ protected:
 class Constant : public Operation {
 public:
 
-    Constant(SharedVariable value);
+    Constant(SharedToken value);
 
-    virtual SharedVariable run(std::vector<SharedVariable> inputs);
+    virtual SharedToken run(std::vector<SharedToken> inputs);
 
 private:
 
-    SharedVariable value;
+    SharedToken value;
 
 };
 
@@ -78,20 +78,20 @@ constexpr static TypeIdentifier DNFType = Type<DNF>::identifier;
 
 
 template<>
-inline DNF extract(const SharedVariable v) {
+inline DNF extract(const SharedToken v) {
     VERIFY((bool) v, "Uninitialized variable");
 
     VERIFY(v->type() == Type<DNF>::identifier, "Illegal type");
 
-    auto container = std::static_pointer_cast<ContainerVariable<DNF>>(v);
+    auto container = std::static_pointer_cast<ContainerToken<DNF>>(v);
     return container->get();
     
 
 }
 
 template<>
-inline SharedVariable wrap(const DNF v) {
-    return std::make_shared<ContainerVariable<DNF>>(v);
+inline SharedToken wrap(const DNF v) {
+    return std::make_shared<ContainerToken<DNF>>(v);
 }
 
 class ConditionalJump: public Jump {
@@ -100,7 +100,7 @@ public:
     ConditionalJump(DNF condition, int offset);
     ~ConditionalJump() = default;
 
-    virtual SharedVariable run(std::vector<SharedVariable> inputs);
+    virtual SharedToken run(std::vector<SharedToken> inputs);
 
 private:
 
@@ -114,7 +114,7 @@ public:
     Conditional(DNF condition);
     ~Conditional() = default;
 
-    virtual SharedVariable run(std::vector<SharedVariable> inputs);
+    virtual SharedToken run(std::vector<SharedToken> inputs);
 
 private:
 
@@ -128,7 +128,7 @@ public:
     ContextQuery(ContextData query);
     ~ContextQuery() = default;
 
-    virtual SharedVariable run(std::vector<SharedVariable> inputs);
+    virtual SharedToken run(std::vector<SharedToken> inputs);
 
     ContextData get_query();
 
@@ -146,7 +146,7 @@ public:
     DebugOutput(std::string prefix);
     ~DebugOutput() = default;
 
-    virtual SharedVariable run(std::vector<SharedVariable> inputs);
+    virtual SharedToken run(std::vector<SharedToken> inputs);
 
 protected:
 
@@ -164,9 +164,9 @@ public:
 
     virtual void finalize();
 
-    virtual int append(std::string name, std::vector<SharedVariable> args, std::vector<int> inputs);
+    virtual int append(std::string name, std::vector<SharedToken> args, std::vector<int> inputs);
 
-    virtual std::vector<SharedVariable> run(unsigned long index) noexcept(false);
+    virtual std::vector<SharedToken> run(unsigned long index) noexcept(false);
 
     std::vector<float> operation_time();
 
@@ -179,7 +179,7 @@ protected:
 
     bool finalized;
 
-    std::vector<SharedVariable> cache;
+    std::vector<SharedToken> cache;
 
     std::vector<std::pair<SharedOperation, std::vector<int> > > operations;
 
@@ -193,7 +193,7 @@ typedef std::shared_ptr<Pipeline> SharedPipeline;
 
 class PipelineCallback {
 public:
-    virtual void done(std::vector<SharedVariable> result) = 0;
+    virtual void done(std::vector<SharedToken> result) = 0;
 
     virtual void error(const PipelineException &error) = 0;
 

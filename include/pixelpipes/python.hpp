@@ -10,7 +10,7 @@
 #include <numpy/arrayobject.h>
 
 #include <pixelpipes/pipeline.hpp>
-#include <pixelpipes/types.hpp>
+#include <pixelpipes/token.hpp>
 #include <pixelpipes/enum.hpp>
 
 namespace py = pybind11;
@@ -46,21 +46,21 @@ int init_conversion();
 
 class NumpyAllocator;
 
-//pixelpipes::SharedVariable variableFromPython(py::handle src);
-//py::array numpyFromVariable(pixelpipes::SharedVariable variable);
+//pixelpipes::SharedToken variableFromPython(py::handle src);
+//py::array numpyFromVariable(pixelpipes::SharedToken variable);
 
 namespace pixelpipes {
 
-typedef std::function<py::object(SharedVariable)> PythonExtractor;
-typedef std::function<SharedVariable(py::object)> PythonWrapper;
+typedef std::function<py::object(SharedToken)> PythonExtractor;
+typedef std::function<SharedToken(py::object)> PythonWrapper;
 
 class PythonModule {
 public:
     typedef std::map<std::string, int> EnumerationMap;
 
-    virtual py::object extract(const SharedVariable &src) = 0;
+    virtual py::object extract(const SharedToken &src) = 0;
 
-    virtual SharedVariable wrap(py::object src, TypeIdentifier type_hint = 0) = 0;
+    virtual SharedToken wrap(py::object src, TypeIdentifier type_hint = 0) = 0;
 
     virtual void register_wrapper(TypeIdentifier type_id, const PythonWrapper wrapper, bool implicit = true) = 0;
 
@@ -89,7 +89,7 @@ protected:
 
     virtual void _register_enumeration(const std::string& name, EnumerationMap mapping) = 0;
 
-    static SharedVariable enum_wrapper(py::object src) {
+    static SharedToken enum_wrapper(py::object src) {
 
         if  (py::int_::check_(src)) {
             py::int_ value(src);

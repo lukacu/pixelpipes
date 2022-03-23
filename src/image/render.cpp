@@ -12,7 +12,7 @@ namespace pixelpipes {
  * @brief Draw a polygon to a canvas of a given size.
  * 
  */
-SharedVariable Polygon(std::vector<SharedVariable> inputs) noexcept(false) {
+SharedToken Polygon(std::vector<SharedToken> inputs) noexcept(false) {
   
 
     VERIFY(inputs.size() == 3, "Incorrect number of parameters");
@@ -34,7 +34,7 @@ SharedVariable Polygon(std::vector<SharedVariable> inputs) noexcept(false) {
         return wrap(mat);
 
     } catch (cv::Exception& cve) {
-        throw VariableException(cve.what());
+        throw TypeException(cve.what());
     }
 
 }
@@ -50,7 +50,7 @@ NOISE GENERATION
  * @brief Creates a single channel image with values sampled from normal distribution.
  * 
  */
-SharedVariable NormalNoise(std::vector<SharedVariable> inputs) noexcept(false) {
+SharedToken NormalNoise(std::vector<SharedToken> inputs) noexcept(false) {
 
     VERIFY(inputs.size() == 5, "Incorrect number of parameters");
 
@@ -72,7 +72,7 @@ REGISTER_OPERATION_FUNCTION_WITH_BASE("normal_noise", NormalNoise, StohasticOper
  * @brief Creates a single channel image with values sampled from uniform distribution.
  * 
  */
-SharedVariable UniformNoise(std::vector<SharedVariable> inputs) noexcept(false) {
+SharedToken UniformNoise(std::vector<SharedToken> inputs) noexcept(false) {
     
     VERIFY(inputs.size() == 5, "Incorrect number of parameters");
 
@@ -91,7 +91,7 @@ SharedVariable UniformNoise(std::vector<SharedVariable> inputs) noexcept(false) 
 REGISTER_OPERATION_FUNCTION_WITH_BASE("uniform_noise", UniformNoise, StohasticOperation);
 
 
-SharedVariable Linear(std::vector<SharedVariable> inputs, bool flip) noexcept(false) {
+SharedToken Linear(std::vector<SharedToken> inputs, bool flip) noexcept(false) {
     
     VERIFY(inputs.size() == 4, "Incorrect number of parameters");
 

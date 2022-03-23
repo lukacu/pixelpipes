@@ -35,7 +35,7 @@ namespace pixelpipes
         case BorderStrategy::Wrap:
             return cv::BORDER_WRAP;
         default:
-            throw VariableException("Illegal border strategy value");
+            throw TypeException("Illegal border strategy value");
         }
     }
 
@@ -80,7 +80,7 @@ namespace pixelpipes
         }
         default:
         {
-            throw VariableException("Unsupported data type");
+            throw TypeException("Unsupported data type");
         }
         }
 
@@ -116,7 +116,7 @@ namespace pixelpipes
         }
         default:
         {
-            throw VariableException("Unsupported data type");
+            throw TypeException("Unsupported data type");
         }
         }
 
@@ -260,7 +260,7 @@ namespace pixelpipes
 
         virtual TypeIdentifier element_type() const;
 
-        virtual SharedVariable get(int index) const;
+        virtual SharedToken get(int index) const;
 
     private:
         std::string prefix;
@@ -274,7 +274,7 @@ namespace pixelpipes
     {
 
         if (list.empty())
-            throw VariableException("File list is empty");
+            throw TypeException("File list is empty");
     }
 
     size_t ImageFileList::ImageFileList::size() const
@@ -287,19 +287,19 @@ namespace pixelpipes
         return ImageType;
     }
 
-    SharedVariable ImageFileList::get(int index) const
+    SharedToken ImageFileList::get(int index) const
     {
 
         if (index < 0 || index >= (int)list.size())
         {
-            throw VariableException("Index out of range");
+            throw TypeException("Index out of range");
         }
 
         cv::Mat image = cv::imread(prefix + list[index], grayscale ? cv::IMREAD_GRAYSCALE : cv::IMREAD_COLOR);
 
         if (image.empty())
         {
-            throw VariableException("Image not found: " + prefix + list[index]);
+            throw TypeException("Image not found: " + prefix + list[index]);
         }
 
         if (image.channels() == 3)
@@ -310,7 +310,7 @@ namespace pixelpipes
         return wrap(image);
     }
 
-    SharedVariable ConstantImage(std::vector<SharedVariable> inputs, Image image)
+    SharedToken ConstantImage(std::vector<SharedToken> inputs, Image image)
     {
         VERIFY(inputs.size() == 0, "Incorrect number of parameters");
         return image;
@@ -329,7 +329,7 @@ namespace pixelpipes
 
         ~ConstantImages() = default;
 
-        virtual SharedVariable run(std::vector<SharedVariable> inputs)
+        virtual SharedToken run(std::vector<SharedToken> inputs)
         {
             VERIFY(inputs.size() == 0, "Incorrect number of parameters");
             return list;
@@ -351,7 +351,7 @@ namespace pixelpipes
 
         ~ImageFileListSource() = default;
 
-        virtual SharedVariable run(std::vector<SharedVariable> inputs)
+        virtual SharedToken run(std::vector<SharedToken> inputs)
         {
             VERIFY(inputs.size() == 0, "Incorrect number of parameters");
             return filelist;
@@ -367,7 +367,7 @@ namespace pixelpipes
      * @brief Apply view linear transformation to an image.
      *
      */
-    SharedVariable GetImageProperties(std::vector<SharedVariable> inputs)
+    SharedToken GetImageProperties(std::vector<SharedToken> inputs)
     {
 
         VERIFY(inputs.size() == 1, "Incorrect number of parameters");
@@ -399,7 +399,7 @@ namespace pixelpipes
      * @brief Converts depth of an image.
      *
      */
-    SharedVariable ConvertDepth(std::vector<SharedVariable> inputs, ImageDepth depth) noexcept(false)
+    SharedToken ConvertDepth(std::vector<SharedToken> inputs, ImageDepth depth) noexcept(false)
     {
 
         VERIFY(inputs.size() == 1, "Incorrect number of parameters");
@@ -448,7 +448,7 @@ namespace pixelpipes
      * @brief Converts color image to grayscale image.
      *
      */
-    SharedVariable Grayscale(std::vector<SharedVariable> inputs) noexcept(false)
+    SharedToken Grayscale(std::vector<SharedToken> inputs) noexcept(false)
     {
 
         VERIFY(inputs.size() == 1, "Incorrect number of parameters");
@@ -467,7 +467,7 @@ namespace pixelpipes
      * @brief Returns an image with selected values.
      *
      */
-    SharedVariable Equals(std::vector<SharedVariable> inputs) noexcept(false)
+    SharedToken Equals(std::vector<SharedToken> inputs) noexcept(false)
     {
 
         VERIFY(inputs.size() == 2, "Incorrect number of parameters");
@@ -489,7 +489,7 @@ namespace pixelpipes
      * @brief Extracts a single channel from multichannel image.
      *
      */
-    SharedVariable Channel(std::vector<SharedVariable> inputs) noexcept(false)
+    SharedToken Channel(std::vector<SharedToken> inputs) noexcept(false)
     {
 
         VERIFY(inputs.size() == 2, "Incorrect number of parameters");
@@ -511,7 +511,7 @@ namespace pixelpipes
      * @brief Combines 3 single channel images into color image.
      *
      */
-    SharedVariable Merge(std::vector<SharedVariable> inputs) noexcept(false)
+    SharedToken Merge(std::vector<SharedToken> inputs) noexcept(false)
     {
 
         VERIFY(inputs.size() == 3, "Incorrect number of parameters");
@@ -541,7 +541,7 @@ namespace pixelpipes
      * @brief Calculates image moments.
      *
      */
-    SharedVariable Moments(std::vector<SharedVariable> inputs, bool binary) noexcept(false)
+    SharedToken Moments(std::vector<SharedToken> inputs, bool binary) noexcept(false)
     {
 
         VERIFY(inputs.size() == 1, "Incorrect number of parameters");
@@ -563,7 +563,7 @@ namespace pixelpipes
      * @brief Tabulates a function into a matrix of a given size
      *
      */
-    SharedVariable MapFunction(std::vector<SharedVariable> inputs, int function, bool normalize) noexcept(false)
+    SharedToken MapFunction(std::vector<SharedToken> inputs, int function, bool normalize) noexcept(false)
     {
 
         VERIFY(inputs.size() > 1, "Incorrect number of parameters");
@@ -618,7 +618,7 @@ namespace pixelpipes
      * @brief Thresholds an image.
      *
      */
-    SharedVariable ImageThreshold(std::vector<SharedVariable> inputs) noexcept(false)
+    SharedToken ImageThreshold(std::vector<SharedToken> inputs) noexcept(false)
     {
 
         VERIFY(inputs.size() == 2, "Incorrect number of parameters");
@@ -642,7 +642,7 @@ namespace pixelpipes
      * @brief Inverts image pixel values.
      *
      */
-    SharedVariable Invert(std::vector<SharedVariable> inputs) noexcept(false)
+    SharedToken Invert(std::vector<SharedToken> inputs) noexcept(false)
     {
 
         VERIFY(inputs.size() == 1, "Incorrect number of parameters");

@@ -16,7 +16,7 @@ namespace pixelpipes {
  * 
  */
 
-SharedVariable BoundingBox(std::vector<SharedVariable> inputs) {
+SharedToken BoundingBox(std::vector<SharedToken> inputs) {
 
     verify(inputs.size() == 1, "Incorrect number of parameters");
     verify(List::is_list(inputs[0], Point2DType), "Not a list of points");
@@ -48,7 +48,7 @@ REGISTER_OPERATION_FUNCTION("bounding_box", BoundingBox);
  * @brief Returns a bounding box of custom size, defined by four inputs.
  * 
  */
-SharedVariable MakeRectangle(std::vector<SharedVariable> inputs) {
+SharedToken MakeRectangle(std::vector<SharedToken> inputs) {
 
     VERIFY(inputs.size() == 4, "Incorrect number of parameters");
 

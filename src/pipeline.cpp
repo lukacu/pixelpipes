@@ -35,10 +35,10 @@ DNF::DNF(std::vector<std::vector<bool> > clauses) {
 
 }
 
-class OutputList: public Variable {
+class OutputList: public Token {
 public:
 
-    OutputList(std::vector<SharedVariable> list) : list(list) {
+    OutputList(std::vector<SharedToken> list) : list(list) {
 
     }
 
@@ -48,7 +48,7 @@ public:
 
     virtual bool is_scalar() const { return true; }
 
-    virtual std::vector<SharedVariable> get() const { return list; }; 
+    virtual std::vector<SharedToken> get() const { return list; }; 
 
     virtual TypeIdentifier type() const { return 0; };
 
@@ -58,7 +58,7 @@ public:
 
 private:
 
-    std::vector<SharedVariable> list;
+    std::vector<SharedToken> list;
 
 };
 
@@ -71,18 +71,18 @@ OperationType Output::type() {
     return OperationType::Output;
 }
 
-Constant::Constant(SharedVariable value): value(value) {}
+Constant::Constant(SharedToken value): value(value) {}
 
-REGISTER_OPERATION("_constant", Constant, SharedVariable);
+REGISTER_OPERATION("_constant", Constant, SharedToken);
 
-SharedVariable Constant::run(std::vector<SharedVariable> inputs) {
+SharedToken Constant::run(std::vector<SharedToken> inputs) {
     return value;
 }
 
 Jump::Jump(int offset): offset(offset) {
 
     if (offset < 1)
-        throw VariableException("Illegal jump location");
+        throw TypeException("Illegal jump location");
 
 };
 
@@ -90,7 +90,7 @@ OperationType Jump::type() {
     return OperationType::Control;
 }
 
-SharedVariable Jump::run(std::vector<SharedVariable> inputs) {
+SharedToken Jump::run(std::vector<SharedToken> inputs) {
 
     VERIFY(inputs.size() == 1, "Incorrect number of parameters");
 
@@ -106,7 +106,7 @@ ConditionalJump::ConditionalJump(DNF condition, int offset): Jump(offset), condi
 
 }    
 
-SharedVariable ConditionalJump::run(std::vector<SharedVariable> inputs) {
+SharedToken ConditionalJump::run(std::vector<SharedToken> inputs) {
 
 
 
@@ -145,7 +145,7 @@ Conditional::Conditional(DNF condition): condition(condition) {
  
 REGISTER_OPERATION("_condition", Conditional, DNF);
 
-SharedVariable Conditional::run(std::vector<SharedVariable> inputs) {
+SharedToken Conditional::run(std::vector<SharedToken> inputs) {
 
     //VERIFY(inputs.size() == negate.size() + 2, "Incorrect number of parameters");
 
@@ -171,7 +171,7 @@ SharedVariable Conditional::run(std::vector<SharedVariable> inputs) {
 
 }
  
-SharedVariable Output::run(std::vector<SharedVariable> inputs) {
+SharedToken Output::run(std::vector<SharedToken> inputs) {
 
     VERIFY(inputs.size() >= 1, "At least one input required");
 
@@ -181,7 +181,7 @@ SharedVariable Output::run(std::vector<SharedVariable> inputs) {
 
 ContextQuery::ContextQuery(ContextData query): query(query) {}
 
-SharedVariable ContextQuery::run(std::vector<SharedVariable> inputs) {
+SharedToken ContextQuery::run(std::vector<SharedToken> inputs) {
 
     return empty<Integer>();
 
@@ -199,7 +199,7 @@ REGISTER_OPERATION("_context", ContextQuery, ContextData);
 
 DebugOutput::DebugOutput(std::string prefix): prefix(prefix) {}
 
-SharedVariable DebugOutput::run(std::vector<SharedVariable> inputs) {
+SharedToken DebugOutput::run(std::vector<SharedToken> inputs) {
 
     VERIFY(inputs.size() == 1, "Only one input supported for debug");
 
@@ -228,7 +228,7 @@ void Pipeline::finalize() {
 
 }
 
-int Pipeline::append(std::string name, std::vector<SharedVariable> args, std::vector<int> inputs) {
+int Pipeline::append(std::string name, std::vector<SharedToken> args, std::vector<int> inputs) {
 
     if (finalized) return -1;
 
@@ -244,10 +244,10 @@ int Pipeline::append(std::string name, std::vector<SharedVariable> args, std::ve
     return operations.size() - 1;
 }
 
-std::vector<SharedVariable> Pipeline::run(unsigned long index) {
+std::vector<SharedToken> Pipeline::run(unsigned long index) {
 
-    vector<SharedVariable> context;
-    vector<SharedVariable> result;
+    vector<SharedToken> context;
+    vector<SharedToken> result;
 
     //auto start = high_resolution_clock::now();
 
@@ -268,7 +268,7 @@ std::vector<SharedVariable> Pipeline::run(unsigned long index) {
             continue;
         }
 
-        vector<SharedVariable> local;
+        vector<SharedToken> local;
         local.reserve(operations[i].second.size());
 
         for (int j : operations[i].second) {

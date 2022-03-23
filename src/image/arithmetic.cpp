@@ -43,7 +43,7 @@ std::pair<cv::Mat, cv::Mat> ensure_channels(cv::Mat &image1, cv::Mat &image2) {
         } else if (channels2 == 1) {
             image2 = replicate_channels(image2, channels1);
         } else {
-            throw VariableException("Channel count mismatch");
+            throw TypeException("Channel count mismatch");
         }
     }
 
@@ -55,7 +55,7 @@ std::pair<cv::Mat, cv::Mat> ensure_channels(cv::Mat &image1, cv::Mat &image2) {
  * @brief Combines two images of same size (pixel-wise).
  * 
  */
-SharedVariable ImageAdd(std::vector<SharedVariable> inputs) noexcept(false) {
+SharedToken ImageAdd(std::vector<SharedToken> inputs) noexcept(false) {
 
     VERIFY(inputs.size() == 2, "Incorrect number of parameters");
     VERIFY(ImageData::is(inputs[0]) || ImageData::is(inputs[1]), "At least one input should be an image");
@@ -105,7 +105,7 @@ REGISTER_OPERATION_FUNCTION("add", ImageAdd);
  * @brief Subtracts two images.
  * 
  */
-SharedVariable ImageSubtract(std::vector<SharedVariable> inputs) noexcept(false) {
+SharedToken ImageSubtract(std::vector<SharedToken> inputs) noexcept(false) {
 
     VERIFY(inputs.size() == 2, "Incorrect number of parameters");
     VERIFY(ImageData::is(inputs[0]) || ImageData::is(inputs[1]), "At least one input should be an image");
@@ -152,7 +152,7 @@ REGISTER_OPERATION_FUNCTION("subtract", ImageSubtract);
  * @brief Multiplies image with a multiplier (number).
  * 
  */
-SharedVariable ImageMultiply(std::vector<SharedVariable> inputs) noexcept(false) {
+SharedToken ImageMultiply(std::vector<SharedToken> inputs) noexcept(false) {
 
     VERIFY(inputs.size() == 2, "Incorrect number of parameters");
     VERIFY(ImageData::is(inputs[0]) || ImageData::is(inputs[1]), "At least one input should be an image");

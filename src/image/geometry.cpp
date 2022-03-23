@@ -25,7 +25,7 @@ inline int interpolate_convert(Interpolation interpolation) {
     }
 }
 
-SharedVariable Transpose(std::vector<SharedVariable> inputs) noexcept(false) {
+SharedToken Transpose(std::vector<SharedToken> inputs) noexcept(false) {
 
     VERIFY(inputs.size() == 1, "Incorrect number of parameters");
 
@@ -45,7 +45,7 @@ REGISTER_OPERATION_FUNCTION("transpose", Transpose);
  * @brief Apply view linear transformation to an image.
  * 
  */
-SharedVariable ViewImage(std::vector<SharedVariable> inputs, Interpolation interpolation, BorderStrategy border) {
+SharedToken ViewImage(std::vector<SharedToken> inputs, Interpolation interpolation, BorderStrategy border) {
 
     VERIFY(inputs.size() == 4, "Incorrect number of parameters");
 
@@ -67,7 +67,7 @@ SharedVariable ViewImage(std::vector<SharedVariable> inputs, Interpolation inter
     try {
         cv::warpPerspective(image, output, transform, cv::Size(width, height), interpolate_convert(interpolation), border_const, bvalue);
     } catch (cv::Exception& cve) {
-        throw VariableException(cve.what());
+        throw TypeException(cve.what());
     }
 
     return wrap(output);
@@ -80,7 +80,7 @@ REGISTER_OPERATION_FUNCTION("view", ViewImage, Interpolation, BorderStrategy);
  * @brief Apply view linear transformation to an image.
  * 
  */
-SharedVariable RemapImage(std::vector<SharedVariable> inputs, Interpolation interpolation, BorderStrategy border) {
+SharedToken RemapImage(std::vector<SharedToken> inputs, Interpolation interpolation, BorderStrategy border) {
 
     VERIFY(inputs.size() == 3, "Incorrect number of parameters");
 
@@ -100,7 +100,7 @@ SharedVariable RemapImage(std::vector<SharedVariable> inputs, Interpolation inte
     try {
         cv::remap(image, output, x, y, interpolate_convert(interpolation), border_const, bvalue);
     } catch (cv::Exception& cve) {
-        throw VariableException(cve.what());
+        throw TypeException(cve.what());
     }
 
     return wrap(output);
@@ -136,7 +136,7 @@ std::vector<float> bounds(cv::Mat image) {
 
 }
 
-SharedVariable MaskBounds(std::vector<SharedVariable> inputs) noexcept(false) {
+SharedToken MaskBounds(std::vector<SharedToken> inputs) noexcept(false) {
 
     VERIFY(inputs.size() == 1, "Incorrect number of parameters");
 
@@ -156,7 +156,7 @@ SharedVariable MaskBounds(std::vector<SharedVariable> inputs) noexcept(false) {
         case CV_64F: 
             return std::make_shared<FloatList>(bounds<double>(image));
         default:
-            throw VariableException("Unsupported depth");
+            throw TypeException("Unsupported depth");
     }
 
 }
@@ -167,7 +167,7 @@ REGISTER_OPERATION_FUNCTION("bounds", MaskBounds);
  * @brief Performs image resize.
  * 
  */
-SharedVariable ImageResize(std::vector<SharedVariable> inputs, Interpolation interpolation) {
+SharedToken ImageResize(std::vector<SharedToken> inputs, Interpolation interpolation) {
 
     if (inputs.size() == 3) {
 
@@ -193,7 +193,7 @@ SharedVariable ImageResize(std::vector<SharedVariable> inputs, Interpolation int
         return wrap(result);
 
     } else {
-        throw VariableException("Incorrect number of parameters");
+        throw TypeException("Incorrect number of parameters");
     }
 }
 
@@ -203,7 +203,7 @@ REGISTER_OPERATION_FUNCTION("resize", ImageResize, Interpolation);
  * @brief Rotates an image without cropping.
  * 
  */
-SharedVariable Rotate(std::vector<SharedVariable> inputs) noexcept(false) {
+SharedToken Rotate(std::vector<SharedToken> inputs) noexcept(false) {
 
     VERIFY(inputs.size() == 2, "Incorrect number of parameters");
 
@@ -232,7 +232,7 @@ REGISTER_OPERATION_FUNCTION("rotate", Rotate);
  * @brief Flips a 2D array around vertical, horizontal, or both axes.
  * 
  */
-SharedVariable Flip(std::vector<SharedVariable> inputs) noexcept(false) {
+SharedToken Flip(std::vector<SharedToken> inputs) noexcept(false) {
     
     VERIFY(inputs.size() == 2, "Incorrect number of parameters");
 
@@ -251,7 +251,7 @@ REGISTER_OPERATION_FUNCTION("flip", Flip);
  * @brief Returns a bounding box of custom size.
  * 
  */
-SharedVariable ImageCrop(std::vector<SharedVariable> inputs) {
+SharedToken ImageCrop(std::vector<SharedToken> inputs) {
 
     VERIFY(inputs.size() == 2, "Incorrect number of parameters");
     VERIFY(List::is_list(inputs[1], FloatType), "Not a float list");

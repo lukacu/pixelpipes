@@ -286,13 +286,13 @@ namespace pixelpipes
         return ImageType;
     }
 
-    SharedVariable ImageList::get(int index) const
+    SharedToken ImageList::get(int index) const
     {
         return images[index];
     }
 
     PIXELPIPES_REGISTER_WRITER(Image, 
-        [](SharedVariable v, std::ostream &target)
+        [](SharedToken v, std::ostream &target)
         {
         Image image = extract<Image>(v);
         write_t(target, image->height());

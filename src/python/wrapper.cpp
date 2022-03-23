@@ -4,7 +4,6 @@
 #include <pybind11/functional.h>
 #include <pybind11/numpy.h>
 
-#include <pixelpipes/types.hpp>
 #include <pixelpipes/pipeline.hpp>
 #include <pixelpipes/module.hpp>
 #include <pixelpipes/operation.hpp>
@@ -18,10 +17,10 @@ namespace py = pybind11;
 using namespace pixelpipes;
 
 // image.cpp
-SharedVariable wrap_image(py::object src);
-py::object extract_image(SharedVariable src);
-SharedVariable wrap_image_list(py::object src);
-py::object extract_image_list(SharedVariable src);
+SharedToken wrap_image(py::object src);
+py::object extract_image(SharedToken src);
+SharedToken wrap_image_list(py::object src);
+py::object extract_image_list(SharedToken src);
 
 
 //const static int initialized = init_conversion();
@@ -33,7 +32,7 @@ public:
     PythonModuleImpl() {};
     ~PythonModuleImpl() {};
 
-    virtual py::object extract(const SharedVariable &src) {
+    virtual py::object extract(const SharedToken &src) {
 
         VERIFY((bool) src, "Undefined value");
 
@@ -48,13 +47,13 @@ public:
         return item->second(src);
     }
 
-    virtual SharedVariable wrap(py::object src, TypeIdentifier type_hint = 0) {
+    virtual SharedToken wrap(py::object src, TypeIdentifier type_hint = 0) {
 
         if (!type_hint) {
 
             for (auto wrapper : allwrappers) {
 
-                SharedVariable v = wrapper(src);
+                SharedToken v = wrapper(src);
 
                 if (v) return v;
 
@@ -70,7 +69,7 @@ public:
                 throw std::invalid_argument("No conversion available");
             }
 
-            SharedVariable variable = item->second(src);
+            SharedToken variable = item->second(src);
 
             if (!(bool) variable) {
                 throw std::invalid_argument("Unable to convert variable");
@@ -155,7 +154,7 @@ class PyPipelineCallback : public PipelineCallback {
   public:
     using PipelineCallback::PipelineCallback;
 
-    void done(std::vector<SharedVariable> result) override {
+    void done(std::vector<SharedToken> result) override {
         PYBIND11_OVERLOAD_PURE(
             void,
             PipelineCallback,
@@ -216,7 +215,7 @@ static PyGetSetDef PipelineError_getsetters[] = {
 
 typedef void (*PythonInitalizerCallback) (PythonModule&);
 
-py::array numpyFromVariable(pixelpipes::SharedVariable variable) {
+py::array numpyFromVariable(pixelpipes::SharedToken variable) {
 
     if (List::is(variable)) {
         pixelpipes::SharedList list = std::static_pointer_cast<pixelpipes::List>(variable);
@@ -265,7 +264,7 @@ py::array numpyFromVariable(pixelpipes::SharedVariable variable) {
 
 }
 
-SharedVariable generic_convert(py::object src) {
+SharedToken generic_convert(py::object src) {
 
     return registry.wrap(src);
 
@@ -274,7 +273,7 @@ SharedVariable generic_convert(py::object src) {
 }
 
 template <typename T>
-SharedVariable wrap_list(py::object src) {
+SharedToken wrap_list(py::object src) {
 
 
     if (py::list::check_(src)) {
@@ -291,7 +290,7 @@ SharedVariable wrap_list(py::object src) {
 }
 
 template <typename T>
-SharedVariable wrap_table(py::object src) {
+SharedToken wrap_table(py::object src) {
 
     if (py::list::check_(src)) {
         try {
@@ -306,13 +305,13 @@ SharedVariable wrap_table(py::object src) {
 
 }
 
-SharedVariable wrap_dnf_clause(py::object src) {
+SharedToken wrap_dnf_clause(py::object src) {
 
     try {
 
         DNF form(py::cast<std::vector<std::vector<bool>>>(src));
 
-        return std::make_shared<ContainerVariable<DNF>>(form);
+        return std::make_shared<ContainerToken<DNF>>(form);
  
     } catch(const std::exception &exc) {
         //DEBUGMSG("Conversion failed: %s\n", exc.what());
@@ -324,14 +323,14 @@ SharedVariable wrap_dnf_clause(py::object src) {
 
 
 template <typename T>
-SharedVariable wrap_container(py::object src) {
+SharedToken wrap_container(py::object src) {
 
     try {
 
         auto object = py::cast<T>(src);
 
         DEBUGMSG("Conversion type: %s\n", VIEWCHARS(Type<T>::name));
-        return std::make_shared<ContainerVariable<T>>(object);
+        return std::make_shared<ContainerToken<T>>(object);
  
     } catch(const std::exception &exc) {
         //DEBUGMSG("Conversion failed: %s\n", exc.what());
@@ -346,7 +345,7 @@ SharedVariable wrap_container(py::object src) {
 template<typename T>
 int _add_operation(T& pipeline, std::string& name, py::list args, std::vector<int> inputs) {
 
-    std::vector<SharedVariable> arguments;
+    std::vector<SharedToken> arguments;
 
     OperationDescription type_hints = describe_operation(name);
 
@@ -397,7 +396,7 @@ PYBIND11_MODULE(pypixelpipes, m) {
         }
     });
 
-    static py::exception<VariableException> PyVariableException(m, "VariableException", PyExc_RuntimeError);
+    static py::exception<TypeException> PyVariableException(m, "VariableException", PyExc_RuntimeError);
     static py::exception<ModuleException> PyModuleException(m, "ModuleException", PyExc_RuntimeError);
 
     registry.register_enumeration<ComparisonOperation>("comparison");
@@ -418,7 +417,7 @@ PYBIND11_MODULE(pypixelpipes, m) {
 
     }, "Add operation to pipeline")
     .def("run", [](Pipeline& p, unsigned long index) {
-        std::vector<SharedVariable> result;
+        std::vector<SharedToken> result;
 
         { // release GIL lock when running pure C++, reacquire it when we are converting data
             py::gil_scoped_release gil; 
@@ -467,7 +466,7 @@ PYBIND11_MODULE(pypixelpipes, m) {
 
     py::set_shared_data("_pixelpipes_python_registry", &registry);
 
-    registry.register_wrapper(VariableType, generic_convert, false);
+    registry.register_wrapper(TokenType, generic_convert, false);
 
     registry.register_wrapper(IntegerType, [](py::object src) {
 
@@ -546,7 +545,7 @@ PYBIND11_MODULE(pypixelpipes, m) {
 
     });
 
-    registry.register_extractor(Point2DType, [](SharedVariable src) {
+    registry.register_extractor(Point2DType, [](SharedToken src) {
 
         Point2D point = extract<Point2D>(src);
         py::array_t<float> result({2});
@@ -556,7 +555,7 @@ PYBIND11_MODULE(pypixelpipes, m) {
 
     });
 
-    registry.register_extractor(View2DType, [](SharedVariable src) {
+    registry.register_extractor(View2DType, [](SharedToken src) {
 
         View2D view = View2DVariable::get_value(src);
 

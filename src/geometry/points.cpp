@@ -3,7 +3,7 @@
 
 namespace pixelpipes {
 
-SharedVariable PointsCenter(std::vector<SharedVariable> inputs) {
+SharedToken PointsCenter(std::vector<SharedToken> inputs) {
 
     VERIFY(inputs.size() == 1, "Incorrect number of parameters");
     VERIFY(List::is_list(inputs[0], Point2DType), "Not a point list");
@@ -21,7 +21,7 @@ SharedVariable PointsCenter(std::vector<SharedVariable> inputs) {
 
 REGISTER_OPERATION_FUNCTION("points_center", PointsCenter);
 
-SharedVariable PointsFromRectangle(std::vector<SharedVariable> inputs) {
+SharedToken PointsFromRectangle(std::vector<SharedToken> inputs) {
 
     VERIFY(inputs.size() == 1, "Incorrect number of parameters");
     VERIFY(IS_RECTANGLE(inputs[0]), "Not a float list of four elements");
@@ -38,7 +38,7 @@ SharedVariable PointsFromRectangle(std::vector<SharedVariable> inputs) {
 
 REGISTER_OPERATION_FUNCTION("points_from_rectangle", PointsFromRectangle);
 
-SharedVariable PointFromInputs(std::vector<SharedVariable> inputs) {
+SharedToken PointFromInputs(std::vector<SharedToken> inputs) {
 
     VERIFY(inputs.size() == 2, "Incorrect number of parameters, only two required");
 
@@ -47,7 +47,7 @@ SharedVariable PointFromInputs(std::vector<SharedVariable> inputs) {
 
 REGISTER_OPERATION_FUNCTION("make_point", PointFromInputs);
 
-SharedVariable PointsFromInputs(std::vector<SharedVariable> inputs) {
+SharedToken PointsFromInputs(std::vector<SharedToken> inputs) {
 
     VERIFY(inputs.size() % 2 == 0, "Incorrect number of parameters, number should be even");
 
@@ -62,7 +62,7 @@ SharedVariable PointsFromInputs(std::vector<SharedVariable> inputs) {
 
 REGISTER_OPERATION_FUNCTION("make_points", PointsFromInputs);
 
-SharedVariable PointsFromList(std::vector<SharedVariable> inputs) {
+SharedToken PointsFromList(std::vector<SharedToken> inputs) {
 
     VERIFY(inputs.size() == 1, "Incorrect number of parameters");
     VERIFY(IS_NUMERIC_LIST(inputs[0]) && List::length(inputs[0]) % 2 == 0, "Not a float list with even element count");
@@ -80,7 +80,7 @@ SharedVariable PointsFromList(std::vector<SharedVariable> inputs) {
 
 REGISTER_OPERATION_FUNCTION("list_to_points", PointsFromList);
 
-SharedVariable RandomPoints(std::vector<SharedVariable> inputs, int count) {
+SharedToken RandomPoints(std::vector<SharedToken> inputs, int count) {
 
     VERIFY(inputs.size() == 1, "Incorrect number of parameters");
 
@@ -140,13 +140,13 @@ inline void execute_operation(ArithmeticOperation op, std::vector<Point2D>& poin
                 break;
             }
             default: {
-                throw VariableException("Unsupported operation");
+                throw TypeException("Unsupported operation");
             }
         }
 
 }
 
-SharedVariable PointArithmeticOperation(std::vector<SharedVariable> inputs, ArithmeticOperation op) {
+SharedToken PointArithmeticOperation(std::vector<SharedToken> inputs, ArithmeticOperation op) {
 
     VERIFY(inputs.size() == 2, "Incorrect number of parameters");
     VERIFY(Point2DVariable::is(inputs[0]) || Point2DVariable::is(inputs[1]), "At least one input should be a point");
@@ -183,7 +183,7 @@ SharedVariable PointArithmeticOperation(std::vector<SharedVariable> inputs, Arit
             break;
         }
         default: {
-            throw VariableException("Unsupported operation");
+            throw TypeException("Unsupported operation");
         }
     }
 
@@ -192,7 +192,7 @@ SharedVariable PointArithmeticOperation(std::vector<SharedVariable> inputs, Arit
 
 REGISTER_OPERATION_FUNCTION("point_arithmetic", PointArithmeticOperation, ArithmeticOperation);
 
-SharedVariable PointsArithmeticOperation(std::vector<SharedVariable> inputs, ArithmeticOperation op) {
+SharedToken PointsArithmeticOperation(std::vector<SharedToken> inputs, ArithmeticOperation op) {
 
     VERIFY(inputs.size() == 2, "Incorrect number of parameters");
 

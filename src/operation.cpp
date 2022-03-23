@@ -39,7 +39,7 @@ bool is_operation_registered(const std::string& key) {
 
 }
 
-SharedOperation make_operation(const std::string& key, std::vector<SharedVariable> inputs) {
+SharedOperation make_operation(const std::string& key, std::vector<SharedToken> inputs) {
 
     if (!is_operation_registered(key)) {
         throw ModuleException(Formatter() << "Name not found: " << key); // TODO: RegistryException
@@ -75,13 +75,13 @@ void register_operation(const std::string& key, OperationConstructor constructor
 
 }
 
-SharedOperation create_operation(const std::string& key, std::initializer_list<SharedVariable> inputs) {
+SharedOperation create_operation(const std::string& key, std::initializer_list<SharedToken> inputs) {
 
-    return make_operation(key, std::vector<SharedVariable>(inputs));
+    return make_operation(key, std::vector<SharedToken>(inputs));
 
 }
 
-SharedOperation create_operation(const std::string& key, std::vector<SharedVariable> inputs) {
+SharedOperation create_operation(const std::string& key, std::vector<SharedToken> inputs) {
 
     return make_operation(key, inputs);
 

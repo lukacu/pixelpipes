@@ -12,11 +12,11 @@ public:
     Sublist(SharedList list, int from, int to) : list(list), from(from), to(to) {
 
         if (!list) {
-            throw VariableException("Empty parent list");
+            throw TypeException("Empty parent list");
         }
 
         if (to < from || to >= (int) list->size() || from < 0) {
-            throw VariableException("Illegal sublist range");
+            throw TypeException("Illegal sublist range");
         }
 
     }
@@ -35,12 +35,12 @@ public:
 
     }
 
-    virtual SharedVariable get(int index) const {
+    virtual SharedToken get(int index) const {
 
         index += from;
 
         if (index < 0 || index > to) {
-            throw VariableException("Index out of range");
+            throw TypeException("Index out of range");
         }
 
         return list->get(index);
@@ -97,10 +97,10 @@ public:
         return lists[0]->element_type();
     }
 
-    virtual SharedVariable get(int index) const {
+    virtual SharedToken get(int index) const {
 
         if (index < 0)
-            throw VariableException("Index out of range");
+            throw TypeException("Index out of range");
 
         for (SharedList l : lists) {
             if (index < l->size())
@@ -108,7 +108,7 @@ public:
             index -= l->size() - 1;
         }
 
-        throw VariableException("Index out of range");
+        throw TypeException("Index out of range");
 
     }
 
@@ -123,12 +123,12 @@ public:
     MappedList(SharedList list, std::vector<int> map) : list(list), map(map) {
 
         if (!list) {
-            throw VariableException("Empty parent list");
+            throw TypeException("Empty parent list");
         }
 
         for (auto index : map) {
             if (index < 0 || index >= (int) list->size())
-                throw VariableException("Illegal list index");
+                throw TypeException("Illegal list index");
         }
 
     }
@@ -148,10 +148,10 @@ public:
     }
 
 
-    virtual SharedVariable get(int index) const {
+    virtual SharedToken get(int index) const {
 
         if (index < 0 || index >= (int) map.size()) {
-            throw VariableException("Index out of range");
+            throw TypeException("Index out of range");
         }
 
         return list->get(map[index]);
@@ -169,10 +169,10 @@ private:
 template<typename T>
 class ConstantList: public List {
 public:
-    ConstantList(SharedVariable value, int length) : value(value), length(length) {
+    ConstantList(SharedToken value, int length) : value(value), length(length) {
 
         if (!value || value->type() != Type<T>::identifier)
-            throw VariableException("Wrong variable type");
+            throw TypeException("Wrong variable type");
 
     }
 
@@ -182,13 +182,13 @@ public:
 
     virtual TypeIdentifier element_type() const { return value->type(); }
 
-    virtual SharedVariable get(int index) const {
+    virtual SharedToken get(int index) const {
         return value;
     }
 
 private:
 
-    SharedVariable value;
+    SharedToken value;
 
     int length;
 
@@ -198,7 +198,7 @@ private:
  * @brief Returns a sublist of a given list for a specified first and last element.
  * 
  */
-SharedVariable SublistSelect(std::vector<SharedVariable> inputs) {
+SharedToken SublistSelect(std::vector<SharedToken> inputs) {
 
     VERIFY(inputs.size() == 3, "Incorrect number of parameters");
 
@@ -216,7 +216,7 @@ REGISTER_OPERATION_FUNCTION("list_sublist", SublistSelect);
  * @brief Returns a concatenation of given input lists.
  * 
  */
-SharedVariable ListConcatenate(std::vector<SharedVariable> inputs) {
+SharedToken ListConcatenate(std::vector<SharedToken> inputs) {
 
     VERIFY(inputs.size() > 1, "Incorrect number of parameters");
 
@@ -237,18 +237,18 @@ REGISTER_OPERATION_FUNCTION("list_concatenate", ListConcatenate);
  * @brief Filters a list with another list used as a mask.
  * 
  */
-SharedVariable FilterSelect(std::vector<SharedVariable> inputs) {
+SharedToken FilterSelect(std::vector<SharedToken> inputs) {
 
     VERIFY(inputs.size() == 2, "Incorrect number of parameters");
 
     if (List::is_list(inputs[0]) && List::is_list(inputs[1], IntegerType))
-        throw VariableException("Not a list");
+        throw TypeException("Not a list");
 
     SharedList list = List::get_list(inputs[0]);
     SharedList filter = List::get_list(inputs[1]);
 
     if (list->size() != filter->size())
-        throw VariableException("Filter length mismatch");
+        throw TypeException("Filter length mismatch");
 
 
     std::vector<int> map;
@@ -268,12 +268,12 @@ REGISTER_OPERATION_FUNCTION("list_filter", FilterSelect);
  * @brief Maps elements from a list to another list using a list of indices.
  * 
  */
-SharedVariable ListRemap(std::vector<SharedVariable> inputs) {
+SharedToken ListRemap(std::vector<SharedToken> inputs) {
 
     VERIFY(inputs.size() == 2, "Incorrect number of parameters");
 
     if (List::is_list(inputs[0]) && List::is_list(inputs[1], IntegerType))
-        throw VariableException("Not a list");
+        throw TypeException("Not a list");
 
     SharedList list = List::get_list(inputs[0]);
     SharedList map = List::get_list(inputs[1]);
@@ -285,7 +285,7 @@ SharedVariable ListRemap(std::vector<SharedVariable> inputs) {
     for (size_t i = 0; i < map->size(); i++) {
         int k = Integer::get_value(map->get(i));
         if (k < 0 || k >= length)
-            throw VariableException("Index out of bounds");
+            throw TypeException("Index out of bounds");
         remap.push_back(k);
     } 
 
@@ -299,7 +299,7 @@ REGISTER_OPERATION_FUNCTION("list_remap", ListRemap);
  * @brief Returns an element from a given list.
  * 
  */
-SharedVariable ListElement(std::vector<SharedVariable> inputs) {
+SharedToken ListElement(std::vector<SharedToken> inputs) {
 
     VERIFY(inputs.size() == 2, "Incorrect number of parameters");
 
@@ -317,7 +317,7 @@ REGISTER_OPERATION_FUNCTION("list_element", ListElement);
  * @brief Returns a virtual list with the given variable replicated a given number of times.
  * 
  */
-SharedVariable RepeatElement(std::vector<SharedVariable> inputs) {
+SharedToken RepeatElement(std::vector<SharedToken> inputs) {
 
     VERIFY(inputs.size() == 2, "Incorrect number of parameters");
 
@@ -325,7 +325,7 @@ SharedVariable RepeatElement(std::vector<SharedVariable> inputs) {
 
     VERIFY(length >= 1, "List length should be 1 or more");
 
-    SharedVariable value = inputs[0];
+    SharedToken value = inputs[0];
 
     if (value->type() == IntegerType) {
         return std::make_shared<ConstantList<int>>(inputs[0], length);
@@ -343,7 +343,7 @@ SharedVariable RepeatElement(std::vector<SharedVariable> inputs) {
         return std::make_shared<ConstantList<std::string>>(inputs[0], length);
     }
 
-    throw VariableException("Not a primitive type");
+    throw TypeException("Not a primitive type");
 
 }
 
@@ -353,7 +353,7 @@ REGISTER_OPERATION_FUNCTION("list_repeat", RepeatElement);
  * @brief Returns a list from start to end with linear progression over length elements.
  * 
  */
-SharedVariable RangeList(std::vector<SharedVariable> inputs, bool round) {
+SharedToken RangeList(std::vector<SharedToken> inputs, bool round) {
 
     VERIFY(inputs.size() == 3, "Incorrect number of parameters");
 
@@ -388,7 +388,7 @@ REGISTER_OPERATION_FUNCTION("list_range", RangeList, bool);
 class PermutationGenerator {
 public:
 
-    PermutationGenerator(SharedVariable seed) : generator(StohasticOperation::create_generator(seed)) { }
+    PermutationGenerator(SharedToken seed) : generator(StohasticOperation::create_generator(seed)) { }
 
     int operator()(int lim) {
 
@@ -408,7 +408,7 @@ private:
  * @brief Creates a permutation mapping.
  * 
  */
-SharedVariable ListPermute(std::vector<SharedVariable> inputs) {
+SharedToken ListPermute(std::vector<SharedToken> inputs) {
     
     VERIFY(inputs.size() == 2, "Incorrect number of parameters");
 
@@ -431,7 +431,7 @@ REGISTER_OPERATION_FUNCTION_WITH_BASE("list_permute", ListPermute, StohasticOper
  * @brief Creates a random permutation of indices from 0 to length.
  * 
  */
-SharedVariable MakePermutation(std::vector<SharedVariable> inputs) {
+SharedToken MakePermutation(std::vector<SharedToken> inputs) {
     
     VERIFY(inputs.size() == 2, "Incorrect number of parameters");
 
@@ -452,7 +452,7 @@ REGISTER_OPERATION_FUNCTION_WITH_BASE("list_permutation", MakePermutation, Stoha
  * @brief Returns a scalar length of an input list.
  * 
  */
-SharedVariable ListLength(std::vector<SharedVariable> inputs) {
+SharedToken ListLength(std::vector<SharedToken> inputs) {
 
     VERIFY(inputs.size() == 1, "Incorrect number of parameters");
 
@@ -468,7 +468,7 @@ REGISTER_OPERATION_FUNCTION("list_length", ListLength);
  * @brief Compares a list to a list or scalar. Returns a list of integer 0 or 1.
  * 
  */
-SharedVariable ListCompare(std::vector<SharedVariable> inputs, ComparisonOperation operation) {
+SharedToken ListCompare(std::vector<SharedToken> inputs, ComparisonOperation operation) {
 
     VERIFY(inputs.size() == 2, "Incorrect number of parameters");
 
@@ -480,13 +480,13 @@ SharedVariable ListCompare(std::vector<SharedVariable> inputs, ComparisonOperati
     if (inputs[1]->type() == IntegerType || inputs[1]->type() == FloatType) {
         b = std::make_shared<ConstantList<int>>(inputs[1], a->size());
     } else if (List::is_list(inputs[1], IntegerType) || List::is_list(inputs[1], FloatType)) {
-        throw VariableException("Not an numeric list");
+        throw TypeException("Not an numeric list");
     } else {
         b = List::get_list(inputs[1]);
     }
 
     if (a->size() != b->size())
-        throw VariableException("Filter length mismatch");
+        throw TypeException("Filter length mismatch");
 
     std::vector<int> result;
     result.reserve(a->size());
@@ -532,22 +532,22 @@ SharedVariable ListCompare(std::vector<SharedVariable> inputs, ComparisonOperati
 
 REGISTER_OPERATION_FUNCTION("list_compare", ListCompare, ComparisonOperation);
 
-SharedVariable ListLogical(std::vector<SharedVariable> inputs, LogicalOperation operation) {
+SharedToken ListLogical(std::vector<SharedToken> inputs, LogicalOperation operation) {
 
     switch (operation) {
     case LogicalOperation::AND: {
         if (inputs.size() != 2) {
-            throw VariableException("Incorrect number of parameters");
+            throw TypeException("Incorrect number of parameters");
         }
 
         if (!(List::is_list(inputs[0], IntegerType) && List::is_list(inputs[1], IntegerType)))
-            throw VariableException("Not an integer list");
+            throw TypeException("Not an integer list");
 
         SharedList a = List::get_list(inputs[0]);
         SharedList b = List::get_list(inputs[1]);
 
         if (a->size() != b->size())
-            throw VariableException("Filter length mismatch");
+            throw TypeException("Filter length mismatch");
 
         std::vector<int> result;
 
@@ -559,17 +559,17 @@ SharedVariable ListLogical(std::vector<SharedVariable> inputs, LogicalOperation 
     }
     case LogicalOperation::OR: {
         if (inputs.size() != 2) {
-            throw VariableException("Incorrect number of parameters");
+            throw TypeException("Incorrect number of parameters");
         }
 
         if (!(List::is_list(inputs[0], IntegerType) && List::is_list(inputs[1], IntegerType)))
-            throw VariableException("Not an integer list");
+            throw TypeException("Not an integer list");
 
         SharedList a = List::get_list(inputs[0]);
         SharedList b = List::get_list(inputs[1]);
 
         if (a->size() != b->size())
-            throw VariableException("Filter length mismatch");
+            throw TypeException("Filter length mismatch");
 
         std::vector<int> result;
 
@@ -582,11 +582,11 @@ SharedVariable ListLogical(std::vector<SharedVariable> inputs, LogicalOperation 
     }
     case LogicalOperation::NOT: {
         if (inputs.size() != 1) {
-            throw VariableException("Incorrect number of parameters");
+            throw TypeException("Incorrect number of parameters");
         }
 
         if (!List::is_list(inputs[0], IntegerType))
-            throw VariableException("Not an integer list");
+            throw TypeException("Not an integer list");
 
         SharedList a = List::get_list(inputs[0]);
 
@@ -608,7 +608,7 @@ SharedVariable ListLogical(std::vector<SharedVariable> inputs, LogicalOperation 
 REGISTER_OPERATION_FUNCTION("logical", ListLogical, LogicalOperation);
 
 // TODO: support for integer operations
-SharedVariable ListArithmetic(std::vector<SharedVariable> inputs, ArithmeticOperation operation) {
+SharedToken ListArithmetic(std::vector<SharedToken> inputs, ArithmeticOperation operation) {
 
     VERIFY(inputs.size() == 2, "Incorrect number of parameters");
 
@@ -618,7 +618,7 @@ SharedVariable ListArithmetic(std::vector<SharedVariable> inputs, ArithmeticOper
     SharedList b = List::get_list(inputs[1]);
 
     if (a->size() != b->size())
-        throw VariableException("Filter length mismatch");
+        throw TypeException("Filter length mismatch");
 
     switch (operation) {
     case ArithmeticOperation::ADD: {
@@ -682,7 +682,7 @@ SharedVariable ListArithmetic(std::vector<SharedVariable> inputs, ArithmeticOper
 
     }
     default:
-        throw VariableException("Unsupported operation");
+        throw TypeException("Unsupported operation");
     }
 
 }
@@ -690,7 +690,7 @@ SharedVariable ListArithmetic(std::vector<SharedVariable> inputs, ArithmeticOper
 REGISTER_OPERATION_FUNCTION("list_arithmetic", ListArithmetic, ArithmeticOperation);
 
 // TODO: better detecton of integer lists vs float
-SharedVariable ListBuild(std::vector<SharedVariable> inputs) {
+SharedToken ListBuild(std::vector<SharedToken> inputs) {
 
     VERIFY(inputs.size() > 0, "No inputs");
 

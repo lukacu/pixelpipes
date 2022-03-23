@@ -4,7 +4,7 @@
 #include <memory>
 #include <iterator>
 
-#include <pixelpipes/types.hpp>
+#include <pixelpipes/type.hpp>
 #include <pixelpipes/operation.hpp>
 
 namespace pixelpipes
@@ -86,10 +86,10 @@ namespace pixelpipes
 
     constexpr static TypeIdentifier ImageType = GetTypeIdentifier<Image>();
 
-    class ImageData : public Variable
+    class ImageData : public Token
     {
     public:
-        inline static bool is(SharedVariable v)
+        inline static bool is(SharedToken v)
         {
             return (v->type() == ImageType);
         }
@@ -173,7 +173,7 @@ namespace pixelpipes
 
         virtual TypeIdentifier element_type() const;
 
-        virtual SharedVariable get(int index) const;
+        virtual SharedToken get(int index) const;
 
     private:
         std::vector<Image> images;
@@ -184,16 +184,16 @@ namespace pixelpipes
     PIXELPIPES_TYPE_NAME(std::vector<Image>, "image_list");
 
     template <>
-    inline Image extract(const SharedVariable v)
+    inline Image extract(const SharedToken v)
     {
         if (!ImageData::is(v))
-            throw VariableException("Not an image type");
+            throw TypeException("Not an image type");
 
         return std::static_pointer_cast<ImageData>(v);
     }
 
     template <>
-    inline std::vector<Image> extract(const SharedVariable v)
+    inline std::vector<Image> extract(const SharedToken v)
     {
         VERIFY((bool)v, "Uninitialized variable");
 
@@ -201,7 +201,7 @@ namespace pixelpipes
     }
 
     template <>
-    inline SharedVariable wrap(const std::vector<Image> v)
+    inline SharedToken wrap(const std::vector<Image> v)
     {
         return std::make_shared<ImageList>(v);
     }

@@ -1,13 +1,13 @@
 
 #pragma once 
 
-#include <pixelpipes/types.hpp>
+#include <pixelpipes/token.hpp>
 #include <pixelpipes/image.hpp>
 #include <pixelpipes/geometry.hpp>
 
 #include <opencv2/core.hpp>
 
-#define CV_EX_WRAP(S) try { S ; } catch ( cv::Exception& e ) { throw pixelpipes::VariableException(e.what()); }
+#define CV_EX_WRAP(S) try { S ; } catch ( cv::Exception& e ) { throw pixelpipes::TypeException(e.what()); }
 
 namespace pixelpipes
 {
@@ -45,10 +45,10 @@ namespace pixelpipes
     };
 
     template <>
-    inline cv::Mat extract(const SharedVariable v)
+    inline cv::Mat extract(const SharedToken v)
     {
         if (!ImageData::is(v))
-            throw VariableException("Not an image value");
+            throw TypeException("Not an image value");
 
         Image image = std::static_pointer_cast<ImageData>(v);
 
@@ -61,9 +61,9 @@ namespace pixelpipes
     }
 
     template <>
-    inline cv::Point2f extract(const SharedVariable v)
+    inline cv::Point2f extract(const SharedToken v)
     {
-        VERIFY((bool)v, "Uninitialized variable");
+        VERIFY((bool)v, "Uninitialized token");
 
         if (v->type() == FloatType)
         {
@@ -78,7 +78,7 @@ namespace pixelpipes
         }
 
         if (v->type() != Point2DType)
-            throw VariableException("Not a point value");
+            throw TypeException("Not a point value");
 
         Point2D p = std::static_pointer_cast<Point2DVariable>(v)->get();
 
@@ -86,12 +86,12 @@ namespace pixelpipes
     }
 
     template <>
-    inline std::vector<cv::Point2f> extract(const SharedVariable v)
+    inline std::vector<cv::Point2f> extract(const SharedToken v)
     {
-        VERIFY((bool)v, "Uninitialized variable");
+        VERIFY((bool)v, "Uninitialized token");
 
         if (!Point2DList::is(v))
-            throw VariableException("Not a point list");
+            throw TypeException("Not a point list");
 
         std::vector<Point2D> original = extract<std::vector<Point2D>>(v);
 
@@ -104,12 +104,12 @@ namespace pixelpipes
     }
 
     template <>
-    inline cv::Matx33f extract(const SharedVariable v)
+    inline cv::Matx33f extract(const SharedToken v)
     {
-        VERIFY((bool)v, "Uninitialized variable");
+        VERIFY((bool)v, "Uninitialized token");
 
         if (v->type() != View2DType)
-            throw VariableException("Not a view value");
+            throw TypeException("Not a view value");
 
         View2D d = std::static_pointer_cast<View2DVariable>(v)->get();
 
@@ -118,7 +118,7 @@ namespace pixelpipes
     }
 
     template <>
-    inline SharedVariable wrap(const cv::Matx33f v)
+    inline SharedToken wrap(const cv::Matx33f v)
     {
         View2D d{v(0, 0), v(0, 1), v(0, 2), v(1, 0), v(1, 1), v(1, 2), v(2, 0), v(2, 1), v(2, 2)};
 
@@ -126,7 +126,7 @@ namespace pixelpipes
     }
 
     template <>
-    inline SharedVariable wrap(const cv::Mat v)
+    inline SharedToken wrap(const cv::Mat v)
     {
         return std::make_shared<MatImage>(v);
     }
@@ -144,7 +144,7 @@ namespace pixelpipes
         case CV_64F:
             return 1;
         default:
-            throw VariableException("Unsupported image depth");
+            throw TypeException("Unsupported image depth");
         }
     }
 

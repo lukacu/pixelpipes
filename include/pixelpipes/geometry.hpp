@@ -1,6 +1,6 @@
 #pragma once
 
-#include <pixelpipes/types.hpp>
+#include <pixelpipes/type.hpp>
 
 namespace pixelpipes {
 
@@ -59,11 +59,11 @@ constexpr static TypeIdentifier Point3DType = GetTypeIdentifier<Point3D>();
 constexpr static TypeIdentifier View2DType = GetTypeIdentifier<View2D>();
 constexpr static TypeIdentifier View3DType = GetTypeIdentifier<View3D>();
 
-typedef ContainerVariable<Point2D> Point2DVariable;
-typedef ContainerVariable<Point3D> Point3DVariable;
+typedef ContainerToken<Point2D> Point2DVariable;
+typedef ContainerToken<Point3D> Point3DVariable;
 
-typedef ContainerVariable<View2D> View2DVariable;
-typedef ContainerVariable<View3D> View3DVariable;
+typedef ContainerToken<View2D> View2DVariable;
+typedef ContainerToken<View3D> View3DVariable;
 
 typedef ContainerList<Point2D> Point2DList;
 typedef ContainerList<Point3D> Point3DList;
@@ -81,7 +81,7 @@ PIXELPIPES_TYPE_NAME(std::vector<Point2D>, "point2_list");
 PIXELPIPES_TYPE_NAME(std::vector<Point3D>, "point3_list");
 
 template<>
-inline Point2D extract(const SharedVariable v) {
+inline Point2D extract(const SharedToken v) {
     VERIFY((bool) v, "Uninitialized variable");
 
     if (v->type() == FloatType) {
@@ -95,19 +95,19 @@ inline Point2D extract(const SharedVariable v) {
     }
 
     if (v->type() != Point2DType)
-        throw VariableException("Not a point value");
+        throw TypeException("Not a point value");
 
     return std::static_pointer_cast<Point2DVariable>(v)->get();
 }
 
 template<>
-inline SharedVariable wrap(const Point2D v) {
+inline SharedToken wrap(const Point2D v) {
     return std::make_shared<Point2DVariable>(v);
 }
 
 
 template<>
-inline Point3D extract(const SharedVariable v) {
+inline Point3D extract(const SharedToken v) {
     VERIFY((bool) v, "Uninitialized variable");
 
     if (v->type() == FloatType) {
@@ -121,49 +121,49 @@ inline Point3D extract(const SharedVariable v) {
     }
 
     if (v->type() != Point3DType)
-        throw VariableException("Not a point value");
+        throw TypeException("Not a point value");
 
     return std::static_pointer_cast<Point3DVariable>(v)->get();
 }
 
 template<>
-inline SharedVariable wrap(const Point3D v) {
+inline SharedToken wrap(const Point3D v) {
     return std::make_shared<Point3DVariable>(v);
 }
 
 template<>
-inline View2D extract(const SharedVariable v) {
+inline View2D extract(const SharedToken v) {
     VERIFY((bool) v, "Uninitialized variable");
 
     if (v->type() != View2DType)
-        throw VariableException("Not a point value");
+        throw TypeException("Not a point value");
 
     return std::static_pointer_cast<View2DVariable>(v)->get();
 }
 
 template<>
-inline SharedVariable wrap(const View2D v) {
+inline SharedToken wrap(const View2D v) {
     return std::make_shared<View2DVariable>(v);
 }
 
 
 template<>
-inline View3D extract(const SharedVariable v) {
+inline View3D extract(const SharedToken v) {
     VERIFY((bool) v, "Uninitialized variable");
 
     if (v->type() != View3DType)
-        throw VariableException("Not a point value");
+        throw TypeException("Not a point value");
 
     return std::static_pointer_cast<View3DVariable>(v)->get();
 }
 
 template<>
-inline SharedVariable wrap(const View3D v) {
+inline SharedToken wrap(const View3D v) {
     return std::make_shared<View3DVariable>(v);
 }
 
 template<>
-inline std::vector<Point2D> extract(const SharedVariable v) {
+inline std::vector<Point2D> extract(const SharedToken v) {
     VERIFY((bool) v, "Uninitialized variable");
 
     if (Point2DVariable::is(v)) {
@@ -175,7 +175,7 @@ inline std::vector<Point2D> extract(const SharedVariable v) {
 }
 
 template<>
-inline SharedVariable wrap(const std::vector<Point2D> v) {
+inline SharedToken wrap(const std::vector<Point2D> v) {
     return std::make_shared<Point2DList>(v);
 }
 

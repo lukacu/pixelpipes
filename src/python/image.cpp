@@ -4,7 +4,6 @@
 #include <pybind11/functional.h>
 #include <pybind11/numpy.h>
 
-#include <pixelpipes/types.hpp>
 #include <pixelpipes/pipeline.hpp>
 #include <pixelpipes/module.hpp>
 #include <pixelpipes/operation.hpp>
@@ -28,7 +27,7 @@ public:
     {
 
         if (array.ndim() < 2 || array.ndim() > 3)
-            throw VariableException("Unsupported number of dimensions");
+            throw TypeException("Unsupported number of dimensions");
 
         const auto pyarray_dtype = data.dtype();
         if (pyarray_dtype.is(pybind11::dtype::of<uint8_t>()))
@@ -57,7 +56,7 @@ public:
         }
         else
         {
-            throw VariableException("Unsupported depth type");
+            throw TypeException("Unsupported depth type");
         }
 
         // for (size_t i = 0; i < array.ndim(); i++) { std::cout << array.strides(i) << " - "; } std::cout << std::endl;
@@ -118,7 +117,7 @@ private:
     ImageDepth image_depth;
 };
 
-SharedVariable wrap_image(py::object src)
+SharedToken wrap_image(py::object src)
 {
 
     py::array a = py::array::ensure(src);
@@ -139,13 +138,13 @@ SharedVariable wrap_image(py::object src)
 
         return dst;
     }
-    catch (VariableException &e)
+    catch (TypeException &e)
     {
         return empty<ImageData>();
     }
 }
 
-py::object extract_image(SharedVariable src)
+py::object extract_image(SharedToken src)
 {
 
     if (!ImageData::is(src))
@@ -209,7 +208,7 @@ py::object extract_image(SharedVariable src)
     return result;
 }
 
-SharedVariable wrap_image_list(py::object src)
+SharedToken wrap_image_list(py::object src)
 {
     if (py::list::check_(src))
     {
@@ -219,7 +218,7 @@ SharedVariable wrap_image_list(py::object src)
             std::vector<Image> images;
             for (auto x : list)
             {
-                SharedVariable image = wrap_image(py::reinterpret_borrow<py::object>(x));
+                SharedToken image = wrap_image(py::reinterpret_borrow<py::object>(x));
                 if (!image)
                     return empty<List>();
                 images.push_back(extract<Image>(image));
@@ -233,7 +232,7 @@ SharedVariable wrap_image_list(py::object src)
     return empty<List>();
 }
 
-py::object extract_image_list(SharedVariable src)
+py::object extract_image_list(SharedToken src)
 {
 
     if (!List::is_list(src, ImageType))

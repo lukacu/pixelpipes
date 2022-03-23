@@ -9,7 +9,7 @@ namespace pixelpipes
 {
 
     template <>
-    inline cv::Point2f extract(const SharedVariable v)
+    inline cv::Point2f extract(const SharedToken v)
     {
         VERIFY((bool)v, "Uninitialized variable");
 
@@ -26,7 +26,7 @@ namespace pixelpipes
         }
 
         if (v->type() != Point2DType)
-            throw VariableException("Not a point value");
+            throw TypeException("Not a point value");
 
         Point2D p = std::static_pointer_cast<Point2DVariable>(v)->get();
 
@@ -34,18 +34,18 @@ namespace pixelpipes
     }
 
     template <>
-    inline SharedVariable wrap(const cv::Point2f v)
+    inline SharedToken wrap(const cv::Point2f v)
     {
         return std::make_shared<Point2DVariable>(Point2D{v.x, v.y});
     }
 
     template <>
-    inline std::vector<cv::Point2f> extract(const SharedVariable v)
+    inline std::vector<cv::Point2f> extract(const SharedToken v)
     {
         VERIFY((bool)v, "Uninitialized variable");
 
         if (!Point2DList::is(v))
-            throw VariableException("Not a point list");
+            throw TypeException("Not a point list");
 
         std::vector<Point2D> original = extract<std::vector<Point2D>>(v);
 
@@ -58,7 +58,7 @@ namespace pixelpipes
     }
 
     template <>
-    inline SharedVariable wrap(const std::vector<cv::Point2f> v)
+    inline SharedToken wrap(const std::vector<cv::Point2f> v)
     {
 
         std::vector<Point2D> convert; convert.reserve(v.size());
@@ -71,12 +71,12 @@ namespace pixelpipes
 
 
     template <>
-    inline cv::Matx33f extract(const SharedVariable v)
+    inline cv::Matx33f extract(const SharedToken v)
     {
         VERIFY((bool)v, "Uninitialized variable");
 
         if (v->type() != View2DType)
-            throw VariableException("Not a view value");
+            throw TypeException("Not a view value");
 
         View2D d = std::static_pointer_cast<View2DVariable>(v)->get();
 
@@ -85,7 +85,7 @@ namespace pixelpipes
     }
 
     template <>
-    inline SharedVariable wrap(const cv::Matx33f v)
+    inline SharedToken wrap(const cv::Matx33f v)
     {
         View2D d{v(0, 0), v(0, 1), v(0, 2), v(1, 0), v(1, 1), v(1, 2), v(2, 0), v(2, 1), v(2, 2)};
 

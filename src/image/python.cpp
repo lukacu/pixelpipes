@@ -57,7 +57,7 @@ public:
     PyObject* toNDArray(const cv::Mat& mat);
 };
 
-py::object numpyFromVariable(pixelpipes::SharedVariable variable) {
+py::object numpyFromVariable(pixelpipes::SharedToken variable) {
 
 /*
         case pixelpipes::VariableType::Point: {
@@ -570,7 +570,7 @@ PIXELPIPES_PYTHON_REGISTER_WRAPPER(ImageType, [](py::object src) {
 
 });
 
-py::object extract_image(SharedVariable src) {
+py::object extract_image(SharedToken src) {
 
     if (!Image::is(src)) {
         return py::none();
@@ -584,7 +584,7 @@ py::object extract_image(SharedVariable src) {
 
 PIXELPIPES_PYTHON_REGISTER_EXTRACTOR(ImageType, extract_image);
 
-SharedVariable wrap_image_list(py::object src) {
+SharedToken wrap_image_list(py::object src) {
 
     NDArrayConverter cvt;
     if (py::list::check_(src)) {

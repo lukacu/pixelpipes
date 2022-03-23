@@ -15,7 +15,7 @@ namespace pixelpipes {
  * @brief Blurs an image using a median filter.
  * 
  */
-SharedVariable MedianBlur(std::vector<SharedVariable> inputs) noexcept(false) {
+SharedToken MedianBlur(std::vector<SharedToken> inputs) noexcept(false) {
 
     VERIFY(inputs.size() == 2, "Incorrect number of parameters");
 
@@ -35,7 +35,7 @@ REGISTER_OPERATION_FUNCTION("median_blur", MedianBlur);
  * @brief Convolving an image with a normalized box filter.
  * 
  */
-SharedVariable AverageBlur(std::vector<SharedVariable> inputs) noexcept(false) {
+SharedToken AverageBlur(std::vector<SharedToken> inputs) noexcept(false) {
 
     VERIFY(inputs.size() == 2, "Incorrect number of parameters");
 
@@ -54,7 +54,7 @@ REGISTER_OPERATION_FUNCTION("average_blur", AverageBlur);
  * @brief Applies the bilateral filter to an image.
  * 
  */
-SharedVariable BilateralFilter(std::vector<SharedVariable> inputs) noexcept(false) {
+SharedToken BilateralFilter(std::vector<SharedToken> inputs) noexcept(false) {
     
     VERIFY(inputs.size() == 4, "Incorrect number of parameters");
 
@@ -76,7 +76,7 @@ REGISTER_OPERATION_FUNCTION("bilateral_filter", BilateralFilter);
  * @brief Convolves an image with custom kernel.
  * 
  */
-SharedVariable LinearFilter(std::vector<SharedVariable> inputs, BorderStrategy border) noexcept(false) {
+SharedToken LinearFilter(std::vector<SharedToken> inputs, BorderStrategy border) noexcept(false) {
 
     VERIFY(inputs.size() == 2, "Incorrect number of parameters");
 
@@ -103,7 +103,7 @@ REGISTER_OPERATION_FUNCTION("linear_filter", LinearFilter, BorderStrategy);
  * @brief Convolves an image with custom kernel.
  * 
  */
-SharedVariable GaussianKernel(std::vector<SharedVariable> inputs) noexcept(false) {
+SharedToken GaussianKernel(std::vector<SharedToken> inputs) noexcept(false) {
 
     VERIFY(inputs.size() == 1, "Incorrect number of parameters");
 
@@ -120,7 +120,7 @@ SharedVariable GaussianKernel(std::vector<SharedVariable> inputs) noexcept(false
 REGISTER_OPERATION_FUNCTION("gaussian_kernel", GaussianKernel);
 
 
-SharedVariable UniformKernel(std::vector<SharedVariable> inputs) noexcept(false) {
+SharedToken UniformKernel(std::vector<SharedToken> inputs) noexcept(false) {
 
     VERIFY(inputs.size() == 1, "Incorrect number of parameters");
 

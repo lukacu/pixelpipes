@@ -5,16 +5,16 @@
 #include <set>
 
 #include <pixelpipes/base.hpp>
-#include <pixelpipes/types.hpp>
+#include <pixelpipes/token.hpp>
 #include <pixelpipes/operation.hpp>
 #include <pixelpipes/pipeline.hpp>
 
 namespace pixelpipes
 {
 
-    typedef std::function<void(SharedVariable, std::ostream &)> VariableWriter;
+    typedef std::function<void(SharedToken, std::ostream &)> TokenWriter;
 
-    typedef std::function<SharedVariable(std::istream &)> VariableReader;
+    typedef std::function<SharedToken(std::istream &)> TokenReader;
 
     class PIXELPIPES_API SerializationException : public BaseException
     {
@@ -33,30 +33,30 @@ namespace pixelpipes
 
         void write(std::string &target);
 
-        int append(std::string name, std::vector<SharedVariable> args, std::vector<int> inputs);
+        int append(std::string name, std::vector<SharedToken> args, std::vector<int> inputs);
 
         template <typename T>
-        static void register_writer(VariableWriter writer)
+        static void register_writer(TokenWriter writer)
         {
 
-            Type<T> variable_type;
+            Type<T> token_type;
 
-            register_writer(variable_type.identifier, variable_type.name, writer);
+            register_writer(token_type.identifier, token_type.name, writer);
         }
 
     private:
         typedef std::tuple<std::string, std::vector<int>, std::vector<int>> OperationData;
-        typedef std::tuple<VariableWriter, TypeName, SharedModule> WriterData;
+        typedef std::tuple<TokenWriter, TypeName, SharedModule> WriterData;
         typedef std::map<TypeIdentifier, WriterData> WriterMap;
 
         static WriterMap &writers();
 
-        static void register_writer(TypeIdentifier identifier, std::string_view name, VariableWriter writer);
+        static void register_writer(TypeIdentifier identifier, std::string_view name, TokenWriter writer);
 
         std::set<SharedModule> used_modules;
         std::set<TypeIdentifier> used_types;
 
-        std::vector<SharedVariable> variables;
+        std::vector<SharedToken> tokens;
         std::vector<OperationData> operations;
     };
 
@@ -72,21 +72,21 @@ namespace pixelpipes
         SharedPipeline read(std::string &target);
 
         template <typename T>
-        static void register_reader(VariableReader reader)
+        static void register_reader(TokenReader reader)
         {
 
-            Type<T> variable_type;
+            Type<T> token_type;
 
-            register_reader(variable_type.identifier, variable_type.name, reader);
+            register_reader(token_type.identifier, token_type.name, reader);
         }
 
     private:
-        typedef std::tuple<VariableReader, TypeName, SharedModule> ReaderData;
+        typedef std::tuple<TokenReader, TypeName, SharedModule> ReaderData;
         typedef std::map<TypeIdentifier, ReaderData> ReaderMap;
 
         static ReaderMap &readers();
 
-        static void register_reader(TypeIdentifier identifier, std::string_view name, VariableReader reader);
+        static void register_reader(TypeIdentifier identifier, std::string_view name, TokenReader reader);
     };
 
 #define PIXELPIPES_REGISTER_READER(T, F) static AddModuleInitializer CONCAT(__reader_init_, __COUNTER__)([]() { PipelineReader::register_reader<T>(F); })

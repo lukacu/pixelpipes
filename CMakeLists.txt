@@ -27,7 +27,8 @@ SET(CORE_SOURCE
     src/random.cpp
     src/pipeline.cpp
     src/module.cpp
-    src/types.cpp
+    src/type.cpp
+    src/token.cpp
     src/image.cpp
     src/operation.cpp
     src/serialization.cpp
