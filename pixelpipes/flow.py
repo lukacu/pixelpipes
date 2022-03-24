@@ -3,7 +3,7 @@
 from attributee import List, Float
 
 from . import types
-from .graph import GraphBuilder, Macro, Input, NodeException, Reference, hidden, Copy
+from .graph import GraphBuilder, Macro, Input, NodeException, Reference, SeedInput, hidden, Copy
 from .compiler import Conditional
 from .resource import Resource, ResourceList
 
@@ -86,8 +86,9 @@ class Switch(Macro):
     """Random switch between multiple branches
 
     Inputs:
-        - inputs: Input branches
-        - weights: Corresponing branch probabilities
+       - inputs: Input branches
+       - weights: Corresponing branch probabilities
+       - seed: Optional random seed
 
     Category: core
     Tags: random, switch
@@ -95,6 +96,7 @@ class Switch(Macro):
 
     inputs = List(Input(types.Any()))
     weights = List(Float(val_min=0))
+    seed = SeedInput()
 
     def _init(self):
         if len(self.inputs) == 0:
@@ -104,10 +106,10 @@ class Switch(Macro):
             raise NodeException("Number of inputs and weights does not match", node=self)
 
     def input_values(self):
-        return [self.inputs[int(name)] for name, _ in self.get_inputs()]
+        return [self.inputs[int(name)] for name, _ in self.get_inputs()] + [self.seed]
 
     def get_inputs(self):
-        return [(str(k), types.Any()) for k, _ in enumerate(self.inputs)]
+        return [(str(k), types.Any()) for k, _ in enumerate(self.inputs)] + [("seed", types.Integer())]
 
     def validate(self, **inputs):
         super().validate(**inputs)
@@ -139,7 +141,7 @@ class Switch(Macro):
 
         with GraphBuilder(prefix=parent) as builder:
             
-            random = UniformDistribution(min=0, max=total_weight)
+            random = UniformDistribution(min=0, max=total_weight, seed=inputs["seed"])
 
             threshold = 0
             tree = None

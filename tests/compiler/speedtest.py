@@ -1,6 +1,8 @@
-from pixelpipes import GraphBuilder, Output, Compiler
-from pixelpipes.nodes import UniformDistribution, Add
-from pixelpipes.nodes.flow import Switch
+from pixelpipes.graph import GraphBuilder
+from pixelpipes.compiler import Compiler
+from pixelpipes.graph import Output
+from pixelpipes.numbers import UniformDistribution
+from pixelpipes.flow import Switch
 
 def compile_graph():
 
