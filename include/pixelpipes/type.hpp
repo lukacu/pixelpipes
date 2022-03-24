@@ -5,14 +5,17 @@
 #include <type_traits>
 #include <string_view>
 #include <map>
+#include <any>
 #include <mutex>
 #include <thread>
 #include <exception>
 #include <random>
 #include <iostream>
+#include <functional>
 #include <initializer_list>
 
 #include <pixelpipes/base.hpp>
+#include <pixelpipes/module.hpp>
 
 namespace pixelpipes
 {
@@ -138,28 +141,7 @@ namespace pixelpipes
 
     typedef std::string_view TypeName;
 
-    template <typename T>
-    constexpr TypeName GetTypeName();
-
 #define VIEWCHARS(S) std::string(S).c_str()
-
-    template <typename T, typename dummy = T>
-    struct Type
-    {
-
-        constexpr static TypeIdentifier identifier = GetTypeIdentifier<T>();
-        constexpr static TypeName name = GetTypeName<T>();
-        constexpr static bool scalar = true;
-    };
-
-    template <typename T>
-    struct Type<T, typename std::enable_if<is_vector<T>::value, T>::type>
-    {
-
-        constexpr static TypeIdentifier identifier = GetTypeIdentifier<T>();
-        constexpr static std::string_view name = GetTypeName<T>();
-        constexpr static bool scalar = false;
-    };
 
     class PIXELPIPES_API TypeException : public BaseException
     {
@@ -173,5 +155,69 @@ namespace pixelpipes
         if (!condition)
             throw TypeException(reason);
     }
+
+    constexpr static TypeIdentifier AnyType = 0;
+
+    class PIXELPIPES_API Type
+    {
+    public:
+        Type(TypeIdentifier id, std::map<std::string, std::any> parameters);
+
+        Type(TypeIdentifier id);
+
+        virtual ~Type() = default;
+
+        TypeIdentifier identifier() const;
+
+        TypeName name() const;
+
+        template <typename T>
+        T parameter(const std::string key) const
+        {
+
+            auto val = parameters.find(key);
+
+            if (val == parameters.end())
+                throw TypeException("Parameter not found");
+
+            try
+            {
+                return std::any_cast<T>(val->second);
+            }
+            catch (const std::bad_any_cast &e)
+            {
+                throw TypeException("Parameter not convertable");
+            }
+        }
+
+        bool has(const std::string key) const;
+
+    private:
+        TypeIdentifier id;
+
+        std::map<std::string, std::any> parameters;
+    };
+
+    typedef std::function<Type(const Type &, const Type &)> TypeResolver;
+
+    typedef std::function<bool(const Type &)> TypeValidator;
+
+    void PIXELPIPES_API type_register(TypeIdentifier i, std::string_view name, TypeValidator, TypeResolver);
+
+    Type PIXELPIPES_API type_make(TypeIdentifier i, std::map<std::string, std::any> parameters);
+
+    Type PIXELPIPES_API type_common(const Type &me, const Type &other);
+
+    SharedModule PIXELPIPES_API type_source(TypeIdentifier i);
+
+    TypeIdentifier PIXELPIPES_API type_find(TypeName name);
+
+    std::string_view PIXELPIPES_API type_name(TypeIdentifier i);
+
+    Type do_not_resolve(const Type &, const Type &);
+
+    bool do_not_create(const Type &);
+
+#define PIXELPIPES_REGISTER_TYPE(T, NAME, VALIDATOR, RESOLVER) static AddModuleInitializer CONCAT(__type_init_, __COUNTER__)([]() { type_register(T, NAME, VALIDATOR, RESOLVER); })
 
 }

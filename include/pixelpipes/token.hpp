@@ -34,8 +34,6 @@ namespace pixelpipes
 
         virtual void describe(std::ostream &os) const = 0;
 
-        virtual bool is_scalar() const = 0;
-
         std::string describe() const;
 
         friend std::ostream &operator<<(std::ostream &os, const Token &v);
@@ -79,15 +77,13 @@ namespace pixelpipes
 
         ~ContainerToken() = default;
 
-        virtual TypeIdentifier type() const { return Type<T>::identifier; };
+        virtual TypeIdentifier type() const { return GetTypeIdentifier<T>(); };
 
         T get() const { return value; };
 
-        virtual bool is_scalar() const { return true; }
-
         inline static bool is(SharedToken v)
         {
-            return (v->type() == Type<T>::identifier);
+            return (v->type() == GetTypeIdentifier<T>());
         }
 
         static T get_value(const SharedToken v)
@@ -98,7 +94,7 @@ namespace pixelpipes
 
         virtual void describe(std::ostream &os) const
         {
-            os << "[Container for " << Type<T>::name << "]";
+            os << "[Container for " << type_name(type()) << "]";
         }
 
     protected:
@@ -115,26 +111,16 @@ namespace pixelpipes
 
         virtual void describe(std::ostream &os) const
         {
-            os << "[Scalar " << Type<T>::name << ", value: " << this->value << "]";
+            os << "[Scalar " << type_name(this->type()) << ", value: " << this->value << "]";
         }
     };
 
-    constexpr static TypeIdentifier TokenType = Type<SharedToken>::identifier;
+    constexpr static TypeIdentifier TokenType = GetTypeIdentifier<SharedToken>();
 
-    constexpr static TypeIdentifier IntegerType = Type<int>::identifier;
-    constexpr static TypeIdentifier FloatType = Type<float>::identifier;
-    constexpr static TypeIdentifier BooleanType = Type<bool>::identifier;
-    constexpr static TypeIdentifier StringType = Type<std::string>::identifier;
-
-#define PIXELPIPES_TYPE_NAME(T, N) \
-    template <>                    \
-    constexpr std::string_view GetTypeName<T>() { return N; }
-
-    PIXELPIPES_TYPE_NAME(SharedToken, "token");
-    PIXELPIPES_TYPE_NAME(int, "integer");
-    PIXELPIPES_TYPE_NAME(float, "float");
-    PIXELPIPES_TYPE_NAME(bool, "boolean");
-    PIXELPIPES_TYPE_NAME(std::string, "string");
+    constexpr static TypeIdentifier IntegerType = GetTypeIdentifier<int>();
+    constexpr static TypeIdentifier FloatType = GetTypeIdentifier<float>();
+    constexpr static TypeIdentifier BooleanType = GetTypeIdentifier<bool>();
+    constexpr static TypeIdentifier StringType = GetTypeIdentifier<std::string>();
 
     typedef ScalarToken<int> Integer;
     typedef ScalarToken<float> Float;
@@ -250,8 +236,6 @@ namespace pixelpipes
 
         virtual SharedToken get(int index) const = 0;
 
-        virtual bool is_scalar() const { return false; }
-
         inline static bool is(SharedToken v)
         {
             return ((bool)v && v->type() == GetTypeIdentifier<List>());
@@ -333,7 +317,7 @@ namespace pixelpipes
 
         virtual size_t size() const { return list.size(); }
 
-        virtual TypeIdentifier element_type() const { return Type<C>::identifier; };
+        virtual TypeIdentifier element_type() const { return GetTypeIdentifier<C>(); };
 
         virtual SharedToken get(int index) const { return std::make_shared<ScalarToken<C>>(list[index]); }
 
@@ -352,15 +336,10 @@ namespace pixelpipes
     typedef ContainerList<bool> BooleanList;
     typedef ContainerList<std::string> StringList;
 
-    PIXELPIPES_TYPE_NAME(std::vector<int>, "integer_list");
-    PIXELPIPES_TYPE_NAME(std::vector<float>, "float_list");
-    PIXELPIPES_TYPE_NAME(std::vector<bool>, "boolean_list");
-    PIXELPIPES_TYPE_NAME(std::vector<std::string>, "string_list");
-
-    constexpr static TypeIdentifier FloatListType = Type<std::vector<float>>::identifier;
-    constexpr static TypeIdentifier IntegerListType = Type<std::vector<int>>::identifier;
-    constexpr static TypeIdentifier BooleanListType = Type<std::vector<bool>>::identifier;
-    constexpr static TypeIdentifier StringListType = Type<std::vector<std::string>>::identifier;
+    constexpr static TypeIdentifier FloatListType = GetTypeIdentifier<std::vector<float>>();
+    constexpr static TypeIdentifier IntegerListType = GetTypeIdentifier<std::vector<int>>();
+    constexpr static TypeIdentifier BooleanListType = GetTypeIdentifier<std::vector<bool>>();
+    constexpr static TypeIdentifier StringListType = GetTypeIdentifier<std::vector<std::string>>();
 
     template <typename T>
     class Table : public List
@@ -389,7 +368,7 @@ namespace pixelpipes
 
         virtual TypeIdentifier element_type() const
         {
-            return Type<std::vector<T>>::identifier;
+            return GetTypeIdentifier<std::vector<T>>();
         }
 
         virtual SharedToken get(int index) const
@@ -413,15 +392,10 @@ namespace pixelpipes
     typedef Table<bool> BooleanTable;
     typedef Table<std::string> StringTable;
 
-    constexpr static TypeIdentifier FloatTableType = Type<std::vector<std::vector<float>>>::identifier;
-    constexpr static TypeIdentifier IntegerTableType = Type<std::vector<std::vector<int>>>::identifier;
-    constexpr static TypeIdentifier BooleanTableType = Type<std::vector<std::vector<bool>>>::identifier;
-    constexpr static TypeIdentifier StringTableType = Type<std::vector<std::vector<std::string>>>::identifier;
-
-    PIXELPIPES_TYPE_NAME(std::vector<std::vector<int>>, "integer_table");
-    PIXELPIPES_TYPE_NAME(std::vector<std::vector<float>>, "float_table");
-    PIXELPIPES_TYPE_NAME(std::vector<std::vector<bool>>, "boolean_table");
-    PIXELPIPES_TYPE_NAME(std::vector<std::vector<std::string>>, "string_table");
+    constexpr static TypeIdentifier FloatTableType = GetTypeIdentifier<std::vector<std::vector<float>>>();
+    constexpr static TypeIdentifier IntegerTableType = GetTypeIdentifier<std::vector<std::vector<int>>>();
+    constexpr static TypeIdentifier BooleanTableType = GetTypeIdentifier<std::vector<std::vector<bool>>>();
+    constexpr static TypeIdentifier StringTableType = GetTypeIdentifier<std::vector<std::vector<std::string>>>();
 
 #define _LIST_GENERATE_CONVERTERS(T)                      \
     template <>                                           \

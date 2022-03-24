@@ -182,7 +182,7 @@ namespace pixelpipes
 
         for (auto t : used_types)
         {
-            type_mapping.insert({std::get<1>(writers().find(t)->second), counter++});
+            type_mapping.insert({type_name(t), counter++});
         }
 
         write_t(target, type_mapping.size());
@@ -197,15 +197,15 @@ namespace pixelpipes
 
         write_t(target, tokens.size());
 
-        for (auto var : tokens)
+        for (auto t : tokens)
         {
 
-            TypeName tn = std::get<1>(writers().find(var->type())->second);
+            TypeName tn = type_name(t->type());
 
             write_t(target, type_mapping.find(tn)->second);
 
-            TokenWriter writer = std::get<0>(writers().find(var->type())->second);
-            writer(var, target);
+            TokenWriter writer = std::get<0>(writers().find(t->type())->second);
+            writer(t, target);
         }
 
         // Write the input dependencies for operations (the pipeline stuff)
@@ -264,10 +264,17 @@ namespace pixelpipes
 
             auto argtype = arg->type();
 
+            {
+
+                SharedModule source = type_source(argtype);
+                if (source)
+                    used_modules.insert(source);
+            }
+
             if (writers().find(argtype) != writers().end())
             {
 
-                SharedModule source = std::get<2>((writers().find(argtype))->second);
+                SharedModule source = std::get<1>((writers().find(argtype))->second);
 
                 if (source)
                     used_modules.insert(source);
@@ -296,7 +303,7 @@ namespace pixelpipes
         return data;
     }
 
-    void PipelineWriter::register_writer(TypeIdentifier identifier, std::string_view name, TokenWriter writer)
+    void PipelineWriter::register_writer(TypeIdentifier identifier, TokenWriter writer)
     {
 
         DEBUGMSG("Registering writer for type %s (%p)\n", std::string(name).data(), identifier);
@@ -307,19 +314,9 @@ namespace pixelpipes
             throw SerializationException("Writer already registered for type");
         }
 
-        for (auto d : writers())
-        {
-
-            if (std::get<1>(d.second) == name)
-            {
-
-                throw SerializationException(Formatter() << "Writer already registered for name " << name);
-            }
-        }
-
         SharedModule source = Module::context();
 
-        writers().insert(WriterMap::value_type{identifier, WriterData{writer, name, source}});
+        writers().insert(WriterMap::value_type{identifier, WriterData{writer, source}});
     }
 
     PipelineReader::PipelineReader()
@@ -365,22 +362,24 @@ namespace pixelpipes
                 std::string type_name = read_t<std::string>(source);
                 int code = read_t<int>(source);
 
-                bool found = false;
-
-                for (auto d : readers())
+                try
                 {
-                    if (std::get<1>(d.second) == type_name)
+
+                    auto d = readers().find(type_find(type_name));
+
+                    if (d != readers().end())
                     {
-                        type_mapping.insert({code, d.first});
-                        DEBUGMSG("Type mapping: %d -> %p (%s) \n", code, d.first, type_name.c_str())
-                        found = true;
-                        break;
+                        type_mapping.insert({code, d->first});
+                        DEBUGMSG("Type mapping: %d -> %p (%s) \n", code, d->first, type_name.c_str())
+                    }
+                    else
+                    {
+                        throw SerializationException(Formatter() << "Reader " << type_name << " not found");
                     }
                 }
-
-                if (!found)
+                catch (TypeException &e)
                 {
-                    throw SerializationException(Formatter() << "Reader " << type_name << " not found");
+                    throw SerializationException(Formatter() << "Type " << type_name << " not found");
                 }
             }
         }
@@ -465,7 +464,7 @@ namespace pixelpipes
         return data;
     }
 
-    void PipelineReader::register_reader(TypeIdentifier identifier, std::string_view name, TokenReader reader)
+    void PipelineReader::register_reader(TypeIdentifier identifier, TokenReader reader)
     {
 
         DEBUGMSG("Registering reader for type %s (%p) \n", std::string(name).data(), identifier);
@@ -476,19 +475,9 @@ namespace pixelpipes
             throw SerializationException("Reader already registered for this type");
         }
 
-        for (auto d : readers())
-        {
-
-            if (std::get<1>(d.second) == name)
-            {
-
-                throw SerializationException(Formatter() << "Reader already registered for name " << name);
-            }
-        }
-
         SharedModule source = Module::context();
 
-        readers().insert(ReaderMap::value_type{identifier, ReaderData{reader, name, source}});
+        readers().insert(ReaderMap::value_type{identifier, ReaderData{reader, source}});
     }
 
 }

@@ -29,9 +29,10 @@ SET(CORE_SOURCE
     src/module.cpp
     src/type.cpp
     src/token.cpp
-    src/image.cpp
-    src/operation.cpp
     src/serialization.cpp
+    src/operation.cpp
+    src/geometry.cpp
+    src/image.cpp
     src/numbers.cpp
     src/list.cpp
 )

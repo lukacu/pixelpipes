@@ -8,7 +8,7 @@ class TypeException(Exception):
     pass
 
 class Type(object):
-    """Abstract type base, represents description of variable types accepted or returned by nodes.
+    """Abstract type base, represents description of token types accepted or returned by nodes.
     """
 
     def castable(self, typ: "Type") -> bool:
@@ -28,7 +28,7 @@ class Type(object):
             return Any()
 
     def fixed(self) -> bool:
-        """ Are all parameters of the type fixed. If a variable is fixed, then its values can be
+        """ Are all parameters of the type fixed. If a token is fixed, then its values can be
         stacked together in a tensor.
         """
         return True

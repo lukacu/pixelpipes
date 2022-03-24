@@ -4,14 +4,14 @@
 
 namespace pixelpipes {
 
-OperationType OperationObserver::getType(const SharedOperation& operation) const { 
-    return operation->type();
+TypeIdentifier OperationObserver::get_type(const SharedOperation& operation) const { 
+    return operation->op_type();
 }
 
 Operation::Operation() {};
 
-OperationType Operation::type() {
-    return OperationType::Computation;
+TypeIdentifier Operation::op_type() {
+    return AnyType;
 }
 
 StohasticOperation::StohasticOperation() {};

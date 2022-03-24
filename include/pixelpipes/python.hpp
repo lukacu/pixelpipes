@@ -81,7 +81,7 @@ public:
 
         _register_enumeration(name, mapping);
 
-        register_wrapper(Type<T>::identifier, enum_wrapper);
+        register_wrapper(GetTypeIdentifier<T>(), enum_wrapper);
 
     };
 

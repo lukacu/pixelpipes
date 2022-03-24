@@ -19,49 +19,6 @@ namespace pixelpipes {
 class Pipeline;
 class PipelineException;
 
-class Output: public Operation {
-public:
-
-    Output();
-    ~Output();
-
-    virtual SharedToken run(std::vector<SharedToken> inputs);
-
-protected:
-
-    virtual OperationType type();
-
-};
-
-class Jump: public Operation {
-public:
-
-    Jump(int offset);
-    ~Jump() = default;
-
-    virtual SharedToken run(std::vector<SharedToken> inputs);
-
-protected:
-
-    int offset;
-
-    virtual OperationType type();
-
-};
-
-class Constant : public Operation {
-public:
-
-    Constant(SharedToken value);
-
-    virtual SharedToken run(std::vector<SharedToken> inputs);
-
-private:
-
-    SharedToken value;
-
-};
-
 class DNF: public std::vector<std::vector<bool> > {
 public:
 
@@ -70,18 +27,13 @@ public:
 
 };
 
-//typedef struct { std::vector<std::vector<bool> > clauses; } DNF;
-
-PIXELPIPES_TYPE_NAME(DNF, "DNF");
-
-constexpr static TypeIdentifier DNFType = Type<DNF>::identifier;
-
+constexpr static TypeIdentifier DNFType = GetTypeIdentifier<DNF>();
 
 template<>
 inline DNF extract(const SharedToken v) {
     VERIFY((bool) v, "Uninitialized variable");
 
-    VERIFY(v->type() == Type<DNF>::identifier, "Illegal type");
+    VERIFY(v->type() == DNFType, "Illegal type");
 
     auto container = std::static_pointer_cast<ContainerToken<DNF>>(v);
     return container->get();
@@ -93,67 +45,6 @@ template<>
 inline SharedToken wrap(const DNF v) {
     return std::make_shared<ContainerToken<DNF>>(v);
 }
-
-class ConditionalJump: public Jump {
-public:
-
-    ConditionalJump(DNF condition, int offset);
-    ~ConditionalJump() = default;
-
-    virtual SharedToken run(std::vector<SharedToken> inputs);
-
-private:
-
-    DNF condition;
-
-};
-
-class Conditional: public Operation {
-public:
-
-    Conditional(DNF condition);
-    ~Conditional() = default;
-
-    virtual SharedToken run(std::vector<SharedToken> inputs);
-
-private:
-
-    DNF condition;
-
-};
-
-class ContextQuery: public Operation {
-public:
-
-    ContextQuery(ContextData query);
-    ~ContextQuery() = default;
-
-    virtual SharedToken run(std::vector<SharedToken> inputs);
-
-    ContextData get_query();
-
-protected:
-
-    ContextData query;
-
-    virtual OperationType type();
-
-};
-
-class DebugOutput: public Operation {
-public:
-
-    DebugOutput(std::string prefix);
-    ~DebugOutput() = default;
-
-    virtual SharedToken run(std::vector<SharedToken> inputs);
-
-protected:
-
-    std::string prefix;
-
-};
-
 
 class Pipeline: public std::enable_shared_from_this<Pipeline>, public OperationObserver {
 public:
@@ -167,6 +58,8 @@ public:
     virtual int append(std::string name, std::vector<SharedToken> args, std::vector<int> inputs);
 
     virtual std::vector<SharedToken> run(unsigned long index) noexcept(false);
+
+    virtual std::vector<std::string> get_labels();
 
     std::vector<float> operation_time();
 
@@ -184,6 +77,8 @@ protected:
     std::vector<std::pair<SharedOperation, std::vector<int> > > operations;
 
     std::vector<OperationStats> stats;
+
+    std::vector<std::string> labels;
 
 };
 

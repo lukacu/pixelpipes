@@ -51,11 +51,9 @@ class Compiler(object):
         Returns:
             dict: resolved types of all nodes
         """
-        output_groups = []
 
         if isinstance(graph, Graph):
             nodes = graph.nodes
-            output_groups = graph.groups
         elif isinstance(graph, GraphBuilder):
             nodes = graph.nodes()
         elif isinstance(graph, typing.Mapping):
@@ -77,8 +75,6 @@ class Compiler(object):
                 self._debug("Node {} ({}), inferred type: {}", name,
                             node.__class__.__name__, type_cache[name])
 
-        output_types = None
-
         for output in outputs:
             inputs = [infer_type(i, nodes, type_cache)
                       for i in nodes[output].input_values()]
@@ -90,21 +86,6 @@ class Compiler(object):
                 if isinstance(output_type, types.Complex):
                     raise ValidationException("Output {} is an complex type for output node {}: {}".format(
                         i, output, output_type), output)
-
-            if output_types is None:
-                output_types = inputs
-            else:
-                if len(output_types) != len(inputs):
-                    raise ValidationException(
-                        "Unexpected number of inputs for output node {}".format(output), output)
-                for out_a, out_b in zip(output_types, inputs):
-                    if not out_a.castable(out_b):
-                        raise ValidationException(
-                            "Incompatible inputs for output node {}".format(output), output)
-
-        if output_groups and len(outputs) != len(output_groups):
-            raise ValidationException(
-                "Provided output group assignment does not match the size of the output")
 
         return type_cache
 
@@ -118,7 +99,7 @@ class Compiler(object):
     def compile(self, graph: typing.Union[Graph, typing.Mapping[str, Node]],
                 variables: typing.Optional[typing.Mapping[str,
                                                           numbers.Number]] = None,
-                output: typing.Optional[str] = None) -> typing.Iterable[PipelineOperation]:
+                output: typing.Optional[typing.List[str]] = None) -> typing.Iterable[PipelineOperation]:
         """Compile a graph into a pipeline of native operations.
 
         Args:
@@ -248,17 +229,15 @@ class Compiler(object):
 
         self.validate(expanded)
 
-        output_node = None
+        output_nodes = []
 
         values = dict()
         aliases = dict()
 
         for name, node in expanded.items():
             if isinstance(node, Output):
-                if (output is not None and node.identifier == output) or output_node is None:
-                    output_node = name
-                elif output is None and output_node is not None:
-                    raise CompilerException("Only one output node required")
+                if (output is None or node.identifier in output):
+                    output_nodes.append(name)
             elif isinstance(node, Copy):
                 aliases[aliases.get(name, name)] = aliases.get(
                     node.source.name, node.source.name)
@@ -271,12 +250,8 @@ class Compiler(object):
                 else:
                     values[node.key()] = aliases.get(name, name)
 
-        if output_node is None:
-            if output is not None:
-                raise CompilerException(
-                    "Output node {} not found".format(output))
-            else:
-                raise CompilerException("No output node found")
+        if not output_nodes:
+            raise CompilerException("No output selected or available")
 
         builder = GraphBuilder()
 
@@ -316,38 +291,39 @@ class Compiler(object):
         dependencies = {}
         conditions = []
 
-        for name in traverse(optimized, output_node):
-            node = optimized[name]
-            if isinstance(node, Conditional):
-                # In case of a conditional node we can determine which nodes will be executed only
-                # in certain conditions and insert jumps into the pipeline to speed up execution.
-                #
-                # We add this constraints also in case we do not use predicitive jumps to maintain
-                # the order of operations for comparison.
+        for output_node in output_nodes:
+            for name in traverse(optimized, output_node):
+                node = optimized[name]
+                if isinstance(node, Conditional):
+                    # In case of a conditional node we can determine which nodes will be executed only
+                    # in certain conditions and insert jumps into the pipeline to speed up execution.
+                    #
+                    # We add this constraints also in case we do not use predicitive jumps to maintain
+                    # the order of operations for comparison.
 
-                # Only register conditon once, do not use sets to preserve order
-                if not node.condition.name in conditions:
-                    conditions.append(node.condition.name)
-                # List of nodes required by branch true
-                tree_true = set(traverse(optimized, node.true.name))
-                # List of nodes required by branch false
-                tree_false = set(traverse(optimized, node.false.name))
-                # List of nodes required to process condition
-                tree_condition = set(traverse(optimized, node.condition.name))
-                # Required by both branches (A - B) + C
-                common = tree_true.intersection(
-                    tree_false).union(tree_condition)
+                    # Only register conditon once, do not use sets to preserve order
+                    if not node.condition.name in conditions:
+                        conditions.append(node.condition.name)
+                    # List of nodes required by branch true
+                    tree_true = set(traverse(optimized, node.true.name))
+                    # List of nodes required by branch false
+                    tree_false = set(traverse(optimized, node.false.name))
+                    # List of nodes required to process condition
+                    tree_condition = set(traverse(optimized, node.condition.name))
+                    # Required by both branches (A - B) + C
+                    common = tree_true.intersection(
+                        tree_false).union(tree_condition)
 
-                if node.condition.name not in common:
-                    for sub_node in tree_true.difference(common):
-                        dependencies.setdefault(
-                            sub_node, set()).add(node.condition.name)
-                    for sub_node in tree_false.difference(common):
-                        dependencies.setdefault(
-                            sub_node, set()).add(node.condition.name)
+                    if node.condition.name not in common:
+                        for sub_node in tree_true.difference(common):
+                            dependencies.setdefault(
+                                sub_node, set()).add(node.condition.name)
+                        for sub_node in tree_false.difference(common):
+                            dependencies.setdefault(
+                                sub_node, set()).add(node.condition.name)
 
-            dependencies.setdefault(name, set()).update(
-                [node.name for node in optimized[name].input_values()])
+                dependencies.setdefault(name, set()).update(
+                    [node.name for node in optimized[name].input_values()])
 
         self._debug("Resolving dependencies")
 
@@ -379,22 +355,23 @@ class Compiler(object):
 
             self._debug("Calculating branch sets")
             branches = {}
-            for name, stack in traverse(optimized, output_node, stack=[]):
-                branches.setdefault(name, BranchSet(conditions))
-                branch = {}
-                for i, node in enumerate(stack[:-1]):
-                    if isinstance(optimized[node], Conditional):
-                        condition = optimized[node]
-                        ancestor = stack[i+1]
-                        if condition.condition == ancestor:
-                            merge_branch(branch, condition.condition.name)
-                            break
-                        elif condition.true == ancestor:
-                            merge_branch(
-                                branch, condition.condition.name, True)
-                        elif condition.false == ancestor:
-                            merge_branch(
-                                branch, condition.condition.name, False)
+            for output_node in output_nodes:
+                for name, stack in traverse(optimized, output_node, stack=[]):
+                    branches.setdefault(name, BranchSet(conditions))
+                    branch = {}
+                    for i, node in enumerate(stack[:-1]):
+                        if isinstance(optimized[node], Conditional):
+                            condition = optimized[node]
+                            ancestor = stack[i+1]
+                            if condition.condition == ancestor:
+                                merge_branch(branch, condition.condition.name)
+                                break
+                            elif condition.true == ancestor:
+                                merge_branch(
+                                    branch, condition.condition.name, True)
+                            elif condition.false == ancestor:
+                                merge_branch(
+                                    branch, condition.condition.name, False)
 
                 branches[name].add(**branch)
 

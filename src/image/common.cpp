@@ -231,7 +231,7 @@ namespace pixelpipes
 
     TypeIdentifier MatImage::backend() const
     {
-        return Type<cv::Mat>::identifier;
+        return GetTypeIdentifier<cv::Mat>();
     }
 
     size_t MatImage::rowstep() const

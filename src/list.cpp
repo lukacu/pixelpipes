@@ -171,8 +171,8 @@ class ConstantList: public List {
 public:
     ConstantList(SharedToken value, int length) : value(value), length(length) {
 
-        if (!value || value->type() != Type<T>::identifier)
-            throw TypeException("Wrong variable type");
+        if (!value || value->type() != GetTypeIdentifier<T>())
+            throw TypeException("Wrong token type");
 
     }
 

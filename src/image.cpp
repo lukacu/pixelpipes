@@ -128,10 +128,6 @@ namespace pixelpipes
         return ImageType;
     }
 
-    bool ImageData::is_scalar() const
-    {
-        return true;
-    }
 
     size_t ImageData::element() const
     {
@@ -291,6 +287,16 @@ namespace pixelpipes
         return images[index];
     }
 
+    bool imate_type_verifier(const Type& type) {
+
+    }
+
+    Type imate_type_denominator(const Type& me, const Type& other) {
+        
+    }
+
+    PIXELPIPES_REGISTER_TYPE(ImageType, "image", imate_type_verifier, imate_type_denominator);
+
     PIXELPIPES_REGISTER_WRITER(Image, 
         [](SharedToken v, std::ostream &target)
         {
@@ -332,5 +338,6 @@ namespace pixelpipes
         }
 
     );
+
 
 }

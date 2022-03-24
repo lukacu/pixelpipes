@@ -12,8 +12,6 @@ namespace pixelpipes {
 
 class OperationException;
 
-enum class OperationType {Computation, Context, Output, Control};
-
 enum class ComparisonOperation {EQUAL, LOWER, LOWER_EQUAL, GREATER, GREATER_EQUAL, NOT_EQUAL};
 enum class LogicalOperation {AND, OR, NOT};
 enum class ArithmeticOperation {ADD, SUBTRACT, MULTIPLY, DIVIDE, POWER, MODULO};
@@ -37,7 +35,7 @@ typedef std::shared_ptr<Operation> SharedOperation;
 
 class OperationObserver {
 protected:
-    OperationType getType(const SharedOperation& operation) const;
+    TypeIdentifier get_type(const SharedOperation& operation) const;
 
 };
 
@@ -53,8 +51,7 @@ protected:
 
     Operation();
 
-    virtual OperationType type();
-
+    virtual TypeIdentifier op_type();
 };
 
 typedef std::default_random_engine RandomGenerator;
@@ -180,6 +177,10 @@ public:
 protected:
 
     std::tuple<Args...> args;
+
+    virtual TypeIdentifier op_type() {
+        return GetTypeIdentifier<OperationWrapper<Fn, fn, Base, Args...>>();
+    }
 
 };
 

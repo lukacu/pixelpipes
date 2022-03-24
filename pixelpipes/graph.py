@@ -750,7 +750,7 @@ class Output(Node):
         return [self.outputs[int(name)] for name, _ in self.get_inputs()]
 
     def operation(self):
-        return "_output",
+        return "_output", self.identifier
 
     def duplicate(self, _origin=None, **inputs):
         config = self.dump()

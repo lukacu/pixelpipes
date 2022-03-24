@@ -52,7 +52,7 @@ namespace pixelpipes
 
         Image image = std::static_pointer_cast<ImageData>(v);
 
-        if (image->backend() == Type<cv::Mat>::identifier)
+        if (image->backend() == GetTypeIdentifier<cv::Mat>())
         {
             return std::static_pointer_cast<MatImage>(v)->mat;
         }

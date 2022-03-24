@@ -96,8 +96,6 @@ namespace pixelpipes
 
         virtual TypeIdentifier type() const;
 
-        virtual bool is_scalar() const;
-
         virtual void describe(std::ostream &os) const;
 
         virtual ~ImageData() = default;
@@ -160,8 +158,6 @@ namespace pixelpipes
         unsigned char *buffer;
     };
 
-    PIXELPIPES_TYPE_NAME(Image, "image");
-
     class ImageList : public List
     {
     public:
@@ -179,9 +175,8 @@ namespace pixelpipes
         std::vector<Image> images;
     };
 
-    constexpr static TypeIdentifier ImageListType = Type<std::vector<Image>>::identifier;
+    constexpr static TypeIdentifier ImageListType = GetTypeIdentifier<std::vector<Image>>();
 
-    PIXELPIPES_TYPE_NAME(std::vector<Image>, "image_list");
 
     template <>
     inline Image extract(const SharedToken v)

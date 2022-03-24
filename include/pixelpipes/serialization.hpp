@@ -38,20 +38,17 @@ namespace pixelpipes
         template <typename T>
         static void register_writer(TokenWriter writer)
         {
-
-            Type<T> token_type;
-
-            register_writer(token_type.identifier, token_type.name, writer);
+            register_writer(GetTypeIdentifier<T>(), writer);
         }
 
     private:
         typedef std::tuple<std::string, std::vector<int>, std::vector<int>> OperationData;
-        typedef std::tuple<TokenWriter, TypeName, SharedModule> WriterData;
+        typedef std::tuple<TokenWriter, SharedModule> WriterData;
         typedef std::map<TypeIdentifier, WriterData> WriterMap;
 
         static WriterMap &writers();
 
-        static void register_writer(TypeIdentifier identifier, std::string_view name, TokenWriter writer);
+        static void register_writer(TypeIdentifier identifier, TokenWriter writer);
 
         std::set<SharedModule> used_modules;
         std::set<TypeIdentifier> used_types;
@@ -74,19 +71,16 @@ namespace pixelpipes
         template <typename T>
         static void register_reader(TokenReader reader)
         {
-
-            Type<T> token_type;
-
-            register_reader(token_type.identifier, token_type.name, reader);
+            register_reader(GetTypeIdentifier<T>(), reader);
         }
 
     private:
-        typedef std::tuple<TokenReader, TypeName, SharedModule> ReaderData;
+        typedef std::tuple<TokenReader, SharedModule> ReaderData;
         typedef std::map<TypeIdentifier, ReaderData> ReaderMap;
 
         static ReaderMap &readers();
 
-        static void register_reader(TypeIdentifier identifier, std::string_view name, TokenReader reader);
+        static void register_reader(TypeIdentifier identifier, TokenReader reader);
     };
 
 #define PIXELPIPES_REGISTER_READER(T, F) static AddModuleInitializer CONCAT(__reader_init_, __COUNTER__)([]() { PipelineReader::register_reader<T>(F); })

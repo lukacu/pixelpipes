@@ -1,6 +1,6 @@
 #pragma once
 
-#include <pixelpipes/type.hpp>
+#include <pixelpipes/token.hpp>
 
 namespace pixelpipes {
 
@@ -70,15 +70,6 @@ typedef ContainerList<Point3D> Point3DList;
 
 constexpr static TypeIdentifier Point2DListType = GetTypeIdentifier<std::vector<Point2D>>();
 constexpr static TypeIdentifier Point3DListType = GetTypeIdentifier<std::vector<Point3D>>();
-
-PIXELPIPES_TYPE_NAME(Point2D, "point2");
-PIXELPIPES_TYPE_NAME(Point3D, "point3");
-
-PIXELPIPES_TYPE_NAME(View2D, "view2");
-PIXELPIPES_TYPE_NAME(View3D, "view3");
-
-PIXELPIPES_TYPE_NAME(std::vector<Point2D>, "point2_list");
-PIXELPIPES_TYPE_NAME(std::vector<Point3D>, "point3_list");
 
 template<>
 inline Point2D extract(const SharedToken v) {

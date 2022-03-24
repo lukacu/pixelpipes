@@ -12,436 +12,549 @@
 #include <condition_variable>
 
 #include <pixelpipes/pipeline.hpp>
- 
+
 using namespace std;
 using namespace std::chrono;
 
-namespace pixelpipes {
+namespace pixelpipes
+{
 
-PipelineException::PipelineException(std::string reason, SharedPipeline pipeline, int operation):
- BaseException(std::string(reason.c_str()) + std::string(" (operation ") + std::to_string(operation) + std::string(")")), pipeline(pipeline), _operation(operation) {}
+    PIXELPIPES_REGISTER_TYPE(DNFType, "dnf", do_not_create, do_not_resolve);
 
-int PipelineException::operation () const throw () {
-    return _operation;
-}
+    PipelineException::PipelineException(std::string reason, SharedPipeline pipeline, int operation) : BaseException(std::string(reason.c_str()) + std::string(" (operation ") + std::to_string(operation) + std::string(")")), pipeline(pipeline), _operation(operation) {}
 
-DNF::DNF(std::vector<std::vector<bool> > clauses) {
-
-    for (auto x : clauses) {
-        if (x.size() > 0) {
-            push_back(x);
-        }
+    int PipelineException::operation() const throw()
+    {
+        return _operation;
     }
 
-}
+    DNF::DNF(std::vector<std::vector<bool>> clauses)
+    {
 
-class OutputList: public Token {
-public:
-
-    OutputList(std::vector<SharedToken> list) : list(list) {
-
-    }
-
-    ~OutputList() = default;
-
-    virtual size_t size() const { return list.size(); };
-
-    virtual bool is_scalar() const { return true; }
-
-    virtual std::vector<SharedToken> get() const { return list; }; 
-
-    virtual TypeIdentifier type() const { return 0; };
-
-    virtual void describe(std::ostream& os) const {
-        os << "[Output list]";
-    }
-
-private:
-
-    std::vector<SharedToken> list;
-
-};
-
-REGISTER_OPERATION("_output", Output);
-
-Output::Output() {};
-Output::~Output() {};
-
-OperationType Output::type() {
-    return OperationType::Output;
-}
-
-Constant::Constant(SharedToken value): value(value) {}
-
-REGISTER_OPERATION("_constant", Constant, SharedToken);
-
-SharedToken Constant::run(std::vector<SharedToken> inputs) {
-    return value;
-}
-
-Jump::Jump(int offset): offset(offset) {
-
-    if (offset < 1)
-        throw TypeException("Illegal jump location");
-
-};
-
-OperationType Jump::type() {
-    return OperationType::Control;
-}
-
-SharedToken Jump::run(std::vector<SharedToken> inputs) {
-
-    VERIFY(inputs.size() == 1, "Incorrect number of parameters");
-
-    return make_shared<Integer>(offset);
-
-}
-
-REGISTER_OPERATION("_jump", Jump, int);
-
-ConditionalJump::ConditionalJump(DNF condition, int offset): Jump(offset), condition(condition) {
-
-    VERIFY(condition.size() >= 1, "At least one condition must be defined");
-
-}    
-
-SharedToken ConditionalJump::run(std::vector<SharedToken> inputs) {
-
-
-
-    //VERIFY(inputs.size() == negate.size(), "Incorrect number of parameters");
-
-    // Counters j and m are used to keep track of the inputs, j denotes the global position
-    // while m moves within the conjunction subclause. This allows early termination of conjunction
-    size_t j = 0;
-    size_t m = 0;
-    for (size_t i = 0; i < condition.size(); i++) {
-        bool result = true;
-        j += m;
-        m = 0;
-        for (bool negate : condition[i]) {
-
-            result &= inputs[j + m] && ((Boolean::get_value(inputs[j + m])) != negate);
-            if (!result) {
-                m = condition[i].size();
-                break;
-            } else m++;
-        }
-
-        if (result) return make_shared<Integer>(0);
-    }
-
-    return make_shared<Integer>(offset);
-} 
-
-REGISTER_OPERATION("_cjump", ConditionalJump, DNF, int);
-
-Conditional::Conditional(DNF condition): condition(condition) {
-
-    VERIFY(condition.size() >= 1, "At least one condition must be defined");
-    
-};
- 
-REGISTER_OPERATION("_condition", Conditional, DNF);
-
-SharedToken Conditional::run(std::vector<SharedToken> inputs) {
-
-    //VERIFY(inputs.size() == negate.size() + 2, "Incorrect number of parameters");
-
-    size_t j = 2; // We start rading two inputs in, the first two inputs are output choices
-    size_t m = 1;
-    for (size_t i = 0; i < condition.size(); i++) {
-        bool result = true;
-        j += m - 1;
-        m = 0;
-        for (bool negate : condition[i]) {
-
-            result &= inputs[j + m] && ((Boolean::get_value(inputs[j + m])) != negate);
-            m++;
-            if (!result) {
-                m = condition[i].size();
-                break;
+        for (auto x : clauses)
+        {
+            if (x.size() > 0)
+            {
+                push_back(x);
             }
         }
-        if (result) return inputs[0];
     }
 
-    return inputs[1];
-
-}
- 
-SharedToken Output::run(std::vector<SharedToken> inputs) {
-
-    VERIFY(inputs.size() >= 1, "At least one input required");
-
-    return make_shared<OutputList>(inputs);
-
-}
-
-ContextQuery::ContextQuery(ContextData query): query(query) {}
-
-SharedToken ContextQuery::run(std::vector<SharedToken> inputs) {
-
-    return empty<Integer>();
-
-}
-
-ContextData ContextQuery::get_query() {
-    return query;
-}
-
-OperationType ContextQuery::type() {
-    return OperationType::Context;
-}
-
-REGISTER_OPERATION("_context", ContextQuery, ContextData);
-
-DebugOutput::DebugOutput(std::string prefix): prefix(prefix) {}
-
-SharedToken DebugOutput::run(std::vector<SharedToken> inputs) {
-
-    VERIFY(inputs.size() == 1, "Only one input supported for debug");
-
-    std::cout << prefix << *inputs[0] << std::endl;
-
-    return inputs[0];
-
-}
-
-REGISTER_OPERATION("_debug", DebugOutput, std::string);
-
-
-Pipeline::Pipeline() : finalized(false) {};
-
-void Pipeline::finalize() {
-
-    finalized = true;
-
-    cache.resize(operations.size());
-    stats.resize(operations.size());
-
-    for (size_t i = 0; i < stats.size(); i++) {
-        stats[i].count = 0;
-        stats[i].elapsed = 0;
-    }
-
-}
-
-int Pipeline::append(std::string name, std::vector<SharedToken> args, std::vector<int> inputs) {
-
-    if (finalized) return -1;
-
-    SharedOperation operation = create_operation(name, args);
-
-    for (int i : inputs) {
-        if (i >= (int) operations.size() || i < 0)
-            return -1;
-    }
-
-    operations.push_back(pair<SharedOperation, std::vector<int> >(operation, inputs));
-
-    return operations.size() - 1;
-}
-
-std::vector<SharedToken> Pipeline::run(unsigned long index) {
-
-    vector<SharedToken> context;
-    vector<SharedToken> result;
-
-    //auto start = high_resolution_clock::now();
-
-    context.resize(operations.size());
-
-    size_t i = 0;
-
-    std::default_random_engine generator(index);
-
-    while(i < operations.size()) {
-
-        if (cache[i]) {
-            context[i] = cache[i];
-            if (getType(operations[i].first) == OperationType::Output) {
-                result.push_back(cache[i]);
-            }
-            i++;
-            continue;
+    class OutputList : public Token
+    {
+    public:
+        OutputList(std::vector<SharedToken> list) : list(list)
+        {
         }
 
-        vector<SharedToken> local;
-        local.reserve(operations[i].second.size());
+        ~OutputList() = default;
 
-        for (int j : operations[i].second) {
-            local.push_back(context[j]);
+        virtual size_t size() const { return list.size(); };
+
+        virtual std::vector<SharedToken> get() const { return list; };
+
+        virtual TypeIdentifier type() const { return 0; };
+
+        virtual void describe(std::ostream &os) const
+        {
+            os << "[Output list]";
         }
 
-        try {
-            auto operation_start = high_resolution_clock::now();
+    private:
+        std::vector<SharedToken> list;
+    };
 
-            auto output = operations[i].first->run(local);
-            auto operation_end = high_resolution_clock::now();
+    class Output : public Operation
+    {
+    public:
+        Output(std::string name) : name(name) {}
+        virtual ~Output() = default;
 
-            stats[i].count++;
-            stats[i].elapsed += duration_cast<microseconds>(operation_end - operation_start).count();
+        virtual SharedToken run(std::vector<SharedToken> inputs)
+        {
 
-            if (getType(operations[i].first) == OperationType::Context) {
-                switch (std::static_pointer_cast<ContextQuery>(operations[i].first)->get_query())
+            VERIFY(inputs.size() >= 1, "At least one input required");
+
+            return make_shared<OutputList>(inputs);
+        }
+
+    protected:
+        virtual TypeIdentifier op_type()
+        {
+            return GetTypeIdentifier<Output>();
+        }
+
+    private:
+        std::string name;
+    };
+
+    REGISTER_OPERATION("_output", Output, std::string);
+
+    class Jump : public Operation
+    {
+    public:
+        Jump(int offset) : offset(offset)
+        {
+
+            if (offset < 1)
+                throw TypeException("Illegal jump location");
+        };
+
+        ~Jump() = default;
+
+        virtual SharedToken run(std::vector<SharedToken> inputs)
+        {
+
+            VERIFY(inputs.size() == 1, "Incorrect number of parameters");
+
+            return make_shared<Integer>(offset);
+        }
+
+    protected:
+        int offset;
+
+        virtual TypeIdentifier op_type()
+        {
+            return GetTypeIdentifier<Jump>();
+        };
+    };
+
+    REGISTER_OPERATION("_jump", Jump, int);
+
+    class Constant : public Operation
+    {
+    public:
+        Constant(SharedToken value) : value(value) {}
+
+        virtual SharedToken run(std::vector<SharedToken> inputs)
+        {
+            return value;
+        }
+
+    private:
+        SharedToken value;
+    };
+
+    REGISTER_OPERATION("_constant", Constant, SharedToken);
+
+    class ConditionalJump : public Jump
+    {
+    public:
+        ConditionalJump(DNF condition, int offset) : Jump(offset), condition(condition)
+        {
+
+            VERIFY(condition.size() >= 1, "At least one condition must be defined");
+        }
+        ~ConditionalJump() = default;
+
+        virtual SharedToken run(std::vector<SharedToken> inputs)
+        {
+
+            // VERIFY(inputs.size() == negate.size(), "Incorrect number of parameters");
+
+            // Counters j and m are used to keep track of the inputs, j denotes the global position
+            // while m moves within the conjunction subclause. This allows early termination of conjunction
+            size_t j = 0;
+            size_t m = 0;
+            for (size_t i = 0; i < condition.size(); i++)
+            {
+                bool result = true;
+                j += m;
+                m = 0;
+                for (bool negate : condition[i])
                 {
-                case ContextData::SampleIndex: {
-                    output = make_shared<Integer>(index);
-                    break;
+
+                    result &= inputs[j + m] && ((Boolean::get_value(inputs[j + m])) != negate);
+                    if (!result)
+                    {
+                        m = condition[i].size();
+                        break;
+                    }
+                    else
+                        m++;
                 }
-                case ContextData::OperationIndex: {
-                    output = make_shared<Integer>(i);
-                    break;
-                }
-                case ContextData::RandomSeed: {
-                    output = make_shared<Integer>(generator());
-                    break;
-                }
-                default:
-                    throw PipelineException("Illegal query", shared_from_this(), i);
-                }
+
+                if (result)
+                    return make_shared<Integer>(0);
             }
 
-            context[i] = output;
+            return make_shared<Integer>(offset);
+        }
 
-            if (!output) {
-                throw OperationException("Operation output undefined", operations[i].first);
+    private:
+        DNF condition;
+    };
+
+    class Conditional : public Operation
+    {
+    public:
+        Conditional(DNF condition) : condition(condition)
+        {
+
+            VERIFY(condition.size() >= 1, "At least one condition must be defined");
+        };
+
+        ~Conditional() = default;
+
+        virtual SharedToken run(std::vector<SharedToken> inputs)
+        {
+
+            // VERIFY(inputs.size() == negate.size() + 2, "Incorrect number of parameters");
+
+            size_t j = 2; // We start rading two inputs in, the first two inputs are output choices
+            size_t m = 1;
+            for (size_t i = 0; i < condition.size(); i++)
+            {
+                bool result = true;
+                j += m - 1;
+                m = 0;
+                for (bool negate : condition[i])
+                {
+
+                    result &= inputs[j + m] && ((Boolean::get_value(inputs[j + m])) != negate);
+                    m++;
+                    if (!result)
+                    {
+                        m = condition[i].size();
+                        break;
+                    }
+                }
+                if (result)
+                    return inputs[0];
             }
 
-            if (getType(operations[i].first) == OperationType::Output) {
-                result = std::static_pointer_cast<OutputList>(output)->get();
-                break;
-            } 
+            return inputs[1];
+        }
 
-            if (getType(operations[i].first) == OperationType::Control) {
-                size_t jump = (size_t) Integer::get_value(context[i]);
+    private:
+        DNF condition;
+    };
 
-                if (jump < 0 || (i + jump) >= operations.size())
-                    throw PipelineException("Unable to execute jump", shared_from_this(), i);
+    class ContextQuery : public Operation
+    {
+    public:
+        ContextQuery(ContextData query) : query(query) {}
+        ~ContextQuery() = default;
 
-                i += 1 + jump;
+        virtual SharedToken run(std::vector<SharedToken> inputs)
+        {
+            return empty<Integer>();
+        }
+
+        ContextData get_query()
+        {
+            return query;
+        }
+
+    protected:
+        ContextData query;
+
+        virtual TypeIdentifier op_type()
+        {
+            return GetTypeIdentifier<ContextQuery>();
+        }
+    };
+
+    REGISTER_OPERATION("_context", ContextQuery, ContextData);
+
+    class DebugOutput : public Operation
+    {
+    public:
+        DebugOutput(std::string prefix) : prefix(prefix)
+        {
+        }
+        ~DebugOutput() = default;
+
+        virtual SharedToken run(std::vector<SharedToken> inputs)
+        {
+
+            VERIFY(inputs.size() == 1, "Only one input supported for debug");
+
+            std::cout << prefix << *inputs[0] << std::endl;
+
+            return inputs[0];
+        }
+
+    protected:
+        std::string prefix;
+    };
+
+    REGISTER_OPERATION("_cjump", ConditionalJump, DNF, int);
+
+    REGISTER_OPERATION("_condition", Conditional, DNF);
+
+    REGISTER_OPERATION("_debug", DebugOutput, std::string);
+
+    Pipeline::Pipeline() : finalized(false){};
+
+    void Pipeline::finalize()
+    {
+
+        finalized = true;
+
+        cache.resize(operations.size());
+        stats.resize(operations.size());
+
+        for (size_t i = 0; i < stats.size(); i++)
+        {
+            stats[i].count = 0;
+            stats[i].elapsed = 0;
+        }
+    }
+
+    int Pipeline::append(std::string name, std::vector<SharedToken> args, std::vector<int> inputs)
+    {
+
+        if (finalized)
+            throw PipelineException("Pipeline is finalized", shared_from_this(), -1);
+
+        SharedOperation operation = create_operation(name, args);
+
+        for (int i : inputs)
+        {
+            if (i >= (int)operations.size() || i < 0)
+                return -1;
+        }
+
+        operations.push_back(pair<SharedOperation, std::vector<int>>(operation, inputs));
+
+        return operations.size() - 1;
+    }
+
+    std::vector<std::string> Pipeline::get_labels()
+    {
+
+        if (!finalized)
+            throw PipelineException("Pipeline not finalized", shared_from_this(), -1);
+
+        return std::vector<std::string>(labels.begin(), labels.end());
+    }
+
+    std::vector<SharedToken> Pipeline::run(unsigned long index)
+    {
+
+        vector<SharedToken> context;
+        vector<SharedToken> result;
+
+        if (!finalized)
+            throw PipelineException("Pipeline not finalized", shared_from_this(), -1);
+
+        // auto start = high_resolution_clock::now();
+
+        context.resize(operations.size());
+
+        size_t i = 0;
+
+        std::default_random_engine generator(index);
+
+        while (i < operations.size())
+        {
+
+            if (cache[i])
+            {
+                context[i] = cache[i];
+                if (get_type(operations[i].first) == GetTypeIdentifier<Output>())
+                {
+                    result.push_back(cache[i]);
+                }
+                i++;
                 continue;
             }
 
-        } catch (BaseException &e) {
-            std::cout << "ERROR at operation " << i << ": " << e.what() << ", inputs:" << std::endl;
-            int k = 0;
-            for (int j : operations[i].second) {
-                std::cout << " * " << k << " (operation " << j << "): ";
-                if ((bool)(local[k])) {
-                    std::cout << local[k]->describe() << std::endl;
-                } else {
-                    std::cout << "undefined" << std::endl;
-                }
-                k++;
+            vector<SharedToken> local;
+            local.reserve(operations[i].second.size());
+
+            for (int j : operations[i].second)
+            {
+                local.push_back(context[j]);
             }
-            throw PipelineException(e.what(), shared_from_this(), i);
+
+            try
+            {
+                auto operation_start = high_resolution_clock::now();
+
+                auto output = operations[i].first->run(local);
+                auto operation_end = high_resolution_clock::now();
+
+                stats[i].count++;
+                stats[i].elapsed += duration_cast<microseconds>(operation_end - operation_start).count();
+
+                if (get_type(operations[i].first) == GetTypeIdentifier<ContextQuery>())
+                {
+                    switch (std::static_pointer_cast<ContextQuery>(operations[i].first)->get_query())
+                    {
+                    case ContextData::SampleIndex:
+                    {
+                        output = make_shared<Integer>(index);
+                        break;
+                    }
+                    case ContextData::OperationIndex:
+                    {
+                        output = make_shared<Integer>(i);
+                        break;
+                    }
+                    case ContextData::RandomSeed:
+                    {
+                        output = make_shared<Integer>(generator());
+                        break;
+                    }
+                    default:
+                        throw PipelineException("Illegal query", shared_from_this(), i);
+                    }
+                }
+
+                context[i] = output;
+
+                if (!output)
+                {
+                    throw OperationException("Operation output undefined", operations[i].first);
+                }
+
+                if (get_type(operations[i].first) == GetTypeIdentifier<Output>())
+                {
+                    for (auto x : std::static_pointer_cast<OutputList>(output)->get())
+                    {
+                        result.push_back(x);
+                    }
+                }
+
+                if (get_type(operations[i].first) == GetTypeIdentifier<Jump>())
+                {
+                    size_t jump = (size_t)Integer::get_value(context[i]);
+
+                    if (jump < 0 || (i + jump) >= operations.size())
+                        throw PipelineException("Unable to execute jump", shared_from_this(), i);
+
+                    i += 1 + jump;
+                    continue;
+                }
+            }
+            catch (BaseException &e)
+            {
+                std::cout << "ERROR at operation " << i << ": " << e.what() << ", inputs:" << std::endl;
+                int k = 0;
+                for (int j : operations[i].second)
+                {
+                    std::cout << " * " << k << " (operation " << j << "): ";
+                    if ((bool)(local[k]))
+                    {
+                        std::cout << local[k]->describe() << std::endl;
+                    }
+                    else
+                    {
+                        std::cout << "undefined" << std::endl;
+                    }
+                    k++;
+                }
+                throw PipelineException(e.what(), shared_from_this(), i);
+            }
+
+            i++;
         }
 
-        i++;
+        return result;
     }
 
-    return result;
+    std::vector<float> Pipeline::operation_time()
+    {
 
-} 
+        std::vector<float> extracted;
 
-std::vector<float> Pipeline::operation_time() {
-
-    std::vector<float> extracted;
-
-    for (auto op : stats) {
-        if (!op.count) {
-            extracted.push_back(0);
-        } else {
-            extracted.push_back(((float)op.elapsed / (float)op.count) / 1000);
+        for (auto op : stats)
+        {
+            if (!op.count)
+            {
+                extracted.push_back(0);
+            }
+            else
+            {
+                extracted.push_back(((float)op.elapsed / (float)op.count) / 1000);
+            }
         }
+
+        return extracted;
     }
 
-    return extracted;
-}
+    /*
+    Engine::Engine(int workers) : workers_count(workers) {
 
-/*
-Engine::Engine(int workers) : workers_count(workers) {
-
-}
-
-Engine::~Engine() {
-    stop();
-}
-
-void Engine::start() {
-
-    if (running())
-        return;
-
-    workers = make_shared<dispatch_queue>(workers_count);
-
-}
-
-void Engine::stop() {
-
-    if (!running())
-        return;
-
-    workers.reset();
-
-}
-
-bool Engine::running() {
-
-    return (bool) workers;
-
-}
-
-bool Engine::add(std::string name, SharedPipeline pipeline) {
-
-    std::lock_guard<std::recursive_mutex> lock (mutex_);
-
-    pipeline->finalize();
-
-    pipelines[name] = pipeline;
-
-    return true;
-
-}
-
-bool Engine::remove(std::string name) {
-
-    std::lock_guard<std::recursive_mutex> lock (mutex_);
-
-    if (pipelines.find(name) == pipelines.end()) {
-        return false;
     }
 
-    pipelines.erase(pipelines.find(name));
-
-    return true;
-}
-
-void Engine::run(std::string name, unsigned long index, std::shared_ptr<PipelineCallback> callback) {
-
-    std::lock_guard<std::recursive_mutex> lock (mutex_);
-
-    if (!running())
-        throw EngineException("Not running");
-
-    if (pipelines.find(name) == pipelines.end()) {
-        throw EngineException("Pipeline not found");
+    Engine::~Engine() {
+        stop();
     }
 
-    auto pipeline = pipelines[name];
+    void Engine::start() {
 
-    workers->dispatch([pipeline, index, callback] () {
-        try {
-            auto result = pipeline->run(index); 
-            callback->done(result);
-        } catch (PipelineException &pe) {
-            callback->error(pe);
+        if (running())
+            return;
+
+        workers = make_shared<dispatch_queue>(workers_count);
+
+    }
+
+    void Engine::stop() {
+
+        if (!running())
+            return;
+
+        workers.reset();
+
+    }
+
+    bool Engine::running() {
+
+        return (bool) workers;
+
+    }
+
+    bool Engine::add(std::string name, SharedPipeline pipeline) {
+
+        std::lock_guard<std::recursive_mutex> lock (mutex_);
+
+        pipeline->finalize();
+
+        pipelines[name] = pipeline;
+
+        return true;
+
+    }
+
+    bool Engine::remove(std::string name) {
+
+        std::lock_guard<std::recursive_mutex> lock (mutex_);
+
+        if (pipelines.find(name) == pipelines.end()) {
+            return false;
         }
-    } );
 
-}
-*/
+        pipelines.erase(pipelines.find(name));
+
+        return true;
+    }
+
+    void Engine::run(std::string name, unsigned long index, std::shared_ptr<PipelineCallback> callback) {
+
+        std::lock_guard<std::recursive_mutex> lock (mutex_);
+
+        if (!running())
+            throw EngineException("Not running");
+
+        if (pipelines.find(name) == pipelines.end()) {
+            throw EngineException("Pipeline not found");
+        }
+
+        auto pipeline = pipelines[name];
+
+        workers->dispatch([pipeline, index, callback] () {
+            try {
+                auto result = pipeline->run(index);
+                callback->done(result);
+            } catch (PipelineException &pe) {
+                callback->error(pe);
+            }
+        } );
+
+    }
+    */
 }
