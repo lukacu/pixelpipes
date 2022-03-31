@@ -196,7 +196,7 @@ SharedToken PointsArithmeticOperation(std::vector<SharedToken> inputs, Arithmeti
 
     VERIFY(inputs.size() == 2, "Incorrect number of parameters");
 
-    VERIFY(Point2DList::is_list(inputs[0]) || Point2DList::is_list(inputs[1]), "At least one input should be list of points");
+    VERIFY(Point2DList::is_list(inputs[0]) || Point2DList::is_list(inputs[1]), "At least one input should be a list of points");
 
     std::vector<Point2D> result;
 

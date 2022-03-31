@@ -84,17 +84,17 @@ namespace pixelpipes
 
     typedef std::shared_ptr<ImageData> Image;
 
-    constexpr static TypeIdentifier ImageType = GetTypeIdentifier<Image>();
+    #define ImageType GetTypeIdentifier<Image>()
 
     class ImageData : public Token
     {
     public:
         inline static bool is(SharedToken v)
         {
-            return (v->type() == ImageType);
+            return (v->type_id() == ImageType);
         }
 
-        virtual TypeIdentifier type() const;
+        virtual TypeIdentifier type_id() const;
 
         virtual void describe(std::ostream &os) const;
 
@@ -158,25 +158,9 @@ namespace pixelpipes
         unsigned char *buffer;
     };
 
-    class ImageList : public List
-    {
-    public:
-        ImageList(std::vector<Image> images);
+    typedef ContainerList<Image> ImageList;
 
-        ~ImageList() = default;
-
-        virtual size_t size() const;
-
-        virtual TypeIdentifier element_type() const;
-
-        virtual SharedToken get(int index) const;
-
-    private:
-        std::vector<Image> images;
-    };
-
-    constexpr static TypeIdentifier ImageListType = GetTypeIdentifier<std::vector<Image>>();
-
+    #define ImageListType GetListIdentifier<Image>()
 
     template <>
     inline Image extract(const SharedToken v)

@@ -53,11 +53,11 @@ inline std::ostream& operator<<(std::ostream& os, const View3D& p) {
     return os;
 }
 
-constexpr static TypeIdentifier Point2DType = GetTypeIdentifier<Point2D>();
-constexpr static TypeIdentifier Point3DType = GetTypeIdentifier<Point3D>();
+#define Point2DType GetTypeIdentifier<Point2D>()
+#define Point3DType GetTypeIdentifier<Point3D>()
 
-constexpr static TypeIdentifier View2DType = GetTypeIdentifier<View2D>();
-constexpr static TypeIdentifier View3DType = GetTypeIdentifier<View3D>();
+#define View2DType GetTypeIdentifier<View2D>()
+#define View3DType GetTypeIdentifier<View3D>()
 
 typedef ContainerToken<Point2D> Point2DVariable;
 typedef ContainerToken<Point3D> Point3DVariable;
@@ -68,24 +68,24 @@ typedef ContainerToken<View3D> View3DVariable;
 typedef ContainerList<Point2D> Point2DList;
 typedef ContainerList<Point3D> Point3DList;
 
-constexpr static TypeIdentifier Point2DListType = GetTypeIdentifier<std::vector<Point2D>>();
-constexpr static TypeIdentifier Point3DListType = GetTypeIdentifier<std::vector<Point3D>>();
+#define Point2DListType GetListIdentifier<std::vector<Point2D>>()
+#define Point3DListType GetListIdentifier<std::vector<Point3D>>()
 
 template<>
 inline Point2D extract(const SharedToken v) {
     VERIFY((bool) v, "Uninitialized variable");
 
-    if (v->type() == FloatType) {
+    if (v->type_id() == FloatType) {
         float value = Float::get_value(v);
         return Point2D{value, value};
     }
 
-    if (v->type() == IntegerType) {
+    if (v->type_id() == IntegerType) {
         int value = Integer::get_value(v);
         return Point2D{(float)value, (float)value};
     }
 
-    if (v->type() != Point2DType)
+    if (v->type_id() != Point2DType)
         throw TypeException("Not a point value");
 
     return std::static_pointer_cast<Point2DVariable>(v)->get();
@@ -101,17 +101,17 @@ template<>
 inline Point3D extract(const SharedToken v) {
     VERIFY((bool) v, "Uninitialized variable");
 
-    if (v->type() == FloatType) {
+    if (v->type_id() == FloatType) {
         float value = Float::get_value(v);
         return Point3D{value, value, value};
     }
 
-    if (v->type() == IntegerType) {
+    if (v->type_id() == IntegerType) {
         int value = Integer::get_value(v);
         return Point3D{(float)value, (float)value, (float)value};
     }
 
-    if (v->type() != Point3DType)
+    if (v->type_id() != Point3DType)
         throw TypeException("Not a point value");
 
     return std::static_pointer_cast<Point3DVariable>(v)->get();
@@ -126,7 +126,7 @@ template<>
 inline View2D extract(const SharedToken v) {
     VERIFY((bool) v, "Uninitialized variable");
 
-    if (v->type() != View2DType)
+    if (v->type_id() != View2DType)
         throw TypeException("Not a point value");
 
     return std::static_pointer_cast<View2DVariable>(v)->get();
@@ -142,7 +142,7 @@ template<>
 inline View3D extract(const SharedToken v) {
     VERIFY((bool) v, "Uninitialized variable");
 
-    if (v->type() != View3DType)
+    if (v->type_id() != View3DType)
         throw TypeException("Not a point value");
 
     return std::static_pointer_cast<View3DVariable>(v)->get();

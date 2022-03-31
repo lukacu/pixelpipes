@@ -241,8 +241,8 @@ class SegmentedResourceListSource(ResourceListSource):
             ConstantList(endings, _name="._end")
             ConstantList(segments, _name="._length")
 
-            graph.update(builder.nodes())
-            return graph
+        graph.update(builder.nodes())
+        return graph
 
     def fields(self):
         raise NotImplementedError()

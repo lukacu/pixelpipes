@@ -6,14 +6,18 @@ INCLUDE(GNUInstallDirs)
 
 SET(PROJECT_VERSION 0.1.0)
 
-SET(CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake)
-
 SET(EXECUTABLE_OUTPUT_PATH ${CMAKE_CURRENT_BINARY_DIR})
 SET(LIBRARY_OUTPUT_PATH ${CMAKE_CURRENT_BINARY_DIR})
 SET(CMAKE_CXX_STANDARD 17)
 
-option(BUILD_INLINE "Build to source directory" OFF)
+option(BUILD_INPLACE "Build to source directory" OFF)
 option(BUILD_DEBUG "Enable debug output" OFF)
+
+set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -Wl,--no-undefined" )
+
+FIND_PACKAGE(Threads REQUIRED)
+
+LINK_LIBRARIES(Threads::Threads)
 
 if(BUILD_DEBUG)
     add_definitions(-DPIXELPIPES_DEBUG)
@@ -40,7 +44,7 @@ SET(CORE_SOURCE
 INCLUDE_DIRECTORIES(${OpenCV_INCLUDE_DIRS} include/)
 
 ADD_LIBRARY(pixelpipes SHARED ${CORE_SOURCE})
-TARGET_LINK_LIBRARIES(pixelpipes)
+TARGET_LINK_LIBRARIES(pixelpipes ${CMAKE_DL_LIBS})
 target_compile_definitions(pixelpipes PRIVATE PIXELPIPES_BUILD_CORE)
 
 ADD_LIBRARY(pixelpipes_geometry SHARED 
@@ -68,26 +72,17 @@ INCLUDE(CMakePackageConfigHelpers)
 
 # https://martinopilia.com/posts/2018/09/15/building-python-extension.html
 
-find_package(PythonInterp 3.6 REQUIRED)
-find_package(PythonLibs 3.6 REQUIRED)
+find_package (Python COMPONENTS Interpreter Development NumPy)
 
-EXEC_PROGRAM(${PYTHON_EXECUTABLE}
-             ARGS "-c \"import numpy; print(numpy.get_include())\""
-             OUTPUT_VARIABLE NUMPY_INCLUDE_DIR
-             RETURN_VALUE NUMPY_NOT_FOUND
-            )
-IF(NUMPY_NOT_FOUND)
-    message(FATAL_ERROR "NumPy headers not found")
-endif()
 
-INCLUDE_DIRECTORIES(${PYTHON_INCLUDE_DIR} ${NUMPY_INCLUDE_DIR})
+INCLUDE_DIRECTORIES(${Python_INCLUDE_DIRS} ${Python_NumPy_INCLUDE_DIRS})
 
 ADD_LIBRARY(pypixelpipes SHARED 
     src/python/wrapper.cpp
     src/python/image.cpp 
 )
 
-TARGET_LINK_LIBRARIES(pypixelpipes pixelpipes)
+TARGET_LINK_LIBRARIES(pypixelpipes pixelpipes ${Python_LIBRARIES})
 
 set_target_properties(
     pypixelpipes
@@ -97,7 +92,7 @@ set_target_properties(
         LINKER_LANGUAGE C
     )
 
-IF (BUILD_INLINE)
+IF (BUILD_INPLACE)
 
     set_target_properties(pixelpipes pypixelpipes pixelpipes_geometry pixelpipes_image
         PROPERTIES

@@ -25,11 +25,19 @@ namespace pixelpipes
 		return map;
 	}
 
+    Type::Type(const Type& t): _id(t._id), _parameters(t._parameters) {
+
+	}
+
+    Type::Type(TypeIdentifier id, std::map<std::string, std::any> parameters, const Type inner) : _id(id), _parameters(parameters) {
+
+	}
+
 	Type::Type(TypeIdentifier id) : Type(id, {})
 	{
 	}
 
-	Type::Type(TypeIdentifier id, std::map<std::string, std::any> parameters) : id(id), parameters(parameters)
+	Type::Type(TypeIdentifier id, std::map<std::string, std::any> parameters) : _id(id), _parameters(parameters)
 	{
 		if (id == AnyType) {
 			return;
@@ -45,13 +53,13 @@ namespace pixelpipes
 
 	TypeIdentifier Type::identifier() const
 	{
-		return id;
+		return _id;
 	}
 
 	TypeName Type::name() const
 	{
 
-		auto data = types().find(id);
+		auto data = types().find(_id);
 
 		return std::get<0>(data->second);
 	}
@@ -59,9 +67,9 @@ namespace pixelpipes
 	bool Type::has(const std::string key) const
 	{
 
-		auto val = parameters.find(key);
+		auto val = _parameters.find(key);
 
-		return !(val == parameters.end());
+		return !(val == _parameters.end());
 	}
 
 	void type_register(TypeIdentifier i, std::string_view name, TypeValidator validator, TypeResolver resolver)
@@ -90,9 +98,13 @@ namespace pixelpipes
 
 	Type type_make(TypeIdentifier i, std::map<std::string, std::any> parameters)
 	{
-
 		return Type(i, parameters);
 	}
+
+    Type type_make(TypeIdentifier i, std::map<std::string, std::any> parameters, const Type inner) {
+		return Type(i, parameters, inner);
+	}
+
 
     TypeIdentifier type_find(TypeName name) {
 		for (auto d : types())

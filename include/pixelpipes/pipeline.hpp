@@ -27,13 +27,13 @@ public:
 
 };
 
-constexpr static TypeIdentifier DNFType = GetTypeIdentifier<DNF>();
+#define DNFType GetTypeIdentifier<DNF>()
 
 template<>
 inline DNF extract(const SharedToken v) {
     VERIFY((bool) v, "Uninitialized variable");
 
-    VERIFY(v->type() == DNFType, "Illegal type");
+    VERIFY(v->type_id() == DNFType, "Illegal type");
 
     auto container = std::static_pointer_cast<ContainerToken<DNF>>(v);
     return container->get();

@@ -123,7 +123,7 @@ namespace pixelpipes
         os << "[Image: width=" << width() << " height=" << height() << " channels=" << channels() << "]";
     }
 
-    TypeIdentifier ImageData::type() const
+    TypeIdentifier ImageData::type_id() const
     {
         return ImageType;
     }
@@ -268,25 +268,6 @@ namespace pixelpipes
         }
     }
 
-    ImageList::ImageList(std::vector<Image> inputs) : images(inputs.begin(), inputs.end())
-    {
-    }
-
-    size_t ImageList::size() const
-    {
-        return images.size();
-    }
-
-    TypeIdentifier ImageList::element_type() const
-    {
-        return ImageType;
-    }
-
-    SharedToken ImageList::get(int index) const
-    {
-        return images[index];
-    }
-
     bool imate_type_verifier(const Type& type) {
 
     }
@@ -297,7 +278,7 @@ namespace pixelpipes
 
     PIXELPIPES_REGISTER_TYPE(ImageType, "image", imate_type_verifier, imate_type_denominator);
 
-    PIXELPIPES_REGISTER_WRITER(Image, 
+    PIXELPIPES_REGISTER_WRITER(ImageType, 
         [](SharedToken v, std::ostream &target)
         {
         Image image = extract<Image>(v);
@@ -318,7 +299,7 @@ namespace pixelpipes
 
     );
 
-    PIXELPIPES_REGISTER_READER(Image, 
+    PIXELPIPES_REGISTER_READER(ImageType, 
         [](std::istream &source)
         {
 

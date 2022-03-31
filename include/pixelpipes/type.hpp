@@ -13,6 +13,7 @@
 #include <iostream>
 #include <functional>
 #include <initializer_list>
+#include <optional>
 
 #include <pixelpipes/base.hpp>
 #include <pixelpipes/module.hpp>
@@ -125,7 +126,7 @@ namespace pixelpipes
     /**
      * The type of a type id.
      */
-    typedef const void *TypeIdentifier;
+    typedef uintptr_t TypeIdentifier;
 
     /**
      * The function that returns the type id.
@@ -134,9 +135,9 @@ namespace pixelpipes
      * Altough the value is not predictible, it's stable (I hope).
      */
     template <typename T>
-    constexpr auto GetTypeIdentifier() noexcept -> TypeIdentifier
+    auto GetTypeIdentifier() noexcept -> TypeIdentifier
     {
-        return &detail::TypeIdentifierToken<T>::id;
+        return reinterpret_cast<uintptr_t>(&detail::TypeIdentifierToken<T>::id);
     }
 
     typedef std::string_view TypeName;
@@ -158,9 +159,21 @@ namespace pixelpipes
 
     constexpr static TypeIdentifier AnyType = 0;
 
+    constexpr static TypeIdentifier ListType = 1;
+
+    template <typename T>
+    auto GetListIdentifier() noexcept -> TypeIdentifier
+    {
+        return ((uintptr_t) &detail::TypeIdentifierToken<T>::id) + ListType;
+    }
+
     class PIXELPIPES_API Type
     {
     public:
+        Type(const Type&);
+
+        Type(TypeIdentifier id, std::map<std::string, std::any> parameters, const Type inner);
+
         Type(TypeIdentifier id, std::map<std::string, std::any> parameters);
 
         Type(TypeIdentifier id);
@@ -175,9 +188,9 @@ namespace pixelpipes
         T parameter(const std::string key) const
         {
 
-            auto val = parameters.find(key);
+            auto val = _parameters.find(key);
 
-            if (val == parameters.end())
+            if (val == _parameters.end())
                 throw TypeException("Parameter not found");
 
             try
@@ -193,9 +206,10 @@ namespace pixelpipes
         bool has(const std::string key) const;
 
     private:
-        TypeIdentifier id;
+        TypeIdentifier _id;
 
-        std::map<std::string, std::any> parameters;
+        std::map<std::string, std::any> _parameters;
+
     };
 
     typedef std::function<Type(const Type &, const Type &)> TypeResolver;
@@ -205,6 +219,8 @@ namespace pixelpipes
     void PIXELPIPES_API type_register(TypeIdentifier i, std::string_view name, TypeValidator, TypeResolver);
 
     Type PIXELPIPES_API type_make(TypeIdentifier i, std::map<std::string, std::any> parameters);
+
+    Type PIXELPIPES_API type_make(TypeIdentifier i, std::map<std::string, std::any> parameters, const Type inner);
 
     Type PIXELPIPES_API type_common(const Type &me, const Type &other);
 

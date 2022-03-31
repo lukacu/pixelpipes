@@ -36,7 +36,7 @@ public:
 
         VERIFY((bool) src, "Undefined value");
 
-        TypeIdentifier type_id = src->type();
+        TypeIdentifier type_id = src->type_id();
 
         auto item = extractors.find(type_id);
 
@@ -66,13 +66,13 @@ public:
             auto item = wrappers.find(type_hint);
 
             if (item == wrappers.end()) {
-                throw std::invalid_argument("No conversion available");
+                throw std::invalid_argument(Formatter() << "No conversion available for type hint " << type_name(type_hint));
             }
 
             SharedToken variable = item->second(src);
 
             if (!(bool) variable) {
-                throw std::invalid_argument("Unable to convert variable");
+                throw std::invalid_argument(Formatter() <<"Conversion failed for type hint " << type_name(type_hint));
             }
 
             return variable;
@@ -242,19 +242,19 @@ py::array numpyFromVariable(pixelpipes::SharedToken variable) {
         return py::reinterpret_steal<py::array>(handle);
     }
 
-    if (variable->type() == pixelpipes::IntegerType) {
+    if (variable->type_id() == pixelpipes::IntegerType) {
         py::array_t<int> a({1});
         a.mutable_data(0)[0] = std::static_pointer_cast<pixelpipes::Integer>(variable)->get();
         return a;
     }
 
-    if (variable->type() == pixelpipes::FloatType) {
+    if (variable->type_id() == pixelpipes::FloatType) {
         py::array_t<float> a({1});
         a.mutable_data(0)[0] = std::static_pointer_cast<pixelpipes::Float>(variable)->get();
         return a;
     }
 
-    if (variable->type() == pixelpipes::BooleanType) {
+    if (variable->type_id() == pixelpipes::BooleanType) {
         py::array_t<int> a({1});
         a.mutable_data(0)[0] = (int) std::static_pointer_cast<pixelpipes::Boolean>(variable)->get();
         return a;
@@ -288,7 +288,7 @@ SharedToken wrap_list(py::object src) {
     return empty<List>();
 
 }
-
+/*
 template <typename T>
 SharedToken wrap_table(py::object src) {
 
@@ -303,7 +303,7 @@ SharedToken wrap_table(py::object src) {
 
     return empty<Table<T>>();
 
-}
+}*/
 
 SharedToken wrap_dnf_clause(py::object src) {
 
@@ -329,7 +329,7 @@ SharedToken wrap_container(py::object src) {
 
         auto object = py::cast<T>(src);
 
-        DEBUGMSG("Conversion type: %s\n", VIEWCHARS(Type<T>::name));
+        DEBUGMSG("Conversion type: %s\n", type_name(GetTypeIdentifier<T>()));
         return std::make_shared<ContainerToken<T>>(object);
  
     } catch(const std::exception &exc) {
@@ -521,12 +521,12 @@ PYBIND11_MODULE(pypixelpipes, m) {
     registry.register_wrapper(FloatListType, &wrap_list<float>);
     registry.register_wrapper(StringListType, &wrap_list<std::string>);
     registry.register_wrapper(BooleanListType, &wrap_list<bool>);
-
+/*
     registry.register_wrapper(IntegerTableType, &wrap_table<int>);
     registry.register_wrapper(FloatTableType, &wrap_table<float>);
     registry.register_wrapper(StringTableType, &wrap_table<std::string>);
     registry.register_wrapper(BooleanTableType, &wrap_table<bool>);
-
+*/
     registry.register_wrapper(DNFType, &wrap_dnf_clause, false);
 
     registry.register_wrapper(Point2DType, [](py::object src) {
@@ -579,9 +579,9 @@ PYBIND11_MODULE(pypixelpipes, m) {
 
     registry.register_extractor(ImageType, &extract_image);
 
-    registry.register_wrapper(ImageListType, &wrap_image_list);
+    registry.register_wrapper(GetTypeIdentifier<std::vector<Image>>(), &wrap_image_list);
 
-    registry.register_extractor(ImageListType, &extract_image_list);
+    registry.register_extractor(GetTypeIdentifier<std::vector<Image>>(), &extract_image_list);
 
 
 }

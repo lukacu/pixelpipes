@@ -551,7 +551,7 @@ class Tests(unittest.TestCase):
         ]
 
         with GraphBuilder() as graph:
-            o0 = ConstantImageList(source=test_image_list)
+            o0 = ConstantImageList(test_image_list)
             Output(outputs=[ListElement(o0, 0), ListElement(o0, 1)])
 
         pipeline = Compiler().build(graph)

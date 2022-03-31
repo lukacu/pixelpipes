@@ -30,7 +30,9 @@ namespace pixelpipes
     class PIXELPIPES_API Token
     {
     public:
-        virtual TypeIdentifier type() const = 0;
+        virtual TypeIdentifier type_id() const = 0;
+
+        virtual Type type() const;
 
         virtual void describe(std::ostream &os) const = 0;
 
@@ -77,13 +79,13 @@ namespace pixelpipes
 
         ~ContainerToken() = default;
 
-        virtual TypeIdentifier type() const { return GetTypeIdentifier<T>(); };
+        virtual TypeIdentifier type_id() const { return GetTypeIdentifier<T>(); };
 
         T get() const { return value; };
 
         inline static bool is(SharedToken v)
         {
-            return (v->type() == GetTypeIdentifier<T>());
+            return (v->type_id() == GetTypeIdentifier<T>());
         }
 
         static T get_value(const SharedToken v)
@@ -94,7 +96,7 @@ namespace pixelpipes
 
         virtual void describe(std::ostream &os) const
         {
-            os << "[Container for " << type_name(type()) << "]";
+            os << "[Container for " << type_name(type_id()) << "]";
         }
 
     protected:
@@ -111,16 +113,16 @@ namespace pixelpipes
 
         virtual void describe(std::ostream &os) const
         {
-            os << "[Scalar " << type_name(this->type()) << ", value: " << this->value << "]";
+            os << "[Scalar " << type_name(this->type_id()) << ", value: " << this->value << "]";
         }
     };
 
-    constexpr static TypeIdentifier TokenType = GetTypeIdentifier<SharedToken>();
+    #define TokenType GetTypeIdentifier<SharedToken>()
 
-    constexpr static TypeIdentifier IntegerType = GetTypeIdentifier<int>();
-    constexpr static TypeIdentifier FloatType = GetTypeIdentifier<float>();
-    constexpr static TypeIdentifier BooleanType = GetTypeIdentifier<bool>();
-    constexpr static TypeIdentifier StringType = GetTypeIdentifier<std::string>();
+    #define IntegerType GetTypeIdentifier<int>()
+    #define FloatType GetTypeIdentifier<float>()
+    #define BooleanType GetTypeIdentifier<bool>()
+    #define StringType GetTypeIdentifier<std::string>()
 
     typedef ScalarToken<int> Integer;
     typedef ScalarToken<float> Float;
@@ -133,7 +135,7 @@ namespace pixelpipes
     inline E extract(const SharedToken v)                                                         \
     {                                                                                                \
         VERIFY((bool)v, "Uninitialized token");                                                   \
-        if (v->type() != IntegerType)                                                                \
+        if (v->type_id() != IntegerType)                                                                \
             throw TypeException("Unexpected token type: expected int, got " + v->describe()); \
         return (E)std::static_pointer_cast<Integer>(v)->get();                                       \
     }                                                                                                \
@@ -148,7 +150,7 @@ namespace pixelpipes
     {
         VERIFY((bool)v, "Uninitialized token");
 
-        if (v->type() != IntegerType)
+        if (v->type_id() != IntegerType)
             throw TypeException("Unexpected token type: expected int, got " + v->describe());
 
         return std::static_pointer_cast<Integer>(v)->get();
@@ -165,13 +167,13 @@ namespace pixelpipes
     {
         VERIFY((bool)v, "Uninitialized token");
 
-        if (v->type() == FloatType)
+        if (v->type_id() == FloatType)
             return std::static_pointer_cast<ContainerToken<float>>(v)->get() != 0;
 
-        if (v->type() == IntegerType)
+        if (v->type_id() == IntegerType)
             return std::static_pointer_cast<ContainerToken<int>>(v)->get() != 0;
 
-        if (v->type() == BooleanType)
+        if (v->type_id() == BooleanType)
             return std::static_pointer_cast<ContainerToken<bool>>(v)->get();
 
         throw TypeException("Unexpected token type: expected bool, got " + v->describe());
@@ -188,13 +190,13 @@ namespace pixelpipes
     {
         VERIFY((bool)v, "Uninitialized token");
 
-        if (v->type() == IntegerType)
+        if (v->type_id() == IntegerType)
             return (float)std::static_pointer_cast<ContainerToken<int>>(v)->get();
 
-        if (v->type() == BooleanType)
+        if (v->type_id() == BooleanType)
             return (float)std::static_pointer_cast<ContainerToken<bool>>(v)->get();
 
-        if (v->type() != FloatType)
+        if (v->type_id() != FloatType)
             throw TypeException("Unexpected token type: expected float, got " + v->describe());
 
         return std::static_pointer_cast<Float>(v)->get();
@@ -211,7 +213,7 @@ namespace pixelpipes
     {
         VERIFY((bool)v, "Uninitialized token");
 
-        if (v->type() != StringType)
+        if (v->type_id() != StringType)
             throw TypeException("Unexpected token type: expected string, got " + v->describe());
 
         return std::static_pointer_cast<String>(v)->get();
@@ -223,22 +225,37 @@ namespace pixelpipes
         return std::make_shared<String>(v);
     }
 
-    class List : public Token
+
+    class Container: public Token
+    {
+    public:
+        ~Container() = default;
+
+        virtual TypeIdentifier type_id() const = 0;
+
+        virtual TypeIdentifier element_type_id() const = 0;
+
+    };
+
+
+    class List : public Container
     {
     public:
         ~List() = default;
 
         virtual size_t size() const = 0;
 
-        virtual TypeIdentifier type() const;
+        virtual TypeIdentifier type_id() const;
 
-        virtual TypeIdentifier element_type() const = 0;
+        virtual Type type() const;
+
+        virtual TypeIdentifier element_type_id() const = 0;
 
         virtual SharedToken get(int index) const = 0;
 
         inline static bool is(SharedToken v)
         {
-            return ((bool)v && v->type() == GetTypeIdentifier<List>());
+            return ((bool)v && (v->type_id() & ListType != 0));
         }
 
         inline static bool is_list(SharedToken v)
@@ -248,7 +265,7 @@ namespace pixelpipes
 
         inline static bool is_list(SharedToken v, TypeIdentifier type)
         {
-            return ((bool)v && List::is(v)) && std::static_pointer_cast<List>(v)->element_type() == type;
+            return ((bool)v && List::is(v)) && std::static_pointer_cast<List>(v)->element_type_id() == type;
         }
 
         inline static std::shared_ptr<List> get_list(SharedToken v)
@@ -306,7 +323,7 @@ namespace pixelpipes
     {
     public:
         ContainerList(){};
-        ContainerList(std::initializer_list<C> list) : list(list){};
+        ContainerList(std::initializer_list<C> list) : list(list) {};
         ContainerList(const std::vector<C> list) : list(list){};
         ~ContainerList() = default;
 
@@ -317,7 +334,7 @@ namespace pixelpipes
 
         virtual size_t size() const { return list.size(); }
 
-        virtual TypeIdentifier element_type() const { return GetTypeIdentifier<C>(); };
+        virtual TypeIdentifier element_type_id() const { return GetTypeIdentifier<C>(); };
 
         virtual SharedToken get(int index) const { return std::make_shared<ScalarToken<C>>(list[index]); }
 
@@ -329,6 +346,7 @@ namespace pixelpipes
 
     private:
         std::vector<C> list;
+
     };
 
     typedef ContainerList<float> FloatList;
@@ -336,66 +354,10 @@ namespace pixelpipes
     typedef ContainerList<bool> BooleanList;
     typedef ContainerList<std::string> StringList;
 
-    constexpr static TypeIdentifier FloatListType = GetTypeIdentifier<std::vector<float>>();
-    constexpr static TypeIdentifier IntegerListType = GetTypeIdentifier<std::vector<int>>();
-    constexpr static TypeIdentifier BooleanListType = GetTypeIdentifier<std::vector<bool>>();
-    constexpr static TypeIdentifier StringListType = GetTypeIdentifier<std::vector<std::string>>();
-
-    template <typename T>
-    class Table : public List
-    {
-    public:
-        Table(const std::vector<std::vector<T>> source) : source(source)
-        {
-
-            if (source.size() > 0)
-            {
-                size_t rowsize = source[0].size();
-
-                for (auto row : source)
-                {
-                    VERIFY(rowsize == row.size(), "All rows must have equal length");
-                }
-            }
-        }
-
-        ~Table() = default;
-
-        virtual size_t size() const
-        {
-            return source.size();
-        }
-
-        virtual TypeIdentifier element_type() const
-        {
-            return GetTypeIdentifier<std::vector<T>>();
-        }
-
-        virtual SharedToken get(int index) const
-        {
-
-            return std::make_shared<ContainerList<T>>(source[index]);
-        }
-
-        virtual std::vector<std::vector<T>> elements()
-        {
-
-            return source;
-        }
-
-    private:
-        std::vector<std::vector<T>> source;
-    };
-
-    typedef Table<float> FloatTable;
-    typedef Table<int> IntegerTable;
-    typedef Table<bool> BooleanTable;
-    typedef Table<std::string> StringTable;
-
-    constexpr static TypeIdentifier FloatTableType = GetTypeIdentifier<std::vector<std::vector<float>>>();
-    constexpr static TypeIdentifier IntegerTableType = GetTypeIdentifier<std::vector<std::vector<int>>>();
-    constexpr static TypeIdentifier BooleanTableType = GetTypeIdentifier<std::vector<std::vector<bool>>>();
-    constexpr static TypeIdentifier StringTableType = GetTypeIdentifier<std::vector<std::vector<std::string>>>();
+    #define FloatListType GetListIdentifier<float>()
+    #define IntegerListType GetListIdentifier<int>()
+    #define BooleanListType GetListIdentifier<bool>()
+    #define StringListType GetListIdentifier<std::string>()
 
 #define _LIST_GENERATE_CONVERTERS(T)                      \
     template <>                                           \

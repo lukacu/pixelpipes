@@ -29,9 +29,9 @@ public:
 
     }
 
-    virtual TypeIdentifier element_type() const {
+    virtual TypeIdentifier element_type_id() const {
 
-        return list->element_type();
+        return list->element_type_id();
 
     }
 
@@ -61,10 +61,10 @@ public:
 
         VERIFY(lists.size() > 0, "At least one list required");
 
-        TypeIdentifier etype = lists[0]->element_type();
+        TypeIdentifier etype = lists[0]->element_type_id();
 
         for (SharedList l : lists) {
-            VERIFY(l->element_type() == etype, "Inconsitent list types");
+            VERIFY(l->element_type_id() == etype, "Inconsitent list types");
         }
 
     }
@@ -73,10 +73,10 @@ public:
 
         VERIFY(lists.size() > 0, "At least one list required");
 
-        TypeIdentifier etype = lists[0]->element_type();
+        TypeIdentifier etype = lists[0]->element_type_id();
 
         for (SharedList l : lists) {
-            VERIFY(l->element_type() == etype, "Inconsitent list types");
+            VERIFY(l->element_type_id() == etype, "Inconsitent list types");
         }
 
     }
@@ -93,8 +93,8 @@ public:
         return total;
     }
 
-    virtual TypeIdentifier element_type() const {
-        return lists[0]->element_type();
+    virtual TypeIdentifier element_type_id() const {
+        return lists[0]->element_type_id();
     }
 
     virtual SharedToken get(int index) const {
@@ -141,9 +141,9 @@ public:
 
     }
 
-    virtual TypeIdentifier element_type() const  {
+    virtual TypeIdentifier element_type_id() const  {
 
-        return list->element_type();
+        return list->element_type_id();
 
     }
 
@@ -166,12 +166,11 @@ private:
 
 };
 
-template<typename T>
 class ConstantList: public List {
 public:
     ConstantList(SharedToken value, int length) : value(value), length(length) {
 
-        if (!value || value->type() != GetTypeIdentifier<T>())
+        if (!value || List::is(value))
             throw TypeException("Wrong token type");
 
     }
@@ -180,7 +179,7 @@ public:
 
     virtual size_t size() const { return length; }
 
-    virtual TypeIdentifier element_type() const { return value->type(); }
+    virtual TypeIdentifier element_type_id() const { return value->type_id(); }
 
     virtual SharedToken get(int index) const {
         return value;
@@ -327,23 +326,7 @@ SharedToken RepeatElement(std::vector<SharedToken> inputs) {
 
     SharedToken value = inputs[0];
 
-    if (value->type() == IntegerType) {
-        return std::make_shared<ConstantList<int>>(inputs[0], length);
-    }
-
-    if (value->type() == FloatType) {
-        return std::make_shared<ConstantList<float>>(inputs[0], length);
-    }
-
-    if (value->type() == BooleanType) {
-        return std::make_shared<ConstantList<bool>>(inputs[0], length);
-    }
-
-    if (value->type() == StringType) {
-        return std::make_shared<ConstantList<std::string>>(inputs[0], length);
-    }
-
-    throw TypeException("Not a primitive type");
+    return std::make_shared<ConstantList>(inputs[0], length);
 
 }
 
@@ -477,8 +460,8 @@ SharedToken ListCompare(std::vector<SharedToken> inputs, ComparisonOperation ope
     SharedList a = List::get_list(inputs[0]);
     SharedList b;
 
-    if (inputs[1]->type() == IntegerType || inputs[1]->type() == FloatType) {
-        b = std::make_shared<ConstantList<int>>(inputs[1], a->size());
+    if (inputs[1]->type_id() == IntegerType || inputs[1]->type_id() == FloatType) {
+        b = std::make_shared<ConstantList>(inputs[1], a->size());
     } else if (List::is_list(inputs[1], IntegerType) || List::is_list(inputs[1], FloatType)) {
         throw TypeException("Not an numeric list");
     } else {
@@ -694,7 +677,7 @@ SharedToken ListBuild(std::vector<SharedToken> inputs) {
 
     VERIFY(inputs.size() > 0, "No inputs");
 
-    if (inputs[0]->type() == IntegerType) {
+    if (inputs[0]->type_id() == IntegerType) {
 
         std::vector<int> result;
 

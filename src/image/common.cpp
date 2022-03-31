@@ -258,7 +258,7 @@ namespace pixelpipes
 
         virtual size_t size() const;
 
-        virtual TypeIdentifier element_type() const;
+        virtual TypeIdentifier element_type_id() const;
 
         virtual SharedToken get(int index) const;
 
@@ -282,7 +282,7 @@ namespace pixelpipes
         return list.size();
     }
 
-    TypeIdentifier ImageFileList::element_type() const
+    TypeIdentifier ImageFileList::element_type_id() const
     {
         return ImageType;
     }

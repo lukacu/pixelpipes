@@ -174,7 +174,9 @@ class AverageFilter(Macro):
 
     Inputs:
         - source: source image
-        - size: size of the box filter
+        - size_x: size of the box filter
+        - size_y: size of the box filter
+        - border: border handling
 
     Category: image, filters
     Tags: image, blur

@@ -53,7 +53,7 @@ namespace pixelpipes
 
         virtual std::vector<SharedToken> get() const { return list; };
 
-        virtual TypeIdentifier type() const { return 0; };
+        virtual TypeIdentifier type_id() const { return 0; };
 
         virtual void describe(std::ostream &os) const
         {

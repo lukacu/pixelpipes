@@ -1,5 +1,6 @@
 import unittest
 import numpy as np
+import os
 
 from pixelpipes import read_pipeline, write_pipeline
 
@@ -194,23 +195,27 @@ class TestPipes(unittest.TestCase):
             b = Constant(value=3)
             c = b + 1
             d = Conditional(a, c, a > 15)
-            Output(outputs=[a, c, d])
+            e = ConstantList([1, 2, 3, 4])
+            Output(outputs=[a, c, d, e])
 
         compiler = Compiler()
 
         pipeline1 = compiler.build(graph)
 
-        tmp = tempfile.mktemp()
+        tmpfd, tmpname = tempfile.mkstemp()
 
-        write_pipeline(tmp, compiler.compile(graph))
+        os.close(tmpfd)
 
-        pipeline2 = read_pipeline(tmp)
+        write_pipeline(tmpname, compiler.compile(graph))
+
+        pipeline2 = read_pipeline(tmpname)
 
         for i in range(1, 100):
             a = pipeline1.run(i)
             b = pipeline2.run(i)
             self.assertEqual(a[0], b[0])
 
+        os.remove(tmpname)
         
 
         

@@ -68,6 +68,8 @@ if "CONDA_PREFIX" in os.environ:
 else:
     include_dirs.append(os.path.join("/usr", "include", "opencv4"))
 
+include_dirs.append(os.path.join(os.path.dirname(__file__), "include"))
+
 class SharedLibrary(Extension): 
     pass
 
@@ -76,19 +78,14 @@ lib_core = DSO('pixelpipes.pixelpipes', sources= [
         "src/random.cpp",
         "src/module.cpp",
         "src/operation.cpp",
-        "src/types.cpp",
+        "src/type.cpp",
+        "src/token.cpp",
+    "src/serialization.cpp",
+    "src/geometry.cpp",
+    "src/image.cpp",
         "src/pipeline.cpp",
         "src/numbers.cpp",
         "src/list.cpp",
-        "src/geometry/geometry.cpp",
-        "src/geometry/view.cpp",
-        "src/geometry/points.cpp",
-        "pixelpipes/image/image.cpp",
-        "pixelpipes/image/arithmetic.cpp",
-        "pixelpipes/image/render.cpp",
-        "pixelpipes/image/geometry.cpp",
-        "pixelpipes/image/filter.cpp",
-        "pixelpipes/image/processing.cpp",
         ],
     extra_compile_args=compiler_args,
     define_macros=define_macros + [("PIXELPIPES_BUILD_CORE", None)],
@@ -98,9 +95,44 @@ lib_core = DSO('pixelpipes.pixelpipes', sources= [
     libraries=list(libraries) + ["dl"],
     language='c++'
 )
-    
+
+lib_goemetry = DSO('pixelpipes.pixelpipes_geometry', sources= [
+        "src/geometry/common.cpp",
+        "src/geometry/view.cpp",
+        "src/geometry/points.cpp",
+        ],
+    extra_compile_args=compiler_args,
+    define_macros=define_macros,
+    include_dirs=include_dirs,
+    library_dirs=library_dirs,
+    runtime_library_dirs = runtime_dirs,
+    libraries=list(libraries),
+    dsos=['pixelpipes.pixelpipes'],
+    language='c++'
+)
+
+lib_image = DSO('pixelpipes.pixelpipes_image', sources= [
+        "src/image/common.cpp",
+        "src/image/arithmetic.cpp",
+        "src/image/render.cpp",
+        "src/image/geometry.cpp",
+        "src/image/filter.cpp",
+        "src/image/processing.cpp",
+        ],
+    extra_compile_args=compiler_args,
+    define_macros=define_macros,
+    include_dirs=include_dirs,
+    library_dirs=library_dirs,
+    runtime_library_dirs = runtime_dirs,
+    libraries=list(libraries),
+    dsos=['pixelpipes.pixelpipes'],
+    language='c++'
+)     
+
 lib_modules = [
-    lib_core
+    lib_core,
+    lib_goemetry,
+    lib_image
 ]
 
 ext_core = Extension(
@@ -120,9 +152,7 @@ ext_core = Extension(
 # Sort input source files to ensure bit-for-bit reproducible builds
 # (https://github.com/pybind/python_example/pull/53)
 ext_modules = [
-    ext_core,
-    ext_geometry,
-    ext_image
+    ext_core
 ]
 
 setup(

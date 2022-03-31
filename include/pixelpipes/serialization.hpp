@@ -12,6 +12,10 @@
 namespace pixelpipes
 {
 
+    class PipelineWriter;
+
+    class PipelineReader;
+
     typedef std::function<void(SharedToken, std::ostream &)> TokenWriter;
 
     typedef std::function<SharedToken(std::istream &)> TokenReader;
@@ -35,11 +39,7 @@ namespace pixelpipes
 
         int append(std::string name, std::vector<SharedToken> args, std::vector<int> inputs);
 
-        template <typename T>
-        static void register_writer(TokenWriter writer)
-        {
-            register_writer(GetTypeIdentifier<T>(), writer);
-        }
+        static void register_writer(TypeIdentifier identifier, TokenWriter writer);
 
     private:
         typedef std::tuple<std::string, std::vector<int>, std::vector<int>> OperationData;
@@ -47,8 +47,6 @@ namespace pixelpipes
         typedef std::map<TypeIdentifier, WriterData> WriterMap;
 
         static WriterMap &writers();
-
-        static void register_writer(TypeIdentifier identifier, TokenWriter writer);
 
         std::set<SharedModule> used_modules;
         std::set<TypeIdentifier> used_types;
@@ -68,23 +66,17 @@ namespace pixelpipes
 
         SharedPipeline read(std::string &target);
 
-        template <typename T>
-        static void register_reader(TokenReader reader)
-        {
-            register_reader(GetTypeIdentifier<T>(), reader);
-        }
+        static void register_reader(TypeIdentifier identifier, TokenReader reader);
 
     private:
         typedef std::tuple<TokenReader, SharedModule> ReaderData;
         typedef std::map<TypeIdentifier, ReaderData> ReaderMap;
 
         static ReaderMap &readers();
-
-        static void register_reader(TypeIdentifier identifier, TokenReader reader);
     };
 
-#define PIXELPIPES_REGISTER_READER(T, F) static AddModuleInitializer CONCAT(__reader_init_, __COUNTER__)([]() { PipelineReader::register_reader<T>(F); })
-#define PIXELPIPES_REGISTER_WRITER(T, F) static AddModuleInitializer CONCAT(__writer_init_, __COUNTER__)([]() { PipelineWriter::register_writer<T>(F); })
+#define PIXELPIPES_REGISTER_READER(T, F) static AddModuleInitializer CONCAT(__reader_init_, __COUNTER__)([]() { PipelineReader::register_reader(T, F); })
+#define PIXELPIPES_REGISTER_WRITER(T, F) static AddModuleInitializer CONCAT(__writer_init_, __COUNTER__)([]() { PipelineWriter::register_writer(T, F); })
 
     template <typename T>
     T read_t(std::istream &source)

@@ -70,91 +70,90 @@ namespace pixelpipes
         }
     };
 
-    PIXELPIPES_REGISTER_WRITER(int, [](SharedToken v, std::ostream &target)
+    PIXELPIPES_REGISTER_WRITER(IntegerType, [](SharedToken v, std::ostream &target)
                                {
     int i = Integer::get_value(v);
     write_t<int>(target, i); });
 
-    PIXELPIPES_REGISTER_WRITER(float, [](SharedToken v, std::ostream &target)
+    PIXELPIPES_REGISTER_WRITER(FloatType, [](SharedToken v, std::ostream &target)
                                {
     float f = Float::get_value(v);
     target.write((char*)&f, sizeof(float)); });
 
-    PIXELPIPES_REGISTER_WRITER(bool, [](SharedToken v, std::ostream &target)
+    PIXELPIPES_REGISTER_WRITER(BooleanType, [](SharedToken v, std::ostream &target)
                                {
     bool b = Boolean::get_value(v);
     unsigned char c = b ? 0xFF : 0;
     target.write((const char *) &c, 1); });
 
-    PIXELPIPES_REGISTER_WRITER(std::string, [](SharedToken v, std::ostream &target)
+    PIXELPIPES_REGISTER_WRITER(StringType, [](SharedToken v, std::ostream &target)
                                {
     std::string s = String::get_value(v);
     write_t(target, s); });
 
-    PIXELPIPES_REGISTER_WRITER(std::vector<int>, [](SharedToken v, std::ostream &target)
+    PIXELPIPES_REGISTER_WRITER(IntegerListType, [](SharedToken v, std::ostream &target)
                                { write_v(target, List::get_list(v, IntegerType)->elements<int>()); });
-    PIXELPIPES_REGISTER_WRITER(std::vector<float>, [](SharedToken v, std::ostream &target)
+    PIXELPIPES_REGISTER_WRITER(FloatListType, [](SharedToken v, std::ostream &target)
                                { write_v(target, List::get_list(v, FloatType)->elements<float>()); });
-    PIXELPIPES_REGISTER_WRITER(std::vector<bool>, [](SharedToken v, std::ostream &target)
+    PIXELPIPES_REGISTER_WRITER(BooleanListType, [](SharedToken v, std::ostream &target)
                                { write_v(target, List::get_list(v, BooleanType)->elements<bool>()); });
-    PIXELPIPES_REGISTER_WRITER(std::vector<std::string>, [](SharedToken v, std::ostream &target)
+    PIXELPIPES_REGISTER_WRITER(StringListType, [](SharedToken v, std::ostream &target)
                                { write_v(target, List::get_list(v, StringType)->elements<std::string>()); });
 
-    PIXELPIPES_REGISTER_WRITER(DNF, [](SharedToken v, std::ostream &target)
+    PIXELPIPES_REGISTER_WRITER(DNFType, [](SharedToken v, std::ostream &target)
                                { write_t(target, ContainerToken<DNF>::get_value(v)); });
 
-    PIXELPIPES_REGISTER_WRITER(Point2D, [](SharedToken v, std::ostream &target)
+    PIXELPIPES_REGISTER_WRITER(Point2DType, [](SharedToken v, std::ostream &target)
                                {
     Point2D p = Point2DVariable::get_value(v);
     write_t(target, p); });
 
-    PIXELPIPES_REGISTER_WRITER(Point3D, [](SharedToken v, std::ostream &target)
+    PIXELPIPES_REGISTER_WRITER(Point3DType, [](SharedToken v, std::ostream &target)
                                {
     Point3D p = Point3DVariable::get_value(v);
     write_t(target, p); });
 
-    PIXELPIPES_REGISTER_WRITER(View2D, [](SharedToken v, std::ostream &target)
+    PIXELPIPES_REGISTER_WRITER(View2DType, [](SharedToken v, std::ostream &target)
                                {
     View2D w = View2DVariable::get_value(v);
     write_t(target, w); });
 
-    PIXELPIPES_REGISTER_WRITER(View3D, [](SharedToken v, std::ostream &target)
+    PIXELPIPES_REGISTER_WRITER(View3DType, [](SharedToken v, std::ostream &target)
                                {
     View3D w = View3DVariable::get_value(v);
     write_t(target, w); });
 
-    PIXELPIPES_REGISTER_READER(int, [](std::istream &source)
+    PIXELPIPES_REGISTER_READER(IntegerType, [](std::istream &source)
                                { return std::make_shared<Integer>(read_t<int>(source)); });
-    PIXELPIPES_REGISTER_READER(float, [](std::istream &source)
+    PIXELPIPES_REGISTER_READER(FloatType, [](std::istream &source)
                                { return std::make_shared<Float>(read_t<float>(source)); });
-    PIXELPIPES_REGISTER_READER(bool, [](std::istream &source)
+    PIXELPIPES_REGISTER_READER(BooleanType, [](std::istream &source)
                                { return std::make_shared<Boolean>(read_t<bool>(source)); });
-
-    PIXELPIPES_REGISTER_READER(std::vector<int>, [](std::istream &source)
-                               { return std::make_shared<IntegerList>(read_v<int>(source)); });
-    PIXELPIPES_REGISTER_READER(std::vector<float>, [](std::istream &source)
-                               { return std::make_shared<FloatList>(read_v<float>(source)); });
-    PIXELPIPES_REGISTER_READER(std::vector<bool>, [](std::istream &source)
-                               { return std::make_shared<BooleanList>(read_v<bool>(source)); });
-    PIXELPIPES_REGISTER_READER(std::vector<std::string>, [](std::istream &source)
-                               { return std::make_shared<StringList>(read_v<std::string>(source)); });
-
-    PIXELPIPES_REGISTER_READER(DNF, [](std::istream &source)
-                               { return wrap(read_t<DNF>(source)); });
-
-    PIXELPIPES_REGISTER_READER(std::string, [](std::istream &source)
+    PIXELPIPES_REGISTER_READER(StringType, [](std::istream &source)
                                { return std::make_shared<String>(read_t<std::string>(source)); });
 
-    PIXELPIPES_REGISTER_READER(Point2D, [](std::istream &source)
+    PIXELPIPES_REGISTER_READER(IntegerListType, [](std::istream &source)
+                               { return std::make_shared<IntegerList>(read_v<int>(source)); });
+    PIXELPIPES_REGISTER_READER(FloatListType, [](std::istream &source)
+                               { return std::make_shared<FloatList>(read_v<float>(source)); });
+    PIXELPIPES_REGISTER_READER(BooleanListType, [](std::istream &source)
+                               { return std::make_shared<BooleanList>(read_v<bool>(source)); });
+    PIXELPIPES_REGISTER_READER(StringListType, [](std::istream &source)
+                               { return std::make_shared<StringList>(read_v<std::string>(source)); });
+
+    PIXELPIPES_REGISTER_READER(DNFType, [](std::istream &source)
+                               { return wrap(read_t<DNF>(source)); });
+
+    PIXELPIPES_REGISTER_READER(Point2DType, [](std::istream &source)
                                { return std::make_shared<Point2DVariable>(read_t<Point2D>(source)); });
 
-    PIXELPIPES_REGISTER_READER(Point3D, [](std::istream &source)
+    PIXELPIPES_REGISTER_READER(Point3DType, [](std::istream &source)
                                { return std::make_shared<Point3DVariable>(read_t<Point3D>(source)); });
 
-    PIXELPIPES_REGISTER_READER(View2D, [](std::istream &source)
+    PIXELPIPES_REGISTER_READER(View2DType, [](std::istream &source)
                                { return std::make_shared<View2DVariable>(read_t<View2D>(source)); });
 
-    PIXELPIPES_REGISTER_READER(View3D, [](std::istream &source)
+    PIXELPIPES_REGISTER_READER(View3DType, [](std::istream &source)
                                { return std::make_shared<View3DVariable>(read_t<View3D>(source)); });
 
     PipelineWriter::PipelineWriter()
@@ -200,11 +199,11 @@ namespace pixelpipes
         for (auto t : tokens)
         {
 
-            TypeName tn = type_name(t->type());
+            TypeName tn = type_name(t->type_id());
 
             write_t(target, type_mapping.find(tn)->second);
 
-            TokenWriter writer = std::get<0>(writers().find(t->type())->second);
+            TokenWriter writer = std::get<0>(writers().find(t->type_id())->second);
             writer(t, target);
         }
 
@@ -262,13 +261,27 @@ namespace pixelpipes
         for (auto arg : args)
         {
 
-            auto argtype = arg->type();
-
+            auto argtype = arg->type_id();
             {
 
                 SharedModule source = type_source(argtype);
                 if (source)
                     used_modules.insert(source);
+
+                used_types.insert(argtype);
+
+                // Also look for inner types of lists
+                if (List::is(arg)) {
+
+                    SharedModule source = type_source(List::cast(arg)->element_type_id());
+
+                    if (source)
+                        used_modules.insert(source);
+
+                    used_types.insert(List::cast(arg)->element_type_id());
+
+                }
+
             }
 
             if (writers().find(argtype) != writers().end())
@@ -279,7 +292,7 @@ namespace pixelpipes
                 if (source)
                     used_modules.insert(source);
 
-                used_types.insert(argtype);
+
 
                 // TODO: this could be potentially optimized, remove redundancy
                 tokens.push_back(arg);
@@ -306,13 +319,13 @@ namespace pixelpipes
     void PipelineWriter::register_writer(TypeIdentifier identifier, TokenWriter writer)
     {
 
-        DEBUGMSG("Registering writer for type %s (%p)\n", std::string(name).data(), identifier);
-
         if (writers().find(identifier) != writers().end())
         {
 
             throw SerializationException("Writer already registered for type");
         }
+
+        DEBUGMSG("Registering writer for type %s (%p)\n", type_name(identifier).data(), identifier);
 
         SharedModule source = Module::context();
 
@@ -331,10 +344,11 @@ namespace pixelpipes
 
             source.read(buffer, __stream_header.size());
 
-            if (buffer != __stream_header)
-            {
-                throw SerializationException("Illegal stream");
+            for (size_t i = 0; i < __stream_header.size(); i++) {
+                if (buffer[i] != __stream_header[i])
+                    throw SerializationException("Illegal stream");
             }
+
         }
 
         // First, read the modules that have to be loaded and load them
@@ -401,7 +415,6 @@ namespace pixelpipes
 
                 if (type_mapping.find(code) != type_mapping.end())
                 {
-
                     TypeIdentifier type_id = type_mapping.find(code)->second;
 
                     auto reader = std::get<0>(readers().find(type_id)->second);
@@ -467,13 +480,14 @@ namespace pixelpipes
     void PipelineReader::register_reader(TypeIdentifier identifier, TokenReader reader)
     {
 
-        DEBUGMSG("Registering reader for type %s (%p) \n", std::string(name).data(), identifier);
-
         if (readers().find(identifier) != readers().end())
         {
 
             throw SerializationException("Reader already registered for this type");
         }
+
+        DEBUGMSG("Registering reader for type %s (%p) \n", type_name(identifier).data(), identifier);
+
 
         SharedModule source = Module::context();
 

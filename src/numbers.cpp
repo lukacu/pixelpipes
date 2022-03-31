@@ -255,7 +255,7 @@ SharedToken Minimum(std::vector<SharedToken> inputs) {
     bool integer = true;
 
     for (auto input : inputs) {
-        integer &= input->type() == IntegerType;
+        integer &= Integer::is(input);
         value = std::min(value, Float::get_value(input));
     }
 
