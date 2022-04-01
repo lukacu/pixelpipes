@@ -6,14 +6,52 @@
 
 namespace pixelpipes {
 
-
-class Sublist: public List {
+class Proxy: public List {
 public:
-    Sublist(SharedList list, int from, int to) : list(list), from(from), to(to) {
+    Proxy(SharedList list) : list(list) {
 
         if (!list) {
             throw TypeException("Empty parent list");
         }
+
+    }
+
+    virtual ~Proxy() = default;
+
+    virtual size_t size() const {
+
+        return list->size();
+
+    }
+
+    virtual TypeIdentifier type_id() const  {
+
+        return list->type_id();
+
+    }
+
+    virtual TypeIdentifier element_type_id() const  {
+
+        return list->element_type_id();
+
+    }
+
+    virtual SharedToken get(int index) const {
+
+        return list->get(index);
+
+    }
+
+protected:
+
+    SharedList list;
+
+};
+
+
+class Sublist: public Proxy {
+public:
+    Sublist(SharedList list, int from, int to) : Proxy(list), from(from), to(to) {
 
         if (to < from || to >= (int) list->size() || from < 0) {
             throw TypeException("Illegal sublist range");
@@ -26,12 +64,6 @@ public:
     virtual size_t size() const {
 
         return to - from + 1;
-
-    }
-
-    virtual TypeIdentifier element_type_id() const {
-
-        return list->element_type_id();
 
     }
 
@@ -49,9 +81,50 @@ public:
 
 private:
 
-    SharedList list;
-
     int from, to;
+
+};
+
+
+class Table: public Proxy {
+public:
+    Table(SharedList list, int row) : Proxy(list), row(row) {
+
+        if (!list) {
+            throw TypeException("Empty parent list");
+        }
+
+        VERIFY(list->size() % row == 0, "");
+
+    }
+
+    ~Table() = default;
+
+    virtual size_t size() const {
+
+        return list->size() / row;
+
+    }
+
+    virtual TypeIdentifier element_type_id() const {
+
+        return list->element_type_id() & ListType;
+
+    }
+
+    virtual SharedToken get(int index) const {
+
+        if (index < 0 || index >= size()) {
+            throw TypeException("Index out of range");
+        }
+
+        return std::make_shared<Sublist>(list, index * row, (index+1) * row - 1);
+
+    }
+
+private:
+
+    int row;
 
 };
 
@@ -210,6 +283,25 @@ SharedToken SublistSelect(std::vector<SharedToken> inputs) {
 }
 
 REGISTER_OPERATION_FUNCTION("list_sublist", SublistSelect);
+
+
+/**
+ * @brief Returns a view of the list where every element is a row.
+ * 
+ */
+SharedToken ListAsTable(std::vector<SharedToken> inputs) {
+
+    VERIFY(inputs.size() == 2, "Incorrect number of parameters");
+
+    SharedList list = List::get_list(inputs[0]);
+    int row = Integer::get_value(inputs[1]);
+
+    return std::make_shared<Table>(list, row);
+
+}
+
+REGISTER_OPERATION_FUNCTION("list_table", ListAsTable);
+
 
 /**
  * @brief Returns a concatenation of given input lists.

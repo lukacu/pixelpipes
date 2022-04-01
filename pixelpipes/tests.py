@@ -4,7 +4,7 @@ import os
 
 from pixelpipes import read_pipeline, write_pipeline
 
-from .graph import Constant, Output, SampleIndex
+from .graph import Constant, Output, SampleIndex, DebugOutput
 from .numbers import Floor, Round, UniformDistribution
 from .expression import Expression
 from .flow import Switch
@@ -99,10 +99,11 @@ class TestPipes(unittest.TestCase):
 
         with GraphBuilder() as graph:
             n = ConstantTable([[0, 1, 2], [3, 4, 5]])
-            Output(outputs=[ListElement(n, 0)])
+            Output(outputs=[ListElement(DebugOutput(n), 0)])
 
         pipeline = Compiler.build_graph(graph)
         sample = pipeline.run(1)
+   
         np.testing.assert_array_equal(sample[0], [[0], [1], [2]])
 
     def test_compiler_Conditional_0(self):

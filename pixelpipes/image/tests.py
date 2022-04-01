@@ -4,7 +4,7 @@ import unittest
 import numpy as np
 
 from .. import write_pipeline, read_pipeline
-from ..graph import GraphBuilder, Output, Constant
+from ..graph import GraphBuilder, Output, Constant, DebugOutput
 from ..compiler import Compiler
 from ..complex import GetElement
 from . import ConstantImage, Channel, Equals, Grayscale, Invert, Merge, Threshold, Moments, GetImageProperties, ConvertDepth, ConstantImageList

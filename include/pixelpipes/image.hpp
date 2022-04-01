@@ -158,7 +158,22 @@ namespace pixelpipes
         unsigned char *buffer;
     };
 
-    typedef ContainerList<Image> ImageList;
+    class ImageList : public List
+    {
+    public:
+        ImageList(std::vector<Image> images);
+
+        ~ImageList() = default;
+
+        virtual size_t size() const;
+
+        virtual TypeIdentifier element_type_id() const;
+
+        virtual SharedToken get(int index) const;
+
+    private:
+        std::vector<Image> images;
+    };
 
     #define ImageListType GetListIdentifier<Image>()
 

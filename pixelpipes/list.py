@@ -30,7 +30,7 @@ class ConstantList(Node):
     def operation(self):
         return "_constant", list(self.source)
 
-class ConstantTable(Node):
+class ConstantTable(Macro):
     """Constant Table
 
     Inputs:
@@ -42,20 +42,23 @@ class ConstantTable(Node):
     source = List(List(Primitive()), separator=";")
 
     def _init(self):
-        elements = [item for sublist in self.source for item in sublist]
+        rows = [len(sublist) for sublist in self.source]
 
-        if all(isinstance(x, int) for x in elements):
-            self._type = types.Integer()
-        elif all(isinstance(x, (int, float)) for x in elements):
-            self._type = types.Float()
-        else:
-            raise types.TypeException("Unsupported element")
+        if not all(x == rows[0] for x in rows):
+            raise types.TypeException("All rows should be equal")
+
+        self._row = rows[0]
 
     def _output(self):
-        return types.List(types.List(self._type), len(self.source))
+        return types.List(types.List(types.Any()), len(self.source))
 
-    def operation(self):
-        return "_constant", list([list(x) for x in self.source])
+    def expand(self, inputs, parent: "Reference"):
+
+        with GraphBuilder(prefix=parent) as builder:
+            data = ConstantList([item for sublist in self.source for item in sublist])
+            ListAsTable(data, row=self._row, _name=parent)
+
+            return builder.nodes()
 
 class SublistSelect(Node):
     """Sublist
@@ -85,6 +88,33 @@ class SublistSelect(Node):
     def operation(self):
         return "list_sublist",
 
+class ListAsTable(Node):
+    """ListAsTable
+
+    View list as table
+
+    Inputs:
+     - parent: Source list
+     - row: Row length
+
+    Category: list
+    """
+
+    parent = Input(types.List())
+    row = Input(types.Integer())
+
+    def validate(self, **inputs):
+        super().validate(**inputs)
+
+        length = None
+
+        if inputs["row"].value is not None and inputs["parent"].length is not None:
+            length = inputs["parent"].length / inputs["row"].value
+
+        return types.List(types.List(inputs["parent"].element, inputs["row"].value), length)
+
+    def operation(self):
+        return "list_table",
 
 class ListConcatenate(Node):
 
@@ -125,6 +155,7 @@ class ListConcatenate(Node):
 
     def operation(self):
         return "list_concatenate",
+
 class FilterSelect(Node):
     """List filter
 

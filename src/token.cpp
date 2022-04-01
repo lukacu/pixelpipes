@@ -3,16 +3,16 @@
 
 namespace pixelpipes
 {
-    PIXELPIPES_REGISTER_TYPE(IntegerType, "integer", do_not_create, do_not_resolve);
-    PIXELPIPES_REGISTER_TYPE(FloatType, "float", do_not_create, do_not_resolve);
-    PIXELPIPES_REGISTER_TYPE(BooleanType, "boolean", do_not_create, do_not_resolve);
-    PIXELPIPES_REGISTER_TYPE(StringType, "string", do_not_create, do_not_resolve);
+    
+    PIXELPIPES_REGISTER_TYPE_DEFAULT(IntegerType, "integer");
+    PIXELPIPES_REGISTER_TYPE_DEFAULT(FloatType, "float");
+    PIXELPIPES_REGISTER_TYPE_DEFAULT(BooleanType, "boolean");
+    PIXELPIPES_REGISTER_TYPE_DEFAULT(StringType, "string");
 
-    PIXELPIPES_REGISTER_TYPE(IntegerListType, "integer_list", do_not_create, do_not_resolve);
-    PIXELPIPES_REGISTER_TYPE(FloatListType, "float_list", do_not_create, do_not_resolve);
-    PIXELPIPES_REGISTER_TYPE(BooleanListType, "boolean_list", do_not_create, do_not_resolve);
-    PIXELPIPES_REGISTER_TYPE(StringListType, "string_list", do_not_create, do_not_resolve);
-
+    PIXELPIPES_REGISTER_TYPE_DEFAULT(IntegerListType, "integer_list");
+    PIXELPIPES_REGISTER_TYPE_DEFAULT(FloatListType, "float_list");
+    PIXELPIPES_REGISTER_TYPE_DEFAULT(BooleanListType, "boolean_list");
+    PIXELPIPES_REGISTER_TYPE_DEFAULT(StringListType, "string_list");
 
     Type Token::type() const {
         return type_make(type_id(), {});

@@ -19,7 +19,7 @@ using namespace std::chrono;
 namespace pixelpipes
 {
 
-    PIXELPIPES_REGISTER_TYPE(DNFType, "dnf", do_not_create, do_not_resolve);
+    PIXELPIPES_REGISTER_TYPE(DNFType, "dnf", DEFAULT_TYPE_CONSTRUCTOR(DNFType), default_type_resolve);
 
     PipelineException::PipelineException(std::string reason, SharedPipeline pipeline, int operation) : BaseException(std::string(reason.c_str()) + std::string(" (operation ") + std::to_string(operation) + std::string(")")), pipeline(pipeline), _operation(operation) {}
 

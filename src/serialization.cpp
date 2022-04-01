@@ -322,7 +322,7 @@ namespace pixelpipes
         if (writers().find(identifier) != writers().end())
         {
 
-            throw SerializationException("Writer already registered for type");
+            throw SerializationException(Formatter() << "Writer already registered for type " << type_name(identifier));
         }
 
         DEBUGMSG("Registering writer for type %s (%p)\n", type_name(identifier).data(), identifier);

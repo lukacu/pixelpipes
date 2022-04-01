@@ -41,6 +41,7 @@ class ResourceField:
     @property
     def type(self) -> types.Type:
         return self._typ
+
 class VirtualField(ResourceField):
 
     def __init__(self, typ: types.Type):
@@ -440,6 +441,7 @@ class PermuteResources(Macro):
                     ListRemap(field, indices, _name="." + field)
 
             return builder.nodes()
+            
 class ExtractField(Macro):
     """Extract field from resource
 

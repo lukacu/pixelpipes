@@ -167,14 +167,14 @@ namespace pixelpipes
         return ((uintptr_t) &detail::TypeIdentifierToken<T>::id) + ListType;
     }
 
+    typedef std::map<std::string, std::any> TypeParameters;
+
     class PIXELPIPES_API Type
     {
     public:
         Type(const Type&);
 
-        Type(TypeIdentifier id, std::map<std::string, std::any> parameters, const Type inner);
-
-        Type(TypeIdentifier id, std::map<std::string, std::any> parameters);
+        Type(TypeIdentifier id, const TypeParameters parameters);
 
         Type(TypeIdentifier id);
 
@@ -214,13 +214,11 @@ namespace pixelpipes
 
     typedef std::function<Type(const Type &, const Type &)> TypeResolver;
 
-    typedef std::function<bool(const Type &)> TypeValidator;
+    typedef std::function<Type(const TypeParameters &)> TypeValidator;
 
     void PIXELPIPES_API type_register(TypeIdentifier i, std::string_view name, TypeValidator, TypeResolver);
 
     Type PIXELPIPES_API type_make(TypeIdentifier i, std::map<std::string, std::any> parameters);
-
-    Type PIXELPIPES_API type_make(TypeIdentifier i, std::map<std::string, std::any> parameters, const Type inner);
 
     Type PIXELPIPES_API type_common(const Type &me, const Type &other);
 
@@ -230,10 +228,13 @@ namespace pixelpipes
 
     std::string_view PIXELPIPES_API type_name(TypeIdentifier i);
 
-    Type do_not_resolve(const Type &, const Type &);
+    Type default_type_resolve(const Type &, const Type &);
 
-    bool do_not_create(const Type &);
+#define DEFAULT_TYPE_CONSTRUCTOR(T) [](const TypeParameters &) { return Type(T); }
 
 #define PIXELPIPES_REGISTER_TYPE(T, NAME, VALIDATOR, RESOLVER) static AddModuleInitializer CONCAT(__type_init_, __COUNTER__)([]() { type_register(T, NAME, VALIDATOR, RESOLVER); })
+
+#define PIXELPIPES_REGISTER_TYPE_DEFAULT(T, NAME) static AddModuleInitializer CONCAT(__type_init_, __COUNTER__)([]() { type_register(T, NAME, DEFAULT_TYPE_CONSTRUCTOR(T), default_type_resolve); })
+
 
 }

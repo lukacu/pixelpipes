@@ -128,7 +128,6 @@ namespace pixelpipes
         return ImageType;
     }
 
-
     size_t ImageData::element() const
     {
         return ((size_t)depth() >> 3);
@@ -268,57 +267,105 @@ namespace pixelpipes
         }
     }
 
-    bool imate_type_verifier(const Type& type) {
-
+    Type imate_type_constructor(const TypeParameters &type)
+    {
+        return Type(ImageType);
     }
 
-    Type imate_type_denominator(const Type& me, const Type& other) {
-        
+    Type imate_type_denominator(const Type &me, const Type &other)
+    {
     }
 
-    PIXELPIPES_REGISTER_TYPE(ImageType, "image", imate_type_verifier, imate_type_denominator);
+    ImageList::ImageList(std::vector<Image> inputs) : images(inputs.begin(), inputs.end())
+    {
+    }
 
-    PIXELPIPES_REGISTER_WRITER(ImageType, 
-        [](SharedToken v, std::ostream &target)
-        {
+    size_t ImageList::size() const
+    {
+        return images.size();
+    }
+
+    TypeIdentifier ImageList::element_type_id() const
+    {
+        return ImageType;
+    }
+
+    SharedToken ImageList::get(int index) const
+    {
+        return images[index];
+    }
+
+    PIXELPIPES_REGISTER_TYPE(ImageType, "image", imate_type_constructor, imate_type_denominator);
+
+    void write_image(SharedToken v, std::ostream &target)
+    {
         Image image = extract<Image>(v);
         write_t(target, image->height());
         write_t(target, image->width());
         write_t(target, image->channels());
-        write_t(target, (ushort) image->depth());
-        
+        write_t(target, (ushort)image->depth());
+
         size_t total = 0;
-        for (ImageChunkIterator it = image->begin(); it != image->end(); it++) {
-            target.write((char*)(*it).pointer, (*it).length);
+        for (ImageChunkIterator it = image->begin(); it != image->end(); it++)
+        {
+            target.write((char *)(*it).pointer, (*it).length);
             total += (*it).length;
         }
 
         VERIFY(image->height() * image->width() * image->channels() * image->element() == total, "Image size mismatch");
+    }
 
-        }
+    PIXELPIPES_REGISTER_WRITER(ImageType, write_image);
+
+    Image read_image(std::istream &source)
+    {
+
+        size_t height = read_t<size_t>(source);
+        size_t width = read_t<size_t>(source);
+        size_t channels = read_t<size_t>(source);
+        ushort depth = read_t<ushort>(source);
+
+        Image image = std::make_shared<BufferImage>(width, height, channels, (ImageDepth)depth);
+
+        size_t length = image->height() * image->width() * image->channels() * image->element();
+
+        source.read((char *)image->data(), length);
+
+        return image;
+    }
+
+    PIXELPIPES_REGISTER_READER(ImageType, read_image);
+
+    PIXELPIPES_REGISTER_TYPE_DEFAULT(ImageListType, "image_list");
+
+    PIXELPIPES_REGISTER_READER(ImageListType,
+                               [](std::istream &source)
+                               {
+                                   try
+                                   {
+                                       size_t len = read_t<size_t>(source);
+                                       std::vector<Image> list;
+                                       for (size_t i = 0; i < len; i++)
+                                       {
+                                           list.push_back(read_image(source));
+                                       }
+                                       return std::make_shared<ImageList>(list);
+                                   }
+                                   catch (std::bad_alloc &exception)
+                                   {
+                                       throw SerializationException("Unable to allocate an array");
+                                   }
+                               }
 
     );
 
-    PIXELPIPES_REGISTER_READER(ImageType, 
-        [](std::istream &source)
+    PIXELPIPES_REGISTER_WRITER(ImageListType, [](SharedToken v, std::ostream &target)
+                               {
+        auto list = List::get_list(v, ImageType)->elements<Image>();
+        write_t(target, list.size());
+        for (size_t i = 0; i < list.size(); i++)
         {
-
-            size_t height = read_t<size_t>(source);
-            size_t width = read_t<size_t>(source);
-            size_t channels = read_t<size_t>(source);
-            ushort depth = read_t<ushort>(source);
-
-            Image image = std::make_shared<BufferImage>(width, height, channels, (ImageDepth) depth);
-
-            size_t length = image->height() * image->width() * image->channels() * image->element();
-
-            source.read((char*)image->data(), length);
-
-            return image;
-
-        }
-
-    );
-
+            write_image(list[i], target);
+        } });
 
 }

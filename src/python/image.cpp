@@ -147,7 +147,7 @@ SharedToken wrap_image(py::object src)
 py::object extract_image(SharedToken src)
 {
 
-    if (!ImageData::is(src))
+    if (!src || !ImageData::is(src))
         return py::none();
 
     Image image = extract<Image>(src);

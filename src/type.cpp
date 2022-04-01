@@ -29,26 +29,22 @@ namespace pixelpipes
 
 	}
 
-    Type::Type(TypeIdentifier id, std::map<std::string, std::any> parameters, const Type inner) : _id(id), _parameters(parameters) {
-
-	}
-
 	Type::Type(TypeIdentifier id) : Type(id, {})
 	{
 	}
 
-	Type::Type(TypeIdentifier id, std::map<std::string, std::any> parameters) : _id(id), _parameters(parameters)
+	Type::Type(TypeIdentifier id, const TypeParameters parameters) : _id(id), _parameters(parameters)
 	{
 		if (id == AnyType) {
 			return;
 		}
 
-
+/*
 		if (types().find(id) == types().end())
 		{
 			throw TypeException("Unknown type");
 		}
-
+*/
 	}
 
 	TypeIdentifier Type::identifier() const
@@ -101,11 +97,6 @@ namespace pixelpipes
 		return Type(i, parameters);
 	}
 
-    Type type_make(TypeIdentifier i, std::map<std::string, std::any> parameters, const Type inner) {
-		return Type(i, parameters, inner);
-	}
-
-
     TypeIdentifier type_find(TypeName name) {
 		for (auto d : types())
 		{
@@ -148,15 +139,13 @@ namespace pixelpipes
 		return std::get<0>(item->second);
 	}
 
-	Type do_not_resolve(const Type &, const Type &)
+	Type default_type_resolve(const Type & a, const Type & b)
 	{
+		if (a.identifier() == b.identifier())
+			return Type(a.identifier());
+
 		return Type(AnyType);
 	}
 
-	bool do_not_create(const Type &) {
-
-		return false;
-
-	}
 
 }

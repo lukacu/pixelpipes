@@ -338,10 +338,14 @@ namespace pixelpipes
 
         virtual SharedToken get(int index) const { return std::make_shared<ScalarToken<C>>(list[index]); }
 
-        const std::vector<C> elements() const
+        template <class T>
+        const std::vector<T> elements() const
         {
-
-            return list;
+            if (std::is_same<T, C>::value) {
+                return std::vector<T>(list);
+            } else {
+                return List::elements<T>();
+            }
         }
 
     private:
