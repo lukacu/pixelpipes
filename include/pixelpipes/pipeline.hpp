@@ -38,7 +38,6 @@ inline DNF extract(const SharedToken v) {
     auto container = std::static_pointer_cast<ContainerToken<DNF>>(v);
     return container->get();
     
-
 }
 
 template<>

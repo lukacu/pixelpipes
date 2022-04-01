@@ -78,6 +78,10 @@ namespace pixelpipes
             return make_shared<OutputList>(inputs);
         }
 
+        std::string get_label() const {
+            return name;
+        }
+
     protected:
         virtual TypeIdentifier op_type()
         {
@@ -313,10 +317,20 @@ namespace pixelpipes
         for (int i : inputs)
         {
             if (i >= (int)operations.size() || i < 0)
-                return -1;
+                throw PipelineException("Operation index out of bounds", shared_from_this(), -1);
+
+            if (get_type(operations[i].first) == GetTypeIdentifier<Output>()) {
+                throw PipelineException("Cannot refer to output operation", shared_from_this(), -1);
+            }
         }
 
         operations.push_back(pair<SharedOperation, std::vector<int>>(operation, inputs));
+
+        if (get_type(operations.back().first) == GetTypeIdentifier<Output>()) {
+            auto output = std::static_pointer_cast<Output>(operations.back().first);
+            for (size_t i = 0; i < inputs.size(); i++)
+                labels.push_back(output->get_label());
+        }
 
         return operations.size() - 1;
     }
@@ -451,6 +465,8 @@ namespace pixelpipes
 
             i++;
         }
+
+        VERIFY(result.size() == labels.size(), "Output mismatch");
 
         return result;
     }

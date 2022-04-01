@@ -411,6 +411,7 @@ PYBIND11_MODULE(pypixelpipes, m) {
     py::class_<Pipeline, std::shared_ptr<Pipeline> >(m, "Pipeline")
     .def(py::init<>())
     .def("finalize", &Pipeline::finalize, "Finalize pipeline")
+    .def("labels", &Pipeline::get_labels, "Get output labels as a list")
     .def("append", [](Pipeline& p, std::string& name, py::list args, std::vector<int> inputs) {
 
         return _add_operation(p, name, args, inputs);

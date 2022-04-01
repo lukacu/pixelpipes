@@ -88,7 +88,7 @@ class Pipeline(object):
     def __init__(self, data: Iterable[PipelineOperation]):
 
         from . import pypixelpipes
-
+        from pixelpipes.graph import ValidationException
 
         if isinstance(data, pypixelpipes.Pipeline):
             self._pipeline = data
@@ -99,7 +99,10 @@ class Pipeline(object):
 
             for op in data:
                 input_indices = [indices[id] for id in op.inputs]
-                indices[op.id] = self._pipeline.append(op.name, op.arguments, input_indices)
+                try:
+                    indices[op.id] = self._pipeline.append(op.name, op.arguments, input_indices)
+                except ValueError as ve:
+                    raise ValidationException("Error when adding operation %s: %s" % (op.name, str(ve)))
                 assert indices[op.id] >= 0
                 #self._debug("{} ({}): {} ({})", indices[op.id], op.id,
                 #            op.name, ", ".join(["{} ({})".format(i, n) for i, n in zip(input_indices, op.inputs)]))
@@ -113,7 +116,7 @@ class Pipeline(object):
         return self._pipeline.run(index)
 
     def outputs(self):
-        return []
+        return self._pipeline.labels()
 
     def stats(self):
         stats = self._pipeline.operation_time()

@@ -84,7 +84,7 @@ class Compiler(object):
                     raise ValidationException("Output {} not fixed for output node {}: {}".format(
                         i, output, output_type), output)
                 if isinstance(output_type, types.Complex):
-                    raise ValidationException("Output {} is an complex type for output node {}: {}".format(
+                    raise ValidationException("Output {} is a complex type for output node {}: {}".format(
                         i, output, output_type), output)
 
         return type_cache

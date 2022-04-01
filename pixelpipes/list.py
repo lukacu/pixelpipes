@@ -1,4 +1,4 @@
-from attributee.primitives import Boolean
+from attributee.primitives import Boolean, String
 from attributee import List, Primitive
 
 from . import ComparisonOperations, LogicalOperations, types
@@ -59,6 +59,48 @@ class ConstantTable(Macro):
             ListAsTable(data, row=self._row, _name=parent)
 
             return builder.nodes()
+
+
+class PrefixStringList(Node):
+    """Sublist
+
+    String list with a single prefix.
+
+    Inputs:
+     - list: List of strings
+     - prefix: String to prepend to every element
+
+    Category: list, string
+    """
+
+
+    list = List(String())
+    prefix = String(default="")
+
+    def _output(self):
+        # TODO: fix this, depth should not be hardcoded
+        return types.List(types.String(), length=len(self.list))
+
+    def operation(self):
+        return "list_prefix", self.list, self.prefix
+
+class SublistSelect(Node):
+
+    parent = Input(types.List(types.Primitive()))
+    begin = Input(types.Integer())
+    end = Input(types.Integer())
+
+    def validate(self, **inputs):
+        super().validate(**inputs)
+
+        if inputs["begin"].value is not None and inputs["end"].value is not None:
+            return types.List(inputs["parent"].element, inputs["end"].value - inputs["begin"].value)
+
+        return types.List(inputs["parent"].element)
+
+    def operation(self):
+        return "list_sublist",
+
 
 class SublistSelect(Node):
     """Sublist

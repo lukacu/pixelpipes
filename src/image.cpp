@@ -368,4 +368,52 @@ namespace pixelpipes
             write_image(list[i], target);
         } });
 
+
+    SharedToken ConstantImage(std::vector<SharedToken> inputs, Image image)
+    {
+        VERIFY(inputs.size() == 0, "Incorrect number of parameters");
+        return image;
+    }
+
+    // REGISTER_OPERATION_FUNCTION("image", ConstantImage, Image); TODO: support aliases
+    REGISTER_OPERATION_FUNCTION("image_constant", ConstantImage, Image);
+
+    class ConstantImages : public Operation
+    {
+    public:
+        ConstantImages(std::vector<Image> images)
+        {
+            list = std::make_shared<ImageList>(images);
+        }
+
+        ~ConstantImages() = default;
+
+        virtual SharedToken run(std::vector<SharedToken> inputs)
+        {
+            VERIFY(inputs.size() == 0, "Incorrect number of parameters");
+            return list;
+        }
+
+    protected:
+        std::shared_ptr<ImageList> list;
+    };
+
+    REGISTER_OPERATION("image_list", ConstantImages, std::vector<Image>);
+
+    /**
+     * @brief Apply view linear transformation to an image.
+     *
+     */
+    SharedToken GetImageProperties(std::vector<SharedToken> inputs)
+    {
+
+        VERIFY(inputs.size() == 1, "Incorrect number of parameters");
+
+        Image image = extract<Image>(inputs[0]);
+
+        return std::make_shared<IntegerList>(std::vector<int>({(int)image->width(), (int)image->height(), (int)image->channels(), (int)image->depth()}));
+    }
+
+    REGISTER_OPERATION_FUNCTION("image_properties", GetImageProperties);
+
 }

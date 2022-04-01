@@ -12,6 +12,32 @@ from .list import ConstantList, ConstantTable, ListElement, ListRange
 from .graph import GraphBuilder
 from .compiler import Compiler, Conditional
 
+def compare_serialized(graph):
+
+    import tempfile
+    import numpy.testing as npt
+
+    compiler = Compiler()
+
+    pipeline1 = compiler.build(graph)
+
+    tmpfd, tmpname = tempfile.mkstemp()
+
+    os.close(tmpfd)
+
+    write_pipeline(tmpname, compiler.compile(graph))
+
+    pipeline2 = read_pipeline(tmpname)
+
+    for i in range(1, 100):
+        a = pipeline1.run(i)
+        b = pipeline2.run(i)
+        assert len(a) == len(b), "Output does not match"
+        for x, y in zip(a, b):
+            npt.assert_equal(a[0], b[0])
+
+    os.remove(tmpname)
+
 class TestPipes(unittest.TestCase):    
 
     """
@@ -199,24 +225,7 @@ class TestPipes(unittest.TestCase):
             e = ConstantList([1, 2, 3, 4])
             Output(outputs=[a, c, d, e])
 
-        compiler = Compiler()
-
-        pipeline1 = compiler.build(graph)
-
-        tmpfd, tmpname = tempfile.mkstemp()
-
-        os.close(tmpfd)
-
-        write_pipeline(tmpname, compiler.compile(graph))
-
-        pipeline2 = read_pipeline(tmpname)
-
-        for i in range(1, 100):
-            a = pipeline1.run(i)
-            b = pipeline2.run(i)
-            self.assertEqual(a[0], b[0])
-
-        os.remove(tmpname)
+        compare_serialized(graph)
         
 
         

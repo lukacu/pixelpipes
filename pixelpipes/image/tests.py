@@ -1,10 +1,11 @@
 
-from pixelpipes.image.image import ImageFileList
 import unittest
 import numpy as np
+from pixelpipes.list import ListElement
 
-from .. import write_pipeline, read_pipeline
-from ..graph import GraphBuilder, Output, Constant, DebugOutput
+from pixelpipes.resource import GetResource
+
+from ..graph import GraphBuilder, Output, Constant
 from ..compiler import Compiler
 from ..complex import GetElement
 from . import ConstantImage, Channel, Equals, Grayscale, Invert, Merge, Threshold, Moments, GetImageProperties, ConvertDepth, ConstantImageList
@@ -15,6 +16,7 @@ from .augmentation import ImageBrightness, ImageNoise, ImagePiecewiseAffine
 from .filter import AverageFilter, BilateralFilter, GaussianFilter, LinearFilter, MedianBlur
 from .render import LinearImage, NormalNoise, UniformNoise
 from ..geometry.rectangle import MakeRectangle
+import pixelpipes
 
 
 class Tests(unittest.TestCase):
@@ -51,7 +53,7 @@ class Tests(unittest.TestCase):
 
     def test_serialization(self):
 
-        import tempfile
+        from pixelpipes.tests import compare_serialized
 
         img1 = self.test_image_rgb.astype(np.uint8)
         img2 = self.test_image_rgb.astype(np.uint16)
@@ -63,25 +65,10 @@ class Tests(unittest.TestCase):
             n2 = ConstantImage(source=img2)
             n3 = ConstantImage(source=img3)
             n4 = ConstantImage(source=img4)
-            Output(outputs=[n1, n2, n3, n4])
+            l = ConstantImageList([img1, img2, img3])
+            Output(outputs=[n1, n2, n3, n4, ListElement(l, 1)])
 
-        compiler = Compiler()
-
-        pipeline1 = compiler.build(graph)
-
-        tmp = tempfile.mktemp()
-
-        write_pipeline(tmp, compiler.compile(graph))
-
-        pipeline2 = read_pipeline(tmp)
-
-        a = pipeline1.run(1)
-        b = pipeline2.run(1)
-        np.testing.assert_equal(a[0], b[0])
-        np.testing.assert_equal(a[1], b[1])
-        np.testing.assert_equal(a[2], b[2])
-        np.testing.assert_equal(a[3], b[3])
-
+        compare_serialized(graph)
 
     def test_image_arithmetic_ImageAdd(self):
 
@@ -560,22 +547,21 @@ class Tests(unittest.TestCase):
         np.testing.assert_array_equal(output[0], test_image_list[0])
         np.testing.assert_array_equal(output[1], test_image_list[1])
 
-    def test_image_image_ImageFileList(self):
+    def test_image_image_ImageList(self):
         
         import os
-        if not os.path.exists("examples/img"):
-            return
+        from pixelpipes.image import ImageDirectory
+
+        example_images = os.path.join(os.path.dirname(os.path.dirname(pixelpipes.__file__)), "examples", "images")
 
         with GraphBuilder() as graph:
-            o0 = ImageFileList(files=["examples/img/pytorch/example_0.png"], prefix="", grayscale=False)
-            o1 = ImageFileList(files=["examples/img/pytorch/example_1.png"], prefix="", grayscale=True)
-            Output(outputs=[o0, o1])
+            l = ImageDirectory(path=example_images, grayscale=False)
+            Output(outputs=[GetElement(GetResource(l, 0), "image")])
 
         pipeline = Compiler().build(graph)
         output = pipeline.run(1)
 
         self.assertIsInstance(output[0], np.ndarray)
-        self.assertIsInstance(output[1], np.ndarray)
 
     def test_image_image_GetImageProperties(self):
         

@@ -79,7 +79,7 @@ class ConstantImage(Node):
         return typ
 
     def operation(self):
-        return "image:constant", self.source
+        return "image_constant", self.source
 
     # Prevent errors when cloning during compilation
     def duplicate(self, **inputs):
@@ -128,7 +128,7 @@ class ConstantImageList(Node):
         return self._type
 
     def operation(self):
-        return "image:images", list(self.source)
+        return "image_list", list(self.source)
 
     # Prevent errors when cloning during compilation
     def duplicate(self, **inputs):
@@ -164,27 +164,11 @@ class ImageLoader(Node):
 
     def operation(self):
         source, _ = self._load()
-        return "image:constant", source
+        return "image_constant", source
 
     # Prevent errors when cloning during compilation
     def duplicate(self, **inputs):
         return self
-
-class ImageFileList(Node):
-    """
-    Category: image, input
-    """
-
-    files = List(String())
-    prefix = String(default="")
-    grayscale = Boolean(default=False)
-
-    def _output(self):
-        # TODO: fix this, depth should not be hardcoded
-        return types.List(types.Image(channels=(1 if self.grayscale else 3), depth=8), length=len(self.files))
-
-    def operation(self):
-        return "image:filelist", self.files, self.prefix, self.grayscale
 
 @hidden
 class _GetImageProperties(Node):
@@ -202,7 +186,7 @@ class _GetImageProperties(Node):
     source = Input(types.Image())
 
     def operation(self):
-        return "image:properties",
+        return "image_properties",
 
     def validate(self, **inputs):
         super().validate(**inputs)
@@ -240,6 +224,27 @@ class GetImageProperties(Macro):
             ListElement(parent=properties, index=3, _name=".depth")
 
             return builder.nodes()
+
+
+class ReadImage(Node):
+    """Read image from file
+
+    Inputs:
+        filename: Input image
+        grayscale: Convert to grayscale
+
+    Category: image
+    Tags: image, input
+    """
+
+    filename = Input(types.String())
+    grayscale = Boolean(default=False)
+
+    def operation(self):
+        return "image:read", self.grayscale
+
+    def _output(self):
+        return types.Image()
 
 class ConvertDepth(Node):
     """Convert depth

@@ -147,13 +147,14 @@ namespace pixelpipes
         virtual unsigned char *data() const;
 
     private:
-        ImageDepth image_depth;
 
         size_t image_width;
 
         size_t image_height;
 
         size_t image_channels;
+
+        ImageDepth image_depth;
 
         unsigned char *buffer;
     };

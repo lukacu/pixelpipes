@@ -3,6 +3,7 @@ PROJECT(pixelpipes)
 CMAKE_MINIMUM_REQUIRED(VERSION 3.11 FATAL_ERROR)
 
 INCLUDE(GNUInstallDirs)
+INCLUDE(FetchContent)
 
 SET(PROJECT_VERSION 0.1.0)
 
@@ -24,6 +25,18 @@ if(BUILD_DEBUG)
     add_definitions(-DPIXELPIPES_SOURCE_COMPILE_ROOT="${CMAKE_CURRENT_SOURCE_DIR}/src/")
 endif()
 
+FetchContent_Declare(
+  lodepng
+  GIT_REPOSITORY https://github.com/lvandeve/lodepng.git
+  GIT_TAG        5601b8272a6850b7c5d693dd0c0e16da50be8d8d
+)
+
+FetchContent_MakeAvailable(lodepng)
+
+ADD_LIBRARY(lodepng STATIC ${lodepng_SOURCE_DIR}/lodepng.cpp)
+
+
+
 FIND_PACKAGE(OpenCV REQUIRED core imgproc imgcodecs video calib3d)
 
 SET(CORE_SOURCE
@@ -41,10 +54,10 @@ SET(CORE_SOURCE
     src/list.cpp
 )
 
-INCLUDE_DIRECTORIES(${OpenCV_INCLUDE_DIRS} include/)
+INCLUDE_DIRECTORIES(${OpenCV_INCLUDE_DIRS} ${lodepng_SOURCE_DIR} include/)
 
 ADD_LIBRARY(pixelpipes SHARED ${CORE_SOURCE})
-TARGET_LINK_LIBRARIES(pixelpipes ${CMAKE_DL_LIBS})
+TARGET_LINK_LIBRARIES(pixelpipes ${CMAKE_DL_LIBS} lodepng)
 target_compile_definitions(pixelpipes PRIVATE PIXELPIPES_BUILD_CORE)
 
 ADD_LIBRARY(pixelpipes_geometry SHARED 

@@ -106,7 +106,7 @@ class Switch(Macro):
             raise NodeException("Number of inputs and weights does not match", node=self)
 
     def input_values(self):
-        return [self.inputs[int(name)] for name, _ in self.get_inputs()] + [self.seed]
+        return [self.inputs[int(name)] for name, _ in enumerate(self.inputs)] + [self.seed]
 
     def get_inputs(self):
         return [(str(k), types.Any()) for k, _ in enumerate(self.inputs)] + [("seed", types.Integer())]
@@ -116,11 +116,11 @@ class Switch(Macro):
 
         output = None
 
-        for i in inputs.values():
+        for k, _ in enumerate(self.inputs):
             if output is None:
-                output = i
+                output = inputs[str(k)]
                 continue
-            output = output.common(i)
+            output = output.common(inputs[str(k)])
 
         return output
 

@@ -266,6 +266,52 @@ private:
 
 };
 
+    class PrefixList : public List
+    {
+    public:
+        PrefixList(std::vector<std::string> list, std::string prefix = std::string()) : list(list), prefix(prefix) {
+            if (list.empty())
+                throw TypeException("List is empty");
+        }
+
+        ~PrefixList() = default;
+
+        virtual size_t size() const {
+            return list.size();
+        }
+
+        virtual TypeIdentifier element_type_id() const {
+            return StringType;
+        }
+
+        virtual SharedToken get(int index) const {
+
+            if (index < 0 || index >= (int)list.size())
+            {
+                throw TypeException("Index out of range");
+            }
+
+            return wrap(prefix + list[index]);
+
+        }
+
+    private:
+        std::vector<std::string> list;
+
+        std::string prefix;
+    };
+
+
+SharedToken ListStringPrefix(std::vector<SharedToken> inputs, std::vector<std::string> list, std::string prefix) {
+
+    VERIFY(inputs.size() == 0, "Incorrect number of parameters");
+
+    return std::make_shared<PrefixList>(list, prefix);
+
+}
+
+REGISTER_OPERATION_FUNCTION("list_prefix", ListStringPrefix, std::vector<std::string>, std::string);
+
 /**
  * @brief Returns a sublist of a given list for a specified first and last element.
  * 

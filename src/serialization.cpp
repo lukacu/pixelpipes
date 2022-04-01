@@ -325,7 +325,7 @@ namespace pixelpipes
             throw SerializationException(Formatter() << "Writer already registered for type " << type_name(identifier));
         }
 
-        DEBUGMSG("Registering writer for type %s (%p)\n", type_name(identifier).data(), identifier);
+        DEBUGMSG("Registering writer for type %s (%ld)\n", type_name(identifier).data(), identifier);
 
         SharedModule source = Module::context();
 
@@ -384,7 +384,7 @@ namespace pixelpipes
                     if (d != readers().end())
                     {
                         type_mapping.insert({code, d->first});
-                        DEBUGMSG("Type mapping: %d -> %p (%s) \n", code, d->first, type_name.c_str())
+                        DEBUGMSG("Type mapping: %d -> %ld (%s) \n", code, d->first, type_name.c_str())
                     }
                     else
                     {
@@ -486,7 +486,7 @@ namespace pixelpipes
             throw SerializationException("Reader already registered for this type");
         }
 
-        DEBUGMSG("Registering reader for type %s (%p) \n", type_name(identifier).data(), identifier);
+        DEBUGMSG("Registering reader for type %s (%ld) \n", type_name(identifier).data(), identifier);
 
 
         SharedModule source = Module::context();

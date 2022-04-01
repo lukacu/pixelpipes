@@ -131,6 +131,40 @@ class ParametricType(Type):
     def castable(self, typ: Type) -> bool:
         raise NotImplementedError()
 
+class String(ParametricType):
+    """Base class for string values.
+    """
+
+    def __init__(self):
+        super().__init__("value")
+
+    def castable(self, typ: Type):
+        if isinstance(typ, Union):
+            typ = typ.common(self)
+        return isinstance(typ, String) and self._common_parameters(typ)
+
+    def common(self, typ: "Type") -> "Type":
+        if isinstance(typ, Union):
+            return typ.common(self)
+        if isinstance(typ, String):
+            return String()
+        else:
+            return Any()
+
+    def constant(self):
+        """ A value is constant if its value is known at compile time.
+        """
+        return self.fixed()
+
+    def __str__(self):
+        if self.value is not None:
+            return super().__str__() + " ({})".format(self.value)
+        else:
+            return super().__str__()
+
+    def fixed(self):
+        return False
+
 class Number(ParametricType):
     """Base class for integer or float values.
     """

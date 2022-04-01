@@ -255,7 +255,7 @@ namespace pixelpipes
 
         inline static bool is(SharedToken v)
         {
-            return ((bool)v && (v->type_id() & ListType != 0));
+            return ((bool)v && ((v->type_id() & ListType) != 0));
         }
 
         inline static bool is_list(SharedToken v)

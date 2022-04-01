@@ -15,9 +15,8 @@ class Dataset():
 
 from relative_import import *
 
-from pixelpipes.compiler import Compiler
-from pixelpipes.core import Output
-from pixelpipes.core.list import RandomListElement
+from pixelpipes.graph import Output
+from pixelpipes.list import RandomListElement
 from pixelpipes.graph import GraphBuilder
 from pixelpipes.image import ConstantImageList, ImageNoise, Resize
 from pixelpipes.sink import PipelineDataLoader

@@ -94,7 +94,14 @@ namespace pixelpipes
 
 	Type type_make(TypeIdentifier i, std::map<std::string, std::any> parameters)
 	{
-		return Type(i, parameters);
+		auto item = types().find(i);
+
+		if (item == types().end())
+		{
+			return Type(AnyType);
+		}
+
+		return std::get<1>(item->second)(parameters);
 	}
 
     TypeIdentifier type_find(TypeName name) {
@@ -111,6 +118,16 @@ namespace pixelpipes
 
 	Type type_common(const Type &me, const Type &other)
 	{
+		auto item = types().find(me.identifier());
+
+		if (item == types().end())
+		{
+			return Type(AnyType);
+		}
+
+		return std::get<2>(item->second)(me, other);
+
+
 	}
 
 	SharedModule type_source(TypeIdentifier i)

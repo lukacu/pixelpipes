@@ -179,15 +179,7 @@ namespace pixelpipes
             type |= CV_MAKETYPE(0, size[2]);
         }
 
-        //std::cout << "gg " << (size_t)image->rowstep() << " " << (size_t)image->colstep() << " " << image->channels() << " " << image->element() << std::endl;
-
-        //std::cout << (int)image->data()[0] << std::endl;
-
-
-
         cv::Mat mat(ndims, size, type, (void *)image->data(), step);
-
-        //std::cout << "a  " << mat.step[0] << " " << mat.step[1] << " " << mat.step[2] << std::endl;
 
         return mat;
     }
@@ -249,57 +241,18 @@ namespace pixelpipes
         return mat.data;
     }
 
-    class ImageFileList : public List
-    {
-    public:
-        ImageFileList(std::vector<std::string> list, std::string prefix = std::string(), bool grayscale = false);
-
-        ~ImageFileList() = default;
-
-        virtual size_t size() const;
-
-        virtual TypeIdentifier element_type_id() const;
-
-        virtual SharedToken get(int index) const;
-
-    private:
-        std::string prefix;
-
-        std::vector<std::string> list;
-
-        bool grayscale;
-    };
-
-    ImageFileList::ImageFileList(std::vector<std::string> list, std::string prefix, bool grayscale) : prefix(prefix), list(list), grayscale(grayscale)
+    SharedToken ImageRead(std::vector<SharedToken> inputs, bool grayscale) noexcept(false)
     {
 
-        if (list.empty())
-            throw TypeException("File list is empty");
-    }
+        VERIFY(inputs.size() == 1, "Incorrect number of parameters");
 
-    size_t ImageFileList::ImageFileList::size() const
-    {
-        return list.size();
-    }
+        std::string filename = extract<std::string>(inputs[0]);
 
-    TypeIdentifier ImageFileList::element_type_id() const
-    {
-        return ImageType;
-    }
-
-    SharedToken ImageFileList::get(int index) const
-    {
-
-        if (index < 0 || index >= (int)list.size())
-        {
-            throw TypeException("Index out of range");
-        }
-
-        cv::Mat image = cv::imread(prefix + list[index], grayscale ? cv::IMREAD_GRAYSCALE : cv::IMREAD_COLOR);
+        cv::Mat image = cv::imread(filename, grayscale ? cv::IMREAD_GRAYSCALE : cv::IMREAD_COLOR);
 
         if (image.empty())
         {
-            throw TypeException("Image not found: " + prefix + list[index]);
+            throw TypeException("Image not found: " + filename);
         }
 
         if (image.channels() == 3)
@@ -310,90 +263,7 @@ namespace pixelpipes
         return wrap(image);
     }
 
-    SharedToken ConstantImage(std::vector<SharedToken> inputs, Image image)
-    {
-        VERIFY(inputs.size() == 0, "Incorrect number of parameters");
-        return image;
-    }
-
-    // REGISTER_OPERATION_FUNCTION("image", ConstantImage, Image); TODO: support aliases
-    REGISTER_OPERATION_FUNCTION("constant", ConstantImage, Image);
-
-    class ConstantImages : public Operation
-    {
-    public:
-        ConstantImages(std::vector<Image> images)
-        {
-            list = std::make_shared<ImageList>(images);
-        }
-
-        ~ConstantImages() = default;
-
-        virtual SharedToken run(std::vector<SharedToken> inputs)
-        {
-            VERIFY(inputs.size() == 0, "Incorrect number of parameters");
-            return list;
-        }
-
-    protected:
-        std::shared_ptr<ImageList> list;
-    };
-
-    REGISTER_OPERATION("images", ConstantImages, std::vector<Image>);
-
-    class ImageFileListSource : public Operation
-    {
-    public:
-        ImageFileListSource(std::vector<std::string> list, std::string prefix, bool grayscale)
-        {
-            filelist = std::make_shared<ImageFileList>(list, prefix, grayscale);
-        }
-
-        ~ImageFileListSource() = default;
-
-        virtual SharedToken run(std::vector<SharedToken> inputs)
-        {
-            VERIFY(inputs.size() == 0, "Incorrect number of parameters");
-            return filelist;
-        }
-
-    protected:
-        std::shared_ptr<ImageFileList> filelist;
-    };
-
-    REGISTER_OPERATION("filelist", ImageFileListSource, std::vector<std::string>, std::string, bool);
-
-    /**
-     * @brief Apply view linear transformation to an image.
-     *
-     */
-    SharedToken GetImageProperties(std::vector<SharedToken> inputs)
-    {
-
-        VERIFY(inputs.size() == 1, "Incorrect number of parameters");
-
-        cv::Mat image = extract<cv::Mat>(inputs[0]);
-        int dtype = -1;
-        switch (image.depth())
-        {
-        case CV_8U:
-            dtype = (int)ImageDepth::Byte;
-            break;
-        case CV_16S:
-            dtype = (int)ImageDepth::Short;
-            break;
-        case CV_32F:
-            dtype = (int)ImageDepth::Float;
-            break;
-        case CV_64F:
-            dtype = (int)ImageDepth::Double;
-            break;
-        }
-
-        return std::make_shared<IntegerList>(std::vector<int>({image.cols, image.rows, image.channels(), dtype}));
-    }
-
-    REGISTER_OPERATION_FUNCTION("properties", GetImageProperties);
+    REGISTER_OPERATION_FUNCTION("read", ImageRead, bool);
 
     /**
      * @brief Converts depth of an image.
