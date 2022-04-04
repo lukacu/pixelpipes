@@ -518,16 +518,11 @@ PYBIND11_MODULE(pypixelpipes, m) {
 
     });
 
-    registry.register_wrapper(IntegerListType, &wrap_list<int>);
-    registry.register_wrapper(FloatListType, &wrap_list<float>);
-    registry.register_wrapper(StringListType, &wrap_list<std::string>);
-    registry.register_wrapper(BooleanListType, &wrap_list<bool>);
-/*
-    registry.register_wrapper(IntegerTableType, &wrap_table<int>);
-    registry.register_wrapper(FloatTableType, &wrap_table<float>);
-    registry.register_wrapper(StringTableType, &wrap_table<std::string>);
-    registry.register_wrapper(BooleanTableType, &wrap_table<bool>);
-*/
+    registry.register_wrapper(GetTypeIdentifier<std::vector<int>>(), &wrap_list<int>);
+    registry.register_wrapper(GetTypeIdentifier<std::vector<float>>(), &wrap_list<float>);
+    registry.register_wrapper(GetTypeIdentifier<std::vector<std::string>>(), &wrap_list<std::string>);
+    registry.register_wrapper(GetTypeIdentifier<std::vector<bool>>(), &wrap_list<bool>);
+
     registry.register_wrapper(DNFType, &wrap_dnf_clause, false);
 
     registry.register_wrapper(Point2DType, [](py::object src) {

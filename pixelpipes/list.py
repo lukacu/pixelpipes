@@ -82,7 +82,7 @@ class PrefixStringList(Node):
         return types.List(types.String(), length=len(self.list))
 
     def operation(self):
-        return "list_prefix", self.list, self.prefix
+        return "list_prefix", list(self.list), self.prefix
 
 class SublistSelect(Node):
 

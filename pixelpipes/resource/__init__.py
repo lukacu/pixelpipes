@@ -191,14 +191,12 @@ class ResourceListSource(Macro):
 
     def expand(self, inputs, parent: "Reference"):
         data = self._get_data()
-        print(data)
         with GraphBuilder(prefix=parent) as builder:
             for field, typ in self.fields().items():
                 if isinstance(typ, VirtualField):
                     continue
                 if field not in data["lists"]:
                     raise ValueError("Real field not backed up by a list")
-                print(typ)
                 constructor = data["lists"][field][0]
                 args = data["lists"][field][1:]
                 constructor(*args, _name="." + field)
