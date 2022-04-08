@@ -29,37 +29,37 @@ public:
         if (array.ndim() < 2 || array.ndim() > 3)
             throw TypeException("Unsupported number of dimensions");
 
-        const auto pyarray_dtype = data.dtype();
-        if (pyarray_dtype.is(pybind11::dtype::of<uint8_t>()))
+
+        if (py::isinstance<py::array_t<uint8_t>>(data))
         {
             image_depth = ImageDepth::Byte;
         }
-        else if (pyarray_dtype.is(pybind11::dtype::of<int8_t>()))
+        else if (py::isinstance<py::array_t<int8_t>>(data))
         {
             image_depth = ImageDepth::Byte;
         }
-        else if (pyarray_dtype.is(pybind11::dtype::of<uint16_t>()))
+        else if (py::isinstance<py::array_t<uint16_t>>(data))
         {
             image_depth = ImageDepth::Short;
         }
-        else if (pyarray_dtype.is(pybind11::dtype::of<int16_t>()))
+        else if (py::isinstance<py::array_t<int16_t>>(data))
         {
             image_depth = ImageDepth::Short;
         }
-        else if (pyarray_dtype.is(pybind11::dtype::of<float>()))
+        else if (py::isinstance<py::array_t<float>>(data))
         {
             image_depth = ImageDepth::Float;
         }
-        else if (pyarray_dtype.is(pybind11::dtype::of<double>()))
+        else if (py::isinstance<py::array_t<double>>(data))
         {
             image_depth = ImageDepth::Double;
         }
         else
         {
-            throw TypeException("Unsupported depth type");
+            const auto pyarray_dtype = data.dtype();
+            throw TypeException(Formatter() << "Unsupported depth type " << pyarray_dtype);
         }
 
-        // for (size_t i = 0; i < array.ndim(); i++) { std::cout << array.strides(i) << " - "; } std::cout << std::endl;
     }
 
     virtual ~NumpyImage()
@@ -125,8 +125,10 @@ SharedToken wrap_image(py::object src)
     if (!a)
         return empty<ImageData>();
 
-    if (a.ndim() < 2 || a.ndim() > 3)
+    if (a.ndim() < 2 || a.ndim() > 3) {
+        PRINTMSG("Illegal array shape \n");
         return empty<ImageData>();
+    }
 
     try
     {
@@ -140,6 +142,7 @@ SharedToken wrap_image(py::object src)
     }
     catch (TypeException &e)
     {
+        PRINTMSG("Conversion error: %s \n", e.what());
         return empty<ImageData>();
     }
 }
@@ -219,14 +222,17 @@ SharedToken wrap_image_list(py::object src)
             for (auto x : list)
             {
                 SharedToken image = wrap_image(py::reinterpret_borrow<py::object>(x));
-                if (!image)
+                if (!image) {
+                    DEBUGMSG("Error during image conversion \n");
                     return empty<List>();
+                }
                 images.push_back(extract<Image>(image));
             }
             return std::make_shared<ImageList>(images);
         }
         catch (...)
         {
+            DEBUGMSG("Error during image list conversion \n");
         }
     }
     return empty<List>();

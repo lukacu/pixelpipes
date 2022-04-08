@@ -437,7 +437,7 @@ PYBIND11_MODULE(pypixelpipes, m) {
 
     py::class_<PipelineWriter, std::shared_ptr<PipelineWriter> >(m, "PipelineWriter")
     .def(py::init<>())
-    .def("write", [](PipelineWriter& p, std::string filename) { p.write(filename); }, "Write the current pipeline")
+    .def("write", [](PipelineWriter& p, std::string filename, bool compress) { p.write(filename, compress); }, "Write the current pipeline", py::arg("filename"), py::arg("compress") = true)
     .def("append", [](PipelineWriter& p, std::string& name, py::list args, std::vector<int> inputs) {
 
         return _add_operation(p, name, args, inputs);

@@ -4,6 +4,7 @@ CMAKE_MINIMUM_REQUIRED(VERSION 3.11 FATAL_ERROR)
 
 INCLUDE(GNUInstallDirs)
 INCLUDE(FetchContent)
+INCLUDE(ExternalProject)
 
 SET(PROJECT_VERSION 0.1.0)
 
@@ -25,17 +26,43 @@ if(BUILD_DEBUG)
     add_definitions(-DPIXELPIPES_SOURCE_COMPILE_ROOT="${CMAKE_CURRENT_SOURCE_DIR}/src/")
 endif()
 
-FetchContent_Declare(
-  lodepng
+FetchContent_Declare(lodepng
   GIT_REPOSITORY https://github.com/lvandeve/lodepng.git
   GIT_TAG        5601b8272a6850b7c5d693dd0c0e16da50be8d8d
 )
 
-FetchContent_MakeAvailable(lodepng)
+FetchContent_Declare(xtl
+  GIT_REPOSITORY https://github.com/xtensor-stack/xtl
+  GIT_TAG        e697c91e2a3ac571d120d2b093fb3b250d060a7d
+)
+
+FetchContent_Declare(xtensor
+  GIT_REPOSITORY https://github.com/xtensor-stack/xtensor
+  GIT_TAG        004370c79716a2d7b3cf9d04af947363d813a29f
+)
+
+FetchContent_Declare(xsimd
+  GIT_REPOSITORY https://github.com/xtensor-stack/xsimd
+  GIT_TAG        dbba514a7e918b4147396ae4d84ba349f5d9e893
+)
+
+FetchContent_MakeAvailable(lodepng xtl xtensor xsimd)
 
 ADD_LIBRARY(lodepng STATIC ${lodepng_SOURCE_DIR}/lodepng.cpp)
 
+ExternalProject_Add(snappy
+  PREFIX snappy
+  GIT_REPOSITORY    https://github.com/google/snappy.git
+  GIT_TAG           8dd58a519f79f0742d4c68fbccb2aed2ddb651e8
+  CMAKE_ARGS        -DSNAPPY_BUILD_TESTS=OFF -DSNAPPY_BUILD_BENCHMARKS=OFF -DCMAKE_INSTALL_PREFIX=${CMAKE_BINARY_DIR}/deps -DCMAKE_CXX_FLAGS=-fPIC
+  INSTALL_DIR       "${CMAKE_BINARY_DIR}/deps"
+  TEST_COMMAND      ""
+)
 
+add_library(snappy_lib STATIC IMPORTED)
+set_target_properties(snappy_lib PROPERTIES IMPORTED_LOCATION ${CMAKE_BINARY_DIR}/deps/lib/libsnappy.a)
+
+add_dependencies(snappy_lib snappy)
 
 FIND_PACKAGE(OpenCV REQUIRED core imgproc imgcodecs video calib3d)
 
@@ -46,7 +73,8 @@ SET(CORE_SOURCE
     src/module.cpp
     src/type.cpp
     src/token.cpp
-    src/serialization.cpp
+    src/serialization/serialization.cpp
+    src/serialization/compression.cpp
     src/operation.cpp
     src/geometry.cpp
     src/image.cpp
@@ -54,10 +82,14 @@ SET(CORE_SOURCE
     src/list.cpp
 )
 
-INCLUDE_DIRECTORIES(${OpenCV_INCLUDE_DIRS} ${lodepng_SOURCE_DIR} include/)
+INCLUDE_DIRECTORIES(${OpenCV_INCLUDE_DIRS} ${lodepng_SOURCE_DIR}
+    ${xsimd_SOURCE_DIR}/include ${lodepng_SOURCE_DIR}/include
+    ${CMAKE_BINARY_DIR}/deps/include include/ )
+    
+LINK_DIRECTORIES(${CMAKE_BINARY_DIR}/deps/lib)
 
 ADD_LIBRARY(pixelpipes SHARED ${CORE_SOURCE})
-TARGET_LINK_LIBRARIES(pixelpipes ${CMAKE_DL_LIBS} lodepng)
+TARGET_LINK_LIBRARIES(pixelpipes ${CMAKE_DL_LIBS} lodepng snappy_lib)
 target_compile_definitions(pixelpipes PRIVATE PIXELPIPES_BUILD_CORE)
 
 ADD_LIBRARY(pixelpipes_geometry SHARED 

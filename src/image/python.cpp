@@ -553,8 +553,6 @@ py::object convert_point_tuple(cv::Point2f src) {
 
 namespace pixelpipes {
 
-PIXELPIPES_PYTHON_MODULE(pp_image_py);
-
 PIXELPIPES_PYTHON_REGISTER_ENUM("depth", ImageDepth);
 PIXELPIPES_PYTHON_REGISTER_ENUM("border", BorderStrategy);
 PIXELPIPES_PYTHON_REGISTER_ENUM("interpolation", Interpolation);

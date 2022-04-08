@@ -33,9 +33,9 @@ namespace pixelpipes
 
         ~PipelineWriter() = default;
 
-        void write(std::ostream &target);
+        void write(std::ostream &target, bool compress = true);
 
-        void write(std::string &target);
+        void write(std::string &target, bool compress = true);
 
         int append(std::string name, std::vector<SharedToken> args, std::vector<int> inputs);
 
@@ -53,6 +53,8 @@ namespace pixelpipes
 
         std::vector<SharedToken> tokens;
         std::vector<OperationData> operations;
+
+        void write_data(std::ostream &target);
     };
 
     class PipelineReader : public std::enable_shared_from_this<PipelineReader>
@@ -73,6 +75,8 @@ namespace pixelpipes
         typedef std::map<TypeIdentifier, ReaderData> ReaderMap;
 
         static ReaderMap &readers();
+
+        SharedPipeline read_data(std::istream &source);
     };
 
 #define PIXELPIPES_REGISTER_READER(T, F) static AddModuleInitializer CONCAT(__reader_init_, __COUNTER__)([]() { PipelineReader::register_reader(T, F); })

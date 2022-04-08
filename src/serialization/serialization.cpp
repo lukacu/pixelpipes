@@ -4,10 +4,13 @@
 #include <pixelpipes/serialization.hpp>
 #include <pixelpipes/geometry.hpp>
 
+#include "compression.hpp"
+
 namespace pixelpipes
 {
 
-    constexpr static std::string_view __stream_header = "@@PPRAW";
+    constexpr static std::string_view __stream_header_raw = "@@PPRAW";
+    constexpr static std::string_view __stream_header_compressed = "@@PPCMP";
 
     SerializationException::SerializationException(std::string reason) : BaseException(reason) {}
 
@@ -160,10 +163,28 @@ namespace pixelpipes
     {
     }
 
-    void PipelineWriter::write(std::ostream &target)
+    void PipelineWriter::write(std::ostream &target, bool compress)
     {
 
-        target << __stream_header;
+        if (compress)
+        {
+
+            target << __stream_header_compressed;
+
+            OutputCompressionStream cs(target);
+            write_data(cs);
+        }
+        else
+        {
+
+            target << __stream_header_raw;
+
+            write_data(target);
+        }
+    }
+
+    void PipelineWriter::write_data(std::ostream &target)
+    {
 
         // First, write the modules that have to be loaded
 
@@ -230,12 +251,12 @@ namespace pixelpipes
         }
     }
 
-    void PipelineWriter::write(std::string &target)
+    void PipelineWriter::write(std::string &target, bool compress)
     {
 
         std::fstream stream(target, std::fstream::out);
 
-        write(stream);
+        write(stream, compress);
 
         stream.close();
     }
@@ -271,7 +292,8 @@ namespace pixelpipes
                 used_types.insert(argtype);
 
                 // Also look for inner types of lists
-                if (List::is(arg)) {
+                if (List::is(arg))
+                {
 
                     SharedModule source = type_source(List::cast(arg)->element_type_id());
 
@@ -279,9 +301,7 @@ namespace pixelpipes
                         used_modules.insert(source);
 
                     used_types.insert(List::cast(arg)->element_type_id());
-
                 }
-
             }
 
             if (writers().find(argtype) != writers().end())
@@ -291,8 +311,6 @@ namespace pixelpipes
 
                 if (source)
                     used_modules.insert(source);
-
-
 
                 // TODO: this could be potentially optimized, remove redundancy
                 tokens.push_back(arg);
@@ -336,20 +354,43 @@ namespace pixelpipes
     {
     }
 
+    bool check_header(std::istream &source, std::string_view header)
+    {
+
+        char buffer[header.size()];
+
+        auto pos = source.tellg();
+
+        source.read(buffer, header.size());
+
+        for (size_t i = 0; i < header.size(); i++)
+        {
+            if (buffer[i] != header[i])
+            {
+                source.seekg(pos);
+                return false;
+            }
+        }
+
+        return true;
+    }
+
     SharedPipeline PipelineReader::read(std::istream &source)
     {
 
-        {
-            char buffer[__stream_header.size()];
-
-            source.read(buffer, __stream_header.size());
-
-            for (size_t i = 0; i < __stream_header.size(); i++) {
-                if (buffer[i] != __stream_header[i])
-                    throw SerializationException("Illegal stream");
-            }
-
+        if (check_header(source, __stream_header_compressed)) {
+            InputCompressionStream cs(source);
+            return read_data(cs);
+        } else if (check_header(source, __stream_header_raw)) {
+            return read_data(source);
+        } else {
+            throw SerializationException("Illegal stream");
         }
+
+    }
+
+    SharedPipeline PipelineReader::read_data(std::istream &source)
+    {
 
         // First, read the modules that have to be loaded and load them
 
@@ -487,7 +528,6 @@ namespace pixelpipes
         }
 
         DEBUGMSG("Registering reader for type %s (%ld) \n", type_name(identifier).data(), identifier);
-
 
         SharedModule source = Module::context();
 

@@ -9,11 +9,14 @@ SharedToken PointsCenter(std::vector<SharedToken> inputs) {
     VERIFY(List::is_list(inputs[0], Point2DType), "Not a point list");
 
     SharedList list = List::cast(inputs[0]);
-    cv::Point2f accumulator;
+    Point2D accumulator;
     for (size_t i = 0; i < list->size(); i++) {
-        accumulator += extract<cv::Point2f>(list->get(i));
+        auto p = extract<Point2D>(list->get(i));
+        accumulator.x += p.x;
+        accumulator.y += p.y;
     }
-    accumulator /= (float) list->size();
+    accumulator.x /= (float) list->size();
+    accumulator.y /= (float) list->size();
 
     return wrap(accumulator);
 
