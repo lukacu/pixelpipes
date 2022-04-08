@@ -190,7 +190,7 @@ REGISTER_OPERATION("center_view", CenterView);
 
 
 /**
- * @brief Returns a view that scales space in a way that to a bounding box
+ * @brief Returns a view that scales space in a way that to a given bounding box
  * 
  */
 class FocusView: public Operation {

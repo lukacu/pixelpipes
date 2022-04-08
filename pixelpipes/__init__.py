@@ -115,6 +115,7 @@ class Pipeline(object):
     def run(self, index):
         return self._pipeline.run(index)
 
+    @property
     def outputs(self):
         return self._pipeline.labels()
 
