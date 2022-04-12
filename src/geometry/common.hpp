@@ -3,6 +3,7 @@
 #include <pixelpipes/operation.hpp>
 #include <pixelpipes/geometry.hpp>
 
+
 #include <opencv2/core.hpp>
 
 namespace pixelpipes
@@ -68,7 +69,6 @@ namespace pixelpipes
 
         return wrap(convert);
     }
-
 
     template <>
     inline cv::Matx33f extract(const SharedToken v)

@@ -6,7 +6,7 @@
 ~*
 pp_*.py
 test_*.py
-build
+build*
 dist
 datasets
 img
@@ -19,3 +19,4 @@ dist
 temp
 .*
 *.code-workspace
+*.egg-info

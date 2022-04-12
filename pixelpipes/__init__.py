@@ -1,6 +1,5 @@
 from __future__ import absolute_import
-from importlib.util import module_from_spec
-from typing import Iterable, Mapping
+from typing import Iterable, List, Mapping
 
 import os
 
@@ -10,22 +9,36 @@ import os
 import logging
 from collections import namedtuple
 
-import pixelpipes.types as types
-
 _logger = logging.getLogger(__name__)
 
 modules_path = os.environ.get("PIXELPIPES_MODULES_PATH", "").split(os.pathsep)
 modules_path.insert(0, os.path.dirname(__file__))
 os.environ["PIXELPIPES_MODULES_PATH"] = os.pathsep.join(modules_path)
 
-def load_module(name):
+def load_module(name) -> bool:
     from . import pypixelpipes
+    _logger.debug("Loading module %s" % name)
     return pypixelpipes.load(name)
 
-def include_directories():
-    # TODO
-    root = os.path.dirname(__file__)
-    return [os.path.join(root, "core"), os.path.join(root, "geometry"), os.path.join(root, "image")]
+def include_dirs() -> List[str]:
+    """Returns a list of directories with C++ header files for pixelpipes core library. Useful when building pixelpipes modules.
+
+    Returns:
+        List[str]: List of directories
+    """
+    include_dir = os.path.join(os.path.dirname(__file__), "include")
+    if os.path.isdir(include_dir):
+        return [include_dir]
+    else:
+        return []
+
+def link_dirs() -> List[str]:
+    """Returns a list of directories where a pixelpipe library can be found. Useful when building pixelpipes modules.
+
+    Returns:
+        List[str]: List of directories
+    """
+    return [os.path.join(os.path.dirname(__file__))]
 
 class LazyLoadEnum(Mapping):
 

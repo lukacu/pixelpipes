@@ -8,11 +8,13 @@ INCLUDE(ExternalProject)
 
 SET(PROJECT_VERSION 0.1.0)
 
+
 SET(EXECUTABLE_OUTPUT_PATH ${CMAKE_CURRENT_BINARY_DIR})
 SET(LIBRARY_OUTPUT_PATH ${CMAKE_CURRENT_BINARY_DIR})
 SET(CMAKE_CXX_STANDARD 17)
 
 option(BUILD_INPLACE "Build to source directory" OFF)
+option(BUILD_PYTHON "Build the Python wrapper" ON)
 option(BUILD_DEBUG "Enable debug output" OFF)
 
 set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -Wl,--no-undefined" )
@@ -60,7 +62,7 @@ ExternalProject_Add(snappy
 )
 
 add_library(snappy_lib STATIC IMPORTED)
-set_target_properties(snappy_lib PROPERTIES IMPORTED_LOCATION ${CMAKE_BINARY_DIR}/deps/lib/libsnappy.a)
+set_target_properties(snappy_lib PROPERTIES IMPORTED_LOCATION ${CMAKE_BINARY_DIR}/deps/${CMAKE_INSTALL_LIBDIR}/libsnappy.a)
 
 add_dependencies(snappy_lib snappy)
 
@@ -117,25 +119,30 @@ INCLUDE(CMakePackageConfigHelpers)
 
 # https://martinopilia.com/posts/2018/09/15/building-python-extension.html
 
-find_package (Python COMPONENTS Interpreter Development NumPy)
+IF(BUILD_PYTHON)
 
+  find_package (pybind11)
 
-INCLUDE_DIRECTORIES(${Python_INCLUDE_DIRS} ${Python_NumPy_INCLUDE_DIRS})
+  find_package (Python COMPONENTS Interpreter Development NumPy)
 
-ADD_LIBRARY(pypixelpipes SHARED 
-    src/python/wrapper.cpp
-    src/python/image.cpp 
-)
+  INCLUDE_DIRECTORIES(${Python_INCLUDE_DIRS} ${Python_NumPy_INCLUDE_DIRS} ${pybind11_INCLUDE_DIRS})
 
-TARGET_LINK_LIBRARIES(pypixelpipes pixelpipes ${Python_LIBRARIES})
+  ADD_LIBRARY(pypixelpipes SHARED 
+      src/python/wrapper.cpp
+      src/python/image.cpp 
+  )
 
-set_target_properties(
-    pypixelpipes
-    PROPERTIES
-        PREFIX ""
-        OUTPUT_NAME "pypixelpipes"
-        LINKER_LANGUAGE C
-    )
+  TARGET_LINK_LIBRARIES(pypixelpipes pixelpipes ${Python_LIBRARIES})
+
+  set_target_properties(
+      pypixelpipes
+      PROPERTIES
+          PREFIX ""
+          OUTPUT_NAME "pypixelpipes"
+          LINKER_LANGUAGE C
+      )
+
+ENDIF()
 
 IF (BUILD_INPLACE)
 

@@ -1,37 +1,80 @@
+from distutils.command.build import build
 import sys
 import os
-import glob
 import setuptools
-from typing import Callable
+import distutils.log
+import distutils.file_util as file_util
 
-from setuptools_dso import DSO, Extension, setup, build_ext
+from setuptools import Extension, setup
+from setuptools.command import build_py
 
 __version__ = '0.0.3'
 
 platform = os.getenv("PYTHON_PLATFORM", sys.platform)
 
+class BuildPyCommand(build_py.build_py):
+  """Custom build command."""
+
+  def run(self):
+    self.run_command('cmake_build')
+    build_py.build_py.run(self)
+
+class CMakeBuildCommand(build_py.build_py):
+
+  description = 'Build CMake libraries'
+  user_options = []
+
+  def run(self):
+    import subprocess
+    import glob
+    import os
+    """Run command."""
+    if self.dry_run:
+        return
+
+    build_dir = os.environ.get("BUILD_ROOT", os.path.join(root, 'build'))
+    target_dir = os.path.join(self.build_lib, 'pixelpipes')
+    self.mkpath(target_dir)
+    self.mkpath(build_dir)
+
+    env = dict(**os.environ)
+
+    command = ['cmake', '-DBUILD_PYTHON=OFF', '-DBUILD_INPLACE=OFF', root]
+    self.announce(
+        'Running command: %s' % str(command),
+        level=distutils.log.INFO)
+    subprocess.check_call(command, cwd=build_dir, env=env)
+    self.announce("Done", level=distutils.log.INFO)
+
+    command = ['cmake', '--build', build_dir, '-j']
+    self.announce(
+        'Running command: %s' % str(command),
+        level=distutils.log.INFO)
+    subprocess.check_call(command, env=env)
+    self.announce("Done", level=distutils.log.INFO)
+
+    # copy binaries generated with cmake to the package
+    for file in glob.glob(os.path.join(build_dir, "libpixelpipes*.*")):
+        if os.path.isfile(file):
+            file_util.copy_file(file, os.path.join(target_dir, os.path.basename(file)), update=True, verbose=True)
+
+    # copy C++ headers to the
+    header_dir =  os.path.join(target_dir, "include", "pixelpipes")
+    self.mkpath(header_dir)
+    for file in glob.glob(os.path.join(os.path.join(root, "include", "pixelpipes"), "*.hpp")):
+        file_util.copy_file(file, os.path.join(header_dir, os.path.basename(file)), update=True, verbose=True)
+
+
 root = os.path.abspath(os.path.dirname(__file__))
 
-if platform.startswith('linux'):
-    library_prefix = 'lib'
-    library_suffix = '.so'
-elif platform in ['darwin']:
-    library_prefix = 'lib'
-    library_suffix = '.dylib'
-elif platform.startswith('win'):
-    library_prefix = ''
-    library_suffix = '.dll'
-
-include_dirs=[
-    os.path.join(root, "pixelpipes", "core"),
-    os.path.join(root, "pixelpipes", "geometry"),
-    os.path.join(root, "pixelpipes", "image")
-]
+include_dirs = []
 library_dirs = []
 runtime_dirs = []
 
 import pybind11
 include_dirs.append(pybind11.get_include())
+
+print(include_dirs)
 
 import numpy
 include_dirs.append(numpy.get_include())
@@ -41,12 +84,7 @@ include_dirs.append(numpy.get_include())
 #torch_path = os.path.dirname(os.path.dirname(os.path.abspath(torch_extension.__file__)))
 #library_dirs.append(os.path.join(torch_path, 'lib'))
 
-if platform.startswith('win'):
-    #opencv_version = "420"
-    opencv_version = "310"
-    libraries = ["opencv_world{}".format(opencv_version)]
-else:
-    libraries = ["opencv_imgcodecs", "opencv_core", "opencv_imgproc"]
+libraries = ["pixelpipes"]
     
 define_macros = []
 
@@ -58,96 +96,23 @@ if "PIXELPIPES_DEBUG" in os.environ:
 
 compiler_args = ['-std=c++17', '-pthread']
 
-if "CONDA_PREFIX" in os.environ:
-    conda_path = os.environ["CONDA_PREFIX"]
-    library_dirs.append(os.path.join(conda_path, "lib"))
-    include_dirs.append(os.path.join(conda_path, "include"))
-    include_dirs.append(os.path.join(conda_path, "include", "opencv4"))
-    if not platform.startswith('win'):
-        runtime_dirs.append(os.path.join(conda_path, "lib"))
-else:
-    include_dirs.append(os.path.join("/usr", "include", "opencv4"))
-
-include_dirs.append(os.path.join(os.path.dirname(__file__), "include"))
+include_dirs.append(os.path.join(root, "include"))
+library_dirs.append(os.path.join(root, "pixelpipes")) # inplace build
 
 class SharedLibrary(Extension): 
     pass
 
-lib_core = DSO('pixelpipes.pixelpipes', sources= [
-        "src/queue.cpp",
-        "src/random.cpp",
-        "src/module.cpp",
-        "src/operation.cpp",
-        "src/type.cpp",
-        "src/token.cpp",
-    "src/serialization.cpp",
-    "src/geometry.cpp",
-    "src/image.cpp",
-        "src/pipeline.cpp",
-        "src/numbers.cpp",
-        "src/list.cpp",
-        ],
-    extra_compile_args=compiler_args,
-    define_macros=define_macros + [("PIXELPIPES_BUILD_CORE", None)],
-    include_dirs=include_dirs,
-    library_dirs=library_dirs,
-    runtime_library_dirs = runtime_dirs,
-    libraries=list(libraries) + ["dl"],
-    language='c++'
-)
-
-lib_goemetry = DSO('pixelpipes.pixelpipes_geometry', sources= [
-        "src/geometry/common.cpp",
-        "src/geometry/view.cpp",
-        "src/geometry/points.cpp",
-        ],
-    extra_compile_args=compiler_args,
-    define_macros=define_macros,
-    include_dirs=include_dirs,
-    library_dirs=library_dirs,
-    runtime_library_dirs = runtime_dirs,
-    libraries=list(libraries),
-    dsos=['pixelpipes.pixelpipes'],
-    language='c++'
-)
-
-lib_image = DSO('pixelpipes.pixelpipes_image', sources= [
-        "src/image/common.cpp",
-        "src/image/arithmetic.cpp",
-        "src/image/render.cpp",
-        "src/image/geometry.cpp",
-        "src/image/filter.cpp",
-        "src/image/processing.cpp",
-        ],
-    extra_compile_args=compiler_args,
-    define_macros=define_macros,
-    include_dirs=include_dirs,
-    library_dirs=library_dirs,
-    runtime_library_dirs = runtime_dirs,
-    libraries=list(libraries),
-    dsos=['pixelpipes.pixelpipes'],
-    language='c++'
-)     
-
-lib_modules = [
-    lib_core,
-    lib_goemetry,
-    lib_image
-]
-
 ext_core = Extension(
         'pixelpipes.pypixelpipes',
-        ["src/python/wrapper.cpp"],
+        ["src/python/wrapper.cpp", "src/python/image.cpp"],
         extra_compile_args=['-std=c++17'],
         define_macros=define_macros,
         include_dirs=include_dirs,
         library_dirs=library_dirs,
         runtime_library_dirs = runtime_dirs,
         libraries=list(libraries),
-        dsos=['pixelpipes.pixelpipes'],
         language='c++'
     )
-
 
 # Sort input source files to ensure bit-for-bit reproducible builds
 # (https://github.com/pybind/python_example/pull/53)
@@ -164,12 +129,11 @@ setup(
     description='Infinite data streams for deep learning',
     long_description='',
     ext_modules=ext_modules,
-    x_dsos=lib_modules,
     packages=setuptools.find_packages(),
     include_package_data=True,
-    setup_requires=["pybind11>=2.5.0", "numpy>=1.20"],
+    setup_requires=["pybind11>=2.5.0", "numpy>=1.19"],
     install_requires=[
-        "numpy>=1.20",
+        "numpy>=1.19",
         "bidict>=0.21",
         "intbitset>=2.4",
         "attributee>=0.1.7"
@@ -179,4 +143,8 @@ setup(
     },
     python_requires='>=3.6',
     zip_safe=False,
+    cmdclass={
+        'cmake_build': CMakeBuildCommand,
+        'build_py': BuildPyCommand,
+    },
 )
