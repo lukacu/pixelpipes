@@ -3,9 +3,7 @@
 #include <pixelpipes/operation.hpp>
 #include <pixelpipes/geometry.hpp>
 
-
 #include <opencv2/core.hpp>
-
 namespace pixelpipes
 {
 

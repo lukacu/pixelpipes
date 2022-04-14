@@ -16,6 +16,7 @@ SET(CMAKE_CXX_STANDARD 17)
 option(BUILD_INPLACE "Build to source directory" OFF)
 option(BUILD_PYTHON "Build the Python wrapper" ON)
 option(BUILD_DEBUG "Enable debug output" OFF)
+option(BUILD_TEST "Enable test snippets" OFF)
 
 set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -Wl,--no-undefined" )
 
@@ -33,22 +34,7 @@ FetchContent_Declare(lodepng
   GIT_TAG        5601b8272a6850b7c5d693dd0c0e16da50be8d8d
 )
 
-FetchContent_Declare(xtl
-  GIT_REPOSITORY https://github.com/xtensor-stack/xtl
-  GIT_TAG        e697c91e2a3ac571d120d2b093fb3b250d060a7d
-)
-
-FetchContent_Declare(xtensor
-  GIT_REPOSITORY https://github.com/xtensor-stack/xtensor
-  GIT_TAG        004370c79716a2d7b3cf9d04af947363d813a29f
-)
-
-FetchContent_Declare(xsimd
-  GIT_REPOSITORY https://github.com/xtensor-stack/xsimd
-  GIT_TAG        dbba514a7e918b4147396ae4d84ba349f5d9e893
-)
-
-FetchContent_MakeAvailable(lodepng xtl xtensor xsimd)
+FetchContent_MakeAvailable(lodepng)
 
 ADD_LIBRARY(lodepng STATIC ${lodepng_SOURCE_DIR}/lodepng.cpp)
 
@@ -152,4 +138,9 @@ IF (BUILD_INPLACE)
         RUNTIME_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/pixelpipes"
     )
 
+ENDIF()
+
+IF (BUILD_TEST)
+    ADD_EXECUTABLE(test_compression src/serialization/test.cpp src/serialization/compression.cpp)
+    TARGET_LINK_LIBRARIES(test_compression snappy_lib)
 ENDIF()
