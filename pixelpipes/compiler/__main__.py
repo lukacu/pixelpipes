@@ -14,6 +14,7 @@ class Compiler(Attributee, Entrypoint):
     graph = Callable()
     debug = Boolean(default=False)
     predictive = Boolean(default=True)
+    compress = Boolean(default=True)
     fixedout = Boolean(default=False)
     output = String(default=None)
     save = String(default="pipeline.pxpt")
@@ -29,7 +30,7 @@ class Compiler(Attributee, Entrypoint):
 
             print("Compiled pipeline of %d operations, writing to %s" % (len(operations), self.save))
 
-            write_pipeline(self.save, operations)
+            write_pipeline(self.save, operations, self.compress)
 
             print("Done.")
 

@@ -73,7 +73,7 @@ ArithmeticOperations = LazyLoadEnum("arithmetic")
 
 PipelineOperation = namedtuple("PipelineOperation", ["id", "name", "arguments", "inputs"])
 
-def write_pipeline(filename: str, operations: Iterable[PipelineOperation]):
+def write_pipeline(filename: str, operations: Iterable[PipelineOperation], compress : bool = True):
         from . import pypixelpipes
 
         writer = pypixelpipes.PipelineWriter()
@@ -84,7 +84,7 @@ def write_pipeline(filename: str, operations: Iterable[PipelineOperation]):
             indices[op.id] = writer.append(op.name, op.arguments, input_indices)
             assert indices[op.id] >= 0
 
-        writer.write(filename)
+        writer.write(filename, compress)
 
 def read_pipeline(filename: str):
     from . import pypixelpipes
