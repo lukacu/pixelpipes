@@ -11,10 +11,11 @@ int main(int argc, char* argv[]) {
     bool compress = true;
 
     if (argc == 1) {
-        string arg(argv[1]);
+        string arg(argv[0]);
 
         if (arg == string("decompress")) {
             compress = false;
+            cerr << arg << endl;
         }
     }
 

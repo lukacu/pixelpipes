@@ -405,13 +405,12 @@ int OutputCompressionBuffer::sync()
 
 	uint32_t crc32c = write_cksums_ ? crc32c_masked(in_buffer_, uncompressed_len) : 0;
 
-
 	char* compressed = new char[snappy::MaxCompressedLength(uncompressed_len)];
 	size_t compressed_len_sz;
 	snappy::RawCompress(in_buffer_, uncompressed_len, compressed, &compressed_len_sz);
 
-	// use uncompressed input if less than 12.5% compression
-	if (compressed_len_sz >= (uncompressed_len - (uncompressed_len / 8))) {
+	// use uncompressed input if less than 1.25% compression
+	if (compressed_len_sz >= (uncompressed_len - (uncompressed_len / 80))) {
 		delete [] compressed;
 		return writeBlock(in_buffer_, uncompressed_len, uncompressed_len, false, crc32c);
 	}
@@ -453,4 +452,4 @@ OutputCompressionStream::OutputCompressionStream(std::ostream& out, unsigned chu
 {
 }
 
-} // namespace snappy
+} 

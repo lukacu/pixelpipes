@@ -45,7 +45,9 @@ inline SharedToken wrap(const DNF v) {
     return std::make_shared<ContainerToken<DNF>>(v);
 }
 
-class Pipeline: public std::enable_shared_from_this<Pipeline>, public OperationObserver {
+typedef std::pair<SharedOperation, std::vector<int> > OperationData;
+
+class Pipeline: public std::enable_shared_from_this<Pipeline> {
 public:
 
     Pipeline();
@@ -73,7 +75,7 @@ protected:
 
     std::vector<SharedToken> cache;
 
-    std::vector<std::pair<SharedOperation, std::vector<int> > > operations;
+    std::vector<OperationData> operations;
 
     std::vector<OperationStats> stats;
 

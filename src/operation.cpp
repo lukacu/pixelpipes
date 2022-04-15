@@ -4,13 +4,9 @@
 
 namespace pixelpipes {
 
-TypeIdentifier OperationObserver::get_type(const SharedOperation& operation) const { 
-    return operation->op_type();
-}
-
 Operation::Operation() {};
 
-TypeIdentifier Operation::op_type() {
+TypeIdentifier Operation::type() {
     return AnyType;
 }
 

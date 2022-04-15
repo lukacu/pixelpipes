@@ -33,25 +33,19 @@ class Operation;
 
 typedef std::shared_ptr<Operation> SharedOperation;
 
-class OperationObserver {
-protected:
-    TypeIdentifier get_type(const SharedOperation& operation) const;
-
-};
-
 class Operation: public std::enable_shared_from_this<Operation> {
-friend OperationObserver;
 public:
     
     ~Operation() = default;
 
     virtual SharedToken run(std::vector<SharedToken> inputs) = 0;
 
+    virtual TypeIdentifier type();
+
 protected:
 
     Operation();
 
-    virtual TypeIdentifier op_type();
 };
 
 typedef std::default_random_engine RandomGenerator;
@@ -174,13 +168,17 @@ public:
 
     }
     
+    virtual TypeIdentifier type() {
+        return GetTypeIdentifier<OperationWrapper<Fn, fn, Base, Args...>>();
+    }
+
+    template<typename T> bool is() {
+        return type() == GetTypeIdentifier<T>();
+    }
+
 protected:
 
     std::tuple<Args...> args;
-
-    virtual TypeIdentifier op_type() {
-        return GetTypeIdentifier<OperationWrapper<Fn, fn, Base, Args...>>();
-    }
 
 };
 

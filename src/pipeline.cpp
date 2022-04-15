@@ -82,8 +82,7 @@ namespace pixelpipes
             return name;
         }
 
-    protected:
-        virtual TypeIdentifier op_type()
+        virtual TypeIdentifier type()
         {
             return GetTypeIdentifier<Output>();
         }
@@ -114,13 +113,14 @@ namespace pixelpipes
             return make_shared<Integer>(offset);
         }
 
-    protected:
-        int offset;
-
-        virtual TypeIdentifier op_type()
+        virtual TypeIdentifier type()
         {
             return GetTypeIdentifier<Jump>();
         };
+
+    protected:
+        int offset;
+
     };
 
     REGISTER_OPERATION("_jump", Jump, int);
@@ -133,6 +133,11 @@ namespace pixelpipes
         virtual SharedToken run(std::vector<SharedToken> inputs)
         {
             return value;
+        }
+
+        virtual TypeIdentifier type()
+        {
+            return GetTypeIdentifier<Constant>();
         }
 
     private:
@@ -185,6 +190,11 @@ namespace pixelpipes
             return make_shared<Integer>(offset);
         }
 
+        virtual TypeIdentifier type()
+        {
+            return GetTypeIdentifier<ConditionalJump>();
+        }
+
     private:
         DNF condition;
     };
@@ -230,6 +240,12 @@ namespace pixelpipes
             return inputs[1];
         }
 
+        virtual TypeIdentifier type()
+        {
+            return GetTypeIdentifier<Conditional>();
+        }
+
+
     private:
         DNF condition;
     };
@@ -250,13 +266,14 @@ namespace pixelpipes
             return query;
         }
 
-    protected:
-        ContextData query;
-
-        virtual TypeIdentifier op_type()
+        virtual TypeIdentifier type()
         {
             return GetTypeIdentifier<ContextQuery>();
         }
+
+    protected:
+        ContextData query;
+
     };
 
     REGISTER_OPERATION("_context", ContextQuery, ContextData);
@@ -319,14 +336,14 @@ namespace pixelpipes
             if (i >= (int)operations.size() || i < 0)
                 throw PipelineException("Operation index out of bounds", shared_from_this(), -1);
 
-            if (get_type(operations[i].first) == GetTypeIdentifier<Output>()) {
+            if ((operations[i].first->type()) == GetTypeIdentifier<Output>()) {
                 throw PipelineException("Cannot refer to output operation", shared_from_this(), -1);
             }
         }
 
         operations.push_back(pair<SharedOperation, std::vector<int>>(operation, inputs));
 
-        if (get_type(operations.back().first) == GetTypeIdentifier<Output>()) {
+        if ((operations.back().first->type()) == GetTypeIdentifier<Output>()) {
             auto output = std::static_pointer_cast<Output>(operations.back().first);
             for (size_t i = 0; i < inputs.size(); i++)
                 labels.push_back(output->get_label());
@@ -367,7 +384,7 @@ namespace pixelpipes
             if (cache[i])
             {
                 context[i] = cache[i];
-                if (get_type(operations[i].first) == GetTypeIdentifier<Output>())
+                if ((operations[i].first->type()) == GetTypeIdentifier<Output>())
                 {
                     result.push_back(cache[i]);
                 }
@@ -393,7 +410,7 @@ namespace pixelpipes
                 stats[i].count++;
                 stats[i].elapsed += duration_cast<microseconds>(operation_end - operation_start).count();
 
-                if (get_type(operations[i].first) == GetTypeIdentifier<ContextQuery>())
+                if ((operations[i].first->type()) == GetTypeIdentifier<ContextQuery>())
                 {
                     switch (std::static_pointer_cast<ContextQuery>(operations[i].first)->get_query())
                     {
@@ -424,7 +441,7 @@ namespace pixelpipes
                     throw OperationException("Operation output undefined", operations[i].first);
                 }
 
-                if (get_type(operations[i].first) == GetTypeIdentifier<Output>())
+                if ((operations[i].first)->type() == GetTypeIdentifier<Output>())
                 {
                     for (auto x : std::static_pointer_cast<OutputList>(output)->get())
                     {
@@ -432,7 +449,7 @@ namespace pixelpipes
                     }
                 }
 
-                if (get_type(operations[i].first) == GetTypeIdentifier<Jump>())
+                if ((operations[i].first)->type() == GetTypeIdentifier<Jump>())
                 {
                     size_t jump = (size_t)Integer::get_value(context[i]);
 
