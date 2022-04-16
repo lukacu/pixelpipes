@@ -8,10 +8,12 @@
 #include <string>
 
 #include <snappy.h>
+#include <zlib-ng.h>
 
 #include "compression.hpp"
-
 #include "crc32c.hpp"
+
+#include "../debug.h"
 
 #define CURRENT_BYTE_ORDER       (*(int *)"\x01\x02\x03\x04")
 #define LITTLE_ENDIAN_BYTE_ORDER 0x04030201
@@ -31,7 +33,6 @@ template<typename T>
 struct BigEndian;
 
 // Little-Endian template
-
 #pragma pack(push,1)
 template<typename T>
 struct LittleEndian
@@ -264,14 +265,6 @@ struct BigEndian
 };
 #pragma pack(pop)
 
-typedef LittleEndian<uint8_t>  u8le;
-typedef LittleEndian<uint16_t> u16le;
-typedef LittleEndian<uint32_t> u32le;
-
-typedef BigEndian<uint8_t>  u8be;
-typedef BigEndian<uint16_t> u16be;
-typedef BigEndian<uint32_t> u32be;
-
 namespace pixelpipes {
 /*
 const char Config::magic[] = {'s', 'n', 'a', 'p', 'p', 'y', 0};
@@ -293,11 +286,17 @@ InputCompressionBuffer::int_type InputCompressionBuffer::underflow()
 	char header[7];
 	if (src_->sgetn(header, 7) != 7)
 		return EOF;
+std::cout << std::endl << "aaa "  << std::hex;
+
+    for (int i = 0; i < 7; i++) {
+        std::cout << (short) header[i] << "  ";
+    }
+ std::cout << std::dec << std::endl;
 
 	bool compressed = true;
 	if(header[0] == 0)
 		compressed = false;
-	BigEndian<uint16_t> len(&header[1], 2);
+	LittleEndian<uint16_t> len(&header[1], 2);
 	uint32_t cksum = *reinterpret_cast<uint32_t*>(&header[3]);
 
 	if (!len)
@@ -309,30 +308,48 @@ InputCompressionBuffer::int_type InputCompressionBuffer::underflow()
 	if (len > in_buffer_.size())
 		in_buffer_.resize(len);
 
-	int rs;
-	if (src_->sgetn(reinterpret_cast<char*>(&in_buffer_[0]), len) != len)
+    //DEBUGMSG("Reading chunk %ld b \n", len + 0);
+
+	int rs = src_->sgetn(reinterpret_cast<char*>(&in_buffer_[0]), len);
+    //    DEBUGMSG("Reading chunk %ld %s b \n", len + 0, rs);
+
+	if (rs != len)
 		return EOF;
 
 	size_t uncompressed_len = len;
 	if(compressed)
 	{
-		if (!snappy::GetUncompressedLength(&in_buffer_[0], len, &uncompressed_len)
+		/*if (!snappy::GetUncompressedLength(&in_buffer_[0], len, &uncompressed_len)
 			|| !uncompressed_len)
-			return EOF;
+			return EOF;*/
+
+        uncompressed_len = DEFAULT_CHUNK_SIZE;
 	}
 	out_buffer_.resize(uncompressed_len);
 	if(compressed)
 	{
-		if (!snappy::RawUncompress(&in_buffer_[0], len, &out_buffer_[0]))
-			return EOF;
+
+        if (!zng_uncompress((uint8_t *) &out_buffer_[0], &uncompressed_len, (uint8_t *) &in_buffer_[0], len) != Z_OK) {
+            return EOF;
+        }
+
+    //    DEBUGMSG("Reading compressed chunk %ld b -> %ld b \n", len, uncompressed_len);
+
+		//if (!snappy::RawUncompress(&in_buffer_[0], len, &out_buffer_[0]))
+		//	return EOF;
 	}
 	else
 	{
 		memcpy(&out_buffer_[0], &in_buffer_[0], uncompressed_len);
+    //    DEBUGMSG("Reading raw chunk %ld b \n", uncompressed_len);
+
 	}
 
-	this->setg(&out_buffer_[0], &out_buffer_[0],
-			   &out_buffer_[0] + out_buffer_.size());
+	/*this->setg(&out_buffer_[0], &out_buffer_[0],
+			   &out_buffer_[0] + out_buffer_.size()); */
+
+    this->setg(&out_buffer_[0], &out_buffer_[0],
+			   &out_buffer_[0] +uncompressed_len); 
 	return traits_type::to_int_type(*(this->gptr()));
 }
 
@@ -348,13 +365,6 @@ InputCompressionStream::InputCompressionStream(std::istream& in)
 {
 }
 
-/**@class OutputCompressionBuffer
- * @brief Snappy compressed output streambuf.
- *
- * Usage:
- * @example example.cpp*/
-
-/**@brief Construct compressed streambuf, based on other streambuf*/
 OutputCompressionBuffer::OutputCompressionBuffer(std::streambuf* dest, size_t chunksize)
 	: dest_(dest)
 	, write_cksums_(true)
@@ -405,9 +415,20 @@ int OutputCompressionBuffer::sync()
 
 	uint32_t crc32c = write_cksums_ ? crc32c_masked(in_buffer_, uncompressed_len) : 0;
 
+
+    size_t compressed_len_sz = zng_compressBound(uncompressed_len);
+    char* compressed = new char[compressed_len_sz];
+    if (zng_compress( (uint8_t *) compressed, &compressed_len_sz, (uint8_t *) in_buffer_, uncompressed_len) != Z_OK) {
+        // error
+    }
+
+    DEBUGMSG("Writing chunk %ld b -> %ld b \n", uncompressed_len, compressed_len_sz);
+
+    /*
 	char* compressed = new char[snappy::MaxCompressedLength(uncompressed_len)];
 	size_t compressed_len_sz;
 	snappy::RawCompress(in_buffer_, uncompressed_len, compressed, &compressed_len_sz);
+    */
 
 	// use uncompressed input if less than 1.25% compression
 	if (compressed_len_sz >= (uncompressed_len - (uncompressed_len / 80))) {

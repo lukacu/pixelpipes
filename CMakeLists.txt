@@ -38,6 +38,17 @@ FetchContent_MakeAvailable(lodepng)
 
 ADD_LIBRARY(lodepng STATIC ${lodepng_SOURCE_DIR}/lodepng.cpp)
 
+
+ExternalProject_Add(zlib
+  PREFIX zlib
+  GIT_REPOSITORY    https://github.com/zlib-ng/zlib-ng
+  GIT_TAG           c882034d48afc0b32a38e8f7ca63a2e4e91ab42d
+  CMAKE_ARGS        -DCMAKE_INSTALL_PREFIX=${CMAKE_BINARY_DIR}/deps -DCMAKE_C_FLAGS=-fPIC
+  INSTALL_DIR       "${CMAKE_BINARY_DIR}/deps"
+  TEST_COMMAND      ""
+)
+
+
 ExternalProject_Add(snappy
   PREFIX snappy
   GIT_REPOSITORY    https://github.com/google/snappy.git
@@ -50,7 +61,11 @@ ExternalProject_Add(snappy
 add_library(snappy_lib STATIC IMPORTED)
 set_target_properties(snappy_lib PROPERTIES IMPORTED_LOCATION ${CMAKE_BINARY_DIR}/deps/${CMAKE_INSTALL_LIBDIR}/libsnappy.a)
 
+add_library(zlib_lib STATIC IMPORTED)
+set_target_properties(zlib_lib PROPERTIES IMPORTED_LOCATION ${CMAKE_BINARY_DIR}/deps/${CMAKE_INSTALL_LIBDIR}/libz-ng.a)
+
 add_dependencies(snappy_lib snappy)
+add_dependencies(zlib_lib zlib)
 
 FIND_PACKAGE(OpenCV REQUIRED core imgproc imgcodecs video calib3d)
 
@@ -77,7 +92,7 @@ INCLUDE_DIRECTORIES(${OpenCV_INCLUDE_DIRS} ${lodepng_SOURCE_DIR}
 LINK_DIRECTORIES(${CMAKE_BINARY_DIR}/deps/lib)
 
 ADD_LIBRARY(pixelpipes SHARED ${CORE_SOURCE})
-TARGET_LINK_LIBRARIES(pixelpipes ${CMAKE_DL_LIBS} lodepng snappy_lib)
+TARGET_LINK_LIBRARIES(pixelpipes ${CMAKE_DL_LIBS} lodepng snappy_lib zlib_lib)
 target_compile_definitions(pixelpipes PRIVATE PIXELPIPES_BUILD_CORE)
 
 ADD_LIBRARY(pixelpipes_geometry SHARED 
@@ -142,5 +157,5 @@ ENDIF()
 
 IF (BUILD_TEST)
     ADD_EXECUTABLE(test_compression src/serialization/test.cpp src/serialization/compression.cpp)
-    TARGET_LINK_LIBRARIES(test_compression snappy_lib)
+    TARGET_LINK_LIBRARIES(test_compression snappy_lib zlib_lib)
 ENDIF()

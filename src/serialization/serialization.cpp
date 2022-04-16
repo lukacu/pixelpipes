@@ -6,6 +6,8 @@
 
 #include "compression.hpp"
 
+#include "../debug.h"
+
 namespace pixelpipes
 {
 
@@ -379,9 +381,11 @@ namespace pixelpipes
     {
 
         if (check_header(source, __stream_header_compressed)) {
+            DEBUGMSG("Compressed stream\n");
             InputCompressionStream cs(source);
             return read_data(cs);
         } else if (check_header(source, __stream_header_raw)) {
+            DEBUGMSG("Raw stream\n");
             return read_data(source);
         } else {
             throw SerializationException("Illegal stream");
@@ -400,6 +404,7 @@ namespace pixelpipes
             for (size_t i = 0; i < module_count; i++)
             {
                 std::string module_name = read_t<std::string>(source);
+                DEBUGMSG("Required module %s \n", module_name.c_str());
                 Module::load(module_name);
             }
         }

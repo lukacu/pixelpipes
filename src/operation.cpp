@@ -2,6 +2,8 @@
 #include <pixelpipes/operation.hpp>
 #include <pixelpipes/module.hpp>
 
+#include "debug.h"
+
 namespace pixelpipes {
 
 Operation::Operation() {};

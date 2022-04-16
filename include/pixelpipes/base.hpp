@@ -1,9 +1,9 @@
 
 #pragma once
 
-#include <cstdio>
 #include <sstream>
 #include <type_traits>
+#include <vector>
 
 #ifdef _WIN32
 #ifdef PIXELPIPES_BUILD_CORE
@@ -26,22 +26,6 @@ const std::string os_pathsep(";");
 #else
 const std::string os_pathsep(":");
 #endif
-
-#ifdef PIXELPIPES_DEBUG
-#define DEBUGMSG(...)        \
-    {                        \
-        std::printf(__VA_ARGS__); \
-    }
-#else
-#define DEBUGMSG(...) \
-    {                 \
-    }
-#endif
-
-#define PRINTMSG(...)        \
-    {                        \
-        std::printf(__VA_ARGS__); \
-    }
 
 #define _STRINGIFY_IMPL(X) #X
 #define STRINGIFY(X) _STRINGIFY_IMPL(X)

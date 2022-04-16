@@ -2,6 +2,8 @@
 
 #include <pixelpipes/type.hpp>
 
+#include "debug.h"
+
 namespace pixelpipes
 {
 

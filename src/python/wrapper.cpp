@@ -12,6 +12,9 @@
 #include <pixelpipes/image.hpp>
 #include <pixelpipes/python.hpp>
 
+#include "../debug.h"
+
+
 namespace py = pybind11;
 
 using namespace pixelpipes;

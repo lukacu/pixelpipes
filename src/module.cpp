@@ -16,6 +16,8 @@
 #include <dlfcn.h>
 #endif
 
+#include "debug.h"
+
 using namespace std::filesystem;
 
 namespace pixelpipes

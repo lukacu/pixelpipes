@@ -122,16 +122,17 @@ namespace pixelpipes
     template <>
     inline std::string read_t(std::istream &source)
     {
+        size_t len;
         try
         {
-            size_t len = read_t<size_t>(source);
+            len = read_t<size_t>(source);
             std::string res(len, ' ');
             source.read(&res[0], len);
             return res;
         }
         catch (std::bad_alloc &exception)
         {
-            throw SerializationException("Unable to allocate a string");
+            throw SerializationException(Formatter() << "Unable to allocate a string of length " << len);
         }
     };
 
