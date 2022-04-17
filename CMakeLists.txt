@@ -7,10 +7,6 @@ INCLUDE(FetchContent)
 INCLUDE(ExternalProject)
 
 SET(PROJECT_VERSION 0.1.0)
-
-
-SET(EXECUTABLE_OUTPUT_PATH ${CMAKE_CURRENT_BINARY_DIR})
-SET(LIBRARY_OUTPUT_PATH ${CMAKE_CURRENT_BINARY_DIR})
 SET(CMAKE_CXX_STANDARD 17)
 
 option(BUILD_INPLACE "Build to source directory" OFF)
@@ -21,13 +17,29 @@ option(BUILD_TEST "Enable test snippets" OFF)
 set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -Wl,--no-undefined" )
 
 FIND_PACKAGE(Threads REQUIRED)
-
 LINK_LIBRARIES(Threads::Threads)
 
 if(BUILD_DEBUG)
     add_definitions(-DPIXELPIPES_DEBUG)
     add_definitions(-DPIXELPIPES_SOURCE_COMPILE_ROOT="${CMAKE_CURRENT_SOURCE_DIR}/src/")
 endif()
+
+IF (NOT CMAKE_CXX_BYTE_ORDER)
+    SET(BIG_ENDIAN 1)
+    SET(LITTLE_ENDIAN 1)
+    include (TestBigEndian)
+    TEST_BIG_ENDIAN(IS_BIG_ENDIAN)
+    if(IS_BIG_ENDIAN)
+    SET(CMAKE_CXX_BYTE_ORDER BIG_ENDIAN)
+    else()
+    SET(CMAKE_CXX_BYTE_ORDER LITTLE_ENDIAN)
+    endif()
+ENDIF()
+
+IF (CMAKE_CXX_BYTE_ORDER EQUAL BIG_ENDIAN)
+    add_definitions(-DPIXELPIPES_BIGENDIAN)
+ENDIF()
+
 
 FetchContent_Declare(lodepng
   GIT_REPOSITORY https://github.com/lvandeve/lodepng.git
@@ -48,23 +60,9 @@ ExternalProject_Add(zlib
   TEST_COMMAND      ""
 )
 
-
-ExternalProject_Add(snappy
-  PREFIX snappy
-  GIT_REPOSITORY    https://github.com/google/snappy.git
-  GIT_TAG           8dd58a519f79f0742d4c68fbccb2aed2ddb651e8
-  CMAKE_ARGS        -DSNAPPY_BUILD_TESTS=OFF -DSNAPPY_BUILD_BENCHMARKS=OFF -DCMAKE_INSTALL_PREFIX=${CMAKE_BINARY_DIR}/deps -DCMAKE_CXX_FLAGS=-fPIC
-  INSTALL_DIR       "${CMAKE_BINARY_DIR}/deps"
-  TEST_COMMAND      ""
-)
-
-add_library(snappy_lib STATIC IMPORTED)
-set_target_properties(snappy_lib PROPERTIES IMPORTED_LOCATION ${CMAKE_BINARY_DIR}/deps/${CMAKE_INSTALL_LIBDIR}/libsnappy.a)
-
 add_library(zlib_lib STATIC IMPORTED)
 set_target_properties(zlib_lib PROPERTIES IMPORTED_LOCATION ${CMAKE_BINARY_DIR}/deps/${CMAKE_INSTALL_LIBDIR}/libz-ng.a)
 
-add_dependencies(snappy_lib snappy)
 add_dependencies(zlib_lib zlib)
 
 FIND_PACKAGE(OpenCV REQUIRED core imgproc imgcodecs video calib3d)
@@ -92,7 +90,7 @@ INCLUDE_DIRECTORIES(${OpenCV_INCLUDE_DIRS} ${lodepng_SOURCE_DIR}
 LINK_DIRECTORIES(${CMAKE_BINARY_DIR}/deps/lib)
 
 ADD_LIBRARY(pixelpipes SHARED ${CORE_SOURCE})
-TARGET_LINK_LIBRARIES(pixelpipes ${CMAKE_DL_LIBS} lodepng snappy_lib zlib_lib)
+TARGET_LINK_LIBRARIES(pixelpipes ${CMAKE_DL_LIBS} lodepng zlib_lib)
 target_compile_definitions(pixelpipes PRIVATE PIXELPIPES_BUILD_CORE)
 
 ADD_LIBRARY(pixelpipes_geometry SHARED 
@@ -145,17 +143,16 @@ IF(BUILD_PYTHON)
 
 ENDIF()
 
+# Where to place outputs
 IF (BUILD_INPLACE)
-
     set_target_properties(pixelpipes pypixelpipes pixelpipes_geometry pixelpipes_image
         PROPERTIES
         LIBRARY_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/pixelpipes"
         RUNTIME_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/pixelpipes"
     )
-
 ENDIF()
 
 IF (BUILD_TEST)
     ADD_EXECUTABLE(test_compression src/serialization/test.cpp src/serialization/compression.cpp)
-    TARGET_LINK_LIBRARIES(test_compression snappy_lib zlib_lib)
+    TARGET_LINK_LIBRARIES(test_compression zlib_lib)
 ENDIF()

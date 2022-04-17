@@ -1,4 +1,4 @@
-/*@author Merder Kim <hoxnox@gmail.com> 
+/*@author Merder Kim <hoxnox@gmail.com>
  *@date 20130117 22:25:30 */
 
 #include <stdexcept>
@@ -7,7 +7,6 @@
 #include <stdint.h>
 #include <string>
 
-#include <snappy.h>
 #include <zlib-ng.h>
 
 #include "compression.hpp"
@@ -15,27 +14,27 @@
 
 #include "../debug.h"
 
-#define CURRENT_BYTE_ORDER       (*(int *)"\x01\x02\x03\x04")
+#define CURRENT_BYTE_ORDER (*(int *)"\x01\x02\x03\x04")
 #define LITTLE_ENDIAN_BYTE_ORDER 0x04030201
-#define BIG_ENDIAN_BYTE_ORDER    0x01020304
-#define PDP_ENDIAN_BYTE_ORDER    0x02010403
+#define BIG_ENDIAN_BYTE_ORDER 0x01020304
+#define PDP_ENDIAN_BYTE_ORDER 0x02010403
 
 #define IS_LITTLE_ENDIAN (CURRENT_BYTE_ORDER == LITTLE_ENDIAN_BYTE_ORDER)
-#define IS_BIG_ENDIAN    (CURRENT_BYTE_ORDER == BIG_ENDIAN_BYTE_ORDER)
-#define IS_PDP_ENDIAN    (CURRENT_BYTE_ORDER == PDP_ENDIAN_BYTE_ORDER)
+#define IS_BIG_ENDIAN (CURRENT_BYTE_ORDER == BIG_ENDIAN_BYTE_ORDER)
+#define IS_PDP_ENDIAN (CURRENT_BYTE_ORDER == PDP_ENDIAN_BYTE_ORDER)
 
 // Forward declaration
 
-template<typename T>
-struct LittleEndian;
+template <typename T>
+struct _LittleEndian;
 
-template<typename T>
-struct BigEndian;
+template <typename T>
+struct _BigEndian;
 
 // Little-Endian template
-#pragma pack(push,1)
-template<typename T>
-struct LittleEndian
+#pragma pack(push, 1)
+template <typename T>
+struct _LittleEndian
 {
     union
     {
@@ -43,29 +42,29 @@ struct LittleEndian
         T raw_value;
     };
 
-    LittleEndian(T t = T())
+    _LittleEndian(T t = T())
     {
-        operator =(t);
+        operator=(t);
     }
 
-    LittleEndian(const char * bytes, const size_t bytesz)
+    _LittleEndian(const char *bytes, const size_t bytesz)
         : raw_value(0)
     {
-        if(bytesz < sizeof(T))
+        if (bytesz < sizeof(T))
             return;
-        for(unsigned i = 0; i < sizeof(T); ++i)
+        for (unsigned i = 0; i < sizeof(T); ++i)
             this->bytes[sizeof(T) - 1 - i] = bytes[i];
     }
 
-    LittleEndian(const LittleEndian<T> & t)
+    _LittleEndian(const _LittleEndian<T> &t)
     {
         raw_value = t.raw_value;
     }
 
-    LittleEndian(const BigEndian<T> & t)
+    _LittleEndian(const _BigEndian<T> &t)
     {
         for (unsigned i = 0; i < sizeof(T); i++)
-            bytes[i] = t.bytes[sizeof(T)-1-i];
+            bytes[i] = t.bytes[sizeof(T) - 1 - i];
     }
 
     operator const T() const
@@ -76,7 +75,7 @@ struct LittleEndian
         return t;
     }
 
-    const T operator = (const T t)
+    const T operator=(const T t)
     {
         for (unsigned i = 0; i < sizeof(T); i++)
             bytes[i] = t >> (i << 3);
@@ -85,39 +84,39 @@ struct LittleEndian
 
     // operators
 
-    const T operator += (const T t)
+    const T operator+=(const T t)
     {
         return (*this = *this + t);
     }
 
-    const T operator -= (const T t)
+    const T operator-=(const T t)
     {
         return (*this = *this - t);
     }
 
-    const T operator *= (const T t)
+    const T operator*=(const T t)
     {
         return (*this = *this * t);
     }
 
-    const T operator /= (const T t)
+    const T operator/=(const T t)
     {
         return (*this = *this / t);
     }
 
-    const T operator %= (const T t)
+    const T operator%=(const T t)
     {
         return (*this = *this % t);
     }
 
-    LittleEndian<T> operator ++ (int)
+    _LittleEndian<T> operator++(int)
     {
-        LittleEndian<T> tmp(*this);
-        operator ++ ();
+        _LittleEndian<T> tmp(*this);
+        operator++();
         return tmp;
     }
 
-    LittleEndian<T> & operator ++ ()
+    _LittleEndian<T> &operator++()
     {
         for (unsigned i = 0; i < sizeof(T); i++)
         {
@@ -128,14 +127,14 @@ struct LittleEndian
         return (*this);
     }
 
-    LittleEndian<T> operator -- (int)
+    _LittleEndian<T> operator--(int)
     {
-        LittleEndian<T> tmp(*this);
-        operator -- ();
+        _LittleEndian<T> tmp(*this);
+        operator--();
         return tmp;
     }
 
-    LittleEndian<T> & operator -- ()
+    _LittleEndian<T> &operator--()
     {
         for (unsigned i = 0; i < sizeof(T); i++)
         {
@@ -146,13 +145,11 @@ struct LittleEndian
         return (*this);
     }
 };
-#pragma pack(pop)
 
 // Big-Endian template
 
-#pragma pack(push,1)
-template<typename T>
-struct BigEndian
+template <typename T>
+struct _BigEndian
 {
     union
     {
@@ -160,29 +157,29 @@ struct BigEndian
         T raw_value;
     };
 
-    BigEndian(T t = T())
+    _BigEndian(T t = T())
     {
-        operator =(t);
+        operator=(t);
     }
 
-    BigEndian(const char * bytes, const size_t bytesz)
+    _BigEndian(const char *bytes, const size_t bytesz)
         : raw_value(0)
     {
-        if(bytesz < sizeof(T))
+        if (bytesz < sizeof(T))
             return;
-        for(unsigned i = 0; i < sizeof(T); ++i)
+        for (unsigned i = 0; i < sizeof(T); ++i)
             this->bytes[i] = bytes[i];
     }
 
-    BigEndian(const BigEndian<T> & t)
+    _BigEndian(const _BigEndian<T> &t)
     {
         raw_value = t.raw_value;
     }
 
-    BigEndian(const LittleEndian<T> & t)
+    _BigEndian(const _LittleEndian<T> &t)
     {
         for (unsigned i = 0; i < sizeof(T); i++)
-            bytes[i] = t.bytes[sizeof(T)-1-i];
+            bytes[i] = t.bytes[sizeof(T) - 1 - i];
     }
 
     operator const T() const
@@ -193,7 +190,7 @@ struct BigEndian
         return t;
     }
 
-    const T operator = (const T t)
+    const T operator=(const T t)
     {
         for (unsigned i = 0; i < sizeof(T); i++)
             bytes[sizeof(T) - 1 - i] = t >> (i << 3);
@@ -202,39 +199,39 @@ struct BigEndian
 
     // operators
 
-    const T operator += (const T t)
+    const T operator+=(const T t)
     {
         return (*this = *this + t);
     }
 
-    const T operator -= (const T t)
+    const T operator-=(const T t)
     {
         return (*this = *this - t);
     }
 
-    const T operator *= (const T t)
+    const T operator*=(const T t)
     {
         return (*this = *this * t);
     }
 
-    const T operator /= (const T t)
+    const T operator/=(const T t)
     {
         return (*this = *this / t);
     }
 
-    const T operator %= (const T t)
+    const T operator%=(const T t)
     {
         return (*this = *this % t);
     }
 
-    BigEndian<T> operator ++ (int)
+    _BigEndian<T> operator++(int)
     {
-        BigEndian<T> tmp(*this);
-        operator ++ ();
+        _BigEndian<T> tmp(*this);
+        operator++();
         return tmp;
     }
 
-    BigEndian<T> & operator ++ ()
+    _BigEndian<T> &operator++()
     {
         for (unsigned i = 0; i < sizeof(T); i++)
         {
@@ -245,14 +242,14 @@ struct BigEndian
         return (*this);
     }
 
-    BigEndian<T> operator -- (int)
+    _BigEndian<T> operator--(int)
     {
-        BigEndian<T> tmp(*this);
-        operator -- ();
+        _BigEndian<T> tmp(*this);
+        operator--();
         return tmp;
     }
 
-    BigEndian<T> & operator -- ()
+    _BigEndian<T> &operator--()
     {
         for (unsigned i = 0; i < sizeof(T); i++)
         {
@@ -265,212 +262,192 @@ struct BigEndian
 };
 #pragma pack(pop)
 
-namespace pixelpipes {
-/*
-const char Config::magic[] = {'s', 'n', 'a', 'p', 'p', 'y', 0};
-const int Config::magic_sz = sizeof(Config::magic);
-*/
+#ifdef PIXELPIPES_BIGENDIAN
+template<typename T>
+using LittleEndian = _BigEndian<T>;
+template<typename T>
+using BigEndian = _LittleEndian<T>;
+#else
+template<typename T>
+using LittleEndian = _LittleEndian<T>;
+template<typename T>
+using BigEndian = _BigEndian<T>;
+#endif
 
-InputCompressionBuffer::InputCompressionBuffer(std::streambuf *src)
-	: src_(src)
+
+namespace pixelpipes
 {
-	/*char source_magic[Config::magic_sz];
-	std::streamsize nread = src_->sgetn(source_magic, Config::magic_sz);
-	if (memcmp(Config::magic, source_magic, Config::magic_sz))
-		throw std::runtime_error("InputCompressionBuffer - bad magic number");*/
-	this->setg(0, 0, 0);
-}
 
-InputCompressionBuffer::int_type InputCompressionBuffer::underflow()
-{
-	char header[7];
-	if (src_->sgetn(header, 7) != 7)
-		return EOF;
-std::cout << std::endl << "aaa "  << std::hex;
-
-    for (int i = 0; i < 7; i++) {
-        std::cout << (short) header[i] << "  ";
+    InputCompressionBuffer::InputCompressionBuffer(std::streambuf *src)
+        : src_(src)
+    {
+        /*char source_magic[Config::magic_sz];
+        std::streamsize nread = src_->sgetn(source_magic, Config::magic_sz);
+        if (memcmp(Config::magic, source_magic, Config::magic_sz))
+            throw std::runtime_error("InputCompressionBuffer - bad magic number");*/
+        this->setg(0, 0, 0);
     }
- std::cout << std::dec << std::endl;
 
-	bool compressed = true;
-	if(header[0] == 0)
-		compressed = false;
-	LittleEndian<uint16_t> len(&header[1], 2);
-	uint32_t cksum = *reinterpret_cast<uint32_t*>(&header[3]);
+    InputCompressionBuffer::int_type InputCompressionBuffer::underflow()
+    {
+        char header[7];
+        if (src_->sgetn(header, 7) != 7)
+            return EOF;
 
-	if (!len)
-		return EOF;
+        bool compressed = true;
+        if (header[0] == 0)
+            compressed = false;
+        LittleEndian<uint16_t> len(&header[1], 2);
+        uint32_t cksum = *reinterpret_cast<uint32_t *>(&header[3]);
 
-	// expect, that the size of compressed data is less then uncompressed
-	if (len > DEFAULT_CHUNK_SIZE) 
-		return EOF;
-	if (len > in_buffer_.size())
-		in_buffer_.resize(len);
+        if (!len)
+            return EOF;
 
-    //DEBUGMSG("Reading chunk %ld b \n", len + 0);
+        // expect, that the size of compressed data is less then uncompressed
+        if (len > DEFAULT_CHUNK_SIZE)
+            return EOF;
+        if (len > in_buffer_.size())
+            in_buffer_.resize(len);
 
-	int rs = src_->sgetn(reinterpret_cast<char*>(&in_buffer_[0]), len);
-    //    DEBUGMSG("Reading chunk %ld %s b \n", len + 0, rs);
-
-	if (rs != len)
-		return EOF;
-
-	size_t uncompressed_len = len;
-	if(compressed)
-	{
-		/*if (!snappy::GetUncompressedLength(&in_buffer_[0], len, &uncompressed_len)
-			|| !uncompressed_len)
-			return EOF;*/
-
-        uncompressed_len = DEFAULT_CHUNK_SIZE;
-	}
-	out_buffer_.resize(uncompressed_len);
-	if(compressed)
-	{
-
-        if (!zng_uncompress((uint8_t *) &out_buffer_[0], &uncompressed_len, (uint8_t *) &in_buffer_[0], len) != Z_OK) {
+        if (src_->sgetn(reinterpret_cast<char *>(&in_buffer_[0]), len) != len)
+        {
             return EOF;
         }
 
-    //    DEBUGMSG("Reading compressed chunk %ld b -> %ld b \n", len, uncompressed_len);
+        size_t uncompressed_len = len;
+        if (compressed)
+        {
+            uncompressed_len = DEFAULT_CHUNK_SIZE;
+        }
 
-		//if (!snappy::RawUncompress(&in_buffer_[0], len, &out_buffer_[0]))
-		//	return EOF;
-	}
-	else
-	{
-		memcpy(&out_buffer_[0], &in_buffer_[0], uncompressed_len);
-    //    DEBUGMSG("Reading raw chunk %ld b \n", uncompressed_len);
+        out_buffer_.resize(uncompressed_len);
+        if (compressed)
+        {
 
-	}
+            if (zng_uncompress((uint8_t *)&out_buffer_[0], &uncompressed_len, (uint8_t *)&in_buffer_[0], len) != Z_OK)
+            {
+                return EOF;
+            }
 
-	/*this->setg(&out_buffer_[0], &out_buffer_[0],
-			   &out_buffer_[0] + out_buffer_.size()); */
+            DEBUGMSG("Inflating frame %ld b -> %ld b \n", len + 0, uncompressed_len);
+        }
+        else
+        {
+            memcpy(&out_buffer_[0], &in_buffer_[0], uncompressed_len);
+            DEBUGMSG("Raw frame %ld b \n", uncompressed_len);
+        }
 
-    this->setg(&out_buffer_[0], &out_buffer_[0],
-			   &out_buffer_[0] +uncompressed_len); 
-	return traits_type::to_int_type(*(this->gptr()));
-}
-
-InputCompressionStream::InputCompressionStream(std::streambuf& inbuf)
-	: isbuf_(&inbuf)
-	, std::istream(&isbuf_)
-{
-}
-
-InputCompressionStream::InputCompressionStream(std::istream& in)
-	: isbuf_(in.rdbuf())
-	, std::istream(&isbuf_)
-{
-}
-
-OutputCompressionBuffer::OutputCompressionBuffer(std::streambuf* dest, size_t chunksize)
-	: dest_(dest)
-	, write_cksums_(true)
-	, in_buffer_(new char[chunksize])
-	, chunksize_(chunksize)
-{
-	this->init();
-}
-
-/**@brief Sync and delete buffer on destruction*/
-OutputCompressionBuffer::~OutputCompressionBuffer()
-{
-	this->sync();
-	delete[] in_buffer_;
-}
-
-/**@brief Set boundaries of the controlled output sequence*/
-void OutputCompressionBuffer::init()
-{
-	this->setp(in_buffer_, in_buffer_ + chunksize_ - 1);
-}
-
-/**@override std::streambuf::overflow(int)*/
-OutputCompressionBuffer::int_type OutputCompressionBuffer::overflow(OutputCompressionBuffer::int_type c)
-{
-	if (!pptr())
-		return EOF;
-	if (c != EOF) {
-		*pptr() = c;
-		pbump(1);
-	}
-	if (sync() == -1) {
-		return EOF;
-	}
-	return c;
-}
-
-/**@override std::streambuf::sync()
- * @brief Flush data to dest_*/
-int OutputCompressionBuffer::sync()
-{
-	if (!pptr())
-		return -1;
-
-	std::streamsize uncompressed_len = pptr()-pbase();
-	if (!uncompressed_len)
-		return 0;
-
-	uint32_t crc32c = write_cksums_ ? crc32c_masked(in_buffer_, uncompressed_len) : 0;
-
-
-    size_t compressed_len_sz = zng_compressBound(uncompressed_len);
-    char* compressed = new char[compressed_len_sz];
-    if (zng_compress( (uint8_t *) compressed, &compressed_len_sz, (uint8_t *) in_buffer_, uncompressed_len) != Z_OK) {
-        // error
+        this->setg(&out_buffer_[0], &out_buffer_[0],
+                   &out_buffer_[0] + uncompressed_len);
+        return traits_type::to_int_type(*(this->gptr()));
     }
 
-    DEBUGMSG("Writing chunk %ld b -> %ld b \n", uncompressed_len, compressed_len_sz);
+    InputCompressionStream::InputCompressionStream(std::streambuf &inbuf)
+        : isbuf_(&inbuf), std::istream(&isbuf_)
+    {
+    }
 
-    /*
-	char* compressed = new char[snappy::MaxCompressedLength(uncompressed_len)];
-	size_t compressed_len_sz;
-	snappy::RawCompress(in_buffer_, uncompressed_len, compressed, &compressed_len_sz);
-    */
+    InputCompressionStream::InputCompressionStream(std::istream &in)
+        : isbuf_(in.rdbuf()), std::istream(&isbuf_)
+    {
+    }
 
-	// use uncompressed input if less than 1.25% compression
-	if (compressed_len_sz >= (uncompressed_len - (uncompressed_len / 80))) {
-		delete [] compressed;
-		return writeBlock(in_buffer_, uncompressed_len, uncompressed_len, false, crc32c);
-	}
-    std::streamsize compressed_len = static_cast<std::streamsize>(compressed_len_sz);
-	int rs = writeBlock(compressed, uncompressed_len, compressed_len, true, crc32c);
-	delete [] compressed;
-	return rs;
+    OutputCompressionBuffer::OutputCompressionBuffer(std::streambuf *dest, size_t chunksize)
+        : dest_(dest), write_cksums_(true), in_buffer_(new char[chunksize]), chunksize_(chunksize)
+    {
+        this->init();
+    }
+
+    /**@brief Sync and delete buffer on destruction*/
+    OutputCompressionBuffer::~OutputCompressionBuffer()
+    {
+        this->sync();
+        delete[] in_buffer_;
+    }
+
+    /**@brief Set boundaries of the controlled output sequence*/
+    void OutputCompressionBuffer::init()
+    {
+        this->setp(in_buffer_, in_buffer_ + chunksize_ - 1);
+    }
+
+    /**@override std::streambuf::overflow(int)*/
+    OutputCompressionBuffer::int_type OutputCompressionBuffer::overflow(OutputCompressionBuffer::int_type c)
+    {
+        if (!pptr())
+            return EOF;
+        if (c != EOF)
+        {
+            *pptr() = c;
+            pbump(1);
+        }
+        if (sync() == -1)
+        {
+            return EOF;
+        }
+        return c;
+    }
+
+    int OutputCompressionBuffer::sync()
+    {
+        if (!pptr())
+            return -1;
+
+        std::streamsize uncompressed_len = pptr() - pbase();
+        if (!uncompressed_len)
+            return 0;
+
+        uint32_t crc32c = write_cksums_ ? crc32c_masked(in_buffer_, uncompressed_len) : 0;
+
+        size_t compressed_len_sz = zng_compressBound(uncompressed_len);
+        char *compressed = new char[compressed_len_sz];
+        if (zng_compress((uint8_t *)compressed, &compressed_len_sz, (uint8_t *)in_buffer_, uncompressed_len) != Z_OK)
+        {
+            // error
+        }
+
+        DEBUGMSG("Deflating frame %ld b -> %ld b \n", uncompressed_len, compressed_len_sz);
+
+        // use uncompressed input if less than 1.25% compression
+        if (compressed_len_sz >= (uncompressed_len - (uncompressed_len / 80)))
+        {
+            delete[] compressed;
+            return writeBlock(in_buffer_, uncompressed_len, uncompressed_len, false, crc32c);
+        }
+        std::streamsize compressed_len = static_cast<std::streamsize>(compressed_len_sz);
+        int rs = writeBlock(compressed, uncompressed_len, compressed_len, true, crc32c);
+        delete[] compressed;
+        return rs;
+    }
+
+    int OutputCompressionBuffer::writeBlock(const char *data, std::streamsize &uncompressed_len, std::streamsize &length, bool compressed, uint32_t cksum)
+    {
+        BigEndian<uint16_t> len((uint16_t)length);
+        BigEndian<uint32_t> cksum_be(cksum);
+        if (dest_->sputc(compressed ? 1 : 0) == EOF)
+            return -1;
+        if (dest_->sputn(reinterpret_cast<const char *>(&len), 2) != 2)
+            return -1;
+        if (dest_->sputn(reinterpret_cast<const char *>(&cksum_be), 4) != 4)
+            return -1;
+        if (dest_->sputn(&data[0], length) != length)
+            return -1;
+        pbump(-uncompressed_len);
+        return uncompressed_len;
+    }
+
+    /**@brief You can create compressed stream over every stream based on std::streambuf
+     * @param chunksize The size of chunks*/
+    OutputCompressionStream::OutputCompressionStream(std::streambuf &outbuf, unsigned chunksize)
+        : osbuf_(&outbuf, chunksize), std::ostream(&osbuf_)
+    {
+    }
+
+    /**@brief You can create compressed stream over every stream based on std::ostream
+     * @param chunksize The size of chunks*/
+    OutputCompressionStream::OutputCompressionStream(std::ostream &out, unsigned chunksize)
+        : osbuf_(out.rdbuf(), chunksize), std::ostream(&osbuf_)
+    {
+    }
+
 }
-
-int OutputCompressionBuffer::writeBlock(const char * data, std::streamsize& uncompressed_len, std::streamsize& length, bool compressed, uint32_t cksum)
-{
-	BigEndian<uint16_t> len((uint16_t)length);
-	BigEndian<uint32_t> cksum_be(cksum);
-	if (dest_->sputc(compressed ? 1 : 0) == EOF)
-		return -1;
-	if (dest_->sputn(reinterpret_cast<const char*>(&len), 2) != 2)
-		return -1;
-	if (dest_->sputn(reinterpret_cast<const char*>(&cksum_be), 4) != 4)
-		return -1;
-	if (dest_->sputn(&data[0], length) != length)
-		return -1;
-	pbump(-uncompressed_len);
-	return uncompressed_len;
-}
-
-/**@brief You can create compressed stream over every stream based on std::streambuf
- * @param chunksize The size of chunks*/
-OutputCompressionStream::OutputCompressionStream(std::streambuf& outbuf, unsigned chunksize)
-	: osbuf_(&outbuf, chunksize)
-	, std::ostream(&osbuf_)
-{
-}
-
-/**@brief You can create compressed stream over every stream based on std::ostream
- * @param chunksize The size of chunks*/
-OutputCompressionStream::OutputCompressionStream(std::ostream& out, unsigned chunksize)
-	: osbuf_(out.rdbuf(), chunksize)
-	, std::ostream(&osbuf_)
-{
-}
-
-} 
