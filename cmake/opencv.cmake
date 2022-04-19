@@ -23,6 +23,7 @@ SET(OPENCV_STATIC_FLAGS
 -DWITH_CUDA=OFF 
 -DWITH_PTHREADS_PF=OFF 
 -DBUILD_JPEG=ON 
+-DBUILD_OPENJPEG=ON
 -DBUILD_TESTS=OFF 
 -DBUILD_PERF_TESTS=OFF 
 -DBUILD_opencv_apps=OFF 
@@ -55,7 +56,7 @@ TEST_COMMAND      ""
 SET(OPENCV_LIBS "")
 SET(OPENCV_INCLUDE_DIRS "${CMAKE_BINARY_DIR}/deps/include/opencv4")
 
-foreach(M IN ITEMS zlib ittnotify libopenjp2 libpng libjpeg-turbo)
+foreach(M IN ITEMS zlib ittnotify libpng libopenjp2 libjpeg-turbo)
     add_library(opencv_3dparty_${M} STATIC IMPORTED)
     set_target_properties(opencv_3dparty_${M} 
         PROPERTIES 
@@ -64,7 +65,7 @@ foreach(M IN ITEMS zlib ittnotify libopenjp2 libpng libjpeg-turbo)
     add_dependencies(opencv_3dparty_${M} opencv)
 endforeach()
 
-foreach(M IN ITEMS core imgproc imgcodecs video calib3d features2d flann)
+foreach(M IN ITEMS core imgproc imgcodecs calib3d features2d flann)
     add_library(opencv_${M} STATIC IMPORTED)
     set_target_properties(opencv_${M} PROPERTIES
     IMPORTED_LINK_INTERFACE_LANGUAGES "CXX" 
@@ -91,7 +92,7 @@ set_target_properties(opencv_features2d PROPERTIES
 )
 
 set_target_properties(opencv_imgcodecs PROPERTIES
-  INTERFACE_LINK_LIBRARIES "opencv_core;opencv_imgproc;opencv_core;opencv_imgproc;\$<LINK_ONLY:opencv_3dparty_libjpeg-turbo>;\$<LINK_ONLY:opencv_3dparty_libpng>;\$<LINK_ONLY:opencv_3dparty_libopenjp2>;\$<LINK_ONLY:opencv_3dparty_zlib>"
+  INTERFACE_LINK_LIBRARIES "opencv_core;opencv_imgproc;opencv_core;opencv_imgproc;\$<LINK_ONLY:opencv_3dparty_libjpeg-turbo>;\$<LINK_ONLY:opencv_3dparty_libopenjp2>;\$<LINK_ONLY:opencv_3dparty_libpng>;\$<LINK_ONLY:opencv_3dparty_zlib>"
 )
 
 set_target_properties(opencv_calib3d PROPERTIES
