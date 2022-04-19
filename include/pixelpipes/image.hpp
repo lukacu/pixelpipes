@@ -126,7 +126,11 @@ namespace pixelpipes
     class BufferImage : public ImageData
     {
     public:
+        typedef std::function<void()> DescructorCallback;
+
         BufferImage(size_t width, size_t height, size_t channels, ImageDepth depth);
+
+        BufferImage(size_t width, size_t height, size_t channels, ImageDepth depth, unsigned char *buffer, DescructorCallback callback);
 
         virtual ~BufferImage();
 
@@ -157,6 +161,8 @@ namespace pixelpipes
         ImageDepth image_depth;
 
         unsigned char *buffer;
+
+        DescructorCallback callback;
     };
 
     class ImageList : public List

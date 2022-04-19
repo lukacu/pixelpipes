@@ -17,3 +17,4 @@
     {                        \
         std::printf(__VA_ARGS__); \
     }
+

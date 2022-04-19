@@ -169,7 +169,7 @@ namespace pixelpipes
 
     ImageChunkIterator::ImageChunkIterator(std::shared_ptr<ChunkCursor> impl) : impl(impl){};
 
-    BufferImage::BufferImage(size_t width, size_t height, size_t channels, ImageDepth depth) : image_width(width), image_height(height), image_channels(channels), image_depth(depth), buffer(0)
+    BufferImage::BufferImage(size_t width, size_t height, size_t channels, ImageDepth depth) : image_width(width), image_height(height), image_channels(channels), image_depth(depth), buffer(0), callback(nullptr)
     {
 
         VERIFY(image_width > 0 && image_height > 0 && image_channels > 0, "Illegal input");
@@ -179,9 +179,22 @@ namespace pixelpipes
         buffer = new unsigned char[buffer_size];
     }
 
+    BufferImage::BufferImage(size_t width, size_t height, size_t channels, ImageDepth depth, unsigned char *buffer, DescructorCallback callback) : image_width(width), image_height(height), image_channels(channels), image_depth(depth), buffer(buffer), callback(callback)
+    {
+
+        VERIFY(image_width > 0 && image_height > 0 && image_channels > 0, "Illegal input");
+
+        VERIFY(buffer && callback, "Delegated memory must not be null and have a cleanup callback");
+
+    }
+
+
     BufferImage::~BufferImage()
     {
-        if (buffer)
+        if (callback) {
+            callback();
+            buffer = nullptr;
+        } else if (buffer)
             delete[] buffer;
     }
 
