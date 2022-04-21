@@ -19,6 +19,9 @@ class InputCompressionBuffer: public std::streambuf
 		std::streambuf* src_;
 		std::vector<char_type> in_buffer_;
 		std::vector<char_type> out_buffer_;
+
+		size_t			bytes_in_;
+		size_t			bytes_out_;
 };
 
 class InputCompressionStream: public std::istream {
@@ -52,6 +55,10 @@ class OutputCompressionBuffer: public std::streambuf
 		char*            in_buffer_;
 		std::string      out_buffer_;
 		size_t           chunksize_;
+
+		size_t			bytes_in_;
+		size_t			bytes_out_;
+
 };
 
 class OutputCompressionStream: public std::ostream

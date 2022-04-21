@@ -12,8 +12,6 @@
 #include "compression.hpp"
 #include "crc32c.hpp"
 
-#include "../debug.h"
-
 #define CURRENT_BYTE_ORDER (*(int *)"\x01\x02\x03\x04")
 #define LITTLE_ENDIAN_BYTE_ORDER 0x04030201
 #define BIG_ENDIAN_BYTE_ORDER 0x01020304
@@ -279,7 +277,7 @@ namespace pixelpipes
 {
 
     InputCompressionBuffer::InputCompressionBuffer(std::streambuf *src)
-        : src_(src)
+        : src_(src), bytes_in_(0), bytes_out_(0)
     {
         /*char source_magic[Config::magic_sz];
         std::streamsize nread = src_->sgetn(source_magic, Config::magic_sz);
@@ -321,21 +319,21 @@ namespace pixelpipes
         }
 
         out_buffer_.resize(uncompressed_len);
+
+        bytes_in_ += len;
         if (compressed)
         {
-
             if (zng_uncompress((uint8_t *)&out_buffer_[0], &uncompressed_len, (uint8_t *)&in_buffer_[0], len) != Z_OK)
             {
                 return EOF;
             }
-
-            DEBUGMSG("Inflating frame %ld b -> %ld b \n", len + 0, uncompressed_len);
         }
         else
         {
             memcpy(&out_buffer_[0], &in_buffer_[0], uncompressed_len);
-            DEBUGMSG("Raw frame %ld b \n", uncompressed_len);
         }
+
+        bytes_out_ += uncompressed_len;
 
         this->setg(&out_buffer_[0], &out_buffer_[0],
                    &out_buffer_[0] + uncompressed_len);
@@ -353,7 +351,7 @@ namespace pixelpipes
     }
 
     OutputCompressionBuffer::OutputCompressionBuffer(std::streambuf *dest, size_t chunksize)
-        : dest_(dest), write_cksums_(true), in_buffer_(new char[chunksize]), chunksize_(chunksize)
+        : dest_(dest), write_cksums_(true), in_buffer_(new char[chunksize]), chunksize_(chunksize), bytes_in_(0), bytes_out_(0)
     {
         this->init();
     }
@@ -405,9 +403,6 @@ namespace pixelpipes
         {
             // error
         }
-
-        DEBUGMSG("Deflating frame %ld b -> %ld b \n", uncompressed_len, compressed_len_sz);
-
         // use uncompressed input if less than 1.25% compression
         if (compressed_len_sz >= (uncompressed_len - (uncompressed_len / 80)))
         {
@@ -432,6 +427,10 @@ namespace pixelpipes
             return -1;
         if (dest_->sputn(&data[0], length) != length)
             return -1;
+
+        bytes_in_ += uncompressed_len;
+        bytes_out_ += length;
+
         pbump(-uncompressed_len);
         return uncompressed_len;
     }

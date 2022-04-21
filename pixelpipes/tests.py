@@ -215,8 +215,6 @@ class TestPipes(unittest.TestCase):
 
     def test_serialization(self):
 
-        import tempfile
-
         with GraphBuilder() as graph:
             a = UniformDistribution(0, 30)
             b = Constant(value=3)

@@ -63,9 +63,11 @@ namespace pixelpipes
         {
             size_t len = read_t<size_t>(source);
             std::vector<T> list;
+            if (len)
+                list.resize(len);
             for (size_t i = 0; i < len; i++)
             {
-                list.push_back(read_t<T>(source));
+                list[i] = read_t<T>(source);
             }
             return list;
         }
@@ -234,22 +236,22 @@ namespace pixelpipes
 
         write_t(target, operations.size());
 
+        size_t i = 0;
         for (auto op : operations)
         {
 
+            // Write operation name
             write_t(target, std::get<0>(op));
 
-            write_t(target, std::get<1>(op).size());
-            for (auto i : std::get<1>(op))
-            {
-                write_t(target, i);
-            }
+            // Write token indices
+            write_v(target, std::get<1>(op));
 
-            write_t(target, std::get<2>(op).size());
-            for (auto i : std::get<2>(op))
-            {
-                write_t(target, i);
-            }
+            // Write inputs
+            write_v(target, std::get<2>(op));
+
+            DEBUGMSG("%04d (%s): %s \n", i, std::get<0>(op).c_str(), (Formatter() << std::get<2>(op)).c_str());
+
+            i++;
         }
     }
 
@@ -380,17 +382,21 @@ namespace pixelpipes
     SharedPipeline PipelineReader::read(std::istream &source)
     {
 
-        if (check_header(source, __stream_header_compressed)) {
+        if (check_header(source, __stream_header_compressed))
+        {
             DEBUGMSG("Compressed stream\n");
             InputCompressionStream cs(source);
             return read_data(cs);
-        } else if (check_header(source, __stream_header_raw)) {
+        }
+        else if (check_header(source, __stream_header_raw))
+        {
             DEBUGMSG("Raw stream\n");
             return read_data(source);
-        } else {
+        }
+        else
+        {
             throw SerializationException("Illegal stream");
         }
-
     }
 
     SharedPipeline PipelineReader::read_data(std::istream &source)
@@ -454,6 +460,8 @@ namespace pixelpipes
 
             auto count = read_t<size_t>(source);
 
+            DEBUGMSG("Reading %ld tokens\n", count);
+
             for (size_t i = 0; i < count; i++)
             {
 
@@ -480,6 +488,8 @@ namespace pixelpipes
 
             auto count = read_t<size_t>(source);
 
+            DEBUGMSG("Reconstructing pipeline with %ld operations\n", count);
+
             for (size_t i = 0; i < count; i++)
             {
 
@@ -489,12 +499,23 @@ namespace pixelpipes
 
                 std::vector<SharedToken> arguments;
 
-                for (size_t j = 0; j < argument_count; j++)
-                {
-                    arguments.push_back(tokens[read_t<int>(source)]);
-                }
+                std::vector<int> token_indices = read_v<int>(source);
 
                 std::vector<int> inputs = read_v<int>(source);
+
+                for (auto t : token_indices)
+                {
+                    if (t >= tokens.size())
+                        throw SerializationException("Illegal token index");
+                    arguments.push_back(tokens[t]);
+                }
+
+                DEBUGMSG("%04ld (%s): %s \n", i, name.c_str(), (Formatter() << inputs).c_str());
+                for (auto x : inputs) {
+                    DEBUGMSG("%d ,", x);
+                }
+                DEBUGMSG("\n");
+
 
                 pipeline->append(name, arguments, inputs);
             }

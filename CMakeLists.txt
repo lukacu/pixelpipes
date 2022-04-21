@@ -135,6 +135,6 @@ IF (BUILD_INPLACE)
 ENDIF()
 
 IF (BUILD_TEST)
-    ADD_EXECUTABLE(test_compression src/serialization/test.cpp src/serialization/compression.cpp)
-    TARGET_LINK_LIBRARIES(test_compression zlib_lib)
+    ADD_EXECUTABLE(test_compression src/serialization/test.cpp)
+    TARGET_LINK_LIBRARIES(test_compression pixelpipes)
 ENDIF()

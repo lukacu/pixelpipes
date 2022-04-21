@@ -175,6 +175,16 @@ namespace pixelpipes
         ~Formatter() {}
 
         template <typename Type>
+        Formatter & operator << (const std::vector<Type> & value)
+        {
+
+            stream << value.size() << " - ";
+            for (Type t : value) 
+                stream << t << " ";
+            return *this;
+        }
+
+        template <typename Type>
         Formatter & operator << (const Type & value)
         {
             stream << value;
@@ -183,6 +193,8 @@ namespace pixelpipes
 
         std::string str() const         { return stream.str(); }
         operator std::string () const   { return stream.str(); }
+
+        const char* c_str() const       { return stream.str().c_str(); }
 
         enum ConvertToString 
         {
