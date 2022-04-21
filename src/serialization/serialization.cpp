@@ -495,8 +495,6 @@ namespace pixelpipes
 
                 std::string name = read_t<std::string>(source);
 
-                auto argument_count = read_t<size_t>(source);
-
                 std::vector<SharedToken> arguments;
 
                 std::vector<int> token_indices = read_v<int>(source);
@@ -510,7 +508,7 @@ namespace pixelpipes
                     arguments.push_back(tokens[t]);
                 }
 
-                DEBUGMSG("%04ld (%s): %s \n", i, name.c_str(), (Formatter() << inputs).c_str());
+                DEBUGMSG("%04ld (%s): ", i, name.c_str());
                 for (auto x : inputs) {
                     DEBUGMSG("%d ,", x);
                 }

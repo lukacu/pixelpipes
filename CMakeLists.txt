@@ -89,9 +89,7 @@ ADD_LIBRARY(pixelpipes_image SHARED
     src/image/processing.cpp
     src/image/render.cpp
     )
-
-MESSAGE(${OPENCV_LIBS}) 
-
+    
 TARGET_LINK_LIBRARIES(pixelpipes_image pixelpipes ${OPENCV_LIBS})
  
 
