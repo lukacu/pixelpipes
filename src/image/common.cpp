@@ -8,7 +8,6 @@
 #include <pixelpipes/geometry.hpp>
 
 #include "common.hpp"
-
 namespace pixelpipes
 {
 

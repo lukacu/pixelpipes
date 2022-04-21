@@ -135,7 +135,7 @@ namespace pixelpipes
     PIXELPIPES_REGISTER_READER(FloatType, [](std::istream &source)
                                { return std::make_shared<Float>(read_t<float>(source)); });
     PIXELPIPES_REGISTER_READER(BooleanType, [](std::istream &source)
-                               { return std::make_shared<Boolean>(read_t<bool>(source)); });
+                               { return std::make_shared<Boolean>(read_t<unsigned char>(source) != 0); });
     PIXELPIPES_REGISTER_READER(StringType, [](std::istream &source)
                                { return std::make_shared<String>(read_t<std::string>(source)); });
 
@@ -236,7 +236,6 @@ namespace pixelpipes
 
         write_t(target, operations.size());
 
-        size_t i = 0;
         for (auto op : operations)
         {
 
@@ -249,9 +248,6 @@ namespace pixelpipes
             // Write inputs
             write_v(target, std::get<2>(op));
 
-            DEBUGMSG("%04d (%s): %s \n", i, std::get<0>(op).c_str(), (Formatter() << std::get<2>(op)).c_str());
-
-            i++;
         }
     }
 
@@ -361,11 +357,11 @@ namespace pixelpipes
     bool check_header(std::istream &source, std::string_view header)
     {
 
-        char buffer[header.size()];
+        std::vector<char> buffer(header.size());
 
         auto pos = source.tellg();
 
-        source.read(buffer, header.size());
+        source.read(&buffer[0], header.size());
 
         for (size_t i = 0; i < header.size(); i++)
         {
@@ -507,13 +503,6 @@ namespace pixelpipes
                         throw SerializationException("Illegal token index");
                     arguments.push_back(tokens[t]);
                 }
-
-                DEBUGMSG("%04ld (%s): ", i, name.c_str());
-                for (auto x : inputs) {
-                    DEBUGMSG("%d ,", x);
-                }
-                DEBUGMSG("\n");
-
 
                 pipeline->append(name, arguments, inputs);
             }
