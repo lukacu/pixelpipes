@@ -26,7 +26,7 @@ namespace pixelpipes
         SerializationException(std::string reason);
     };
 
-    class PipelineWriter : public std::enable_shared_from_this<PipelineWriter>
+    class PIXELPIPES_API PipelineWriter : public std::enable_shared_from_this<PipelineWriter>
     {
     public:
         PipelineWriter();
@@ -57,7 +57,7 @@ namespace pixelpipes
         void write_data(std::ostream &target);
     };
 
-    class PipelineReader : public std::enable_shared_from_this<PipelineReader>
+    class PIXELPIPES_API PipelineReader : public std::enable_shared_from_this<PipelineReader>
     {
     public:
         PipelineReader();
@@ -88,20 +88,20 @@ namespace pixelpipes
         T v;
         source.read((char *)&v, sizeof(T));
         return v;
-    };
+    }
 
     template <typename T>
     void write_t(std::ostream &target, T i)
     {
         target.write((char *)&i, sizeof(T));
-    };
+    }
 
     template <>
     inline void write_t(std::ostream &target, bool b)
     {
         unsigned char c = b ? 0xFF : 0;
         target.write((const char *)&c, sizeof(unsigned char));
-    };
+    }
 
     template <>
     inline bool read_t(std::istream &source)
@@ -109,7 +109,7 @@ namespace pixelpipes
         char c;
         source.read(&c, sizeof(unsigned char));
         return c > 0;
-    };
+    }
 
     template <>
     inline void write_t(std::ostream &target, std::string s)
@@ -117,7 +117,7 @@ namespace pixelpipes
         size_t len = s.size();
         write_t(target, len);
         target.write(&s[0], len);
-    };
+    }
 
     template <>
     inline std::string read_t(std::istream &source)
@@ -134,6 +134,6 @@ namespace pixelpipes
         {
             throw SerializationException(Formatter() << "Unable to allocate a string of length " << len);
         }
-    };
+    }
 
 }

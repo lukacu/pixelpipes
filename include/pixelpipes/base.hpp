@@ -43,6 +43,8 @@ const std::string os_pathsep(":");
 #define _BUILD_SUPPORT_MAGIC_NAMES 0
 #endif
 
+#define UNUSED(expr) do { (void)(expr); } while (0)
+
 namespace pixelpipes
 {
 
@@ -156,7 +158,7 @@ namespace pixelpipes
         };
 
         template <typename T>
-        struct TypeIdentifierToken
+        struct PIXELPIPES_API TypeIdentifierToken
         {
             // Having a static data member will ensure that it has only one address for the whole program.
             // Satic data member having different types will ensure it won't get optimized.
@@ -168,7 +170,7 @@ namespace pixelpipes
 
     }
 
-    class Formatter
+    class PIXELPIPES_API Formatter
     {
     public:
         Formatter() {}

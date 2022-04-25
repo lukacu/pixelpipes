@@ -7,8 +7,6 @@
 #include <pybind11/functional.h>
 #include <pybind11/numpy.h>
 
-#include <numpy/arrayobject.h>
-
 #include <pixelpipes/pipeline.hpp>
 #include <pixelpipes/token.hpp>
 #include <pixelpipes/enum.hpp>
@@ -83,7 +81,7 @@ public:
 
         register_wrapper(GetTypeIdentifier<T>(), enum_wrapper);
 
-    };
+    }
 
 protected:
 

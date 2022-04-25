@@ -19,7 +19,7 @@ namespace pixelpipes {
 class Pipeline;
 class PipelineException;
 
-class DNF: public std::vector<std::vector<bool> > {
+class PIXELPIPES_API DNF: public std::vector<std::vector<bool> > {
 public:
 
     DNF(std::vector<std::vector<bool> > clauses);
@@ -47,7 +47,7 @@ inline SharedToken wrap(const DNF v) {
 
 typedef std::pair<SharedOperation, std::vector<int> > OperationData;
 
-class Pipeline: public std::enable_shared_from_this<Pipeline> {
+class PIXELPIPES_API Pipeline: public std::enable_shared_from_this<Pipeline> {
 public:
 
     Pipeline();
@@ -95,7 +95,7 @@ public:
 
 };
 
-class PipelineException : public BaseException {
+class PIXELPIPES_API PipelineException : public BaseException {
 public:
 
     PipelineException(std::string reason, SharedPipeline pipeline, int operation);

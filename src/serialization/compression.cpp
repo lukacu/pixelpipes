@@ -296,7 +296,7 @@ namespace pixelpipes
         if (header[0] == 0)
             compressed = false;
         LittleEndian<uint16_t> len(&header[1], 2);
-        uint32_t cksum = *reinterpret_cast<uint32_t *>(&header[3]);
+        //uint32_t cksum = *reinterpret_cast<uint32_t *>(&header[3]);
 
         if (!len)
             return EOF;
@@ -341,12 +341,12 @@ namespace pixelpipes
     }
 
     InputCompressionStream::InputCompressionStream(std::streambuf &inbuf)
-        : isbuf_(&inbuf), std::istream(&isbuf_)
+        : std::istream(&isbuf_), isbuf_(&inbuf)
     {
     }
 
     InputCompressionStream::InputCompressionStream(std::istream &in)
-        : isbuf_(in.rdbuf()), std::istream(&isbuf_)
+        : std::istream(&isbuf_),  isbuf_(in.rdbuf())
     {
     }
 
@@ -404,7 +404,7 @@ namespace pixelpipes
             // error
         }
         // use uncompressed input if less than 1.25% compression
-        if (compressed_len_sz >= (uncompressed_len - (uncompressed_len / 80)))
+        if (compressed_len_sz >= (size_t)(uncompressed_len - (uncompressed_len / 80)))
         {
             delete[] compressed;
             return writeBlock(in_buffer_, uncompressed_len, uncompressed_len, false, crc32c);
@@ -438,14 +438,14 @@ namespace pixelpipes
     /**@brief You can create compressed stream over every stream based on std::streambuf
      * @param chunksize The size of chunks*/
     OutputCompressionStream::OutputCompressionStream(std::streambuf &outbuf, unsigned chunksize)
-        : osbuf_(&outbuf, chunksize), std::ostream(&osbuf_)
+        : std::ostream(&osbuf_), osbuf_(&outbuf, chunksize)
     {
     }
 
     /**@brief You can create compressed stream over every stream based on std::ostream
      * @param chunksize The size of chunks*/
     OutputCompressionStream::OutputCompressionStream(std::ostream &out, unsigned chunksize)
-        : osbuf_(out.rdbuf(), chunksize), std::ostream(&osbuf_)
+        : std::ostream(&osbuf_), osbuf_(out.rdbuf(), chunksize)
     {
     }
 

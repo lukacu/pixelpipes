@@ -36,7 +36,7 @@ public:
 
     }
 
-    virtual SharedToken get(int index) const {
+    virtual SharedToken get(size_t index) const {
 
         return list->get(index);
 
@@ -51,9 +51,9 @@ protected:
 
 class Sublist: public Proxy {
 public:
-    Sublist(SharedList list, int from, int to) : Proxy(list), from(from), to(to) {
+    Sublist(SharedList list, size_t from, size_t to) : Proxy(list), from(from), to(to) {
 
-        if (to < from || to >= (int) list->size() || from < 0) {
+        if (to < from || to >= list->size()) {
             throw TypeException("Illegal sublist range");
         }
 
@@ -67,11 +67,11 @@ public:
 
     }
 
-    virtual SharedToken get(int index) const {
+    virtual SharedToken get(size_t index) const {
 
         index += from;
 
-        if (index < 0 || index > to) {
+        if (index > to) {
             throw TypeException("Index out of range");
         }
 
@@ -81,14 +81,14 @@ public:
 
 private:
 
-    int from, to;
+    size_t from, to;
 
 };
 
 
 class Table: public Proxy {
 public:
-    Table(SharedList list, int row) : Proxy(list), row(row) {
+    Table(SharedList list, size_t row) : Proxy(list), row(row) {
 
         if (!list) {
             throw TypeException("Empty parent list");
@@ -112,9 +112,9 @@ public:
 
     }
 
-    virtual SharedToken get(int index) const {
+    virtual SharedToken get(size_t index) const {
 
-        if (index < 0 || index >= size()) {
+        if (index >= size()) {
             throw TypeException("Index out of range");
         }
 
@@ -124,7 +124,7 @@ public:
 
 private:
 
-    int row;
+    size_t row;
 
 };
 
@@ -170,10 +170,7 @@ public:
         return lists[0]->element_type_id();
     }
 
-    virtual SharedToken get(int index) const {
-
-        if (index < 0)
-            throw TypeException("Index out of range");
+    virtual SharedToken get(size_t index) const {
 
         for (SharedList l : lists) {
             if (index < l->size())
@@ -200,7 +197,7 @@ public:
         }
 
         for (auto index : map) {
-            if (index < 0 || index >= (int) list->size())
+            if (index < 0 || ((size_t) index >= list->size()))
                 throw TypeException("Illegal list index");
         }
 
@@ -221,9 +218,9 @@ public:
     }
 
 
-    virtual SharedToken get(int index) const {
+    virtual SharedToken get(size_t index) const {
 
-        if (index < 0 || index >= (int) map.size()) {
+        if (index >= map.size()) {
             throw TypeException("Index out of range");
         }
 
@@ -241,7 +238,7 @@ private:
 
 class ConstantList: public List {
 public:
-    ConstantList(SharedToken value, int length) : value(value), length(length) {
+    ConstantList(SharedToken value, size_t length) : value(value), length(length) {
 
         if (!value || List::is(value))
             throw TypeException("Wrong token type");
@@ -254,7 +251,9 @@ public:
 
     virtual TypeIdentifier element_type_id() const { return value->type_id(); }
 
-    virtual SharedToken get(int index) const {
+    virtual SharedToken get(size_t index) const {
+        if (index >= length)
+            throw TypeException("Index out of range");
         return value;
     }
 
@@ -262,7 +261,7 @@ private:
 
     SharedToken value;
 
-    int length;
+    size_t length;
 
 };
 
@@ -284,9 +283,9 @@ private:
             return StringType;
         }
 
-        virtual SharedToken get(int index) const {
+        virtual SharedToken get(size_t index) const {
 
-            if (index < 0 || index >= (int)list.size())
+            if (index >= list.size())
             {
                 throw TypeException("Index out of range");
             }
@@ -629,21 +628,25 @@ SharedToken ListCompare(std::vector<SharedToken> inputs, ComparisonOperation ope
         for (size_t i = 0; i < a->size(); i++) {
             result.push_back(Float::get_value(a->get(i)) < Float::get_value(b->get(i)));
         } 
+        break;
     }
     case ComparisonOperation::LOWER_EQUAL: {
         for (size_t i = 0; i < a->size(); i++) {
             result.push_back(Float::get_value(a->get(i)) <= Float::get_value(b->get(i)));
         } 
+        break;
     }
     case ComparisonOperation::GREATER: {
         for (size_t i = 0; i < a->size(); i++) {
             result.push_back(Float::get_value(a->get(i)) > Float::get_value(b->get(i)));
         } 
+        break;
     }
     case ComparisonOperation::GREATER_EQUAL: {
         for (size_t i = 0; i < a->size(); i++) {
             result.push_back(Float::get_value(a->get(i)) >= Float::get_value(b->get(i)));
         } 
+        break;
     }
     }
 

@@ -26,7 +26,7 @@ namespace pixelpipes
             for (auto d : x)
                 write_t<bool>(target, d); // Explicit type needed
         }
-    };
+    }
 
     template <>
     DNF read_t(std::istream &source)
@@ -44,7 +44,7 @@ namespace pixelpipes
             data.push_back(clause);
         }
         return DNF(data);
-    };
+    }
 
     template <typename T>
     void write_v(std::ostream &source, const std::vector<T> &list)
@@ -54,7 +54,7 @@ namespace pixelpipes
         {
             write_t(source, list[i]);
         }
-    };
+    }
 
     template <typename T>
     std::vector<T> read_v(std::istream &source)
@@ -75,7 +75,7 @@ namespace pixelpipes
         {
             throw SerializationException("Unable to allocate an array");
         }
-    };
+    }
 
     PIXELPIPES_REGISTER_WRITER(IntegerType, [](SharedToken v, std::ostream &target)
                                {
@@ -247,7 +247,6 @@ namespace pixelpipes
 
             // Write inputs
             write_v(target, std::get<2>(op));
-
         }
     }
 
@@ -499,7 +498,7 @@ namespace pixelpipes
 
                 for (auto t : token_indices)
                 {
-                    if (t >= tokens.size())
+                    if (t >= (int)tokens.size())
                         throw SerializationException("Illegal token index");
                     arguments.push_back(tokens[t]);
                 }

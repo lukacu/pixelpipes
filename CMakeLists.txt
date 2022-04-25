@@ -8,13 +8,24 @@ INCLUDE(ExternalProject)
 
 SET(PROJECT_VERSION 0.1.0)
 SET(CMAKE_CXX_STANDARD 17)
+SET(CMAKE_CXX_VISIBILITY_PRESET hidden)
+SET(CMAKE_C_VISIBILITY_PRESET hidden)
 
 option(BUILD_INPLACE "Build to source directory" OFF)
 option(BUILD_PYTHON "Build the Python wrapper" ON)
 option(BUILD_DEBUG "Enable debug output" OFF)
 option(BUILD_TEST "Enable test snippets" OFF)
 
+SET(CMAKE_EXTERNALS_DIR "${CMAKE_BINARY_DIR}/external/")
+
+if (MSVC)
+    add_compile_options(/W4 /WX)
+else()
+    add_compile_options(-Wall -Wextra -pedantic -Werror)
+endif()
+
 set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -Wl,--no-undefined" )
+
 
 FIND_PACKAGE(Threads REQUIRED)
 LINK_LIBRARIES(Threads::Threads)
@@ -63,14 +74,13 @@ SET(CORE_SOURCE
     src/io.cpp
 )
 
-INCLUDE_DIRECTORIES(${OPENCV_INCLUDE_DIRS} ${lodepng_SOURCE_DIR}
-    ${xsimd_SOURCE_DIR}/include ${lodepng_SOURCE_DIR}/include
-    ${CMAKE_BINARY_DIR}/deps/include include/ )
+INCLUDE_DIRECTORIES(${OPENCV_INCLUDE_DIRS} ${lodepng_SOURCE_DIR} ${ZLIB_INCLUDE_DIRS}
+    ${lodepng_SOURCE_DIR}/include  include/ )
     
 LINK_DIRECTORIES(${CMAKE_BINARY_DIR}/deps/lib)
 
 ADD_LIBRARY(pixelpipes SHARED ${CORE_SOURCE})
-TARGET_LINK_LIBRARIES(pixelpipes ${CMAKE_DL_LIBS} lodepng zlib_lib)
+TARGET_LINK_LIBRARIES(pixelpipes ${CMAKE_DL_LIBS} lodepng ${ZLIB_LIBS})
 target_compile_definitions(pixelpipes PRIVATE PIXELPIPES_BUILD_CORE)
 
 ADD_LIBRARY(pixelpipes_geometry SHARED 

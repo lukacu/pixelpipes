@@ -34,11 +34,11 @@ namespace pixelpipes
         Double = 64
     };
 
-    PIXELPIPES_CONVERT_ENUM(Interpolation);
-    PIXELPIPES_CONVERT_ENUM(BorderStrategy);
-    PIXELPIPES_CONVERT_ENUM(ImageDepth);
+    PIXELPIPES_CONVERT_ENUM(Interpolation)
+    PIXELPIPES_CONVERT_ENUM(BorderStrategy)
+    PIXELPIPES_CONVERT_ENUM(ImageDepth)
 
-    typedef struct Chunk
+    typedef struct PIXELPIPES_API Chunk
     {
         unsigned char *pointer;
         size_t length;
@@ -48,14 +48,14 @@ namespace pixelpipes
 
     static const Chunk end{0, 0};
 
-    class ChunkCursor
+    class PIXELPIPES_API ChunkCursor
     {
     public:
         virtual const Chunk current() const = 0;
         virtual void increment() = 0;
     };
 
-    class ImageChunkIterator : public std::iterator<std::input_iterator_tag, Chunk>
+    class PIXELPIPES_API ImageChunkIterator : public std::iterator<std::input_iterator_tag, Chunk>
     {
     public:
         ImageChunkIterator(std::shared_ptr<ChunkCursor> impl);
@@ -86,7 +86,7 @@ namespace pixelpipes
 
     #define ImageType GetTypeIdentifier<Image>()
 
-    class ImageData : public Token
+    class PIXELPIPES_API ImageData : public Token
     {
     public:
         inline static bool is(SharedToken v)
@@ -123,7 +123,7 @@ namespace pixelpipes
         virtual unsigned char *data() const = 0;
     };
 
-    class BufferImage : public ImageData
+    class PIXELPIPES_API BufferImage : public ImageData
     {
     public:
         typedef std::function<void()> DescructorCallback;
@@ -165,7 +165,7 @@ namespace pixelpipes
         DescructorCallback callback;
     };
 
-    class ImageList : public List
+    class PIXELPIPES_API ImageList : public List
     {
     public:
         ImageList(std::vector<Image> images);
@@ -176,7 +176,7 @@ namespace pixelpipes
 
         virtual TypeIdentifier element_type_id() const;
 
-        virtual SharedToken get(int index) const;
+        virtual SharedToken get(size_t index) const;
 
     private:
         std::vector<Image> images;
@@ -207,6 +207,6 @@ namespace pixelpipes
         return std::make_shared<ImageList>(v);
     }
 
-    void copy(const Image source, Image destination);
+    void PIXELPIPES_API copy(const Image source, Image destination);
 
 }

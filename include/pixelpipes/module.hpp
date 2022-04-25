@@ -81,7 +81,7 @@ std::list<pixelpipes::ModuleInitializer> & ( __pixelpipes_ ## N ## _module_initi
 pixelpipes::AddModuleInitializer::AddModuleInitializer(pixelpipes::ModuleInitializer initializer) { ( __pixelpipes_ ## N ## _module_initializers)().push_back(initializer); } \
 extern "C" { \
 const char* pixelpipes_module = STRINGIFY(N); \
-void pixelpipes_module_init() { \
+void PIXELPIPES_API pixelpipes_module_init() { \
     for (auto initializer : ( __pixelpipes_ ## N ## _module_initializers)()) initializer(); \
 } }
 

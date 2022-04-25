@@ -12,6 +12,9 @@
 #include <pixelpipes/image.hpp>
 #include <pixelpipes/python.hpp>
 
+// Some direct NumPy hacks (TODO: replace with Pybind API when possible)
+#include <numpy/arrayobject.h>
+
 #include "../debug.h"
 
 
@@ -89,7 +92,7 @@ public:
         auto item = wrappers.find(type_id);
 
         if (item == wrappers.end()) {
-            DEBUGMSG("Adding wrapper %p\n", type_id);
+            DEBUGMSG("Adding wrapper %ld\n", type_id);
             wrappers.insert(std::pair<TypeIdentifier, const PythonWrapper>(type_id, wrapper));
             if (implicit) allwrappers.push_back(wrapper);
         }
@@ -101,7 +104,7 @@ public:
         auto item = extractors.find(type_id);
 
         if (item == extractors.end()) {
-            DEBUGMSG("Adding extractor %p\n", type_id);
+            DEBUGMSG("Adding extractor %ld\n", type_id);
             extractors.insert(std::pair<TypeIdentifier, const PythonExtractor>(type_id, extractor));
         }
 

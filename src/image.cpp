@@ -24,7 +24,7 @@ namespace pixelpipes
     class SingleChunkCursor : public ChunkCursor
     {
     public:
-        SingleChunkCursor(unsigned char *data, size_t length) : data(data), length(length), done(false) {}
+        SingleChunkCursor(unsigned char *data, size_t length) : done(false), data(data), length(length) {}
 
         virtual const Chunk current() const
         {
@@ -167,7 +167,7 @@ namespace pixelpipes
         return ImageChunkIterator(std::make_shared<EndCursor>());
     }
 
-    ImageChunkIterator::ImageChunkIterator(std::shared_ptr<ChunkCursor> impl) : impl(impl){};
+    ImageChunkIterator::ImageChunkIterator(std::shared_ptr<ChunkCursor> impl) : impl(impl){}
 
     BufferImage::BufferImage(size_t width, size_t height, size_t channels, ImageDepth depth) : image_width(width), image_height(height), image_channels(channels), image_depth(depth), buffer(0), callback(nullptr)
     {
@@ -282,11 +282,15 @@ namespace pixelpipes
 
     Type imate_type_constructor(const TypeParameters &type)
     {
+        UNUSED(type);
         return Type(ImageType);
     }
 
     Type imate_type_denominator(const Type &me, const Type &other)
     {
+        UNUSED(me);
+        UNUSED(other);
+        return Type(AnyType);
     }
 
     ImageList::ImageList(std::vector<Image> inputs) : images(inputs.begin(), inputs.end())
@@ -303,7 +307,7 @@ namespace pixelpipes
         return ImageType;
     }
 
-    SharedToken ImageList::get(int index) const
+    SharedToken ImageList::get(size_t index) const
     {
         return images[index];
     }

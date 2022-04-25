@@ -1,8 +1,12 @@
 
 
 SET(OPENCV_STATIC_FLAGS
--DCMAKE_INSTALL_PREFIX=${CMAKE_BINARY_DIR}/deps
--DCMAKE_C_FLAGS=-fPIC
+-DCMAKE_INSTALL_PREFIX=${CMAKE_EXTERNALS_DIR}opencv/
+-DOPENCV_LIB_ARCHIVE_INSTALL_PATH=${CMAKE_EXTERNALS_DIR}opencv/lib
+-DOPENCV_INCLUDE_INSTALL_PATH=${CMAKE_EXTERNALS_DIR}opencv/include
+-DOPENCV_3P_LIB_INSTALL_PATH=${CMAKE_EXTERNALS_DIR}opencv/lib
+-DCMAKE_BUILD_TYPE=Release
+-DENABLE_PIC=ON
 -DCMAKE_BUILD_TYPE=Release 
 -DBUILD_SHARED_LIBS=OFF 
 -DBUILD_ZLIB=ON
@@ -49,19 +53,21 @@ PREFIX opencv
 GIT_REPOSITORY    https://github.com/opencv/opencv
 GIT_TAG           4.5.5
 CMAKE_ARGS        ${OPENCV_STATIC_FLAGS}
-INSTALL_DIR       "${CMAKE_BINARY_DIR}/deps"
 TEST_COMMAND      ""
 )
 
 SET(OPENCV_LIBS "")
-SET(OPENCV_INCLUDE_DIRS "${CMAKE_BINARY_DIR}/deps/include/opencv4")
+SET(OPENCV_INCLUDE_DIRS "${CMAKE_EXTERNALS_DIR}opencv/include/")
+
+SET(_SUFFIX ${CMAKE_STATIC_LIBRARY_SUFFIX})
+SET(_PREFIX ${CMAKE_STATIC_LIBRARY_PREFIX})
 
 foreach(M IN ITEMS zlib ittnotify libpng libopenjp2 libjpeg-turbo)
     add_library(opencv_3dparty_${M} STATIC IMPORTED)
     set_target_properties(opencv_3dparty_${M} 
         PROPERTIES 
         IMPORTED_LINK_INTERFACE_LANGUAGES "C" 
-        IMPORTED_LOCATION ${CMAKE_BINARY_DIR}/deps/${CMAKE_INSTALL_LIBDIR}/opencv4/3rdparty/lib${M}.a)
+        IMPORTED_LOCATION ${CMAKE_EXTERNALS_DIR}opencv/lib/${_PREFIX}${M}${_SUFFIX})
     add_dependencies(opencv_3dparty_${M} opencv)
 endforeach()
 
@@ -69,7 +75,7 @@ foreach(M IN ITEMS core imgproc imgcodecs calib3d features2d flann)
     add_library(opencv_${M} STATIC IMPORTED)
     set_target_properties(opencv_${M} PROPERTIES
     IMPORTED_LINK_INTERFACE_LANGUAGES "CXX" 
-    IMPORTED_LOCATION ${CMAKE_BINARY_DIR}/deps/${CMAKE_INSTALL_LIBDIR}/libopencv_${M}.a)
+    IMPORTED_LOCATION ${CMAKE_EXTERNALS_DIR}opencv/lib/${_PREFIX}opencv_${M}${_SUFFIX})
     add_dependencies(opencv_${M} opencv)
     LIST(APPEND OPENCV_LIBS "opencv_${M}")
 endforeach()

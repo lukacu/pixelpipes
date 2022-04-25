@@ -144,7 +144,7 @@ SharedToken MaskBounds(std::vector<SharedToken> inputs) noexcept(false) {
 
     VERIFY(image.channels() == 1, "Image has more than one channel");
 
-    float maxval = maximum_value(image);
+    //float maxval = maximum_value(image); TOD: what to do with this?
 
     switch (image.depth()) {
         case CV_8U: 

@@ -6,13 +6,13 @@
 
 namespace pixelpipes {
 
-Operation::Operation() {};
+Operation::Operation() {}
 
 TypeIdentifier Operation::type() {
     return AnyType;
 }
 
-StohasticOperation::StohasticOperation() {};
+StohasticOperation::StohasticOperation() {}
 
 typedef std::map<std::string, Factory> RegistryMap;
 

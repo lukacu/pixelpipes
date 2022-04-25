@@ -238,7 +238,7 @@ namespace pixelpipes
     };
 
 
-    class List : public Container
+    class PIXELPIPES_API List : public Container
     {
     public:
         ~List() = default;
@@ -251,7 +251,7 @@ namespace pixelpipes
 
         virtual TypeIdentifier element_type_id() const = 0;
 
-        virtual SharedToken get(int index) const = 0;
+        virtual SharedToken get(size_t index) const = 0;
 
         inline static bool is(SharedToken v)
         {
@@ -336,7 +336,7 @@ namespace pixelpipes
 
         virtual TypeIdentifier element_type_id() const { return GetTypeIdentifier<C>(); };
 
-        virtual SharedToken get(int index) const { return std::make_shared<ScalarToken<C>>(list[index]); }
+        virtual SharedToken get(size_t index) const { return std::make_shared<ScalarToken<C>>(list[index]); }
 
         template <class T>
         const std::vector<T> elements() const
@@ -378,10 +378,10 @@ namespace pixelpipes
         return std::make_shared<ContainerList<T>>(v);     \
     }
 
-    _LIST_GENERATE_CONVERTERS(int);
-    _LIST_GENERATE_CONVERTERS(bool);
-    _LIST_GENERATE_CONVERTERS(float);
-    _LIST_GENERATE_CONVERTERS(std::string);
+    _LIST_GENERATE_CONVERTERS(int)
+    _LIST_GENERATE_CONVERTERS(bool)
+    _LIST_GENERATE_CONVERTERS(float)
+    _LIST_GENERATE_CONVERTERS(std::string)
 
     /*
                 auto table = std::static_pointer_cast<Table<detail::inner_type_t<T>>>(v);

@@ -4,9 +4,9 @@
 
 namespace pixelpipes {
 
-typedef struct Point2D {
+typedef struct PIXELPIPES_API Point2D {
 
-    float x; float y;
+    float x = 0; float y = 0;
 
 } Point2D;
 
@@ -15,9 +15,9 @@ inline std::ostream& operator<<(std::ostream& os, const Point2D& p) {
     return os;
 }
 
-typedef struct point3D {
+typedef struct PIXELPIPES_API Point3D {
 
-    float x; float y; float z;
+    float x = 0; float y = 0; float z = 0;
 
 } Point3D;
 
@@ -26,15 +26,16 @@ inline std::ostream& operator<<(std::ostream& os, const Point3D& p) {
     return os;
 }
 
-typedef struct View2D {
+typedef struct PIXELPIPES_API View2D {
 
-    float m00; float m01; float m02;
-    float m10; float m11; float m12;
-    float m20; float m21; float m22;
+    float m00 = 1; float m01 = 0; float m02 = 0;
+    float m10 = 0; float m11 = 1; float m12 = 0;
+    float m20 = 0; float m21 = 0; float m22 = 1;
 
 } View2D;
 
 inline std::ostream& operator<<(std::ostream& os, const View2D& p) {
+    UNUSED(p);
     os << "View2D";
     return os;
 }
@@ -49,6 +50,7 @@ typedef struct View3D {
 } View3D;
 
 inline std::ostream& operator<<(std::ostream& os, const View3D& p) {
+    UNUSED(p);
     os << "View3D";
     return os;
 }

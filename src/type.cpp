@@ -73,7 +73,7 @@ namespace pixelpipes
 	void type_register(TypeIdentifier i, std::string_view name, TypeValidator validator, TypeResolver resolver)
 	{
 
-		DEBUGMSG("Registering reader for type %s (%p) \n", std::string(name).data(), i);
+		DEBUGMSG("Registering reader for type %s (%ld) \n", std::string(name).data(), i);
 
 		if (types().find(i) != types().end())
 		{

@@ -21,19 +21,19 @@ enum class SamplingDistribution {Normal, Uniform};
 enum class ContextData {SampleIndex, OperationIndex, RandomSeed};
 
 
-PIXELPIPES_CONVERT_ENUM(ContextData);
-PIXELPIPES_CONVERT_ENUM(SamplingDistribution);
+PIXELPIPES_CONVERT_ENUM(ContextData)
+PIXELPIPES_CONVERT_ENUM(SamplingDistribution)
 
-PIXELPIPES_CONVERT_ENUM(ArithmeticOperation);
-PIXELPIPES_CONVERT_ENUM(LogicalOperation);
-PIXELPIPES_CONVERT_ENUM(ComparisonOperation);
+PIXELPIPES_CONVERT_ENUM(ArithmeticOperation)
+PIXELPIPES_CONVERT_ENUM(LogicalOperation)
+PIXELPIPES_CONVERT_ENUM(ComparisonOperation)
 
 
 class Operation;
 
 typedef std::shared_ptr<Operation> SharedOperation;
 
-class Operation: public std::enable_shared_from_this<Operation> {
+class PIXELPIPES_API Operation: public std::enable_shared_from_this<Operation> {
 public:
     
     ~Operation() = default;
@@ -50,7 +50,7 @@ protected:
 
 typedef std::default_random_engine RandomGenerator;
 
-class StohasticOperation: public Operation {
+class PIXELPIPES_API StohasticOperation: public Operation {
 public:
     
     ~StohasticOperation() = default;
@@ -66,7 +66,7 @@ protected:
 };
 
 
-class OperationException : public BaseException {
+class PIXELPIPES_API OperationException : public BaseException {
 public:
 
     OperationException(std::string reason, SharedOperation operation): BaseException(reason), operation(operation) {}
@@ -81,6 +81,7 @@ namespace details {
     template <class F, class Tuple, std::size_t... I>
     constexpr decltype(auto) apply_impl(F&& f, std::vector<SharedToken> inputs, 
                 Tuple t, std::index_sequence<I...>) {
+                    UNUSED(t); // don't know why this causes unused error?
         return std::invoke(std::forward<F>(f), inputs, std::get<I>(std::forward<Tuple>(t))...);
     }
 
@@ -92,7 +93,6 @@ namespace details {
             std::make_index_sequence<std::tuple_size_v<std::remove_reference_t<Tuple>>>{});
     }
 
-
     template <class T, class Tuple, std::size_t... I>
     constexpr std::shared_ptr<T> make_from_tuple_impl(Tuple&& t, std::index_sequence<I...>) {
         return std::shared_ptr<T>(new T(std::get<I>(std::forward<Tuple>(t))...));
@@ -103,7 +103,6 @@ namespace details {
         return make_from_tuple_impl<T>(std::forward<Tuple>(t),
             std::make_index_sequence<std::tuple_size_v<std::remove_reference_t<Tuple>>>{});
     }
-
 
     typedef std::vector<SharedToken>::const_iterator ArgIterator;
 
@@ -220,11 +219,9 @@ typedef std::function<SharedOperation(std::vector<SharedToken>)> OperationConstr
 typedef std::function<OperationArguments()> OperationDescriber;
 typedef std::tuple<OperationConstructor, OperationDescriber, SharedModule> Factory;
 
-SharedOperation make_operation(const std::string& key, std::vector<SharedToken> inputs);
-
-void register_operation(const std::string& key, OperationConstructor constructor, OperationDescriber describer);
-
-bool is_operation_registered(const std::string& key);
+SharedOperation PIXELPIPES_API make_operation(const std::string& key, std::vector<SharedToken> inputs);
+void PIXELPIPES_API register_operation(const std::string& key, OperationConstructor constructor, OperationDescriber describer);
+bool PIXELPIPES_API is_operation_registered(const std::string& key);
 
 template <typename OperationClass = Operation, typename ...Args>
 void register_operation(const std::string& key) {
@@ -240,9 +237,9 @@ SharedOperation make_operation(const std::string& key, Args&& ... args) {
 
 }
 
-OperationDescription describe_operation(const std::string& key);
-SharedOperation create_operation(const std::string& key, std::vector<SharedToken> inputs);
-SharedOperation create_operation(const std::string& key, std::initializer_list<SharedToken> inputs);
+OperationDescription PIXELPIPES_API describe_operation(const std::string& key);
+SharedOperation PIXELPIPES_API create_operation(const std::string& key, std::vector<SharedToken> inputs);
+SharedOperation PIXELPIPES_API create_operation(const std::string& key, std::initializer_list<SharedToken> inputs);
 
 template<typename Fn, Fn fn, typename Base, typename ...Args>
 void register_operation_function(const std::string& name) {

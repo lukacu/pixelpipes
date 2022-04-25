@@ -132,6 +132,7 @@ namespace pixelpipes
 
         virtual SharedToken run(std::vector<SharedToken> inputs)
         {
+            UNUSED(inputs);
             return value;
         }
 
@@ -258,6 +259,7 @@ namespace pixelpipes
 
         virtual SharedToken run(std::vector<SharedToken> inputs)
         {
+            UNUSED(inputs);
             return empty<Integer>();
         }
 
@@ -306,7 +308,7 @@ namespace pixelpipes
 
     REGISTER_OPERATION("_debug", DebugOutput, std::string);
 
-    Pipeline::Pipeline() : finalized(false){};
+    Pipeline::Pipeline() : finalized(false) {}
 
     void Pipeline::finalize()
     {
@@ -453,7 +455,7 @@ namespace pixelpipes
                 {
                     size_t jump = (size_t)Integer::get_value(context[i]);
 
-                    if (jump < 0 || (i + jump) >= operations.size())
+                    if ((i + jump) >= operations.size())
                         throw PipelineException("Unable to execute jump", shared_from_this(), i);
 
                     i += 1 + jump;

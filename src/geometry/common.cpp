@@ -7,7 +7,7 @@
 
 #include "common.hpp"
 
-PIXELPIPES_MODULE(geometry);
+PIXELPIPES_MODULE(geometry)
 
 namespace pixelpipes {
 

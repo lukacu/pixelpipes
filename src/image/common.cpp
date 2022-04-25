@@ -11,7 +11,7 @@
 namespace pixelpipes
 {
 
-    PIXELPIPES_MODULE(image);
+    PIXELPIPES_MODULE(image)
 
 #ifndef CV_MAX_DIM
     const int CV_MAX_DIM = 32;
@@ -430,6 +430,8 @@ namespace pixelpipes
 
     /**
      * @brief Tabulates a function into a matrix of a given size
+     * 
+     * TODO: reorganize into spearate methods
      *
      */
     SharedToken MapFunction(std::vector<SharedToken> inputs, int function, bool normalize) noexcept(false)
@@ -454,9 +456,7 @@ namespace pixelpipes
             float sigma_y = Float::get_value(inputs[5]);
 
             // intialising standard deviation to 1.0
-            float sigma = 1.0;
-            float r, s = 2.0 * sigma * sigma;
-            // sum is for normalization
+            float r;
             float sum = 0.0;
 
             // generating 5x5 kernel
