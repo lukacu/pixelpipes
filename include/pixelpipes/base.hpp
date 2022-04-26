@@ -6,6 +6,7 @@
 #include <vector>
 
 #ifdef _WIN32
+#include <windows.h>
 #ifdef PIXELPIPES_BUILD_CORE
 #define PIXELPIPES_API __declspec(dllexport)
 #else
@@ -170,14 +171,14 @@ namespace pixelpipes
 
     }
 
-    class PIXELPIPES_API Formatter
+    class Formatter
     {
     public:
-        Formatter() {}
-        ~Formatter() {}
+		PIXELPIPES_API Formatter() {}
+		PIXELPIPES_API ~Formatter() {}
 
         template <typename Type>
-        Formatter & operator << (const std::vector<Type> & value)
+		PIXELPIPES_API Formatter & operator << (const std::vector<Type> & value)
         {
 
             stream << value.size() << " - ";
@@ -193,16 +194,16 @@ namespace pixelpipes
             return *this;
         }
 
-        std::string str() const         { return stream.str(); }
-        operator std::string () const   { return stream.str(); }
+		PIXELPIPES_API std::string str() const         { return stream.str(); }
+		PIXELPIPES_API operator std::string () const   { return stream.str(); }
 
-        const char* c_str() const       { return stream.str().c_str(); }
+		PIXELPIPES_API const char* c_str() const       { return stream.str().c_str(); }
 
         enum ConvertToString 
         {
             to_str
         };
-        std::string operator >> (ConvertToString) { return stream.str(); }
+		PIXELPIPES_API std::string operator >> (ConvertToString) { return stream.str(); }
 
     private:
         std::stringstream stream;
@@ -211,13 +212,13 @@ namespace pixelpipes
         Formatter & operator = (Formatter &);
     };
 
-    class PIXELPIPES_API BaseException : public std::exception
+    class BaseException
     {
     public:
-        BaseException(std::string reason);
-        ~BaseException() = default;
+		PIXELPIPES_API BaseException(std::string reason);
+		PIXELPIPES_API ~BaseException() = default;
 
-        const char *what() const throw();
+		PIXELPIPES_API const char *what() const throw();
 
     private:
         std::string reason;

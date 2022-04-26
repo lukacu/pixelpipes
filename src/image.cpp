@@ -1,6 +1,7 @@
 
 
 #include <cstring>
+#include <cmath>
 
 #include <pixelpipes/image.hpp>
 #include <pixelpipes/serialization.hpp>
@@ -256,7 +257,7 @@ namespace pixelpipes
         {
             size_t slen = (*sit).length - soffset;
             size_t dlen = (*dit).length - doffset;
-            size_t length = std::min(slen, dlen);
+            size_t length = (std::min)(slen, dlen);
 
             if (length == 0)
                 break;

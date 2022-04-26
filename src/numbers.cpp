@@ -1,4 +1,6 @@
 
+#include <cmath>
+
 #include <pixelpipes/operation.hpp>
 #include "random.hpp"
 

@@ -10,8 +10,9 @@
 #endif
 #include <pixelpipes/module.hpp>
 
-#ifdef _MSC_VER
+#ifdef _WIN32
 #include <windows.h>
+#include <tchar.h>
 #else
 #include <dlfcn.h>
 #endif
@@ -87,7 +88,7 @@ namespace pixelpipes
             path candidate = dir;
 
 #ifdef _MSC_VER
-            candidate /= "pixelpipes_" + libname + ".dll";
+            candidate /= "pixelpipes_" + name + ".dll";
 #else
             candidate /= "libpixelpipes_" + name + ".so";
 #endif
@@ -124,7 +125,7 @@ namespace pixelpipes
         auto fullname = find_module(libname);
 
 #ifdef _MSC_VER
-        auto handle = LoadLibrary(_T(fullname.c_str()));
+        auto handle = LoadLibrary(fullname.string().c_str());
 #else
         auto handle = dlopen(fullname.c_str(), RTLD_DEEPBIND | RTLD_NOW);
 #endif

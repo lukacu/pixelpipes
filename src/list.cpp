@@ -536,7 +536,7 @@ SharedToken ListPermute(std::vector<SharedToken> inputs) {
 
     size_t length = list->size();
 
-    std::vector<int> indices;
+    std::vector<size_t> indices;
     for (size_t i = 0; i < length; i++) {
         indices.push_back(i);
     }
@@ -557,7 +557,7 @@ SharedToken MakePermutation(std::vector<SharedToken> inputs) {
 
     size_t length = (size_t) Integer::get_value(inputs[0]);
 
-    std::vector<int> indices;
+    std::vector<size_t> indices;
     for (size_t i = 0; i < length; i++) {
         indices.push_back(i);
     }

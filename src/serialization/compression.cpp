@@ -428,11 +428,11 @@ namespace pixelpipes
         if (dest_->sputn(&data[0], length) != length)
             return -1;
 
-        bytes_in_ += uncompressed_len;
-        bytes_out_ += length;
+        bytes_in_ += (size_t)uncompressed_len;
+        bytes_out_ += (size_t)length;
 
-        pbump(-uncompressed_len);
-        return uncompressed_len;
+        pbump(-(int)uncompressed_len);
+        return (int)uncompressed_len;
     }
 
     /**@brief You can create compressed stream over every stream based on std::streambuf

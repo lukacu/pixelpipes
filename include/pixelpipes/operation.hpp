@@ -31,6 +31,9 @@ PIXELPIPES_CONVERT_ENUM(ComparisonOperation)
 
 class Operation;
 
+template class PIXELPIPES_API std::shared_ptr<Operation>;
+template class PIXELPIPES_API std::enable_shared_from_this<Operation>;
+
 typedef std::shared_ptr<Operation> SharedOperation;
 
 class PIXELPIPES_API Operation: public std::enable_shared_from_this<Operation> {
