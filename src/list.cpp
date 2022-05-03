@@ -268,7 +268,7 @@ private:
     class PrefixList : public List
     {
     public:
-        PrefixList(std::vector<std::string> list, std::string prefix = std::string()) : list(list), prefix(prefix) {
+        PrefixList(Span<std::string> list, std::string prefix = std::string()) : list(list.begin(), list.end()), prefix(prefix) {
             if (list.empty())
                 throw TypeException("List is empty");
         }
@@ -301,7 +301,7 @@ private:
     };
 
 
-SharedToken ListStringPrefix(std::vector<SharedToken> inputs, std::vector<std::string> list, std::string prefix) {
+SharedToken ListStringPrefix(TokenList inputs, Sequence<std::string> list, std::string prefix) {
 
     VERIFY(inputs.size() == 0, "Incorrect number of parameters");
 
@@ -309,13 +309,13 @@ SharedToken ListStringPrefix(std::vector<SharedToken> inputs, std::vector<std::s
 
 }
 
-REGISTER_OPERATION_FUNCTION("list_prefix", ListStringPrefix, std::vector<std::string>, std::string);
+REGISTER_OPERATION_FUNCTION("list_prefix", ListStringPrefix, Sequence<std::string>, std::string);
 
 /**
  * @brief Returns a sublist of a given list for a specified first and last element.
  * 
  */
-SharedToken SublistSelect(std::vector<SharedToken> inputs) {
+SharedToken SublistSelect(TokenList inputs) {
 
     VERIFY(inputs.size() == 3, "Incorrect number of parameters");
 
@@ -334,7 +334,7 @@ REGISTER_OPERATION_FUNCTION("list_sublist", SublistSelect);
  * @brief Returns a view of the list where every element is a row.
  * 
  */
-SharedToken ListAsTable(std::vector<SharedToken> inputs) {
+SharedToken ListAsTable(TokenList inputs) {
 
     VERIFY(inputs.size() == 2, "Incorrect number of parameters");
 
@@ -352,7 +352,7 @@ REGISTER_OPERATION_FUNCTION("list_table", ListAsTable);
  * @brief Returns a concatenation of given input lists.
  * 
  */
-SharedToken ListConcatenate(std::vector<SharedToken> inputs) {
+SharedToken ListConcatenate(TokenList inputs) {
 
     VERIFY(inputs.size() > 1, "Incorrect number of parameters");
 
@@ -373,7 +373,7 @@ REGISTER_OPERATION_FUNCTION("list_concatenate", ListConcatenate);
  * @brief Filters a list with another list used as a mask.
  * 
  */
-SharedToken FilterSelect(std::vector<SharedToken> inputs) {
+SharedToken FilterSelect(TokenList inputs) {
 
     VERIFY(inputs.size() == 2, "Incorrect number of parameters");
 
@@ -391,7 +391,7 @@ SharedToken FilterSelect(std::vector<SharedToken> inputs) {
 
     for (size_t i = 0; i < filter->size(); i++) {
         if (Integer::get_value(filter->get(i)) != 0)
-            map.push_back(i);
+            map.push_back((int)i);
     } 
 
     return std::make_shared<MappedList>(list, map);
@@ -404,7 +404,7 @@ REGISTER_OPERATION_FUNCTION("list_filter", FilterSelect);
  * @brief Maps elements from a list to another list using a list of indices.
  * 
  */
-SharedToken ListRemap(std::vector<SharedToken> inputs) {
+SharedToken ListRemap(TokenList inputs) {
 
     VERIFY(inputs.size() == 2, "Incorrect number of parameters");
 
@@ -435,7 +435,7 @@ REGISTER_OPERATION_FUNCTION("list_remap", ListRemap);
  * @brief Returns an element from a given list.
  * 
  */
-SharedToken ListElement(std::vector<SharedToken> inputs) {
+SharedToken ListElement(TokenList inputs) {
 
     VERIFY(inputs.size() == 2, "Incorrect number of parameters");
 
@@ -453,7 +453,7 @@ REGISTER_OPERATION_FUNCTION("list_element", ListElement);
  * @brief Returns a virtual list with the given variable replicated a given number of times.
  * 
  */
-SharedToken RepeatElement(std::vector<SharedToken> inputs) {
+SharedToken RepeatElement(TokenList inputs) {
 
     VERIFY(inputs.size() == 2, "Incorrect number of parameters");
 
@@ -473,7 +473,7 @@ REGISTER_OPERATION_FUNCTION("list_repeat", RepeatElement);
  * @brief Returns a list from start to end with linear progression over length elements.
  * 
  */
-SharedToken RangeList(std::vector<SharedToken> inputs, bool round) {
+SharedToken RangeList(TokenList inputs, bool round) {
 
     VERIFY(inputs.size() == 3, "Incorrect number of parameters");
 
@@ -489,7 +489,7 @@ SharedToken RangeList(std::vector<SharedToken> inputs, bool round) {
             data.push_back((int) ((i / (float) length) * (end - start) + start));
         }
 
-        return std::make_shared<IntegerList>(data);
+        return std::make_shared<IntegerList>(make_span(data));
 
     } else {
 
@@ -498,7 +498,7 @@ SharedToken RangeList(std::vector<SharedToken> inputs, bool round) {
             data.push_back( (i / (float) length) * (end - start) + start );
         }
 
-        return std::make_shared<FloatList>(data);
+        return std::make_shared<FloatList>(make_span(data));
     }
 
 }
@@ -528,7 +528,7 @@ private:
  * @brief Creates a permutation mapping.
  * 
  */
-SharedToken ListPermute(std::vector<SharedToken> inputs) {
+SharedToken ListPermute(TokenList inputs) {
     
     VERIFY(inputs.size() == 2, "Incorrect number of parameters");
 
@@ -536,9 +536,9 @@ SharedToken ListPermute(std::vector<SharedToken> inputs) {
 
     size_t length = list->size();
 
-    std::vector<size_t> indices;
+    std::vector<int> indices;
     for (size_t i = 0; i < length; i++) {
-        indices.push_back(i);
+        indices.push_back((int)i);
     }
     std::random_shuffle(indices.begin(), indices.end(), PermutationGenerator(inputs[1]));
 
@@ -551,19 +551,19 @@ REGISTER_OPERATION_FUNCTION_WITH_BASE("list_permute", ListPermute, StohasticOper
  * @brief Creates a random permutation of indices from 0 to length.
  * 
  */
-SharedToken MakePermutation(std::vector<SharedToken> inputs) {
+SharedToken MakePermutation(TokenList inputs) {
     
     VERIFY(inputs.size() == 2, "Incorrect number of parameters");
 
     size_t length = (size_t) Integer::get_value(inputs[0]);
 
-    std::vector<size_t> indices;
+    std::vector<int> indices;
     for (size_t i = 0; i < length; i++) {
-        indices.push_back(i);
+        indices.push_back((int)i);
     }
     std::random_shuffle(indices.begin(), indices.end(), PermutationGenerator(inputs[1]));
 
-    return std::make_shared<IntegerList>(indices);
+    return std::make_shared<IntegerList>(make_span(indices));
 }
 
 REGISTER_OPERATION_FUNCTION_WITH_BASE("list_permutation", MakePermutation, StohasticOperation);
@@ -572,7 +572,7 @@ REGISTER_OPERATION_FUNCTION_WITH_BASE("list_permutation", MakePermutation, Stoha
  * @brief Returns a scalar length of an input list.
  * 
  */
-SharedToken ListLength(std::vector<SharedToken> inputs) {
+SharedToken ListLength(TokenList inputs) {
 
     VERIFY(inputs.size() == 1, "Incorrect number of parameters");
 
@@ -588,7 +588,7 @@ REGISTER_OPERATION_FUNCTION("list_length", ListLength);
  * @brief Compares a list to a list or scalar. Returns a list of integer 0 or 1.
  * 
  */
-SharedToken ListCompare(std::vector<SharedToken> inputs, ComparisonOperation operation) {
+SharedToken ListCompare(TokenList inputs, ComparisonOperation operation) {
 
     VERIFY(inputs.size() == 2, "Incorrect number of parameters");
 
@@ -650,13 +650,13 @@ SharedToken ListCompare(std::vector<SharedToken> inputs, ComparisonOperation ope
     }
     }
 
-    return std::make_shared<IntegerList>(result);
+    return std::make_shared<IntegerList>(make_span(result));
 
 }
 
 REGISTER_OPERATION_FUNCTION("list_compare", ListCompare, ComparisonOperation);
 
-SharedToken ListLogical(std::vector<SharedToken> inputs, LogicalOperation operation) {
+SharedToken ListLogical(TokenList inputs, LogicalOperation operation) {
 
     switch (operation) {
     case LogicalOperation::AND: {
@@ -679,7 +679,7 @@ SharedToken ListLogical(std::vector<SharedToken> inputs, LogicalOperation operat
             result.push_back((Integer::get_value(a->get(i)) != 0) && (Integer::get_value(b->get(i)) != 0));
         } 
 
-        return std::make_shared<IntegerList>(result);
+        return std::make_shared<IntegerList>(make_span(result));
     }
     case LogicalOperation::OR: {
         if (inputs.size() != 2) {
@@ -701,7 +701,7 @@ SharedToken ListLogical(std::vector<SharedToken> inputs, LogicalOperation operat
             result.push_back((Integer::get_value(a->get(i)) != 0) || (Integer::get_value(b->get(i)) != 0));
         } 
 
-        return std::make_shared<IntegerList>(result);
+        return std::make_shared<IntegerList>(make_span(result));
 
     }
     case LogicalOperation::NOT: {
@@ -720,7 +720,7 @@ SharedToken ListLogical(std::vector<SharedToken> inputs, LogicalOperation operat
             result.push_back(!(Integer::get_value(a->get(i)) != 0));
         } 
 
-        return std::make_shared<IntegerList>(result);
+        return std::make_shared<IntegerList>(make_span(result));
 
     }
     }
@@ -732,7 +732,7 @@ SharedToken ListLogical(std::vector<SharedToken> inputs, LogicalOperation operat
 REGISTER_OPERATION_FUNCTION("logical", ListLogical, LogicalOperation);
 
 // TODO: support for integer operations
-SharedToken ListArithmetic(std::vector<SharedToken> inputs, ArithmeticOperation operation) {
+SharedToken ListArithmetic(TokenList inputs, ArithmeticOperation operation) {
 
     VERIFY(inputs.size() == 2, "Incorrect number of parameters");
 
@@ -753,7 +753,7 @@ SharedToken ListArithmetic(std::vector<SharedToken> inputs, ArithmeticOperation 
             result.push_back(Float::get_value(a->get(i)) + Float::get_value(b->get(i)));
         } 
 
-        return std::make_shared<FloatList>(result);
+        return std::make_shared<FloatList>(make_span(result));
     }
     case ArithmeticOperation::SUBTRACT: {
         std::vector<float> result;
@@ -762,7 +762,7 @@ SharedToken ListArithmetic(std::vector<SharedToken> inputs, ArithmeticOperation 
             result.push_back(Float::get_value(a->get(i)) - Float::get_value(b->get(i)));
         } 
 
-        return std::make_shared<FloatList>(result);
+        return std::make_shared<FloatList>(make_span(result));
 
     }
     case ArithmeticOperation::MULTIPLY: {
@@ -772,7 +772,7 @@ SharedToken ListArithmetic(std::vector<SharedToken> inputs, ArithmeticOperation 
             result.push_back(Float::get_value(a->get(i)) * Float::get_value(b->get(i)));
         } 
 
-        return std::make_shared<FloatList>(result);
+        return std::make_shared<FloatList>(make_span(result));
 
     }
     case ArithmeticOperation::DIVIDE: {
@@ -782,7 +782,7 @@ SharedToken ListArithmetic(std::vector<SharedToken> inputs, ArithmeticOperation 
             result.push_back(Float::get_value(a->get(i)) / Float::get_value(b->get(i)));
         } 
 
-        return std::make_shared<FloatList>(result);
+        return std::make_shared<FloatList>(make_span(result));
 
     }
     case ArithmeticOperation::POWER: {
@@ -792,7 +792,7 @@ SharedToken ListArithmetic(std::vector<SharedToken> inputs, ArithmeticOperation 
             result.push_back(pow(Float::get_value(a->get(i)), Float::get_value(b->get(i))));
         } 
 
-        return std::make_shared<FloatList>(result);
+        return std::make_shared<FloatList>(make_span(result));
 
     }
     case ArithmeticOperation::MODULO: {
@@ -802,7 +802,7 @@ SharedToken ListArithmetic(std::vector<SharedToken> inputs, ArithmeticOperation 
             result.push_back(fmod(Float::get_value(a->get(i)), Float::get_value(b->get(i))));
         } 
 
-        return std::make_shared<FloatList>(result);
+        return std::make_shared<FloatList>(make_span(result));
 
     }
     default:
@@ -814,7 +814,7 @@ SharedToken ListArithmetic(std::vector<SharedToken> inputs, ArithmeticOperation 
 REGISTER_OPERATION_FUNCTION("list_arithmetic", ListArithmetic, ArithmeticOperation);
 
 // TODO: better detecton of integer lists vs float
-SharedToken ListBuild(std::vector<SharedToken> inputs) {
+SharedToken ListBuild(TokenList inputs) {
 
     VERIFY(inputs.size() > 0, "No inputs");
 
@@ -826,7 +826,7 @@ SharedToken ListBuild(std::vector<SharedToken> inputs) {
             result.push_back(Integer::get_value(inputs[i]));
         }
 
-        return std::make_shared<IntegerList>(result);
+        return std::make_shared<IntegerList>(make_span(result));
 
     } else {
 
@@ -836,7 +836,7 @@ SharedToken ListBuild(std::vector<SharedToken> inputs) {
             result.push_back(Float::get_value(inputs[i]));
         }
 
-        return std::make_shared<FloatList>(result);
+        return std::make_shared<FloatList>(make_span(result));
 
     }
 

@@ -19,11 +19,24 @@ namespace pixelpipes {
 class Pipeline;
 class PipelineException;
 
-class PIXELPIPES_API DNF: public std::vector<std::vector<bool> > {
+class PIXELPIPES_API DNF {
 public:
 
-    DNF(std::vector<std::vector<bool> > clauses);
+    DNF(Span<Span<bool> > clauses);
+    DNF(std::istream &source);
+
     ~DNF() = default;
+
+    size_t size() const;
+
+    bool compute(TokenList values) const;
+
+    void write(std::ostream &target) const;
+
+private:
+
+    // TODO: PIMPL
+    std::vector<std::vector<bool>> clauses;
 
 };
 
@@ -56,9 +69,9 @@ public:
 
     virtual void finalize();
 
-    virtual int append(std::string name, std::vector<SharedToken> args, std::vector<int> inputs);
+    virtual int append(std::string name, TokenList args, Span<int> inputs);
 
-    virtual std::vector<SharedToken> run(unsigned long index) noexcept(false);
+    virtual Sequence<SharedToken> run(unsigned long index) noexcept(false);
 
     virtual std::vector<std::string> get_labels();
 
@@ -89,7 +102,7 @@ typedef std::shared_ptr<Pipeline> SharedPipeline;
 
 class PipelineCallback {
 public:
-    virtual void done(std::vector<SharedToken> result) = 0;
+    virtual void done(TokenList result) = 0;
 
     virtual void error(const PipelineException &error) = 0;
 

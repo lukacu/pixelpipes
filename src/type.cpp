@@ -1,4 +1,6 @@
+#include <cstring>
 #include <sstream>
+#include <algorithm>
 
 #include <pixelpipes/type.hpp>
 
@@ -9,15 +11,69 @@ namespace pixelpipes
 
 	// TODO: base exception impl probably does not belong here
 
-	BaseException::BaseException(std::string reason) : reason(reason) {}
+	BaseException::BaseException(std::string r) : reason(nullptr)
+	{
+
+		reason = new char[r.size()];
+		std::strcpy(reason, r.c_str());
+	}
+
+	BaseException::~BaseException()
+	{
+		if (reason)
+			delete[] reason;
+	}
 
 	const char *BaseException::what() const throw()
 	{
-		return reason.c_str();
+		return reason;
 	}
 
 	TypeException::TypeException(std::string reason) : BaseException(reason) {}
+/*
+	struct String::Data
+	{
+	public:
+		~Data()
+		{
+			delete text;
+		}
 
+		Data(char const *const text, size_t len) : len(len) 	//: text(std::strdup(text))
+		{
+			this->text = new char[len];
+			std::copy_n(text, len, this->text);
+		}
+
+		Data *clone() const
+		{
+			return new Data(text, len);
+		}
+
+		char const * text = nullptr;
+		const size_t len = 0;
+	};
+
+	String::String(char const *const text)
+		: data(text)
+	{
+	}
+
+	String::String(String const &other)
+		: data(data->text)
+	{
+	}
+
+	String &String::operator=(char const *const text)
+	{
+		return *this = String(text);
+	}
+
+	const char *String::get() const
+	{
+		return data->text;
+	}
+*/
 	typedef std::tuple<TypeName, TypeValidator, TypeResolver, SharedModule> TypeData;
 	typedef std::map<TypeIdentifier, TypeData> TypeMap;
 
@@ -27,8 +83,8 @@ namespace pixelpipes
 		return map;
 	}
 
-    Type::Type(const Type& t): _id(t._id), _parameters(t._parameters) {
-
+	Type::Type(const Type &t) : _id(t._id), _parameters(t._parameters)
+	{
 	}
 
 	Type::Type(TypeIdentifier id) : Type(id, {})
@@ -37,16 +93,17 @@ namespace pixelpipes
 
 	Type::Type(TypeIdentifier id, const TypeParameters parameters) : _id(id), _parameters(parameters)
 	{
-		if (id == AnyType) {
+		if (id == AnyType)
+		{
 			return;
 		}
 
-/*
-		if (types().find(id) == types().end())
-		{
-			throw TypeException("Unknown type");
-		}
-*/
+		/*
+				if (types().find(id) == types().end())
+				{
+					throw TypeException("Unknown type");
+				}
+		*/
 	}
 
 	TypeIdentifier Type::identifier() const
@@ -73,7 +130,7 @@ namespace pixelpipes
 	void type_register(TypeIdentifier i, std::string_view name, TypeValidator validator, TypeResolver resolver)
 	{
 
-		DEBUGMSG("Registering reader for type %s (%ld) \n", std::string(name).data(), i);
+		DEBUGMSG("Registering type %s (%ld) \n", std::string(name).data(), i);
 
 		if (types().find(i) != types().end())
 		{
@@ -106,7 +163,8 @@ namespace pixelpipes
 		return std::get<1>(item->second)(parameters);
 	}
 
-    TypeIdentifier type_find(TypeName name) {
+	TypeIdentifier type_find(TypeName name)
+	{
 		for (auto d : types())
 		{
 			if (std::get<0>(d.second) == name)
@@ -116,7 +174,6 @@ namespace pixelpipes
 		}
 		throw TypeException(Formatter() << "Type for name " << name << " not found");
 	}
-
 
 	Type type_common(const Type &me, const Type &other)
 	{
@@ -128,8 +185,6 @@ namespace pixelpipes
 		}
 
 		return std::get<2>(item->second)(me, other);
-
-
 	}
 
 	SharedModule type_source(TypeIdentifier i)
@@ -139,32 +194,31 @@ namespace pixelpipes
 
 		if (item == types().end())
 		{
-			throw TypeException("Unknown type");
+			throw TypeException((Formatter() << "Unknown type identifier: " << i << "").str());
 		}
 
 		return std::get<3>(item->second);
 	}
 
-	std::string_view type_name(TypeIdentifier i)
+	TypeName type_name(TypeIdentifier i)
 	{
 
 		auto item = types().find(i);
 
 		if (item == types().end())
 		{
-			return "???";
+			return (Formatter() << "??? (" << i << ")").str();
 		}
 
-		return std::get<0>(item->second);
+		return std::string(std::get<0>(item->second));
 	}
 
-	Type default_type_resolve(const Type & a, const Type & b)
+	Type default_type_resolve(const Type &a, const Type &b)
 	{
 		if (a.identifier() == b.identifier())
 			return Type(a.identifier());
 
 		return Type(AnyType);
 	}
-
 
 }

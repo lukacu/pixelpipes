@@ -8,11 +8,9 @@ namespace pixelpipes {
 class TranslateView: public Operation {
 public:
 
-    virtual SharedToken run(std::vector<SharedToken> inputs) {
+    virtual SharedToken run(TokenList inputs) {
 
-        if (inputs.size() != 2) {
-            throw OperationException("Incorrect number of parameters", shared_from_this());
-        }
+        VERIFY(inputs.size() == 2, "Incorrect number of parameters");
 
         float x = Float::get_value(inputs[0]);
         float y = Float::get_value(inputs[1]);
@@ -32,11 +30,9 @@ REGISTER_OPERATION("translate", TranslateView);
 class RotateView: public Operation {
 public:
 
-    virtual SharedToken run(std::vector<SharedToken> inputs) {
+    virtual SharedToken run(TokenList inputs) {
 
-        if (inputs.size() != 1) {
-            throw OperationException("Incorrect number of parameters", shared_from_this());
-        }
+        VERIFY(inputs.size() == 1, "Incorrect number of parameters");
 
         float r = Float::get_value(inputs[0]);
 
@@ -55,11 +51,9 @@ REGISTER_OPERATION("rotate", RotateView);
 class ScaleView: public Operation {
 public:
 
-    virtual SharedToken run(std::vector<SharedToken> inputs) {
+    virtual SharedToken run(TokenList inputs) {
 
-        if (inputs.size() != 2) {
-            throw OperationException("Incorrect number of parameters", shared_from_this());
-        }
+        VERIFY(inputs.size() == 2, "Incorrect number of parameters");
 
         float x = Float::get_value(inputs[0]);
         float y = Float::get_value(inputs[1]);
@@ -79,11 +73,9 @@ REGISTER_OPERATION("scale", ScaleView);
 class IdentityView: public Operation {
 public:
 
-    virtual SharedToken run(std::vector<SharedToken> inputs) {
+    virtual SharedToken run(TokenList inputs) {
 
-        if (inputs.size() != 0) {
-            throw OperationException("Incorrect number of parameters", shared_from_this());
-        }
+        VERIFY(inputs.size() == 0, "Incorrect number of parameters");
 
         cv::Matx33f m(1, 0, 0,
             0, 1, 0,
@@ -101,11 +93,9 @@ REGISTER_OPERATION("identiry", IdentityView);
 class Chain: public Operation {
 public:
 
-    virtual SharedToken run(std::vector<SharedToken> inputs) {
+    virtual SharedToken run(TokenList inputs) {
 
-        if (inputs.size() < 1) {
-            throw OperationException("Incorrect number of parameters", shared_from_this());
-        }
+        VERIFY(inputs.size() > 0, "Incorrect number of parameters");
 
         cv::Matx33f m(1, 0, 0,
             0, 1, 0,
@@ -129,12 +119,12 @@ REGISTER_OPERATION("chain", Chain);
 class ViewPoints: public Operation {
 public:
 
-    virtual SharedToken run(std::vector<SharedToken> inputs) {
+    virtual SharedToken run(TokenList inputs) {
 
         verify(inputs.size() == 2, "Incorrect number of parameters");
         verify(List::is_list(inputs[0], Point2DType), "Not a list of points");
 
-        std::vector<cv::Point2f> points = List::cast(inputs[0])->elements<cv::Point2f>();
+        std::vector<cv::Point2f> points = extract<std::vector<cv::Point2f>>(inputs[0]);
         cv::Matx33f transform = extract<cv::Matx33f>(inputs[1]);
 
         std::vector<cv::Point2f> points2;
@@ -163,7 +153,7 @@ REGISTER_OPERATION("view_points", ViewPoints);
 class CenterView: public Operation {
 public:
 
-    virtual SharedToken run(std::vector<SharedToken> inputs)  {
+    virtual SharedToken run(TokenList inputs)  {
 
         VERIFY(inputs.size() == 1, "Incorrect number of parameters");
         VERIFY(IS_RECTANGLE(inputs[0]), "Not a float list with four values");
@@ -196,7 +186,7 @@ REGISTER_OPERATION("center_view", CenterView);
 class FocusView: public Operation {
 public:
 
-    virtual SharedToken run(std::vector<SharedToken> inputs) {
+    virtual SharedToken run(TokenList inputs) {
 
         VERIFY(inputs.size() == 2, "Incorrect number of parameters");
         VERIFY(IS_RECTANGLE(inputs[0]), "Not a float list with four values");

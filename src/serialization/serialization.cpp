@@ -16,36 +16,6 @@ namespace pixelpipes
 
     SerializationException::SerializationException(std::string reason) : BaseException(reason) {}
 
-    template <>
-    void write_t(std::ostream &target, DNF s)
-    {
-        write_t(target, s.size());
-        for (auto x : s)
-        {
-            write_t(target, x.size());
-            for (auto d : x)
-                write_t<bool>(target, d); // Explicit type needed
-        }
-    }
-
-    template <>
-    DNF read_t(std::istream &source)
-    {
-        size_t len = read_t<size_t>(source);
-        std::vector<std::vector<bool>> data;
-        data.reserve(len);
-
-        for (size_t i = 0; i < len; i++)
-        {
-            std::vector<bool> clause;
-            size_t n = read_t<size_t>(source);
-            for (size_t j = 0; j < n; j++)
-                clause.push_back(read_t<bool>(source));
-            data.push_back(clause);
-        }
-        return DNF(data);
-    }
-
     template <typename T>
     void write_v(std::ostream &source, const std::vector<T> &list)
     {
@@ -99,16 +69,13 @@ namespace pixelpipes
     write_t(target, s); });
 
     PIXELPIPES_REGISTER_WRITER(IntegerListType, [](SharedToken v, std::ostream &target)
-                               { write_v(target, List::get_list(v, IntegerType)->elements<int>()); });
+                               { write_v(target, extract<std::vector<int>>(v)); });
     PIXELPIPES_REGISTER_WRITER(FloatListType, [](SharedToken v, std::ostream &target)
-                               { write_v(target, List::get_list(v, FloatType)->elements<float>()); });
+                               { write_v(target, extract<std::vector<float>>(v)); });
     PIXELPIPES_REGISTER_WRITER(BooleanListType, [](SharedToken v, std::ostream &target)
-                               { write_v(target, List::get_list(v, BooleanType)->elements<bool>()); });
+                               { write_v(target, extract<std::vector<bool>>(v)); });
     PIXELPIPES_REGISTER_WRITER(StringListType, [](SharedToken v, std::ostream &target)
-                               { write_v(target, List::get_list(v, StringType)->elements<std::string>()); });
-
-    PIXELPIPES_REGISTER_WRITER(DNFType, [](SharedToken v, std::ostream &target)
-                               { write_t(target, ContainerToken<DNF>::get_value(v)); });
+                               { write_v(target, extract<std::vector<std::string>>(v)); });
 
     PIXELPIPES_REGISTER_WRITER(Point2DType, [](SharedToken v, std::ostream &target)
                                {
@@ -140,16 +107,15 @@ namespace pixelpipes
                                { return std::make_shared<String>(read_t<std::string>(source)); });
 
     PIXELPIPES_REGISTER_READER(IntegerListType, [](std::istream &source)
-                               { return std::make_shared<IntegerList>(read_v<int>(source)); });
+                               { return wrap(read_v<int>(source)); });
     PIXELPIPES_REGISTER_READER(FloatListType, [](std::istream &source)
-                               { return std::make_shared<FloatList>(read_v<float>(source)); });
+                               { return wrap(read_v<float>(source)); });
     PIXELPIPES_REGISTER_READER(BooleanListType, [](std::istream &source)
-                               { return std::make_shared<BooleanList>(read_v<bool>(source)); });
+                               { return wrap(read_v<bool>(source)); });
     PIXELPIPES_REGISTER_READER(StringListType, [](std::istream &source)
-                               { return std::make_shared<StringList>(read_v<std::string>(source)); });
+                               { return wrap(read_v<std::string>(source)); });
 
-    PIXELPIPES_REGISTER_READER(DNFType, [](std::istream &source)
-                               { return wrap(read_t<DNF>(source)); });
+
 
     PIXELPIPES_REGISTER_READER(Point2DType, [](std::istream &source)
                                { return std::make_shared<Point2DVariable>(read_t<Point2D>(source)); });
@@ -201,7 +167,7 @@ namespace pixelpipes
 
         // Map variable types used to names
 
-        std::map<std::string_view, int> type_mapping;
+        std::map<std::string, int> type_mapping;
         int counter = 1;
 
         for (auto t : used_types)
@@ -213,7 +179,8 @@ namespace pixelpipes
 
         for (auto t : type_mapping)
         {
-            write_t(target, std::string(t.first));
+            DEBUGMSG("Type mapping: %d -> %s \n", t.second, t.first.c_str())
+            write_t(target, t.first);
             write_t(target, t.second);
         }
 
@@ -260,7 +227,7 @@ namespace pixelpipes
         stream.close();
     }
 
-    int PipelineWriter::append(std::string name, std::vector<SharedToken> args, std::vector<int> inputs)
+    int PipelineWriter::append(std::string name, TokenList args, Span<int> inputs)
     {
 
         create_operation(name, args);
@@ -322,7 +289,7 @@ namespace pixelpipes
             }
         }
 
-        operations.push_back(OperationData(name, token_indices, inputs));
+        operations.push_back(OperationData(name, token_indices, std::vector<int>(inputs.begin(), inputs.end())));
 
         return operations.size() - 1;
     }
@@ -503,7 +470,7 @@ namespace pixelpipes
                     arguments.push_back(tokens[t]);
                 }
 
-                pipeline->append(name, arguments, inputs);
+                pipeline->append(name, make_span(arguments), make_span(inputs));
             }
         }
 

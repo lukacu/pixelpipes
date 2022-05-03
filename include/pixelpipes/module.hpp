@@ -24,7 +24,7 @@ typedef std::shared_ptr<Module> SharedModule;
 
 typedef std::function<void(SharedModule)> ModuleCallback;
 
-class PIXELPIPES_API Module {
+class Module {
 public:
 
     ~Module();
@@ -41,7 +41,7 @@ public:
 
     std::string name() const;
 
-    static bool load(const std::string&);
+    static PIXELPIPES_API bool load(std::string_view);
 
     static SharedModule context();
 

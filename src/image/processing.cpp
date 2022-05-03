@@ -8,7 +8,7 @@ namespace pixelpipes {
  * @brief Blends two images using alpha.
  * 
  */
-SharedToken ImageBlend(std::vector<SharedToken> inputs) {
+SharedToken ImageBlend(TokenList inputs) {
 
     VERIFY(inputs.size() == 3, "Incorrect number of parameters");
 
@@ -30,7 +30,7 @@ REGISTER_OPERATION_FUNCTION("blend", ImageBlend);
  * @brief Sets image pixels to zero with probability P.
  * 
  */
-SharedToken ImageDropout(std::vector<SharedToken> inputs) noexcept(false) {
+SharedToken ImageDropout(TokenList inputs) noexcept(false) {
 
     VERIFY(inputs.size() == 3, "Incorrect number of parameters");
 
@@ -94,7 +94,7 @@ REGISTER_OPERATION_FUNCTION("dropout", ImageDropout);
  * @brief Divides image to pacthes and sets patch pixels to zero with probability P.
  * 
  */
-SharedToken ImageCoarseDropout(std::vector<SharedToken> inputs) noexcept(false) {
+SharedToken ImageCoarseDropout(TokenList inputs) noexcept(false) {
 
     VERIFY(inputs.size() == 4, "Incorrect number of parameters");
 
@@ -181,7 +181,7 @@ REGISTER_OPERATION_FUNCTION("coarse_dropout", ImageCoarseDropout);
  * @brief Cuts region form an image defined by the bounding box.
  * 
  */
-SharedToken ImageCut(std::vector<SharedToken> inputs) {
+SharedToken ImageCut(TokenList inputs) {
 
     VERIFY(inputs.size() == 2, "Incorrect number of parameters");
     VERIFY(List::is_list(inputs[1], FloatType), "Not a float list");
@@ -247,7 +247,7 @@ REGISTER_OPERATION_FUNCTION("cut", ImageCut);
  * @brief Inverts all values above a threshold in image.
  * 
  */
-SharedToken ImageSolarize(std::vector<SharedToken> inputs) {
+SharedToken ImageSolarize(TokenList inputs) {
 
     VERIFY(inputs.size() == 2, "Incorrect number of parameters");
 

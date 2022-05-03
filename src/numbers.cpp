@@ -9,7 +9,7 @@ namespace pixelpipes {
 class NormalDistribution : public StohasticOperation {
 public:
 
-    virtual SharedToken run(std::vector<SharedToken> inputs) {
+    virtual SharedToken run(TokenList inputs) {
 
         VERIFY(inputs.size() == 3, "Illegal number of inputs");
 
@@ -32,7 +32,7 @@ REGISTER_OPERATION("random_normal", NormalDistribution);
 class UniformDistribution : public StohasticOperation {
 public:
 
-    virtual SharedToken run(std::vector<SharedToken> inputs) {
+    virtual SharedToken run(TokenList inputs) {
 
         VERIFY(inputs.size() == 3, "Illegal number of inputs");
 
@@ -53,7 +53,7 @@ REGISTER_OPERATION("random_uniform", UniformDistribution);
 class Round : public Operation {
 public:
 
-    virtual SharedToken run(std::vector<SharedToken> inputs) {
+    virtual SharedToken run(TokenList inputs) {
 
         VERIFY(inputs.size() == 1, "Illegal number of inputs");
 
@@ -70,7 +70,7 @@ REGISTER_OPERATION("numbers_round", Round);
 class Floor : public Operation {
 public:
 
-    virtual SharedToken run(std::vector<SharedToken> inputs) {
+    virtual SharedToken run(TokenList inputs) {
 
         VERIFY(inputs.size() == 1, "Illegal number of inputs");
 
@@ -87,7 +87,7 @@ REGISTER_OPERATION("numbers_floor", Floor);
 class Ceil : public Operation {
 public:
 
-    virtual SharedToken run(std::vector<SharedToken> inputs) {
+    virtual SharedToken run(TokenList inputs) {
 
         VERIFY(inputs.size() == 1, "Illegal number of inputs");
 
@@ -104,7 +104,7 @@ REGISTER_OPERATION("numbers_ceil", Ceil);
 class Add : public Operation {
 public:
 
-    virtual SharedToken run(std::vector<SharedToken> inputs) {
+    virtual SharedToken run(TokenList inputs) {
 
         VERIFY(inputs.size() >= 1, "Illegal number of inputs");
 
@@ -130,7 +130,7 @@ REGISTER_OPERATION("numbers_add", Add);
 class Subtract : public Operation {
 public:
 
-    virtual SharedToken run(std::vector<SharedToken> inputs) {
+    virtual SharedToken run(TokenList inputs) {
 
         VERIFY(inputs.size() == 2, "Illegal number of inputs");
 
@@ -151,7 +151,7 @@ REGISTER_OPERATION("numbers_subtract", Subtract);
 class Multiply : public Operation {
 public:
 
-    virtual SharedToken run(std::vector<SharedToken> inputs) {
+    virtual SharedToken run(TokenList inputs) {
 
         VERIFY(inputs.size() >= 1,"Illegal number of inputs");
 
@@ -177,7 +177,7 @@ REGISTER_OPERATION("numbers_multiply", Multiply);
 class Divide : public Operation {
 public:
 
-    virtual SharedToken run(std::vector<SharedToken> inputs) {
+    virtual SharedToken run(TokenList inputs) {
 
         VERIFY(inputs.size() == 2, "Illegal number of inputs");
 
@@ -195,7 +195,7 @@ REGISTER_OPERATION("numbers_divide", Divide);
 class Power : public Operation {
 public:
 
-    virtual SharedToken run(std::vector<SharedToken> inputs) {
+    virtual SharedToken run(TokenList inputs) {
 
         VERIFY(inputs.size() == 2, "Illegal number of inputs");
 
@@ -213,7 +213,7 @@ REGISTER_OPERATION("numbers_power", Power);
 class Modulo : public Operation {
 public:
 
-    virtual SharedToken run(std::vector<SharedToken> inputs) {
+    virtual SharedToken run(TokenList inputs) {
 
         VERIFY(inputs.size() == 2, "Illegal number of inputs");
 
@@ -228,7 +228,7 @@ public:
 
 REGISTER_OPERATION("numbers_modulo", Modulo);
 
-SharedToken Maximum(std::vector<SharedToken> inputs) {
+SharedToken Maximum(TokenList inputs) {
 
     VERIFY(inputs.size() > 1, "Illegal number of inputs, at least one required");
 
@@ -249,7 +249,7 @@ SharedToken Maximum(std::vector<SharedToken> inputs) {
 
 REGISTER_OPERATION_FUNCTION("numbers_max", Maximum);
 
-SharedToken Minimum(std::vector<SharedToken> inputs) {
+SharedToken Minimum(TokenList inputs) {
 
     VERIFY(inputs.size() > 1, "Illegal number of inputs, at least one required");
 
@@ -297,7 +297,7 @@ public:
     Threshold(float threshold, ComparisonOperation comparison):
         threshold(threshold), comparison(comparison) {}
 
-    virtual SharedToken run(std::vector<SharedToken> inputs) {
+    virtual SharedToken run(TokenList inputs) {
 
         VERIFY(inputs.size() == 1, "Illegal number of inputs");
 
@@ -317,7 +317,7 @@ private:
 REGISTER_OPERATION("threshold", Threshold, float, ComparisonOperation);
 
 
-SharedToken Comparison(std::vector<SharedToken> inputs, ComparisonOperation comparison) {
+SharedToken Comparison(TokenList inputs, ComparisonOperation comparison) {
 
     VERIFY(inputs.size() == 2, "Illegal number of inputs");
 
@@ -338,7 +338,7 @@ public:
         VERIFY(thresholds.size() >= 1, "At least one comparison required");
     }
 
-    virtual SharedToken run(std::vector<SharedToken> inputs) {
+    virtual SharedToken run(TokenList inputs) {
 
         VERIFY(inputs.size() == thresholds.size(), "Illegal number of inputs");
 
@@ -370,7 +370,7 @@ public:
         VERIFY(thresholds.size() >= 1, "At least one comparison required");
     }
 
-    virtual SharedToken run(std::vector<SharedToken> inputs) {
+    virtual SharedToken run(TokenList inputs) {
 
         VERIFY(inputs.size() == thresholds.size(), "Illegal number of inputs");
 

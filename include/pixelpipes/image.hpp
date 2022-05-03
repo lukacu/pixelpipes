@@ -168,9 +168,9 @@ namespace pixelpipes
     class PIXELPIPES_API ImageList : public List
     {
     public:
-        ImageList(std::vector<Image> images);
+        ImageList(Span<Image> images);
 
-        ~ImageList() = default;
+        ~ImageList();
 
         virtual size_t size() const;
 
@@ -178,34 +178,34 @@ namespace pixelpipes
 
         virtual SharedToken get(size_t index) const;
 
+/*        ImageList();*/
+        ImageList(const ImageList &);
+        ImageList(ImageList &&);
+        ImageList& operator=(const ImageList &);
+        ImageList& operator=(ImageList &&);
+
     private:
-        std::vector<Image> images;
+        struct ImageListState;
+        Implementation<ImageListState> data;
     };
 
-    #define ImageListType GetListIdentifier<Image>()
+    #define ImageListType GetTypeIdentifier<Span<Image>>()
 
     template <>
-    inline Image extract(const SharedToken v)
-    {
-        if (!ImageData::is(v))
-            throw TypeException("Not an image type");
-
-        return std::static_pointer_cast<ImageData>(v);
-    }
+    PIXELPIPES_API Image extract(const SharedToken v);
 
     template <>
-    inline std::vector<Image> extract(const SharedToken v)
-    {
-        VERIFY((bool)v, "Uninitialized variable");
-
-        return ImageList::cast(v)->elements<Image>();
-    }
+    PIXELPIPES_API std::vector<Image> extract(const SharedToken v);
 
     template <>
-    inline SharedToken wrap(const std::vector<Image> v)
-    {
-        return std::make_shared<ImageList>(v);
-    }
+    PIXELPIPES_API SharedToken wrap(const std::vector<Image> v);
+
+    template <>
+    PIXELPIPES_API Sequence<Image> extract(const SharedToken v);
+
+    template <>
+    PIXELPIPES_API SharedToken wrap(const Span<Image> v);
+
 
     void PIXELPIPES_API copy(const Image source, Image destination);
 

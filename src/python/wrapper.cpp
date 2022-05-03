@@ -1,4 +1,6 @@
 
+#include <fstream>
+
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
 #include <pybind11/functional.h>
@@ -72,13 +74,13 @@ public:
             auto item = wrappers.find(type_hint);
 
             if (item == wrappers.end()) {
-                throw std::invalid_argument(Formatter() << "No conversion available for type hint " << type_name(type_hint));
+                throw std::invalid_argument(Formatter() << "No conversion from Python available for type hint " << type_name(type_hint));
             }
 
             SharedToken variable = item->second(src);
 
             if (!(bool) variable) {
-                throw std::invalid_argument(Formatter() <<"Conversion failed for type hint " << type_name(type_hint));
+                throw std::invalid_argument(Formatter() << "Conversion from Python failed for type hint " << type_name(type_hint));
             }
 
             return variable;
@@ -92,7 +94,7 @@ public:
         auto item = wrappers.find(type_id);
 
         if (item == wrappers.end()) {
-            DEBUGMSG("Adding wrapper %ld\n", type_id);
+            DEBUGMSG("Adding Python wrapper %s (%ld)\n", type_name(type_id).c_str(), type_id);
             wrappers.insert(std::pair<TypeIdentifier, const PythonWrapper>(type_id, wrapper));
             if (implicit) allwrappers.push_back(wrapper);
         }
@@ -104,7 +106,7 @@ public:
         auto item = extractors.find(type_id);
 
         if (item == extractors.end()) {
-            DEBUGMSG("Adding extractor %ld\n", type_id);
+            DEBUGMSG("Adding Python extractor %s (%ld)\n", type_name(type_id).c_str(), type_id);
             extractors.insert(std::pair<TypeIdentifier, const PythonExtractor>(type_id, extractor));
         }
 
@@ -160,7 +162,7 @@ class PyPipelineCallback : public PipelineCallback {
   public:
     using PipelineCallback::PipelineCallback;
 
-    void done(std::vector<SharedToken> result) override {
+    void done(TokenList result) override {
         PYBIND11_OVERLOAD_PURE(
             void,
             PipelineCallback,
@@ -285,8 +287,8 @@ SharedToken wrap_list(py::object src) {
     if (py::list::check_(src)) {
         try {
 
-            auto list = py::cast<std::vector<T>>(src);
-            return std::make_shared<ContainerList<T>>(list);
+            auto list = Sequence<T>(py::cast<std::vector<T>>(src));
+            return std::make_shared<ContainerList<T>>(make_span(list));
 
         } catch(...) {}
 
@@ -315,9 +317,19 @@ SharedToken wrap_dnf_clause(py::object src) {
 
     try {
 
-        DNF form(py::cast<std::vector<std::vector<bool>>>(src));
+        auto original = py::cast<std::vector<std::vector<bool>>>(src);
+        // TODO: make this nicer once we figure out how to convert nested types
+        std::vector<Sequence<bool>> data;
+        std::vector<Span<bool>> data2;
 
-        return std::make_shared<ContainerToken<DNF>>(form);
+        for (auto x : original) {
+            data.push_back(Sequence<bool>(x));
+            data2.push_back(data.back());
+        }
+
+        DNF a(make_span(data2));
+
+        return std::make_shared<ContainerToken<DNF>>(a);
  
     } catch(const std::exception &exc) {
         //DEBUGMSG("Conversion failed: %s\n", exc.what());
@@ -351,6 +363,8 @@ SharedToken wrap_container(py::object src) {
 template<typename T>
 int _add_operation(T& pipeline, std::string& name, py::list args, std::vector<int> inputs) {
 
+    try {
+
     std::vector<SharedToken> arguments;
 
     OperationDescription type_hints = describe_operation(name);
@@ -362,7 +376,12 @@ int _add_operation(T& pipeline, std::string& name, py::list args, std::vector<in
         arguments.push_back(registry.wrap(args[i], type_hints.arguments[i]));
     }
 
-    return pipeline.append(name, arguments, inputs);
+    return pipeline.append(name, make_span(arguments), make_span(inputs));
+
+    } catch (BaseException& e) {
+        throw py::value_error(e.what());
+    }
+
 }
 
 
@@ -404,6 +423,8 @@ PYBIND11_MODULE(pypixelpipes, m) {
 
     static py::exception<TypeException> PyVariableException(m, "VariableException", PyExc_RuntimeError);
     static py::exception<ModuleException> PyModuleException(m, "ModuleException", PyExc_RuntimeError);
+    static py::exception<OperationException> PyOperationException(m, "OperationException", PyExc_RuntimeError);
+    static py::exception<SerializationException> PySerializationException(m, "SerializationException", PyExc_RuntimeError);
 
     registry.register_enumeration<ComparisonOperation>("comparison");
     registry.register_enumeration<LogicalOperation>("logical");
@@ -428,7 +449,8 @@ PYBIND11_MODULE(pypixelpipes, m) {
 
         { // release GIL lock when running pure C++, reacquire it when we are converting data
             py::gil_scoped_release gil; 
-            result = p.run(index);
+            auto tmp = p.run(index);
+            result = std::vector(tmp.begin(), tmp.end());
         }
 
         std::vector<py::object> transformed;
@@ -524,10 +546,10 @@ PYBIND11_MODULE(pypixelpipes, m) {
 
     });
 
-    registry.register_wrapper(GetTypeIdentifier<std::vector<int>>(), &wrap_list<int>);
-    registry.register_wrapper(GetTypeIdentifier<std::vector<float>>(), &wrap_list<float>);
-    registry.register_wrapper(GetTypeIdentifier<std::vector<std::string>>(), &wrap_list<std::string>);
-    registry.register_wrapper(GetTypeIdentifier<std::vector<bool>>(), &wrap_list<bool>);
+    registry.register_wrapper(GetTypeIdentifier<Sequence<int>>(), &wrap_list<int>);
+    registry.register_wrapper(GetTypeIdentifier<Sequence<float>>(), &wrap_list<float>);
+    registry.register_wrapper(GetTypeIdentifier<Sequence<std::string>>(), &wrap_list<std::string>);
+    registry.register_wrapper(GetTypeIdentifier<Sequence<bool>>(), &wrap_list<bool>);
 
     registry.register_wrapper(DNFType, &wrap_dnf_clause, false);
 
@@ -581,9 +603,9 @@ PYBIND11_MODULE(pypixelpipes, m) {
 
     registry.register_extractor(ImageType, &extract_image);
 
-    registry.register_wrapper(GetTypeIdentifier<std::vector<Image>>(), &wrap_image_list);
+    registry.register_wrapper(GetTypeIdentifier<Span<Image>>(), &wrap_image_list);
 
-    registry.register_extractor(GetTypeIdentifier<std::vector<Image>>(), &extract_image_list);
+    registry.register_extractor(GetTypeIdentifier<Span<Image>>(), &extract_image_list);
 
 
 }

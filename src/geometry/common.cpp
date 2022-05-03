@@ -16,12 +16,12 @@ namespace pixelpipes {
  * 
  */
 
-SharedToken BoundingBox(std::vector<SharedToken> inputs) {
+SharedToken BoundingBox(TokenList inputs) {
 
     verify(inputs.size() == 1, "Incorrect number of parameters");
     verify(List::is_list(inputs[0], Point2DType), "Not a list of points");
 
-    std::vector<Point2D> points = List::cast(inputs[0])->elements<Point2D>();
+    std::vector<Point2D> points = extract<std::vector<Point2D>>(inputs[0]);
 
     float top = std::numeric_limits<float>::max();
     float bottom = std::numeric_limits<float>::lowest();
@@ -37,7 +37,7 @@ SharedToken BoundingBox(std::vector<SharedToken> inputs) {
 
     std::vector<float> bb = {left, top, right, bottom};
 
-    return std::make_shared<FloatList>(bb);
+    return std::make_shared<FloatList>(make_span(bb));
 
 }
 
@@ -48,7 +48,7 @@ REGISTER_OPERATION_FUNCTION("bounding_box", BoundingBox);
  * @brief Returns a bounding box of custom size, defined by four inputs.
  * 
  */
-SharedToken MakeRectangle(std::vector<SharedToken> inputs) {
+SharedToken MakeRectangle(TokenList inputs) {
 
     VERIFY(inputs.size() == 4, "Incorrect number of parameters");
 
@@ -59,7 +59,7 @@ SharedToken MakeRectangle(std::vector<SharedToken> inputs) {
 
     std::vector<float> bbox = {(float)x1, (float)y1, (float)x2, (float)y2};
 
-    return std::make_shared<FloatList>(bbox);
+    return std::make_shared<FloatList>(make_span(bbox));
 }
 
 REGISTER_OPERATION_FUNCTION("make_rectangle", MakeRectangle);

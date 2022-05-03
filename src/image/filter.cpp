@@ -15,7 +15,7 @@ namespace pixelpipes {
  * @brief Blurs an image using a median filter.
  * 
  */
-SharedToken MedianBlur(std::vector<SharedToken> inputs) noexcept(false) {
+SharedToken MedianBlur(TokenList inputs) noexcept(false) {
 
     VERIFY(inputs.size() == 2, "Incorrect number of parameters");
 
@@ -35,7 +35,7 @@ REGISTER_OPERATION_FUNCTION("median_blur", MedianBlur);
  * @brief Convolving an image with a normalized box filter.
  * 
  */
-SharedToken AverageBlur(std::vector<SharedToken> inputs) noexcept(false) {
+SharedToken AverageBlur(TokenList inputs) noexcept(false) {
 
     VERIFY(inputs.size() == 2, "Incorrect number of parameters");
 
@@ -54,7 +54,7 @@ REGISTER_OPERATION_FUNCTION("average_blur", AverageBlur);
  * @brief Applies the bilateral filter to an image.
  * 
  */
-SharedToken BilateralFilter(std::vector<SharedToken> inputs) noexcept(false) {
+SharedToken BilateralFilter(TokenList inputs) noexcept(false) {
     
     VERIFY(inputs.size() == 4, "Incorrect number of parameters");
 
@@ -76,7 +76,7 @@ REGISTER_OPERATION_FUNCTION("bilateral_filter", BilateralFilter);
  * @brief Convolves an image with custom kernel.
  * 
  */
-SharedToken LinearFilter(std::vector<SharedToken> inputs, BorderStrategy border) noexcept(false) {
+SharedToken LinearFilter(TokenList inputs, BorderStrategy border) noexcept(false) {
 
     VERIFY(inputs.size() == 2, "Incorrect number of parameters");
 
@@ -103,7 +103,7 @@ REGISTER_OPERATION_FUNCTION("linear_filter", LinearFilter, BorderStrategy);
  * @brief Convolves an image with custom kernel.
  * 
  */
-SharedToken GaussianKernel(std::vector<SharedToken> inputs) noexcept(false) {
+SharedToken GaussianKernel(TokenList inputs) noexcept(false) {
 
     VERIFY(inputs.size() == 1, "Incorrect number of parameters");
 
@@ -120,7 +120,7 @@ SharedToken GaussianKernel(std::vector<SharedToken> inputs) noexcept(false) {
 REGISTER_OPERATION_FUNCTION("gaussian_kernel", GaussianKernel);
 
 
-SharedToken UniformKernel(std::vector<SharedToken> inputs) noexcept(false) {
+SharedToken UniformKernel(TokenList inputs) noexcept(false) {
 
     VERIFY(inputs.size() == 1, "Incorrect number of parameters");
 

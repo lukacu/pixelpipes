@@ -25,7 +25,7 @@ inline int interpolate_convert(Interpolation interpolation) {
     }
 }
 
-SharedToken Transpose(std::vector<SharedToken> inputs) noexcept(false) {
+SharedToken Transpose(TokenList inputs) noexcept(false) {
 
     VERIFY(inputs.size() == 1, "Incorrect number of parameters");
 
@@ -45,7 +45,7 @@ REGISTER_OPERATION_FUNCTION("transpose", Transpose);
  * @brief Apply view linear transformation to an image.
  * 
  */
-SharedToken ViewImage(std::vector<SharedToken> inputs, Interpolation interpolation, BorderStrategy border) {
+SharedToken ViewImage(TokenList inputs, Interpolation interpolation, BorderStrategy border) {
 
     VERIFY(inputs.size() == 4, "Incorrect number of parameters");
 
@@ -80,7 +80,7 @@ REGISTER_OPERATION_FUNCTION("view", ViewImage, Interpolation, BorderStrategy);
  * @brief Apply view linear transformation to an image.
  * 
  */
-SharedToken RemapImage(std::vector<SharedToken> inputs, Interpolation interpolation, BorderStrategy border) {
+SharedToken RemapImage(TokenList inputs, Interpolation interpolation, BorderStrategy border) {
 
     VERIFY(inputs.size() == 3, "Incorrect number of parameters");
 
@@ -136,7 +136,7 @@ std::vector<float> bounds(cv::Mat image) {
 
 }
 
-SharedToken MaskBounds(std::vector<SharedToken> inputs) noexcept(false) {
+SharedToken MaskBounds(TokenList inputs) noexcept(false) {
 
     VERIFY(inputs.size() == 1, "Incorrect number of parameters");
 
@@ -148,13 +148,13 @@ SharedToken MaskBounds(std::vector<SharedToken> inputs) noexcept(false) {
 
     switch (image.depth()) {
         case CV_8U: 
-            return std::make_shared<FloatList>(bounds<uchar>(image));
+            return std::make_shared<FloatList>(make_span(bounds<uchar>(image)));
         case CV_16S: 
-            return std::make_shared<FloatList>(bounds<short>(image));
+            return std::make_shared<FloatList>(make_span(bounds<short>(image)));
         case CV_32F: 
-            return std::make_shared<FloatList>(bounds<float>(image));
+            return std::make_shared<FloatList>(make_span(bounds<float>(image)));
         case CV_64F: 
-            return std::make_shared<FloatList>(bounds<double>(image));
+            return std::make_shared<FloatList>(make_span(bounds<double>(image)));
         default:
             throw TypeException("Unsupported depth");
     }
@@ -167,7 +167,7 @@ REGISTER_OPERATION_FUNCTION("bounds", MaskBounds);
  * @brief Performs image resize.
  * 
  */
-SharedToken ImageResize(std::vector<SharedToken> inputs, Interpolation interpolation) {
+SharedToken ImageResize(TokenList inputs, Interpolation interpolation) {
 
     if (inputs.size() == 3) {
 
@@ -203,7 +203,7 @@ REGISTER_OPERATION_FUNCTION("resize", ImageResize, Interpolation);
  * @brief Rotates an image without cropping.
  * 
  */
-SharedToken Rotate(std::vector<SharedToken> inputs) noexcept(false) {
+SharedToken Rotate(TokenList inputs) noexcept(false) {
 
     VERIFY(inputs.size() == 2, "Incorrect number of parameters");
 
@@ -232,7 +232,7 @@ REGISTER_OPERATION_FUNCTION("rotate", Rotate);
  * @brief Flips a 2D array around vertical, horizontal, or both axes.
  * 
  */
-SharedToken Flip(std::vector<SharedToken> inputs) noexcept(false) {
+SharedToken Flip(TokenList inputs) noexcept(false) {
     
     VERIFY(inputs.size() == 2, "Incorrect number of parameters");
 
@@ -251,7 +251,7 @@ REGISTER_OPERATION_FUNCTION("flip", Flip);
  * @brief Returns a bounding box of custom size.
  * 
  */
-SharedToken ImageCrop(std::vector<SharedToken> inputs) {
+SharedToken ImageCrop(TokenList inputs) {
 
     VERIFY(inputs.size() == 2, "Incorrect number of parameters");
     VERIFY(List::is_list(inputs[1], FloatType), "Not a float list");

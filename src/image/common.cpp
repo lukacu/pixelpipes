@@ -240,7 +240,7 @@ namespace pixelpipes
         return mat.data;
     }
 
-    SharedToken ImageRead(std::vector<SharedToken> inputs, bool grayscale) noexcept(false)
+    SharedToken ImageRead(TokenList inputs, bool grayscale) noexcept(false)
     {
 
         VERIFY(inputs.size() == 1, "Incorrect number of parameters");
@@ -268,7 +268,7 @@ namespace pixelpipes
      * @brief Converts depth of an image.
      *
      */
-    SharedToken ConvertDepth(std::vector<SharedToken> inputs, ImageDepth depth) noexcept(false)
+    SharedToken ConvertDepth(TokenList inputs, ImageDepth depth) noexcept(false)
     {
 
         VERIFY(inputs.size() == 1, "Incorrect number of parameters");
@@ -317,7 +317,7 @@ namespace pixelpipes
      * @brief Converts color image to grayscale image.
      *
      */
-    SharedToken Grayscale(std::vector<SharedToken> inputs) noexcept(false)
+    SharedToken Grayscale(TokenList inputs) noexcept(false)
     {
 
         VERIFY(inputs.size() == 1, "Incorrect number of parameters");
@@ -336,7 +336,7 @@ namespace pixelpipes
      * @brief Returns an image with selected values.
      *
      */
-    SharedToken Equals(std::vector<SharedToken> inputs) noexcept(false)
+    SharedToken Equals(TokenList inputs) noexcept(false)
     {
 
         VERIFY(inputs.size() == 2, "Incorrect number of parameters");
@@ -358,7 +358,7 @@ namespace pixelpipes
      * @brief Extracts a single channel from multichannel image.
      *
      */
-    SharedToken Channel(std::vector<SharedToken> inputs) noexcept(false)
+    SharedToken Channel(TokenList inputs) noexcept(false)
     {
 
         VERIFY(inputs.size() == 2, "Incorrect number of parameters");
@@ -380,7 +380,7 @@ namespace pixelpipes
      * @brief Combines 3 single channel images into color image.
      *
      */
-    SharedToken Merge(std::vector<SharedToken> inputs) noexcept(false)
+    SharedToken Merge(TokenList inputs) noexcept(false)
     {
 
         VERIFY(inputs.size() == 3, "Incorrect number of parameters");
@@ -410,7 +410,7 @@ namespace pixelpipes
      * @brief Calculates image moments.
      *
      */
-    SharedToken Moments(std::vector<SharedToken> inputs, bool binary) noexcept(false)
+    SharedToken Moments(TokenList inputs, bool binary) noexcept(false)
     {
 
         VERIFY(inputs.size() == 1, "Incorrect number of parameters");
@@ -423,7 +423,7 @@ namespace pixelpipes
 
         std::vector<float> data{(float)m.m00, (float)m.m01, (float)m.m10, (float)m.m11};
 
-        return std::make_shared<FloatList>(data);
+        return std::make_shared<FloatList>(make_span(data));
     }
 
     REGISTER_OPERATION_FUNCTION("moments", Moments, bool);
@@ -434,7 +434,7 @@ namespace pixelpipes
      * TODO: reorganize into spearate methods
      *
      */
-    SharedToken MapFunction(std::vector<SharedToken> inputs, int function, bool normalize) noexcept(false)
+    SharedToken MapFunction(TokenList inputs, int function, bool normalize) noexcept(false)
     {
 
         VERIFY(inputs.size() > 1, "Incorrect number of parameters");
@@ -487,7 +487,7 @@ namespace pixelpipes
      * @brief Thresholds an image.
      *
      */
-    SharedToken ImageThreshold(std::vector<SharedToken> inputs) noexcept(false)
+    SharedToken ImageThreshold(TokenList inputs) noexcept(false)
     {
 
         VERIFY(inputs.size() == 2, "Incorrect number of parameters");
@@ -511,7 +511,7 @@ namespace pixelpipes
      * @brief Inverts image pixel values.
      *
      */
-    SharedToken Invert(std::vector<SharedToken> inputs) noexcept(false)
+    SharedToken Invert(TokenList inputs) noexcept(false)
     {
 
         VERIFY(inputs.size() == 1, "Incorrect number of parameters");

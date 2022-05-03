@@ -55,7 +55,7 @@ std::pair<cv::Mat, cv::Mat> ensure_channels(cv::Mat &image1, cv::Mat &image2) {
  * @brief Combines two images of same size (pixel-wise).
  * 
  */
-SharedToken ImageAdd(std::vector<SharedToken> inputs) noexcept(false) {
+SharedToken ImageAdd(TokenList inputs) noexcept(false) {
 
     VERIFY(inputs.size() == 2, "Incorrect number of parameters");
     VERIFY(ImageData::is(inputs[0]) || ImageData::is(inputs[1]), "At least one input should be an image");
@@ -105,7 +105,7 @@ REGISTER_OPERATION_FUNCTION("add", ImageAdd);
  * @brief Subtracts two images.
  * 
  */
-SharedToken ImageSubtract(std::vector<SharedToken> inputs) noexcept(false) {
+SharedToken ImageSubtract(TokenList inputs) noexcept(false) {
 
     VERIFY(inputs.size() == 2, "Incorrect number of parameters");
     VERIFY(ImageData::is(inputs[0]) || ImageData::is(inputs[1]), "At least one input should be an image");
@@ -152,7 +152,7 @@ REGISTER_OPERATION_FUNCTION("subtract", ImageSubtract);
  * @brief Multiplies image with a multiplier (number).
  * 
  */
-SharedToken ImageMultiply(std::vector<SharedToken> inputs) noexcept(false) {
+SharedToken ImageMultiply(TokenList inputs) noexcept(false) {
 
     VERIFY(inputs.size() == 2, "Incorrect number of parameters");
     VERIFY(ImageData::is(inputs[0]) || ImageData::is(inputs[1]), "At least one input should be an image");

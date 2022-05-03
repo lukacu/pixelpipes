@@ -37,7 +37,7 @@ namespace pixelpipes
 
         void write(std::string &target, bool compress = true);
 
-        int append(std::string name, std::vector<SharedToken> args, std::vector<int> inputs);
+        int append(std::string name, TokenList args, Span<int> inputs);
 
         static void register_writer(TypeIdentifier identifier, TokenWriter writer);
 

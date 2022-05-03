@@ -4,6 +4,8 @@
 namespace pixelpipes
 {
     
+    PIXELPIPES_REGISTER_TYPE_DEFAULT(TokenType, "token");
+
     PIXELPIPES_REGISTER_TYPE_DEFAULT(IntegerType, "integer");
     PIXELPIPES_REGISTER_TYPE_DEFAULT(FloatType, "float");
     PIXELPIPES_REGISTER_TYPE_DEFAULT(BooleanType, "boolean");

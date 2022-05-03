@@ -69,7 +69,7 @@ namespace pixelpipes
     }
 
     template <typename T>
-    class ContainerToken : public Token
+    class PIXELPIPES_API ContainerToken : public Token
     {
     public:
         ContainerToken(T value) : value(value)
@@ -104,7 +104,7 @@ namespace pixelpipes
     };
 
     template <typename T>
-    class ScalarToken : public ContainerToken<T>
+    class PIXELPIPES_API ScalarToken : public ContainerToken<T>
     {
     public:
         ScalarToken(T value) : ContainerToken<T>(value){};
@@ -116,6 +116,42 @@ namespace pixelpipes
             os << "[Scalar " << type_name(this->type_id()) << ", value: " << this->value << "]";
         }
     };
+
+/*
+    class PIXELPIPES_API StringToken : public Token
+    {
+    public:
+        StringToken(T value) : value(value)
+        {
+            get();
+        };
+
+        ~StringToken() = default;
+
+        virtual TypeIdentifier type_id() const { return GetTypeIdentifier<char *>(); };
+
+        T get() const { return value; };
+
+        inline static bool is(SharedToken v)
+        {
+            return (v->type_id() == GetTypeIdentifier<T>());
+        }
+
+        static T get_value(const SharedToken v)
+        {
+
+            return extract<T>(v);
+        }
+
+        virtual void describe(std::ostream &os) const
+        {
+            os << "[String token " << type_name(type_id()) << "]";
+        }
+
+    protected:
+        T value;
+    };
+*/
 
     #define TokenType GetTypeIdentifier<SharedToken>()
 
@@ -319,12 +355,11 @@ namespace pixelpipes
     typedef std::shared_ptr<List> SharedList;
 
     template <typename C>
-    class ContainerList : public List
+    class PIXELPIPES_API ContainerList : public List
     {
     public:
         ContainerList(){};
-        ContainerList(std::initializer_list<C> list) : list(list) {};
-        ContainerList(const std::vector<C> list) : list(list){};
+        ContainerList(Span<C> list) : list(list){};
         ~ContainerList() = default;
 
         inline static bool is_list(SharedToken v)
@@ -349,7 +384,8 @@ namespace pixelpipes
         }
 
     private:
-        std::vector<C> list;
+
+        Sequence<C> list;
 
     };
 
@@ -358,12 +394,12 @@ namespace pixelpipes
     typedef ContainerList<bool> BooleanList;
     typedef ContainerList<std::string> StringList;
 
-    #define FloatListType GetListIdentifier<float>()
-    #define IntegerListType GetListIdentifier<int>()
-    #define BooleanListType GetListIdentifier<bool>()
-    #define StringListType GetListIdentifier<std::string>()
+    #define FloatListType GetTypeIdentifier<Span<float>>()
+    #define IntegerListType GetTypeIdentifier<Span<int>>()
+    #define BooleanListType GetTypeIdentifier<Span<bool>>()
+    #define StringListType GetTypeIdentifier<Span<std::string>>()
 
-#define _LIST_GENERATE_CONVERTERS(T)                      \
+#define _LIST_MAKE_EXTRACTORS(T)                      \
     template <>                                           \
     inline std::vector<T> extract(const SharedToken v) \
     {                                                     \
@@ -373,15 +409,43 @@ namespace pixelpipes
         return list->elements<T>();                       \
     }                                                     \
     template <>                                           \
-    inline SharedToken wrap(const std::vector<T> v)    \
+    inline Sequence<T> extract(const SharedToken v) \
     {                                                     \
-        return std::make_shared<ContainerList<T>>(v);     \
+        VERIFY((bool)v, "Uninitialized token");        \
+        VERIFY(List::is_list(v), "Not a list");           \
+        auto list = std::static_pointer_cast<List>(v);    \
+        return Sequence<T>(list->elements<T>());          \
+    }   
+
+    template <>                                           
+    inline SharedToken wrap(const std::vector<int> v)    
+    {                                                     
+        return std::make_shared<ContainerList<int>>(make_span(v));     
     }
 
-    _LIST_GENERATE_CONVERTERS(int)
-    _LIST_GENERATE_CONVERTERS(bool)
-    _LIST_GENERATE_CONVERTERS(float)
-    _LIST_GENERATE_CONVERTERS(std::string)
+    template <>                                           
+    inline SharedToken wrap(const std::vector<float> v)    
+    {                                                     
+        return std::make_shared<ContainerList<float>>(make_span(v));     
+    }
+
+    template <>                                           
+    inline SharedToken wrap(const std::vector<std::string> v)    
+    {                                                     
+        return std::make_shared<ContainerList<std::string>>(make_span(v));     
+    }
+
+    template <>                                           
+    inline SharedToken wrap(const std::vector<bool> v)    
+    {                                                     
+        Sequence<bool> s(v);
+        return std::make_shared<ContainerList<bool>>(make_span(s));     
+    }
+
+    _LIST_MAKE_EXTRACTORS(int)
+    _LIST_MAKE_EXTRACTORS(bool)
+    _LIST_MAKE_EXTRACTORS(float)
+    _LIST_MAKE_EXTRACTORS(std::string)
 
     /*
                 auto table = std::static_pointer_cast<Table<detail::inner_type_t<T>>>(v);

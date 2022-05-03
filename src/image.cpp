@@ -294,13 +294,28 @@ namespace pixelpipes
         return Type(AnyType);
     }
 
-    ImageList::ImageList(std::vector<Image> inputs) : images(inputs.begin(), inputs.end())
+    struct ImageList::ImageListState {
+        std::vector<Image> data;
+
+        ImageListState(Span<Image> inputs) : data(inputs.begin(), inputs.end()) {}
+    };
+
+    ImageList::ImageList(Span<Image> inputs) : data(inputs)
     {
     }
 
+    ImageList::~ImageList() = default;
+/*
+    ImageList::ImageList() = default;*/
+    ImageList::ImageList(const ImageList &) = default;
+    ImageList::ImageList(ImageList &&) = default;
+
+    ImageList& ImageList::operator=(const ImageList &) = default;
+    ImageList& ImageList::operator=(ImageList &&) = default;
+
     size_t ImageList::size() const
     {
-        return images.size();
+        return data->data.size();
     }
 
     TypeIdentifier ImageList::element_type_id() const
@@ -310,8 +325,48 @@ namespace pixelpipes
 
     SharedToken ImageList::get(size_t index) const
     {
-        return images[index];
+        return data->data[index];
     }
+
+    template <>
+    Image extract(const SharedToken v)
+    {
+        if (!ImageData::is(v))
+            throw TypeException("Not an image type");
+
+        return std::static_pointer_cast<ImageData>(v);
+    }
+
+    template <>
+    std::vector<Image> extract(const SharedToken v)
+    {
+        VERIFY((bool)v, "Uninitialized variable");
+
+        return ImageList::cast(v)->elements<Image>();
+    }
+
+    template <>
+    SharedToken wrap(const std::vector<Image> v)
+    {
+        return std::make_shared<ImageList>(make_span(v));
+    }
+
+    template <>
+    Sequence<Image> extract(const SharedToken v)
+    {
+        VERIFY((bool)v, "Uninitialized variable");
+
+        return ImageList::cast(v)->elements<Image>();
+    }
+
+    template <>
+    SharedToken wrap(const Span<Image> v)
+    {
+        return std::make_shared<ImageList>(v);
+    }
+
+
+
 
     PIXELPIPES_REGISTER_TYPE(ImageType, "image", imate_type_constructor, imate_type_denominator);
 
@@ -367,7 +422,7 @@ namespace pixelpipes
                                        {
                                            list.push_back(read_image(source));
                                        }
-                                       return std::make_shared<ImageList>(list);
+                                       return std::make_shared<ImageList>(make_span(list));
                                    }
                                    catch (std::bad_alloc &exception)
                                    {
@@ -379,7 +434,7 @@ namespace pixelpipes
 
     PIXELPIPES_REGISTER_WRITER(ImageListType, [](SharedToken v, std::ostream &target)
                                {
-        auto list = List::get_list(v, ImageType)->elements<Image>();
+        auto list = extract<std::vector<Image>>(v);
         write_t(target, list.size());
         for (size_t i = 0; i < list.size(); i++)
         {
@@ -387,7 +442,7 @@ namespace pixelpipes
         } });
 
 
-    SharedToken ConstantImage(std::vector<SharedToken> inputs, Image image)
+    SharedToken ConstantImage(TokenList inputs, Image image)
     {
         VERIFY(inputs.size() == 0, "Incorrect number of parameters");
         return image;
@@ -399,14 +454,14 @@ namespace pixelpipes
     class ConstantImages : public Operation
     {
     public:
-        ConstantImages(std::vector<Image> images)
+        ConstantImages(Sequence<Image> images)
         {
             list = std::make_shared<ImageList>(images);
         }
 
         ~ConstantImages() = default;
 
-        virtual SharedToken run(std::vector<SharedToken> inputs)
+        virtual SharedToken run(TokenList inputs)
         {
             VERIFY(inputs.size() == 0, "Incorrect number of parameters");
             return list;
@@ -416,20 +471,20 @@ namespace pixelpipes
         std::shared_ptr<ImageList> list;
     };
 
-    REGISTER_OPERATION("image_list", ConstantImages, std::vector<Image>);
+    REGISTER_OPERATION("image_list", ConstantImages, Sequence<Image>);
 
     /**
      * @brief Apply view linear transformation to an image.
      *
      */
-    SharedToken GetImageProperties(std::vector<SharedToken> inputs)
+    SharedToken GetImageProperties(TokenList inputs)
     {
 
         VERIFY(inputs.size() == 1, "Incorrect number of parameters");
 
         Image image = extract<Image>(inputs[0]);
 
-        return std::make_shared<IntegerList>(std::vector<int>({(int)image->width(), (int)image->height(), (int)image->channels(), (int)image->depth()}));
+        return std::make_shared<IntegerList>(Sequence<int>({(int)image->width(), (int)image->height(), (int)image->channels(), (int)image->depth()}));
     }
 
     REGISTER_OPERATION_FUNCTION("image_properties", GetImageProperties);

@@ -57,7 +57,6 @@ inline std::ostream& operator<<(std::ostream& os, const View3D& p) {
 
 #define Point2DType GetTypeIdentifier<Point2D>()
 #define Point3DType GetTypeIdentifier<Point3D>()
-
 #define View2DType GetTypeIdentifier<View2D>()
 #define View3DType GetTypeIdentifier<View3D>()
 
@@ -70,8 +69,10 @@ typedef ContainerToken<View3D> View3DVariable;
 typedef ContainerList<Point2D> Point2DList;
 typedef ContainerList<Point3D> Point3DList;
 
-#define Point2DListType GetListIdentifier<std::vector<Point2D>>()
-#define Point3DListType GetListIdentifier<std::vector<Point3D>>()
+#define Point2DListType GetListIdentifier<Point2D>()
+#define Point3DListType GetListIdentifier<Point3D>()
+#define View2DListType GetListIdentifier<View2D>()
+#define View3DListType GetListIdentifier<View3D>()
 
 template<>
 inline Point2D extract(const SharedToken v) {
@@ -169,7 +170,7 @@ inline std::vector<Point2D> extract(const SharedToken v) {
 
 template<>
 inline SharedToken wrap(const std::vector<Point2D> v) {
-    return std::make_shared<Point2DList>(v);
+    return std::make_shared<Point2DList>(make_span(v));
 }
 
 

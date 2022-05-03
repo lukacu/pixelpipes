@@ -110,19 +110,20 @@ namespace pixelpipes
         return load_context;
     }
 
-    bool Module::load(const std::string &libname)
+    bool Module::load(std::string_view libname)
     {
-
         std::lock_guard<std::recursive_mutex> lock(module_load_lock);
 
-        DEBUGMSG("Loading module %s \n", libname.c_str());
+        std::string libname_str(libname);
 
-        if (modules().find(libname) != modules().end())
+        if (modules().find(libname_str) != modules().end())
         {
             return true;
         }
 
-        auto fullname = find_module(libname);
+        DEBUGMSG("Loading module %s \n", libname_str.c_str());
+
+        auto fullname = find_module(libname_str);
 
 #ifdef _MSC_VER
         auto handle = LoadLibrary(fullname.string().c_str());
@@ -136,7 +137,7 @@ namespace pixelpipes
             return false;
         }
 
-        SharedModule mod = std::shared_ptr<Module>(new Module(handle, libname));
+        SharedModule mod = std::shared_ptr<Module>(new Module(handle, libname_str));
 
         modules().insert(std::pair<std::string, SharedModule>(libname, mod));
 

@@ -1,13 +1,13 @@
 
 #include <pixelpipes/operation.hpp>
-#include <pixelpipes/image.hpp>
+/*#include <pixelpipes/image.hpp>
 
 #include <lodepng.h>
 
 using namespace pixelpipes;
 using namespace lodepng;
 
-SharedToken ImageReadPngPalette(std::vector<SharedToken> inputs) noexcept(false)
+SharedToken ImageReadPngPalette(TokenList inputs) noexcept(false)
 {
 
     VERIFY(inputs.size() == 1, "Incorrect number of parameters");
@@ -30,3 +30,4 @@ SharedToken ImageReadPngPalette(std::vector<SharedToken> inputs) noexcept(false)
 }
 
 REGISTER_OPERATION_FUNCTION("load_png_palette", ImageReadPngPalette);
+*/

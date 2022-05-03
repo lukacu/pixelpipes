@@ -28,11 +28,9 @@ PIXELPIPES_CONVERT_ENUM(ArithmeticOperation)
 PIXELPIPES_CONVERT_ENUM(LogicalOperation)
 PIXELPIPES_CONVERT_ENUM(ComparisonOperation)
 
+typedef Span<SharedToken> TokenList;
 
 class Operation;
-
-template class PIXELPIPES_API std::shared_ptr<Operation>;
-template class PIXELPIPES_API std::enable_shared_from_this<Operation>;
 
 typedef std::shared_ptr<Operation> SharedOperation;
 
@@ -41,7 +39,7 @@ public:
     
     ~Operation() = default;
 
-    virtual SharedToken run(std::vector<SharedToken> inputs) = 0;
+    virtual SharedToken run(TokenList inputs) = 0;
 
     virtual TypeIdentifier type();
 
@@ -82,14 +80,14 @@ private:
 namespace details {
 
     template <class F, class Tuple, std::size_t... I>
-    constexpr decltype(auto) apply_impl(F&& f, std::vector<SharedToken> inputs, 
+    constexpr decltype(auto) apply_impl(F&& f, TokenList inputs, 
                 Tuple t, std::index_sequence<I...>) {
                     UNUSED(t); // don't know why this causes unused error?
         return std::invoke(std::forward<F>(f), inputs, std::get<I>(std::forward<Tuple>(t))...);
     }
 
     template <class F, class Tuple>
-    constexpr decltype(auto) apply(F&& f, std::vector<SharedToken> inputs, Tuple t)
+    constexpr decltype(auto) apply(F&& f, TokenList inputs, Tuple t)
     {
         return apply_impl(
             std::forward<F>(f), inputs, std::forward<Tuple>(t),
@@ -107,7 +105,7 @@ namespace details {
             std::make_index_sequence<std::tuple_size_v<std::remove_reference_t<Tuple>>>{});
     }
 
-    typedef std::vector<SharedToken>::const_iterator ArgIterator;
+    typedef TokenList::const_iterator ArgIterator;
 
     template <typename A>
     std::tuple<> iterate_args(ArgIterator current, ArgIterator end) {
@@ -153,7 +151,7 @@ public:
     };
     ~OperationWrapper() = default;
 
-    virtual SharedToken run(std::vector<SharedToken> inputs) {
+    virtual SharedToken run(TokenList inputs) {
 
         try {
             
@@ -203,7 +201,7 @@ struct OperationFactory {
 
     }
 
-    static SharedOperation new_instance(std::vector<SharedToken> inputs) { 
+    static SharedOperation new_instance(TokenList inputs) { 
 
         if (inputs.size() != sizeof...(Args))
             throw TypeException("Wrong number of parameters");
@@ -218,11 +216,11 @@ struct OperationFactory {
 
 };
 
-typedef std::function<SharedOperation(std::vector<SharedToken>)> OperationConstructor;
+typedef std::function<SharedOperation(TokenList)> OperationConstructor;
 typedef std::function<OperationArguments()> OperationDescriber;
 typedef std::tuple<OperationConstructor, OperationDescriber, SharedModule> Factory;
 
-SharedOperation PIXELPIPES_API make_operation(const std::string& key, std::vector<SharedToken> inputs);
+SharedOperation PIXELPIPES_API make_operation(const std::string& key, TokenList inputs);
 void PIXELPIPES_API register_operation(const std::string& key, OperationConstructor constructor, OperationDescriber describer);
 bool PIXELPIPES_API is_operation_registered(const std::string& key);
 
@@ -236,12 +234,12 @@ void register_operation(const std::string& key) {
 template <typename ...Args>
 SharedOperation make_operation(const std::string& key, Args&& ... args) {
 
-    return make_operation(key, std::vector<SharedToken>({args ...}));
+    return make_operation(key, TokenList({args ...}));
 
 }
 
 OperationDescription PIXELPIPES_API describe_operation(const std::string& key);
-SharedOperation PIXELPIPES_API create_operation(const std::string& key, std::vector<SharedToken> inputs);
+SharedOperation PIXELPIPES_API create_operation(const std::string& key, TokenList inputs);
 SharedOperation PIXELPIPES_API create_operation(const std::string& key, std::initializer_list<SharedToken> inputs);
 
 template<typename Fn, Fn fn, typename Base, typename ...Args>

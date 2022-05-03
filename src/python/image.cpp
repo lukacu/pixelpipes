@@ -230,7 +230,7 @@ SharedToken wrap_image_list(py::object src)
                 }
                 images.push_back(extract<Image>(image));
             }
-            return std::make_shared<ImageList>(images);
+            return wrap(make_span(images));
         }
         catch (...)
         {
