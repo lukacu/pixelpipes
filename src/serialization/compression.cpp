@@ -345,8 +345,8 @@ namespace pixelpipes
     {
     }
 
-    InputCompressionStream::InputCompressionStream(std::istream &in)
-        : std::istream(&isbuf_),  isbuf_(in.rdbuf())
+    InputCompressionStream::InputCompressionStream(std::istream &_in)
+        : std::istream(&isbuf_),  isbuf_(_in.rdbuf())
     {
     }
 
@@ -444,8 +444,8 @@ namespace pixelpipes
 
     /**@brief You can create compressed stream over every stream based on std::ostream
      * @param chunksize The size of chunks*/
-    OutputCompressionStream::OutputCompressionStream(std::ostream &out, unsigned chunksize)
-        : std::ostream(&osbuf_), osbuf_(out.rdbuf(), chunksize)
+    OutputCompressionStream::OutputCompressionStream(std::ostream &_out, unsigned chunksize)
+        : std::ostream(&osbuf_), osbuf_(_out.rdbuf(), chunksize)
     {
     }
 

@@ -376,7 +376,7 @@ namespace pixelpipes
         write_t(target, image->height());
         write_t(target, image->width());
         write_t(target, image->channels());
-        write_t(target, (ushort)image->depth());
+        write_t(target, (unsigned short)image->depth());
 
         size_t total = 0;
         for (ImageChunkIterator it = image->begin(); it != image->end(); it++)
@@ -396,7 +396,7 @@ namespace pixelpipes
         size_t height = read_t<size_t>(source);
         size_t width = read_t<size_t>(source);
         size_t channels = read_t<size_t>(source);
-        ushort depth = read_t<ushort>(source);
+		unsigned short depth = read_t<unsigned short>(source);
 
         Image image = std::make_shared<BufferImage>(width, height, channels, (ImageDepth)depth);
 
@@ -424,7 +424,7 @@ namespace pixelpipes
                                        }
                                        return std::make_shared<ImageList>(make_span(list));
                                    }
-                                   catch (std::bad_alloc &exception)
+                                   catch (std::bad_alloc)
                                    {
                                        throw SerializationException("Unable to allocate an array");
                                    }

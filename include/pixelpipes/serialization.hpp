@@ -130,7 +130,7 @@ namespace pixelpipes
             source.read(&res[0], len);
             return res;
         }
-        catch (std::bad_alloc &exception)
+        catch (std::bad_alloc)
         {
             throw SerializationException(Formatter() << "Unable to allocate a string of length " << len);
         }

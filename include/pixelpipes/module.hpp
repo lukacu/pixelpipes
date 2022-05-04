@@ -59,7 +59,7 @@ private:
 
 };
 
-typedef Function<void()> ModuleInitializer;
+typedef void(*ModuleInitializer) ();
 
 class AddDirect {
 public:

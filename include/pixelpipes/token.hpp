@@ -262,7 +262,7 @@ namespace pixelpipes
     }
 
 
-    class Container: public Token
+    class PIXELPIPES_API Container: public Token
     {
     public:
         ~Container() = default;

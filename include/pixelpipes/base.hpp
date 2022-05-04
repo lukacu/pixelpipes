@@ -651,6 +651,7 @@ namespace pixelpipes
         Sequence &operator=(const Sequence &s)
         {
             copy(s.m_ptr, s.m_size);
+			return *this;
         }
 
         Sequence &operator=(Sequence &&s)
@@ -660,6 +661,7 @@ namespace pixelpipes
             this->m_ptr = s.m_ptr;
             this->m_size = s.m_size;
             s.m_ptr = nullptr;
+			return *this;
         }
 
         ~Sequence()

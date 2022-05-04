@@ -261,10 +261,10 @@ namespace pixelpipes
                 if (List::is(arg))
                 {
 
-                    SharedModule source = type_source(List::cast(arg)->element_type_id());
+                    SharedModule source2 = type_source(List::cast(arg)->element_type_id());
 
-                    if (source)
-                        used_modules.insert(source);
+                    if (source2)
+                        used_modules.insert(source2);
 
                     used_types.insert(List::cast(arg)->element_type_id());
                 }
@@ -291,7 +291,7 @@ namespace pixelpipes
 
         operations.push_back(OperationData(name, token_indices, std::vector<int>(inputs.begin(), inputs.end())));
 
-        return operations.size() - 1;
+        return (int) (operations.size() - 1);
     }
 
     PipelineWriter::WriterMap &PipelineWriter::writers()
@@ -405,7 +405,7 @@ namespace pixelpipes
                         throw SerializationException(Formatter() << "Reader " << type_name << " not found");
                     }
                 }
-                catch (TypeException &e)
+                catch (TypeException)
                 {
                     throw SerializationException(Formatter() << "Type " << type_name << " not found");
                 }

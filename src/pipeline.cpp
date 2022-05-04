@@ -415,7 +415,7 @@ namespace pixelpipes
                 labels.push_back(output->get_label());
         }
 
-        return operations.size() - 1;
+        return (int) (operations.size() - 1);
     }
 
     std::vector<std::string> Pipeline::get_labels()
@@ -474,7 +474,7 @@ namespace pixelpipes
                 auto operation_end = high_resolution_clock::now();
 
                 stats[i].count++;
-                stats[i].elapsed += duration_cast<microseconds>(operation_end - operation_start).count();
+                stats[i].elapsed += (unsigned long) duration_cast<microseconds>(operation_end - operation_start).count();
 
                 if ((operations[i].first->type()) == GetTypeIdentifier<ContextQuery>())
                 {
@@ -496,7 +496,7 @@ namespace pixelpipes
                         break;
                     }
                     default:
-                        throw PipelineException("Illegal query", shared_from_this(), i);
+                        throw PipelineException("Illegal query", shared_from_this(), (int) i);
                     }
                 }
 
@@ -522,7 +522,7 @@ namespace pixelpipes
                     size_t jump = (size_t)Integer::get_value(context[i]);
 
                     if ((i + jump) >= operations.size())
-                        throw PipelineException("Unable to execute jump", shared_from_this(), i);
+                        throw PipelineException("Unable to execute jump", shared_from_this(), (int) i);
 
                     i += 1 + jump;
                     continue;
@@ -545,7 +545,7 @@ namespace pixelpipes
                     }
                     k++;
                 }
-                throw PipelineException(e.what(), shared_from_this(), i);
+                throw PipelineException(e.what(), shared_from_this(), (int) i);
             }
 
             i++;

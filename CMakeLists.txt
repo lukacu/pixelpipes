@@ -19,13 +19,11 @@ option(BUILD_TEST "Enable test snippets" OFF)
 SET(CMAKE_EXTERNALS_DIR "${CMAKE_BINARY_DIR}/external/")
 
 if (MSVC)
-    add_compile_options(/W4 /WX)
+    add_compile_options(/W4 /WX /wd4251)
 else()
     add_compile_options(-Wall -Wextra -pedantic -Werror)
+	set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -Wl,--no-undefined" )
 endif()
-
-set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -Wl,--no-undefined" )
-
 
 FIND_PACKAGE(Threads REQUIRED)
 LINK_LIBRARIES(Threads::Threads)

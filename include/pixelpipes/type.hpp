@@ -63,9 +63,9 @@ namespace pixelpipes
             []
         {
             static_assert(_get_raw_name_format(nullptr), "Unable to figure out how to generate type names on this compiler.");
-            _raw_name_format format;
-            _get_raw_name_format(&format);
-            return format;
+            _raw_name_format fmt;
+            _get_raw_name_format(&fmt);
+            return fmt;
         }();
 
         template <typename T>
@@ -245,9 +245,14 @@ namespace pixelpipes
         std::map<std::string, std::any> _parameters;
     };
 
-    typedef Function<Type(const Type &, const Type &)> TypeResolver;
 
-    typedef Function<Type(const TypeParameters &)> TypeValidator;
+	typedef void(*TypeResolver) (const Type &, const Type &);
+
+	typedef Type(*TypeValidator) (const TypeParameters &);
+
+    //typedef Function<Type(const Type &, const Type &)> TypeResolver;
+
+    //typedef Function<Type(const TypeParameters &)> TypeValidator;
 
     void PIXELPIPES_API type_register(TypeIdentifier i, std::string_view name, TypeValidator, TypeResolver);
 
@@ -262,8 +267,18 @@ namespace pixelpipes
     TypeName PIXELPIPES_API type_name(TypeIdentifier i);
 
     Type default_type_resolve(const Type &, const Type &);
+	/*
+	template<TypeIdentifier T, auto NAME, auto V, auto R>
+	void PIXELPIPES_API type_register() {
+		type_register(T, NAME, V, RESOLVER);
+	}*/
 
-#define DEFAULT_TYPE_CONSTRUCTOR(T) [](const TypeParameters &) { return Type(T); }
+	template<TypeIdentifier T>
+	Type PIXELPIPES_API default_type_constructor(const TypeParameters&) {
+		return Type(T);
+	}
+
+#define DEFAULT_TYPE_CONSTRUCTOR(T) default_type_constructor<T>
 
 #define PIXELPIPES_REGISTER_TYPE(T, NAME, VALIDATOR, RESOLVER) static AddModuleInitializer CONCAT(__type_init_, __COUNTER__)([]() { type_register(T, NAME, VALIDATOR, RESOLVER); })
 

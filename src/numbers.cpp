@@ -4,6 +4,14 @@
 #include <pixelpipes/operation.hpp>
 #include "random.hpp"
 
+#ifndef max
+#define max std::max
+#endif
+
+#ifndef min
+#define min std::min
+#endif
+
 namespace pixelpipes {
 
 class NormalDistribution : public StohasticOperation {
@@ -15,9 +23,9 @@ public:
 
         RandomGenerator generator = StohasticOperation::create_generator(inputs[2]);
 
-        std::normal_distribution<float> distribution(Float::get_value(inputs[0]), Float::get_value(inputs[1]));
+        std::normal_distribution<float> dst(Float::get_value(inputs[0]), Float::get_value(inputs[1]));
 
-        float num = distribution(generator);
+        float num = dst(generator);
 
         return std::make_shared<Float>(num);
     } 
@@ -38,9 +46,9 @@ public:
 
         RandomGenerator generator = StohasticOperation::create_generator(inputs[2]);
 
-        std::uniform_real_distribution<float> distribution(Float::get_value(inputs[0]), Float::get_value(inputs[1]));
+        std::uniform_real_distribution<float> dst(Float::get_value(inputs[0]), Float::get_value(inputs[1]));
 
-        float num = distribution(generator);
+        float num = dst(generator);
 
         return std::make_shared<Float>(num);
 
@@ -237,7 +245,7 @@ SharedToken Maximum(TokenList inputs) {
 
     for (auto input : inputs) {
         integer &= Integer::is(input);
-        value = std::max(value, Float::get_value(input));
+        value = max(value, Float::get_value(input));
     }
 
     if (integer)
@@ -258,7 +266,7 @@ SharedToken Minimum(TokenList inputs) {
 
     for (auto input : inputs) {
         integer &= Integer::is(input);
-        value = std::min(value, Float::get_value(input));
+        value = min(value, Float::get_value(input));
     }
 
     if (integer)

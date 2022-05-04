@@ -8,3 +8,7 @@ FetchContent_MakeAvailable(lodepng)
 
 ADD_LIBRARY(lodepng STATIC ${lodepng_SOURCE_DIR}/lodepng.cpp)
 set_property(TARGET lodepng PROPERTY POSITION_INDEPENDENT_CODE ON)
+
+if (MSVC)
+    target_compile_options(lodepng PUBLIC /WX-)
+endif()
