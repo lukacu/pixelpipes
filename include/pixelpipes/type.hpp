@@ -246,7 +246,7 @@ namespace pixelpipes
     };
 
 
-	typedef void(*TypeResolver) (const Type &, const Type &);
+	typedef Type(*TypeResolver) (const Type &, const Type &);
 
 	typedef Type(*TypeValidator) (const TypeParameters &);
 
@@ -278,7 +278,7 @@ namespace pixelpipes
 		return Type(T);
 	}
 
-#define DEFAULT_TYPE_CONSTRUCTOR(T) default_type_constructor<T>
+#define DEFAULT_TYPE_CONSTRUCTOR(T) [](const TypeParameters&) { return Type(T); }
 
 #define PIXELPIPES_REGISTER_TYPE(T, NAME, VALIDATOR, RESOLVER) static AddModuleInitializer CONCAT(__type_init_, __COUNTER__)([]() { type_register(T, NAME, VALIDATOR, RESOLVER); })
 

@@ -505,26 +505,6 @@ SharedToken RangeList(TokenList inputs, bool round) {
 
 REGISTER_OPERATION_FUNCTION("list_range", RangeList, bool);
 
-class PermutationGenerator {
-public:
-	using result_type = int;
-
-    PermutationGenerator(SharedToken seed) : generator(StohasticOperation::create_generator(seed)) { }
-
-	result_type operator()(int lim) {
-
-        std::uniform_int_distribution<result_type> distribution(0, lim);
-
-        return distribution(generator);
-    }
-
-private:
-
-    RandomGenerator generator;
-
-};
-
-
 /**
  * @brief Creates a permutation mapping.
  * 
@@ -541,7 +521,7 @@ SharedToken ListPermute(TokenList inputs) {
     for (size_t i = 0; i < length; i++) {
         indices.push_back((int)i);
     }
-    std::shuffle(indices.begin(), indices.end(), PermutationGenerator(inputs[1]));
+    std::shuffle(indices.begin(), indices.end(), StohasticOperation::create_generator(inputs[1]));
 
     return std::make_shared<MappedList>(list, indices);
 }
@@ -562,7 +542,7 @@ SharedToken MakePermutation(TokenList inputs) {
     for (size_t i = 0; i < length; i++) {
         indices.push_back((int)i);
     }
-    std::shuffle(indices.begin(), indices.end(), PermutationGenerator(inputs[1]));
+    std::shuffle(indices.begin(), indices.end(), StohasticOperation::create_generator(inputs[1]));
 
     return std::make_shared<IntegerList>(make_span(indices));
 }

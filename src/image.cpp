@@ -424,7 +424,7 @@ namespace pixelpipes
                                        }
                                        return std::make_shared<ImageList>(make_span(list));
                                    }
-                                   catch (std::bad_alloc)
+                                   catch (std::bad_alloc const&)
                                    {
                                        throw SerializationException("Unable to allocate an array");
                                    }
