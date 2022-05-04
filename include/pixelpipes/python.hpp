@@ -49,8 +49,8 @@ class NumpyAllocator;
 
 namespace pixelpipes {
 
-typedef std::function<py::object(SharedToken)> PythonExtractor;
-typedef std::function<SharedToken(py::object)> PythonWrapper;
+typedef Function<py::object(SharedToken)> PythonExtractor;
+typedef Function<SharedToken(py::object)> PythonWrapper;
 
 class PythonModule {
 public:
@@ -100,7 +100,7 @@ protected:
 
 };
 
-typedef std::function<void(PythonModule&)> PythonModuleInitializer;
+typedef Function<void(PythonModule&)> PythonModuleInitializer;
 
 #define PIXELPIPES_PYTHON_MODULE(N) \
 class _PythonInitalizerAnchor { public: _PythonInitalizerAnchor(PythonModuleInitializer initializer); }; \

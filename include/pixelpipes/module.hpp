@@ -22,7 +22,7 @@ class Module;
 
 typedef std::shared_ptr<Module> SharedModule;
 
-typedef std::function<void(SharedModule)> ModuleCallback;
+typedef Function<void(SharedModule)> ModuleCallback;
 
 class Module {
 public:
@@ -59,7 +59,7 @@ private:
 
 };
 
-typedef std::function<void()> ModuleInitializer;
+typedef Function<void()> ModuleInitializer;
 
 class AddDirect {
 public:

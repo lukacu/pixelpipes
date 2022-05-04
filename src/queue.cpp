@@ -3,15 +3,15 @@
 
 namespace pixelpipes {
 
-dispatch_queue::dispatch_queue(size_t thread_cnt) : threads_(thread_cnt) {
+DispatchQueue::DispatchQueue(size_t thread_cnt) : threads_(thread_cnt) {
 
     for(size_t i = 0; i < threads_.size(); i++)
     {
-        threads_[i] = std::thread(&dispatch_queue::dispatch_thread_handler, this);
+        threads_[i] = std::thread(&DispatchQueue::dispatch_thread_handler, this);
     }
 }
 
-dispatch_queue::~dispatch_queue() {
+DispatchQueue::~DispatchQueue() {
 
     std::unique_lock<std::mutex> lock(lock_);
     quit_ = true;
@@ -26,7 +26,7 @@ dispatch_queue::~dispatch_queue() {
     }
 }
 
-void dispatch_queue::dispatch(const fp_t& op)
+void DispatchQueue::dispatch(const Task& op)
 {
     std::unique_lock<std::mutex> lock(lock_);
     q_.push(op);
@@ -37,7 +37,7 @@ void dispatch_queue::dispatch(const fp_t& op)
     cv_.notify_one();
 }
 
-void dispatch_queue::dispatch(fp_t&& op)
+void DispatchQueue::dispatch(Task&& op)
 {
     std::unique_lock<std::mutex> lock(lock_);
     q_.push(std::move(op));
@@ -48,7 +48,7 @@ void dispatch_queue::dispatch(fp_t&& op)
     cv_.notify_one();
 }
 
-void dispatch_queue::dispatch_thread_handler(void) {
+void DispatchQueue::dispatch_thread_handler(void) {
     std::unique_lock<std::mutex> lock(lock_);
 
     do {

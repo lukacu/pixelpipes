@@ -1,7 +1,6 @@
 #pragma once
 
 #include <thread>
-#include <functional>
 #include <vector>
 #include <cstdint>
 #include <cstdio>
@@ -10,30 +9,33 @@
 #include <string>
 #include <condition_variable>
 
+#include <pixelpipes/base.hpp>
+
 namespace pixelpipes {
 
-class dispatch_queue {
-	typedef std::function<void(void)> fp_t;
+class DispatchQueue {
+	typedef Function<void(void)> Task;
 
 public:
-	dispatch_queue(size_t thread_cnt = 1);
-	~dispatch_queue();
+	DispatchQueue(size_t thread_cnt = 1);
+	~DispatchQueue();
 
 	// dispatch and copy
-	void dispatch(const fp_t& op);
+	void dispatch(const Task& op);
 	// dispatch and move
-	void dispatch(fp_t&& op);
+	void dispatch(Task&& op);
 
 	// Deleted operations
-	dispatch_queue(const dispatch_queue& rhs) = delete;
-	dispatch_queue& operator=(const dispatch_queue& rhs) = delete;
-	dispatch_queue(dispatch_queue&& rhs) = delete;
-	dispatch_queue& operator=(dispatch_queue&& rhs) = delete;
+	DispatchQueue(const DispatchQueue& rhs) = delete;
+	DispatchQueue& operator=(const DispatchQueue& rhs) = delete;
+	DispatchQueue(DispatchQueue&& rhs) = delete;
+	DispatchQueue& operator=(DispatchQueue&& rhs) = delete;
 
 private:
+
 	std::mutex lock_;
 	std::vector<std::thread> threads_;
-	std::queue<fp_t> q_;
+	std::queue<Task> q_;
 	std::condition_variable cv_;
 	bool quit_ = false;
 

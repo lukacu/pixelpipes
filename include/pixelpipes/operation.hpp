@@ -216,8 +216,8 @@ struct OperationFactory {
 
 };
 
-typedef std::function<SharedOperation(TokenList)> OperationConstructor;
-typedef std::function<OperationArguments()> OperationDescriber;
+typedef Function<SharedOperation(TokenList)> OperationConstructor;
+typedef Function<OperationArguments()> OperationDescriber;
 typedef std::tuple<OperationConstructor, OperationDescriber, SharedModule> Factory;
 
 SharedOperation PIXELPIPES_API make_operation(const std::string& key, TokenList inputs);

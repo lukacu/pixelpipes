@@ -170,7 +170,7 @@ namespace pixelpipes
 
     ImageChunkIterator::ImageChunkIterator(std::shared_ptr<ChunkCursor> impl) : impl(impl){}
 
-    BufferImage::BufferImage(size_t width, size_t height, size_t channels, ImageDepth depth) : image_width(width), image_height(height), image_channels(channels), image_depth(depth), buffer(0), callback(nullptr)
+    BufferImage::BufferImage(size_t width, size_t height, size_t channels, ImageDepth depth) : image_width(width), image_height(height), image_channels(channels), image_depth(depth), buffer(0), callback()
     {
 
         VERIFY(image_width > 0 && image_height > 0 && image_channels > 0, "Illegal input");

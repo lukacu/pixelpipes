@@ -245,9 +245,9 @@ namespace pixelpipes
         std::map<std::string, std::any> _parameters;
     };
 
-    typedef std::function<Type(const Type &, const Type &)> TypeResolver;
+    typedef Function<Type(const Type &, const Type &)> TypeResolver;
 
-    typedef std::function<Type(const TypeParameters &)> TypeValidator;
+    typedef Function<Type(const TypeParameters &)> TypeValidator;
 
     void PIXELPIPES_API type_register(TypeIdentifier i, std::string_view name, TypeValidator, TypeResolver);
 

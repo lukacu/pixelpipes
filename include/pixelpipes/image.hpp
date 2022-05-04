@@ -126,7 +126,7 @@ namespace pixelpipes
     class PIXELPIPES_API BufferImage : public ImageData
     {
     public:
-        typedef std::function<void()> DescructorCallback;
+        typedef Function<void()> DescructorCallback;
 
         BufferImage(size_t width, size_t height, size_t channels, ImageDepth depth);
 

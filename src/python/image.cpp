@@ -18,7 +18,7 @@ namespace py = pybind11;
 
 using namespace pixelpipes;
 
-typedef std::function<void()> DescructorCallback;
+typedef Function<void()> DescructorCallback;
 
 #define HIDDEN __attribute__((visibility("hidden")))
 
