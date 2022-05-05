@@ -97,36 +97,36 @@ namespace pixelpipes
     View3D w = View3DVariable::get_value(v);
     write_t(target, w); });
 
-    PIXELPIPES_REGISTER_READER(IntegerType, [](std::istream &source)
+    PIXELPIPES_REGISTER_READER(IntegerType, [](std::istream &source) -> SharedToken
                                { return std::make_shared<Integer>(read_t<int>(source)); });
-    PIXELPIPES_REGISTER_READER(FloatType, [](std::istream &source)
+    PIXELPIPES_REGISTER_READER(FloatType, [](std::istream &source) -> SharedToken
                                { return std::make_shared<Float>(read_t<float>(source)); });
-    PIXELPIPES_REGISTER_READER(BooleanType, [](std::istream &source)
+    PIXELPIPES_REGISTER_READER(BooleanType, [](std::istream &source) -> SharedToken
                                { return std::make_shared<Boolean>(read_t<unsigned char>(source) != 0); });
-    PIXELPIPES_REGISTER_READER(StringType, [](std::istream &source)
+    PIXELPIPES_REGISTER_READER(StringType, [](std::istream &source) -> SharedToken
                                { return std::make_shared<String>(read_t<std::string>(source)); });
 
-    PIXELPIPES_REGISTER_READER(IntegerListType, [](std::istream &source)
+    PIXELPIPES_REGISTER_READER(IntegerListType, [](std::istream &source) -> SharedToken
                                { return wrap(read_v<int>(source)); });
-    PIXELPIPES_REGISTER_READER(FloatListType, [](std::istream &source)
+    PIXELPIPES_REGISTER_READER(FloatListType, [](std::istream &source) -> SharedToken
                                { return wrap(read_v<float>(source)); });
-    PIXELPIPES_REGISTER_READER(BooleanListType, [](std::istream &source)
+    PIXELPIPES_REGISTER_READER(BooleanListType, [](std::istream &source) -> SharedToken
                                { return wrap(read_v<bool>(source)); });
-    PIXELPIPES_REGISTER_READER(StringListType, [](std::istream &source)
+    PIXELPIPES_REGISTER_READER(StringListType, [](std::istream &source) -> SharedToken
                                { return wrap(read_v<std::string>(source)); });
 
 
 
-    PIXELPIPES_REGISTER_READER(Point2DType, [](std::istream &source)
+    PIXELPIPES_REGISTER_READER(Point2DType, [](std::istream &source) -> SharedToken
                                { return std::make_shared<Point2DVariable>(read_t<Point2D>(source)); });
 
-    PIXELPIPES_REGISTER_READER(Point3DType, [](std::istream &source)
+    PIXELPIPES_REGISTER_READER(Point3DType, [](std::istream &source) -> SharedToken
                                { return std::make_shared<Point3DVariable>(read_t<Point3D>(source)); });
 
-    PIXELPIPES_REGISTER_READER(View2DType, [](std::istream &source)
+    PIXELPIPES_REGISTER_READER(View2DType, [](std::istream &source) -> SharedToken
                                { return std::make_shared<View2DVariable>(read_t<View2D>(source)); });
 
-    PIXELPIPES_REGISTER_READER(View3DType, [](std::istream &source)
+    PIXELPIPES_REGISTER_READER(View3DType, [](std::istream &source) -> SharedToken
                                { return std::make_shared<View3DVariable>(read_t<View3D>(source)); });
 
     PipelineWriter::PipelineWriter()

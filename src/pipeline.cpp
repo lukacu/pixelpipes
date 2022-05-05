@@ -487,7 +487,7 @@ namespace pixelpipes
                     }
                     case ContextData::OperationIndex:
                     {
-                        output = make_shared<Integer>(i);
+                        output = make_shared<Integer>((int)i);
                         break;
                     }
                     case ContextData::RandomSeed:

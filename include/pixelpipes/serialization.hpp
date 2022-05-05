@@ -16,9 +16,9 @@ namespace pixelpipes
 
     class PipelineReader;
 
-    typedef Function<void(SharedToken, std::ostream &)> TokenWriter;
+    typedef void (* TokenWriter) (SharedToken, std::ostream &);
 
-    typedef Function<SharedToken(std::istream &)> TokenReader;
+    typedef SharedToken (* TokenReader)(std::istream &);
 
     class PIXELPIPES_API SerializationException : public BaseException
     {

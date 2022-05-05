@@ -407,12 +407,12 @@ namespace pixelpipes
         return image;
     }
 
-    PIXELPIPES_REGISTER_READER(ImageType, read_image);
+	PIXELPIPES_REGISTER_READER(ImageType, [](std::istream &source) -> SharedToken {return read_image(source); });
 
     PIXELPIPES_REGISTER_TYPE_DEFAULT(ImageListType, "image_list");
 
     PIXELPIPES_REGISTER_READER(ImageListType,
-                               [](std::istream &source)
+                               [](std::istream &source) -> SharedToken
                                {
                                    try
                                    {

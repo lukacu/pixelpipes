@@ -21,7 +21,7 @@ namespace pixelpipes
         if (v->type_id() == IntegerType)
         {
             int value = Integer::get_value(v);
-            return cv::Point2f(value, value);
+            return cv::Point2f((float)value, (float)value);
         }
 
         if (v->type_id() != Point2DType)

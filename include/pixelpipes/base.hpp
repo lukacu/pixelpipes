@@ -216,7 +216,7 @@ namespace pixelpipes
         };
 
         template <typename T>
-        struct PIXELPIPES_API TypeIdentifierToken
+        struct TypeIdentifierToken
         {
             // Having a static data member will ensure that it has only one address for the whole program.
             // Satic data member having different types will ensure it won't get optimized.
@@ -706,7 +706,7 @@ namespace pixelpipes
         PIXELPIPES_API ~Formatter() {}
 
         template <typename Type>
-        PIXELPIPES_API Formatter &operator<<(const std::vector<Type> &value)
+        Formatter &operator<<(const std::vector<Type> &value)
         {
 
             stream << value.size() << " - ";
