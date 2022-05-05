@@ -1,16 +1,22 @@
-from distutils.command.build import build
 import sys
 import os
 import setuptools
 import distutils.log
 import distutils.file_util as file_util
+from distutils.command import build
 
 from setuptools import Extension, setup
-from setuptools.command import build_py
+from setuptools.command import build_py, build_ext
 
 __version__ = '0.0.3'
 
 platform = os.getenv("PYTHON_PLATFORM", sys.platform)
+
+# Override build command
+class BuildCommand(build.build):
+    def initialize_options(self):
+        build.build.initialize_options(self)
+        self.build_base = os.environ.get("BUILD_ROOT", "build")
 
 class BuildPyCommand(build_py.build_py):
   """Custom build command."""
@@ -18,6 +24,14 @@ class BuildPyCommand(build_py.build_py):
   def run(self):
     self.run_command('cmake_build')
     build_py.build_py.run(self)
+
+class BuildExtCommand(build_ext.build_ext):
+  """Custom build command."""
+
+  def run(self):
+    if not self.rpath:
+        self.rpath = ["$ORIGIN"]
+    build_ext.build_ext.run(self)
 
 class CMakeBuildCommand(build_py.build_py):
 
@@ -32,8 +46,8 @@ class CMakeBuildCommand(build_py.build_py):
     if self.dry_run:
         return
 
-    build_dir = os.environ.get("BUILD_ROOT", os.path.join(root, 'build'))
-    target_dir = os.path.join(self.build_lib, 'pixelpipes')
+    build_dir = os.environ.get("BUILD_ROOT", os.path.dirname(self.build_lib))
+    target_dir = os.path.join(os.environ.get("BUILD_ROOT", os.path.dirname(self.build_lib)), os.path.basename(self.build_lib), "pixelpipes")
     self.mkpath(target_dir)
     self.mkpath(build_dir)
 
@@ -146,5 +160,7 @@ setup(
     cmdclass={
         'cmake_build': CMakeBuildCommand,
         'build_py': BuildPyCommand,
+        'build_ext': BuildExtCommand,
+        "build": BuildCommand
     },
 )

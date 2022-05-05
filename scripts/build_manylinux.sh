@@ -2,6 +2,7 @@
 set -e -u -x
 
 : ${WHEEL_ROOT:=/io/dist}
+: ${PLAT:=manylinux2014_x86_64}
 
 function repair_wheel {
     wheel="$1"
@@ -15,6 +16,7 @@ function repair_wheel {
 # Compile wheels
 for PYBIN in /opt/python/*/bin; do
     #"${PYBIN}/pip" install -r /io/dev-requirements.txt
+    PYDIST=`basename $(dirname $PYBIN)`
     "${PYBIN}/pip" wheel /io/ --no-deps -w ${WHEEL_ROOT}
 done
 
