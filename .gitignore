@@ -20,3 +20,6 @@ temp
 .*
 *.code-workspace
 *.egg-info
+Debug
+*.ilk
+*.pdb
