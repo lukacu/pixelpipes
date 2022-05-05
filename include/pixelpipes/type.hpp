@@ -119,7 +119,7 @@ namespace pixelpipes
      * Altough the value is not predictible, it's stable (I hope).
      */
     template <typename T>
-    auto GetTypeIdentifier() noexcept -> TypeIdentifier
+    auto PIXELPIPES_TYPE_API GetTypeIdentifier() noexcept -> TypeIdentifier
     {
         if constexpr (detail::is_container<T>::value) {
             return GetTypeIdentifier<typename T::value_type >() + ListType;
@@ -148,7 +148,7 @@ namespace pixelpipes
     }
 
     template <typename T>
-    auto GetListIdentifier() noexcept -> TypeIdentifier
+    auto PIXELPIPES_TYPE_API GetListIdentifier() noexcept -> TypeIdentifier
     {
         return ((uintptr_t)&detail::TypeIdentifierToken<T>::id) + ListType;
     }

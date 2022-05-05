@@ -16,10 +16,14 @@
 #define PIXELPIPES_API __declspec(dllimport)
 #endif
 #define PIXELPIPES_INTERNAL
+#define PIXELPIPES_MODULE_API __declspec(dllexport)
+#define PIXELPIPES_TYPE_API
 #else
 /* allow use of -fvisibility=hidden -fvisibility-inlines-hidden */
 #define PIXELPIPES_API __attribute__((visibility("default")))
 #define PIXELPIPES_INTERNAL __attribute__((visibility("hidden")))
+#define PIXELPIPES_MODULE_API __attribute__((visibility("default")))
+#define PIXELPIPES_TYPE_API __attribute__((visibility("default")))
 #endif
 
 #ifdef PIXELPIPES_BUILD_CORE
@@ -216,7 +220,7 @@ namespace pixelpipes
         };
 
         template <typename T>
-        struct TypeIdentifierToken
+        struct PIXELPIPES_TYPE_API TypeIdentifierToken
         {
             // Having a static data member will ensure that it has only one address for the whole program.
             // Satic data member having different types will ensure it won't get optimized.
