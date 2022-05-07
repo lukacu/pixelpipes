@@ -1,6 +1,6 @@
 
 #include <pixelpipes/operation.hpp>
-/*#include <pixelpipes/image.hpp>
+#include <pixelpipes/image.hpp>
 
 #include <lodepng.h>
 
@@ -30,4 +30,3 @@ SharedToken ImageReadPngPalette(TokenList inputs) noexcept(false)
 }
 
 REGISTER_OPERATION_FUNCTION("load_png_palette", ImageReadPngPalette);
-*/

@@ -225,6 +225,18 @@ class GetImageProperties(Macro):
 
             return builder.nodes()
 
+class LoadPNGPaletteIndices(Node):
+    """Load PNG as palette indices 
+    """
+
+    filename = Input(types.String())
+
+    def operation(self):
+        return "load_png_palette", 
+
+    def _output(self):
+        return types.Image(channels=1, depth=8)
+
 
 class ReadImage(Node):
     """Read image from file
