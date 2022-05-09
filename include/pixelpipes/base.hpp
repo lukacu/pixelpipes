@@ -116,7 +116,7 @@ namespace pixelpipes
         struct is_container<C<U>>
         {
             static constexpr bool value =
-                std::is_same<C<U>, std::vector<U>>::value || std::is_same<C<U>, Span<U>>::value  || std::is_same<C<U>, Sequence<U>>::value;
+                std::is_same<C<U>, std::vector<U>>::value || std::is_same<C<U>, Span<U>>::value || std::is_same<C<U>, Sequence<U>>::value;
         };
 
         template <typename T>
@@ -148,7 +148,7 @@ namespace pixelpipes
                 // static_assert(str.size() == N, "Illegal size");
             }
 
-            constexpr const char * data() const noexcept { return chars_; }
+            constexpr const char *data() const noexcept { return chars_; }
 
             constexpr std::size_t size() const noexcept { return N; }
 
@@ -244,22 +244,24 @@ namespace pixelpipes
         char *reason;
     };
 
-    template<typename Result,typename ...Args>
+    template <typename Result, typename... Args>
     struct PIXELPIPES_API abstract_function
     {
-        virtual Result operator()(Args... args)=0;
-        virtual abstract_function *clone() const =0;
+        virtual Result operator()(Args... args) = 0;
+        virtual abstract_function *clone() const = 0;
         virtual ~abstract_function() = default;
     };
 
-    template<typename Func,typename Result,typename ...Args>
-    class PIXELPIPES_API concrete_function: public abstract_function<Result,Args...>
+    template <typename Func, typename Result, typename... Args>
+    class PIXELPIPES_API concrete_function : public abstract_function<Result, Args...>
     {
         Func f;
+
     public:
         concrete_function(const Func &x)
             : f(x)
-        {}
+        {
+        }
         Result operator()(Args... args) override
         {
             return f(args...);
@@ -270,37 +272,42 @@ namespace pixelpipes
         }
     };
 
-    template<typename Func>
+    template <typename Func>
     struct PIXELPIPES_API func_filter
     {
         typedef Func type;
     };
-    template<typename Result,typename ...Args>
+    template <typename Result, typename... Args>
     struct func_filter<Result(Args...)>
     {
         typedef Result (*type)(Args...);
     };
 
-    template<typename signature>
+    template <typename signature>
     class Function;
 
-    template<typename Result,typename ...Args>
+    template <typename Result, typename... Args>
     class PIXELPIPES_API Function<Result(Args...)>
     {
         abstract_function<Result, Args...> *f;
+
     public:
         Function()
             : f(nullptr)
-        {}
-        template<typename Func> Function(const Func &x)
-            : f(new concrete_function<typename func_filter<Func>::type,Result,Args...>(x))
-        {}
+        {
+        }
+        template <typename Func>
+        Function(const Func &x)
+            : f(new concrete_function<typename func_filter<Func>::type, Result, Args...>(x))
+        {
+        }
         Function(const Function &rhs)
             : f(rhs.f ? rhs.f->clone() : nullptr)
-        {}
+        {
+        }
         Function &operator=(const Function &rhs)
         {
-            if( (&rhs != this ) && (rhs.f) )
+            if ((&rhs != this) && (rhs.f))
             {
                 auto *temp = rhs.f->clone();
                 delete f;
@@ -308,16 +315,17 @@ namespace pixelpipes
             }
             return *this;
         }
-        template<typename Func> Function &operator=(const Func &x)
+        template <typename Func>
+        Function &operator=(const Func &x)
         {
-            auto *temp = new concrete_function<typename func_filter<Func>::type,Result,Args...>(x);
+            auto *temp = new concrete_function<typename func_filter<Func>::type, Result, Args...>(x);
             delete f;
             f = temp;
             return *this;
         }
         Result operator()(Args... args)
         {
-            if(f)
+            if (f)
                 return (*f)(args...);
             else
                 throw BaseException("Illegal function pointer");
@@ -332,23 +340,28 @@ namespace pixelpipes
         }
     };
 
-    template<typename ...Args>
+    template <typename... Args>
     class PIXELPIPES_API Function<void(Args...)>
     {
         abstract_function<void, Args...> *f;
+
     public:
         Function()
             : f(nullptr)
-        {}
-        template<typename Func> Function(const Func &x)
-            : f(new concrete_function<typename func_filter<Func>::type,void,Args...>(x))
-        {}
+        {
+        }
+        template <typename Func>
+        Function(const Func &x)
+            : f(new concrete_function<typename func_filter<Func>::type, void, Args...>(x))
+        {
+        }
         Function(const Function &rhs)
             : f(rhs.f ? rhs.f->clone() : nullptr)
-        {}
+        {
+        }
         Function &operator=(const Function &rhs)
         {
-            if( (&rhs != this ) && (rhs.f) )
+            if ((&rhs != this) && (rhs.f))
             {
                 auto *temp = rhs.f->clone();
                 delete f;
@@ -356,16 +369,17 @@ namespace pixelpipes
             }
             return *this;
         }
-        template<typename Func> Function &operator=(const Func &x)
+        template <typename Func>
+        Function &operator=(const Func &x)
         {
-            auto *temp = new concrete_function<typename func_filter<Func>::type,void,Args...>(x);
+            auto *temp = new concrete_function<typename func_filter<Func>::type, void, Args...>(x);
             delete f;
             f = temp;
             return *this;
         }
         void operator()(Args... args)
         {
-            if(f)
+            if (f)
                 (*f)(args...);
             else
                 throw BaseException("Illegal function pointer");
@@ -655,7 +669,7 @@ namespace pixelpipes
         Sequence &operator=(const Sequence &s)
         {
             copy(s.m_ptr, s.m_size);
-			return *this;
+            return *this;
         }
 
         Sequence &operator=(Sequence &&s)
@@ -665,7 +679,7 @@ namespace pixelpipes
             this->m_ptr = s.m_ptr;
             this->m_size = s.m_size;
             s.m_ptr = nullptr;
-			return *this;
+            return *this;
         }
 
         ~Sequence()
@@ -742,6 +756,35 @@ namespace pixelpipes
 
         Formatter(const Formatter &);
         Formatter &operator=(Formatter &);
+    };
+
+    class PIXELPIPES_API RandomGenerator
+    {
+        typedef uint32_t (* Function)(uint32_t state);
+
+        Function f_;
+
+        uint32_t seed_;
+
+    public:
+        using result_type = uint32_t;
+
+        RandomGenerator(Function _f, uint32_t _seed = 1) : f_(_f), seed_(_seed) {}
+
+        uint32_t operator()(void) {
+
+            seed_ = f_(seed_);
+            return seed_;
+
+        }
+
+        uint32_t min() {
+            return std::numeric_limits<uint32_t>::min();
+        }
+
+        uint32_t max() {
+            return std::numeric_limits<uint32_t>::max();
+        }
     };
 
 }

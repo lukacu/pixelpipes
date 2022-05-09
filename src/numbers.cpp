@@ -2,7 +2,6 @@
 #include <cmath>
 
 #include <pixelpipes/operation.hpp>
-#include "random.hpp"
 
 #ifndef max
 #define max std::max

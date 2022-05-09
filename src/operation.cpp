@@ -6,6 +6,16 @@
 
 namespace pixelpipes {
 
+
+uint32_t xorshift32(uint32_t m_seed)
+{
+    m_seed ^= m_seed << 13;
+    m_seed ^= m_seed >> 17;
+    m_seed ^= m_seed << 15;
+    return m_seed;
+}
+
+
 Operation::Operation() {}
 
 TypeIdentifier Operation::type() {
@@ -13,6 +23,10 @@ TypeIdentifier Operation::type() {
 }
 
 StohasticOperation::StohasticOperation() {}
+
+RandomGenerator StohasticOperation::create_generator(SharedToken seed) {
+        return RandomGenerator(xorshift32, (uint32_t) Integer::get_value(seed));
+}
 
 typedef std::map<std::string, Factory> RegistryMap;
 

@@ -49,16 +49,12 @@ protected:
 
 };
 
-typedef std::default_random_engine RandomGenerator;
-
 class PIXELPIPES_API StohasticOperation: public Operation {
 public:
     
     ~StohasticOperation() = default;
 
-    static RandomGenerator create_generator(SharedToken seed) {
-            return std::default_random_engine(Integer::get_value(seed));
-    }
+    static RandomGenerator create_generator(SharedToken seed);
 
 protected:
 
