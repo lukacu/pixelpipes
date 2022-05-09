@@ -1,5 +1,6 @@
 
 
+from collections.abc import Container
 import typing
 import numbers
 
@@ -92,14 +93,14 @@ class Compiler(object):
     def build(self, graph: typing.Union[Graph, typing.Mapping[str, Node]],
                 variables: typing.Optional[typing.Mapping[str,
                                                           numbers.Number]] = None,
-                output: typing.Optional[str] = None) -> Pipeline:
+                output: typing.Optional[typing.Union[Container, typing.Callable]] = None) -> Pipeline:
 
         return Pipeline(self.compile(graph, variables, output))
 
     def compile(self, graph: typing.Union[Graph, typing.Mapping[str, Node]],
                 variables: typing.Optional[typing.Mapping[str,
                                                           numbers.Number]] = None,
-                output: typing.Optional[typing.List[str]] = None) -> typing.Iterable[PipelineOperation]:
+                output: typing.Optional[typing.Union[Container, typing.Callable]] = None) -> typing.Iterable[PipelineOperation]:
         """Compile a graph into a pipeline of native operations.
 
         Args:
@@ -234,9 +235,18 @@ class Compiler(object):
         values = dict()
         aliases = dict()
 
+        if output is None:
+            include_output = lambda x: True
+        elif isinstance(output, Container):
+            include_output = lambda x: x in output
+        elif isinstance(output, str):
+            include_output = lambda x: x == output
+        else:
+            include_output = output
+
         for name, node in expanded.items():
             if isinstance(node, Output):
-                if (output is None or node.label in output):
+                if include_output(node.label):
                     output_nodes.append(name)
             elif isinstance(node, Copy):
                 aliases[aliases.get(name, name)] = aliases.get(

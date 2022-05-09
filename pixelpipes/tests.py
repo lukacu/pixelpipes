@@ -226,6 +226,17 @@ class TestPipes(unittest.TestCase):
         compare_serialized(graph)
         
 
+    def test_output_filter(self):
+
+        with GraphBuilder() as graph:
+            Output(1, label="a")
+            Output(2, label="b")
+            Output(3, label="c")
+
+        pipeline = Compiler().build(graph, output=["a", "b"])
+
+        self.assertEqual(len(pipeline.run(1)), 2)
         
+
 
 

@@ -267,11 +267,6 @@ namespace pixelpipes
     TypeName PIXELPIPES_API type_name(TypeIdentifier i);
 
     Type default_type_resolve(const Type &, const Type &);
-	/*
-	template<TypeIdentifier T, auto NAME, auto V, auto R>
-	void PIXELPIPES_API type_register() {
-		type_register(T, NAME, V, RESOLVER);
-	}*/
 
 	template<TypeIdentifier T>
 	Type default_type_constructor(const TypeParameters&) {

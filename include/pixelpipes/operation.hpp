@@ -30,6 +30,8 @@ PIXELPIPES_CONVERT_ENUM(ComparisonOperation)
 
 typedef Span<SharedToken> TokenList;
 
+typedef Span<Type> TypeList;
+
 class Operation;
 
 typedef std::shared_ptr<Operation> SharedOperation;
@@ -42,6 +44,8 @@ public:
     ~Operation() = default;
 
     virtual SharedToken run(TokenList inputs) = 0;
+
+    //virtual Type& validate(TypeList inputs) = 0;
 
     virtual TypeIdentifier type();
 
@@ -118,8 +122,6 @@ namespace details {
     template <typename A, typename Arg>
     std::tuple<Arg> iterate_args(ArgIterator current, ArgIterator end) {
 
-        //std::cout << Type<Arg>::name << " - " << (*current)->describe() << std::endl;
-
         if (current == end) {
             throw TypeException("Number of inputs does not match");
         }
@@ -178,7 +180,6 @@ protected:
 typedef std::vector<TypeIdentifier> OperationArguments;
 
 struct OperationDescription {
-
 
     SharedModule source;
     OperationArguments arguments;
