@@ -3,14 +3,11 @@ import time
 import typing
 from functools import partial
 from concurrent.futures import ThreadPoolExecutor
-from threading import Condition, Thread
-import numbers
+from threading import Condition
 
 import numpy as np
 
-from ..graph import Graph
-from ..compiler import Compiler
-
+from pixelpipes import Pipeline
 class BatchIterator(object):
     """Abstract batch iterator base with most functionality for consumer
     agnostic multithreaded batching of samples.
@@ -148,14 +145,12 @@ class PipelineDataLoader(AbstractDataLoader):
                 batch.append(np.stack(field, axis=0))
             return batch
 
-    def __init__(self, graph: Graph, batch: int, workers: typing.Optional[typing.Union[int, WorkerPool]] = None,
-        variables: typing.Optional[typing.Mapping[str, numbers.Number]] = None,
-        output: typing.Optional[str] = None, offset: int = 0):
+    def __init__(self, pipeline: Pipeline, batch: int, workers: typing.Optional[typing.Union[int, WorkerPool]] = None,
+        offset: typing.Optional[int] = 0):
 
         super().__init__(batch, workers, offset)
 
-        compiler = Compiler(fixedout=True)
-        self._pipeline = compiler.build(graph, variables=variables, output=output)
+        self._pipeline = pipeline
 
     def _outputs(self):
         return self._pipeline.outputs()
