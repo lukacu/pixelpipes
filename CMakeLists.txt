@@ -57,7 +57,6 @@ INCLUDE(cmake/opencv.cmake)
 
 SET(CORE_SOURCE
     src/queue.cpp
-    src/random.cpp
     src/pipeline.cpp
     src/module.cpp
     src/type.cpp

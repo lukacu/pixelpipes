@@ -736,29 +736,19 @@ class DebugOutput(Node):
  
 class Output(Node):
 
-    outputs = List(Input(types.Primitive()))
+    output = Input(types.Primitive())
 
-    identifier = String(default="default")
+    label = String(default="default")
 
     def _output(self) -> types.Type:
         return None
 
-    def get_inputs(self):
-        return [(str(i), types.Any()) for i, _ in enumerate(self.outputs)]
-
-    def input_values(self):
-        return [self.outputs[int(name)] for name, _ in self.get_inputs()]
-
     def operation(self):
-        return "_output", self.identifier
+        return "_output", self.label
 
-    def duplicate(self, _origin=None, **inputs):
-        config = self.dump()
-        for k, v in inputs.items():
-            i = int(k)
-            assert i >= 0 and i < len(config["outputs"])
-            config["outputs"][i] = v
-        return self.__class__(_origin=_origin, **config)
+def outputs(*inputs, label="default"):
+    for i in inputs:
+        Output(output=i, label=label)
 
 @hidden
 class Copy(Node):

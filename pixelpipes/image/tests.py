@@ -5,7 +5,7 @@ from pixelpipes.list import ListElement
 
 from pixelpipes.resource import GetResource
 
-from ..graph import GraphBuilder, Output, Constant
+from ..graph import GraphBuilder, Output, Constant, outputs
 from ..compiler import Compiler
 from ..complex import GetElement
 from . import ConstantImage, Channel, Equals, Grayscale, Invert, Merge, Threshold, Moments, GetImageProperties, ConvertDepth, ConstantImageList
@@ -41,7 +41,7 @@ class Tests(unittest.TestCase):
             n2 = ConstantImage(source=img2)
             n3 = ConstantImage(source=img3)
             n4 = ConstantImage(source=img4)
-            Output(outputs=[n1, n2, n3, n4])
+            outputs(n1, n2, n3, n4)
 
         pipeline = Compiler().build(graph)
         sample = pipeline.run(1)
@@ -66,7 +66,7 @@ class Tests(unittest.TestCase):
             n3 = ConstantImage(source=img3)
             n4 = ConstantImage(source=img4)
             l = ConstantImageList([img1, img2, img3])
-            Output(outputs=[n1, n2, n3, n4, ListElement(l, 1)])
+            outputs(n1, n2, n3, n4, ListElement(l, 1))
 
         compare_serialized(graph)
 
@@ -82,7 +82,7 @@ class Tests(unittest.TestCase):
             o2 = ImageAdd(source1=n1, source2=n0)
             o3 = ImageAdd(source1=n0, source2=n2)
             o4 = ImageAdd(source1=n2, source2=n0)     
-            Output(outputs=[o0, o1, o2, o3, o4])
+            outputs(o0, o1, o2, o3, o4)
 
         pipeline = Compiler().build(graph)
         output = pipeline.run(1)
@@ -110,7 +110,7 @@ class Tests(unittest.TestCase):
             o2 = ImageSubtract(source1=n1, source2=n0)
             o3 = ImageSubtract(source1=n0, source2=n2)
             o4 = ImageSubtract(source1=n2, source2=n0)  
-            Output(outputs=[o0, o1, o2, o3, o4])
+            outputs(o0, o1, o2, o3, o4)
 
         pipeline = Compiler().build(graph)
         output = pipeline.run(1)
@@ -137,7 +137,7 @@ class Tests(unittest.TestCase):
             o4 = ImageMultiply(source1=n2, source2=n0)
             o5 = ImageMultiply(source1=n0, source2=n3)
             o6 = ImageMultiply(source1=n3, source2=n0)
-            Output(outputs=[o0, o1, o2, o3, o4, o5, o6])
+            outputs(o0, o1, o2, o3, o4, o5, o6)
 
         pipeline = Compiler().build(graph)
         output = pipeline.run(1)
@@ -163,7 +163,7 @@ class Tests(unittest.TestCase):
             n2 = Constant(value=0.25)
             o0 = ImageNoise(source=n0, amount=n1)
             o1 = ImageNoise(source=n0, amount=n2)
-            Output(outputs=[o0, o1])
+            outputs(o0, o1)
 
         pipeline = Compiler().build(graph)
         output = pipeline.run(1)
@@ -181,7 +181,7 @@ class Tests(unittest.TestCase):
             n2 = Constant(value=1)
             o0 = ImageBrightness(source=n0, amount=n1)
             o1 = ImageBrightness(source=n0, amount=n2)
-            Output(outputs=[o0, o1])
+            outputs(o0, o1)
 
         pipeline = Compiler().build(graph)
         output = pipeline.run(1)
@@ -198,7 +198,7 @@ class Tests(unittest.TestCase):
         with GraphBuilder() as graph:
             n0 = ConstantImage(source=test_image)
             o0 = ImagePiecewiseAffine(n0, 1.5, 4)
-            Output(outputs=[o0])
+            outputs(o0)
 
         pipeline = Compiler().build(graph)
         output = pipeline.run(1)
@@ -217,7 +217,7 @@ class Tests(unittest.TestCase):
 
         with GraphBuilder() as graph:
             o1 = GaussianFunction(size_x=256, size_y=256, mean_x=0.5, mean_y=0.5, sigma_x=1.0, sigma_y=1.0)
-            Output(outputs=[o1])
+            outputs(o1)
 
         pipeline = Compiler().build(graph)
         output = pipeline.run(1)
@@ -236,7 +236,7 @@ class Tests(unittest.TestCase):
             o1 = GaussianFilter(source=n0, size_x=5, size_y=5)
             o2 = GaussianFilter(source=n0, size_x=7, size_y=7)
             o3 = GaussianFilter(source=n0, size_x=9, size_y=9)
-            Output(outputs=[o0, o1, o2, o3])
+            outputs(o0, o1, o2, o3)
 
         pipeline = Compiler().build(graph)
         output = pipeline.run(1)
@@ -256,7 +256,7 @@ class Tests(unittest.TestCase):
             o1 = MedianBlur(source=n0, size=5)
             o2 = MedianBlur(source=n0, size=7)
             o3 = MedianBlur(source=n0, size=9)     
-            Output(outputs=[o0, o1, o2, o3])
+            outputs(o0, o1, o2, o3)
 
         pipeline = Compiler().build(graph)
         output = pipeline.run(1)
@@ -276,7 +276,7 @@ class Tests(unittest.TestCase):
             o1 = AverageFilter(n0, 5, 5)
             o2 = AverageFilter(n0, 7, 1)
             o3 = AverageFilter(n0, 1, 9)          
-            Output(outputs=[o0, o1, o2, o3])
+            outputs(o0, o1, o2, o3)
 
         pipeline = Compiler().build(graph)
         output = pipeline.run(1)
@@ -296,7 +296,7 @@ class Tests(unittest.TestCase):
             o1 = BilateralFilter(source=n0, diameter=5, sigma_color=2.0, sigma_space=1.0)
             o2 = BilateralFilter(source=n0, diameter=7, sigma_color=2.0, sigma_space=2.0)
             o3 = BilateralFilter(source=n0, diameter=9, sigma_color=3.0, sigma_space=3.0)
-            Output(outputs=[o0, o1, o2, o3])
+            outputs(o0, o1, o2, o3)
 
         pipeline = Compiler().build(graph)
         output = pipeline.run(1)
@@ -324,7 +324,7 @@ class Tests(unittest.TestCase):
             o1 = LinearFilter(source=n0, kernel=n2)
             o2 = LinearFilter(source=n0, kernel=n3)
             o3 = LinearFilter(source=n0, kernel=n4)
-            Output(outputs=[o0, o1, o2, o3])
+            outputs(o0, o1, o2, o3)
 
         pipeline = Compiler().build(graph)
         output = pipeline.run(1)
@@ -349,7 +349,7 @@ class Tests(unittest.TestCase):
             o2 = Scale(source=n0, scale=1.0)
             o3 = Scale(source=n0, scale=2.0)
             o4 = Scale(source=n0, scale=4.0)
-            Output(outputs=[o0, o1, o2, o3, o4])
+            outputs(o0, o1, o2, o3, o4)
 
         pipeline = Compiler().build(graph)
         output = pipeline.run(1)
@@ -384,7 +384,7 @@ class Tests(unittest.TestCase):
             r_5_0 = Rotate(source=n0, clockwise=0)
             r_5_1 = Rotate(source=r_5_0, clockwise=1)
             o5 = Rotate(source=r_5_1, clockwise=1)
-            Output(outputs=[o0, o1, o2, o3, o4, o5])
+            outputs(o0, o1, o2, o3, o4, o5)
 
         pipeline = Compiler().build(graph)
         output = pipeline.run(1)
@@ -408,7 +408,7 @@ class Tests(unittest.TestCase):
             o1 = Flip(source=f1, flip=0)
             f2 = Flip(source=n0, flip=1)
             o2 = Flip(source=f2, flip=1)
-            Output(outputs=[o0, o1, o2])
+            outputs(o0, o1, o2)
 
         pipeline = Compiler().build(graph)
         output = pipeline.run(1)
@@ -430,7 +430,7 @@ class Tests(unittest.TestCase):
             o4 = Resize(source=n0, width=512, height=512)
             o5 = Resize(source=n0, width=512, height=256)
             o6 = Resize(source=n0, width=256, height=512)
-            Output(outputs=[o0, o1, o2, o3, o4, o5, o6])
+            outputs(o0, o1, o2, o3, o4, o5, o6)
 
         pipeline = Compiler().build(graph)
         output = pipeline.run(1)
@@ -467,7 +467,7 @@ class Tests(unittest.TestCase):
             o3 = MakeRectangle(x1=0, x2=128, y1=0, y2=128)
             o4 = MaskBoundingBox(source=n2)
             o5 = MakeRectangle(x1=0, x2=256, y1=0, y2=256)
-            Output(outputs=[o0, o1, o2, o3, o4, o5])
+            outputs(o0, o1, o2, o3, o4, o5)
 
         pipeline = Compiler().build(graph)
         output = pipeline.run(1)
@@ -488,7 +488,7 @@ class Tests(unittest.TestCase):
             o0 = ImageCrop(source=n0, bbox=n1)
             o1 = ImageCrop(source=n0, bbox=n2)
             o2 = ImageCrop(source=n0, bbox=n3)
-            Output(outputs=[o0, o1, o2])
+            outputs(o0, o1, o2)
 
         pipeline = Compiler().build(graph)
         output = pipeline.run(1)
@@ -518,7 +518,7 @@ class Tests(unittest.TestCase):
             o1 = ConstantImage(source=test_image_gray_1)
             o2 = ConstantImage(source=test_image_rgb_0)
             o3 = ConstantImage(source=test_image_rgb_1)
-            Output(outputs=[o0, o1, o2, o3])
+            outputs(o0, o1, o2, o3)
 
         pipeline = Compiler().build(graph)
         output = pipeline.run(1)
@@ -539,7 +539,7 @@ class Tests(unittest.TestCase):
 
         with GraphBuilder() as graph:
             o0 = ConstantImageList(test_image_list)
-            Output(outputs=[ListElement(o0, 0), ListElement(o0, 1)])
+            outputs(ListElement(o0, 0), ListElement(o0, 1))
 
         pipeline = Compiler().build(graph)
         output = pipeline.run(1)
@@ -556,7 +556,7 @@ class Tests(unittest.TestCase):
 
         with GraphBuilder() as graph:
             l = ImageDirectory(path=example_images, grayscale=False)
-            Output(outputs=[GetElement(GetResource(l, 0), "image")])
+            outputs(GetElement(GetResource(l, 0), "image"))
 
         pipeline = Compiler().build(graph)
         output = pipeline.run(1)
@@ -574,7 +574,7 @@ class Tests(unittest.TestCase):
             o1 = GetElement(n1, element="height")
             o2 = GetElement(n1, element="channels")
             o3 = GetElement(n1, element="depth")
-            Output(outputs=[o0, o1, o2, o3])
+            outputs(o0, o1, o2, o3)
 
         pipeline = Compiler().build(graph)
         output = pipeline.run(1)
@@ -594,7 +594,7 @@ class Tests(unittest.TestCase):
             o1 = ConvertDepth(source=n0, depth="Short")
             o2 = ConvertDepth(source=n0, depth="Float")
             o3 = ConvertDepth(source=n0, depth="Double")
-            Output(outputs=[o0, o1, o2, o3])
+            outputs(o0, o1, o2, o3)
 
         pipeline = Compiler().build(graph)
         output = pipeline.run(1)
@@ -615,7 +615,7 @@ class Tests(unittest.TestCase):
         with GraphBuilder() as graph:
             n0 = ConstantImage(source=test_image_rgb)
             o0 = Grayscale(source=n0)
-            Output(outputs=[o0])
+            outputs(o0)
 
         pipeline = Compiler().build(graph)
         output = pipeline.run(1)
@@ -630,7 +630,7 @@ class Tests(unittest.TestCase):
             n0 = ConstantImage(source=test_image)
             o0 = Threshold(source=n0, threshold=200)
             o1 = Threshold(source=n0, threshold=100)
-            Output(outputs=[o0, o1])
+            outputs(o0, o1)
 
         pipeline = Compiler().build(graph)
         output = pipeline.run(1)
@@ -651,7 +651,7 @@ class Tests(unittest.TestCase):
         with GraphBuilder() as graph:
             n0 = ConstantImage(source=test_image)
             o0 = Invert(source=n0)
-            Output(outputs=[o0])
+            outputs(o0)
 
         pipeline = Compiler().build(graph)
         output = pipeline.run(1)
@@ -665,7 +665,7 @@ class Tests(unittest.TestCase):
         with GraphBuilder() as graph:
             n0 = ConstantImage(source=test_image)
             o0 = Equals(source=n0, value=128)
-            Output(outputs=[o0])
+            outputs(o0)
 
         pipeline = Compiler().build(graph)
         output = pipeline.run(1)
@@ -684,7 +684,7 @@ class Tests(unittest.TestCase):
             o0 = Channel(source=n0, index=0)
             o1 = Channel(source=n0, index=1)
             o2 = Channel(source=n0, index=2)
-            Output(outputs=[o0, o1, o2])
+            outputs(o0, o1, o2)
 
         pipeline = Compiler().build(graph)
         output = pipeline.run(1)
@@ -702,7 +702,7 @@ class Tests(unittest.TestCase):
             n1 = ConstantImage(source=test_image[..., 1])
             n2 = ConstantImage(source=test_image[..., 2])
             o0 = Merge(source1=n0, source2=n1, source3=n2)
-            Output(outputs=[o0, n0, n1, n2])
+            outputs(o0, n0, n1, n2)
 
         pipeline = Compiler().build(graph)
         output = pipeline.run(1)
@@ -719,7 +719,7 @@ class Tests(unittest.TestCase):
             n1 = ConstantImage(source=m_bin)
             o0 = Moments(source=n0, binary=False)
             o1 = Moments(source=n1, binary=True)
-            Output(outputs=[o0, o1])
+            outputs(o0, o1)
             
         pipeline = Compiler().build(graph)
         output = pipeline.run(1)
@@ -751,7 +751,7 @@ class Tests(unittest.TestCase):
             o0 = ImageBlend(source1=n0, source2=n0, alpha=0.25)
             o1 = ImageBlend(source1=n0, source2=n1, alpha=0.50)
             o2 = ImageBlend(source1=n0, source2=n1, alpha=1.0)
-            Output(outputs=[o0, o1, o2])
+            outputs(o0, o1, o2)
 
         pipeline = Compiler().build(graph)
         output = pipeline.run(1)
@@ -768,7 +768,7 @@ class Tests(unittest.TestCase):
         with GraphBuilder() as graph:
             n0 = ConstantImage(source=test_image)
             o0 = ImageDropout(source=n0, probability=0.5)
-            Output(outputs=[o0])
+            outputs(o0)
 
         pipeline = Compiler().build(graph)
         output = pipeline.run(1)
@@ -782,7 +782,7 @@ class Tests(unittest.TestCase):
         with GraphBuilder() as graph:
             n0 = ConstantImage(source=test_image)
             o0 = ImageCoarseDropout(source=n0, probability=0.5, size_percent=0.5)
-            Output(outputs=[o0])
+            outputs(o0)
 
         pipeline = Compiler().build(graph)
         output = pipeline.run(1)
@@ -799,7 +799,7 @@ class Tests(unittest.TestCase):
             n2 = MaskBoundingBox(source=n0)
             o0 = ImageCut(source=n0, bbox=n1)
             o1 = ImageCut(source=n0, bbox=n2)
-            Output(outputs=[o0, o1])
+            outputs(o0, o1)
 
         pipeline = Compiler().build(graph)
         output = pipeline.run(1)
@@ -817,7 +817,7 @@ class Tests(unittest.TestCase):
             n0 = ConstantImage(source=test_image)
             o0 = ImageSolarize(source=n0, threshold=-1)
             o1 = ImageSolarize(source=n0, threshold=255)
-            Output(outputs=[o0, o1])
+            outputs(o0, o1)
 
         pipeline = Compiler().build(graph)
         output = pipeline.run(1)
@@ -834,7 +834,7 @@ class Tests(unittest.TestCase):
 
         with GraphBuilder() as graph:
             o0 = NormalNoise(width=10, height=10, mean=0.5, std=0.05)  
-            Output(outputs=[o0])
+            outputs(o0)
 
         pipeline = Compiler().build(graph)
         output = pipeline.run(1)
@@ -845,7 +845,7 @@ class Tests(unittest.TestCase):
 
         with GraphBuilder() as graph:
             o0 = UniformNoise(width=10, height=10, min=0.0, max=1.0)
-            Output(outputs=[o0])
+            outputs(o0)
 
         pipeline = Compiler().build(graph)
         output = pipeline.run(1)
@@ -857,7 +857,7 @@ class Tests(unittest.TestCase):
         with GraphBuilder() as graph:
             h = LinearImage(100, 50, 1, 50, flip=False)
             v = LinearImage(100, 50, 1, 50, flip=True)
-            Output(outputs=[h, v])
+            outputs(h, v)
 
         pipeline = Compiler().build(graph)
         sample = pipeline.run(1)

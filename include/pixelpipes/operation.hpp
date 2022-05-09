@@ -34,6 +34,8 @@ class Operation;
 
 typedef std::shared_ptr<Operation> SharedOperation;
 
+RandomGenerator make_generator(uint32_t seed);
+
 class PIXELPIPES_API Operation: public std::enable_shared_from_this<Operation> {
 public:
     
@@ -150,14 +152,9 @@ public:
     virtual SharedToken run(TokenList inputs) {
 
         try {
-            
-            // LINUX
-            return details::apply(std::function(fn), inputs, args); //  std::tuple_cat(std::make_tuple(inputs), args) );
-            
-            // WINDOWS
-            //return apply(std::forward<Fn>(fn), inputs, args);
-            //return fn(inputs, std::forward<Args>(args)...);
 
+            return details::apply(std::function(fn), inputs, args); 
+            
         } catch (TypeException &e) {
             throw OperationException(e.what(), this->shared_from_this());
         }

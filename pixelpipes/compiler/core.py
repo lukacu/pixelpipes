@@ -236,7 +236,7 @@ class Compiler(object):
 
         for name, node in expanded.items():
             if isinstance(node, Output):
-                if (output is None or node.identifier in output):
+                if (output is None or node.label in output):
                     output_nodes.append(name)
             elif isinstance(node, Copy):
                 aliases[aliases.get(name, name)] = aliases.get(
@@ -336,6 +336,10 @@ class Compiler(object):
                 raise CompilerException(
                     "Illegal operation data for node: %s" % node)
             return meta
+
+        # Retain correct order of output nodes
+        for i, name in enumerate(output_nodes):
+             dependencies.setdefault(name, set()).update(output_nodes[0:i])
 
         if not self._predictive:
             self._debug("Jump optimization not disabled, skipping")

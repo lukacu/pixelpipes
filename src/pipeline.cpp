@@ -118,20 +118,20 @@ namespace pixelpipes
     class Output : public Operation
     {
     public:
-        Output(std::string name) : name(name) {}
+        Output(std::string label) : label(label) {}
         virtual ~Output() = default;
 
         virtual SharedToken run(TokenList inputs)
         {
 
-            VERIFY(inputs.size() >= 1, "At least one input required");
+            VERIFY(inputs.size() == 1, "One input required");
 
             return empty();
         }
 
         std::string get_label() const
         {
-            return name;
+            return label;
         }
 
         virtual TypeIdentifier type()
@@ -140,7 +140,7 @@ namespace pixelpipes
         }
 
     private:
-        std::string name;
+        std::string label;
     };
 
     REGISTER_OPERATION("_output", Output, std::string);
@@ -211,42 +211,12 @@ namespace pixelpipes
         virtual SharedToken run(TokenList inputs)
         {
 
-            // VERIFY(inputs.size() == negate.size(), "Incorrect number of parameters");
-
             if (condition.compute(inputs.slice(2, inputs.size() - 2))) {
                 return make_shared<Integer>(0);
             } else {
                 return make_shared<Integer>(offset);
             }
 
-
-            // Counters j and m are used to keep track of the inputs, j denotes the global position
-            // while m moves within the conjunction subclause. This allows early termination of conjunction
-           /* size_t j = 0;
-            size_t m = 0;
-            for (size_t i = 0; i < condition.size(); i++)
-            {
-                bool result = true;
-                j += m;
-                m = 0;
-                for (bool negate : condition[i])
-                {
-
-                    result &= inputs[j + m] && ((Boolean::get_value(inputs[j + m])) != negate);
-                    if (!result)
-                    {
-                        m = condition[i].size();
-                        break;
-                    }
-                    else
-                        m++;
-                }
-
-                if (result)
-                    return make_shared<Integer>(0);
-            }
-
-            return make_shared<Integer>(offset);*/
         }
 
         virtual TypeIdentifier type()
@@ -272,37 +242,12 @@ namespace pixelpipes
         virtual SharedToken run(TokenList inputs)
         {
 
-            // VERIFY(inputs.size() == negate.size() + 2, "Incorrect number of parameters");
-
             if (condition.compute(inputs.slice(2, inputs.size() - 2))) {
                 return inputs[0];
             } else {
                 return inputs[1];
             }
-/*
-            size_t j = 2; // We start rading two inputs in, the first two inputs are output choices
-            size_t m = 1;
-            for (size_t i = 0; i < condition.size(); i++)
-            {
-                bool result = true;
-                j += m - 1;
-                m = 0;
-                for (bool negate : condition[i])
-                {
 
-                    result &= inputs[j + m] && ((Boolean::get_value(inputs[j + m])) != negate);
-                    m++;
-                    if (!result)
-                    {
-                        m = condition.size(i);
-                        break;
-                    }
-                }
-                if (result)
-                    return inputs[0];
-            }
-
-            return inputs[1];*/
         }
 
         virtual TypeIdentifier type()
@@ -442,7 +387,7 @@ namespace pixelpipes
 
         size_t i = 0;
 
-        std::default_random_engine generator(index);
+        RandomGenerator generator = make_generator((int)index);
 
         while (i < operations.size())
         {

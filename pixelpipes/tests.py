@@ -4,7 +4,7 @@ import os
 
 from pixelpipes import read_pipeline, write_pipeline
 
-from .graph import Constant, Output, SampleIndex, DebugOutput
+from .graph import Constant, Output, SampleIndex, DebugOutput, outputs
 from .numbers import Floor, Round, UniformDistribution
 from .expression import Expression
 from .flow import Switch
@@ -50,7 +50,7 @@ class TestPipes(unittest.TestCase):
             n1 = Constant(value=5)
             n2 = Constant(value=15)
             n3 = Expression(source="((x ^ 2 - y) * 2) / 5 + 2", variables=dict(x=n1, y=n2))
-            Output(outputs=[n3])
+            Output(n3)
 
         pipeline = Compiler.build_graph(graph)
         output = pipeline.run(1)
@@ -62,7 +62,7 @@ class TestPipes(unittest.TestCase):
         with GraphBuilder() as graph:
             n1 = Constant(value=6)
             n2 = Constant(value=3)
-            Output(outputs=[n1+n2, n1-n2, n1*n2, n1/n2, n1**n2, n1%n2, -n1])
+            outputs(n1+n2, n1-n2, n1*n2, n1/n2, n1**n2, n1%n2, -n1)
 
         pipeline = Compiler.build_graph(graph)
         output = pipeline.run(1)
@@ -86,7 +86,7 @@ class TestPipes(unittest.TestCase):
 
         with GraphBuilder() as graph:
             bb = Constant(a)
-            Output(outputs=[UniformDistribution(a, b), bb])
+            outputs(UniformDistribution(a, b), bb)
 
         pipeline = Compiler.build_graph(graph)
 
@@ -103,7 +103,7 @@ class TestPipes(unittest.TestCase):
 
         with GraphBuilder() as graph:
             n1 = ConstantList([0, 1, 2])
-            Output(outputs=[n1])
+            Output(n1)
 
         pipeline = Compiler.build_graph(graph)
         sample = pipeline.run(1)
@@ -114,7 +114,7 @@ class TestPipes(unittest.TestCase):
         with GraphBuilder() as graph:
             r1 = ListRange(0, 10, 10, True)
             r2 = ListRange(0, 5, 10, False)
-            Output(outputs=[r1, r2])
+            outputs(r1, r2)
 
         pipeline = Compiler.build_graph(graph)
         sample = pipeline.run(1)
@@ -125,7 +125,7 @@ class TestPipes(unittest.TestCase):
 
         with GraphBuilder() as graph:
             n = ConstantTable([[0, 1, 2], [3, 4, 5]])
-            Output(outputs=[ListElement(DebugOutput(n), 0)])
+            outputs(ListElement(DebugOutput(n), 0))
 
         pipeline = Compiler.build_graph(graph)
         sample = pipeline.run(1)
@@ -141,7 +141,7 @@ class TestPipes(unittest.TestCase):
             n1 = Conditional(true=1, false=0, condition=c1)
             n2 = Conditional(true=(n1*2)+1, false=n1*2, condition=c2)
             n3 = Conditional(true=(n2*2)+1, false=n2*2, condition=c3)
-            Output([n3])
+            Output(n3)
 
         pipeline = Compiler.build_graph(graph)
         for i in range(8):
@@ -158,14 +158,14 @@ class TestPipes(unittest.TestCase):
             b = Constant(value=3)
             c = b + 1
             d = Conditional(a, c, a > 15)
-            Output(outputs=[a, c, d])
+            outputs(a, c, d)
 
         pipeline = Compiler(debug=False).build(graph)
 
         for i in range(1, 100):
             a = pipeline.run(i)
             self.assertEqual(a[0] if a[0] > 15 else a[1], a[2])
-            Output(outputs=[a, b, d])
+            outputs(a, b, d)
       
         pipeline = Compiler(debug=False).compile_graph(graph)
 
@@ -183,7 +183,7 @@ class TestPipes(unittest.TestCase):
             a = Round(UniformDistribution(0, 30))
             b = Constant(value=3)
             d = Conditional(a, b, a > 15)
-            Output(outputs=[a, b, d])
+            outputs(a, b, d)
       
         pipeline = Compiler().build(graph)
 
@@ -203,7 +203,7 @@ class TestPipes(unittest.TestCase):
             c = a + b
             d = Switch(inputs=[a, b, c], weights=[0.2, 0.2, 0.9])
             b = Constant(value=4)
-            Output(outputs=[Switch(inputs=[d, b, a - b], weights=[0.5, 0.5, 0.5])])
+            outputs(Switch(inputs=[d, b, a - b], weights=[0.5, 0.5, 0.5]))
 
         pipeline1 = Compiler(debug=True).build(graph)
         pipeline2 = Compiler(debug=True, predictive=False).build(graph)
@@ -221,7 +221,7 @@ class TestPipes(unittest.TestCase):
             c = b + 1
             d = Conditional(a, c, a > 15)
             e = ConstantList([1, 2, 3, 4])
-            Output(outputs=[a, c, d, e])
+            outputs(a, c, d, e)
 
         compare_serialized(graph)
         

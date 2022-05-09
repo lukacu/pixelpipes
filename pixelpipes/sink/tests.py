@@ -5,7 +5,7 @@ import unittest
 import numpy as np
 
 from ..compiler import Compiler
-from ..graph import GraphBuilder, Output, Constant
+from ..graph import GraphBuilder, Output, Constant, outputs
 from ..list import ConstantList
 from . import PipelineDataLoader
 
@@ -14,12 +14,12 @@ class TestSinks(unittest.TestCase):
     def test_sink_PipelineDataLoader(self):
         
         with GraphBuilder() as builder:
-            Output(outputs=[Constant(1), ConstantList([10, 20, 30])])
+            outputs(Constant(1), ConstantList([10, 20, 30]))
         graph = builder.build()
 
         batch_size = 10
 
-        loader = PipelineDataLoader(graph, batch_size, 1)
+        loader = PipelineDataLoader(Compiler().build(graph), batch_size, 1)
 
         for batch in loader:
             self.assertIsInstance(batch[0], np.ndarray)

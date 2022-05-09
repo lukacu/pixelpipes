@@ -2,7 +2,7 @@ import unittest
 import numpy as np
 
 from .. import write_pipeline, read_pipeline
-from ..graph import Output
+from ..graph import Output, outputs
 from ..geometry.points import MakePoint, MakePoints
 from ..geometry.view import AffineView, RotateView,Chain
 from .rectangle import MakeRectangle, ResizeRectangle
@@ -14,7 +14,7 @@ class TestPipes(unittest.TestCase):
     def test_geometry_points_MakePoint(self):
 
         with GraphBuilder() as graph:
-            Output(outputs=[MakePoint(1, 1)])
+            outputs(MakePoint(1, 1))
 
         pipeline = Compiler().build(graph)
         output = pipeline.run(1)
@@ -26,7 +26,7 @@ class TestPipes(unittest.TestCase):
         gt = np.array([[1, 1], [2, 2], [3, 4]])
 
         with GraphBuilder() as graph:
-            Output(outputs=[MakePoints(gt.flatten().tolist())])
+            outputs(MakePoints(gt.flatten().tolist()))
 
         pipeline = Compiler().build(graph)
         output = pipeline.run(1)
@@ -41,7 +41,7 @@ class TestPipes(unittest.TestCase):
             points = MakePoints(gt.flatten().tolist())
             point = MakePoint(2, 2)
             a = (((points + points) - 3) * point) / 2
-            Output(outputs=[a])
+            outputs(a)
 
         pipeline = Compiler().build(graph)
         output = pipeline.run(1)
@@ -52,7 +52,7 @@ class TestPipes(unittest.TestCase):
     def test_geometry_MakeRectangle(self):
 
         with GraphBuilder() as graph:
-            Output(outputs=[MakeRectangle(0, 0, 10, 10)])
+            outputs(MakeRectangle(0, 0, 10, 10))
 
         pipeline = Compiler().build(graph)
         output = pipeline.run(1)
@@ -63,7 +63,7 @@ class TestPipes(unittest.TestCase):
 
         with GraphBuilder() as graph:
             r = MakeRectangle(0, 10, 10, 20)
-            Output(outputs=[ResizeRectangle(r, 2)])
+            outputs(ResizeRectangle(r, 2))
 
         pipeline = Compiler().build(graph)
         output = pipeline.run(1)
@@ -75,7 +75,7 @@ class TestPipes(unittest.TestCase):
         with GraphBuilder() as graph:
             n1 = AffineView(x=0, y=1)
             n2 = RotateView(angle=3)
-            Output(outputs=[Chain(inputs=[n1, n2])])
+            outputs(Chain(inputs=[n1, n2]))
 
         pipeline = Compiler().build(graph)
         output = pipeline.run(1)
@@ -85,7 +85,7 @@ class TestPipes(unittest.TestCase):
 
     def test_make_rectangle(self):
         with GraphBuilder() as graph:
-            Output(outputs=[MakeRectangle(0, 0, 10, 10)])
+            outputs(MakeRectangle(0, 0, 10, 10))
 
         pipeline = Compiler().build(graph)
         sample = pipeline.run(1)
@@ -100,7 +100,7 @@ class TestPipes(unittest.TestCase):
             points = MakePoints(gt.flatten().tolist())
             point = MakePoint(2, 2)
             a = (((points + points) - 3) * point) / 5
-            Output(outputs=[a])
+            outputs(a)
 
         compiler = Compiler()
 

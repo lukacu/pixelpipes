@@ -15,6 +15,9 @@ uint32_t xorshift32(uint32_t m_seed)
     return m_seed;
 }
 
+RandomGenerator make_generator(uint32_t seed) {
+    return RandomGenerator(xorshift32, seed);
+}
 
 Operation::Operation() {}
 
@@ -25,7 +28,7 @@ TypeIdentifier Operation::type() {
 StohasticOperation::StohasticOperation() {}
 
 RandomGenerator StohasticOperation::create_generator(SharedToken seed) {
-        return RandomGenerator(xorshift32, (uint32_t) Integer::get_value(seed));
+        return make_generator((uint32_t) Integer::get_value(seed));
 }
 
 typedef std::map<std::string, Factory> RegistryMap;
