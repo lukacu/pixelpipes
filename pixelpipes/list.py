@@ -47,12 +47,20 @@ class ConstantTable(Macro):
         if not all(x == rows[0] for x in rows):
             raise types.TypeException("All rows should be equal")
 
+        items = [item for sublist in self.source for item in sublist]
+        if all(isinstance(x, int) for x in items):
+            self._type = types.Integer()
+        elif all(isinstance(x, (int, float)) for x in items):
+            self._type = types.Float()
+        else:
+            raise types.TypeException("Unsupported element")
+
         self._row = rows[0]
 
     def _output(self):
-        return types.List(types.List(types.Any()), len(self.source))
+        return types.List(types.List(self._type, self._row), len(self.source))
 
-    def expand(self, inputs, parent: "Reference"):
+    def expand(self, _, parent: "Reference"):
 
         with GraphBuilder(prefix=parent) as builder:
             data = ConstantList([item for sublist in self.source for item in sublist])
@@ -327,7 +335,7 @@ class ListElement(Node):
     Category: list
     """
 
-    parent = Input(types.List(types.Primitive()))
+    parent = Input(types.List())
     index = Input(types.Integer())
 
     def validate(self, **inputs):
@@ -354,7 +362,7 @@ class ListLength(Node):
     Category: list
     """
 
-    parent = Input(types.List(types.Primitive()))
+    parent = Input(types.List())
 
     def validate(self, **inputs):
         super().validate(**inputs)
