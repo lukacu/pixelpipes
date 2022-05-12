@@ -1,9 +1,6 @@
 #pragma once
 
-#include <vector>
 #include <type_traits>
-#include <map>
-#include <set>
 #include <mutex>
 #include <thread>
 #include <exception>
@@ -14,147 +11,146 @@
 #include <pixelpipes/token.hpp>
 #include <pixelpipes/operation.hpp>
 
-namespace pixelpipes { 
- 
-class Pipeline;
-class PipelineException;
+namespace pixelpipes
+{
 
-class PIXELPIPES_API DNF {
-public:
+    class Pipeline;
+    class PipelineException;
 
-    DNF(Span<Span<bool> > clauses);
-    DNF(std::istream &source);
+    class PIXELPIPES_API DNF
+    {
+    public:
+        DNF();
 
-    ~DNF() = default;
+        DNF(Span<Span<bool>> clauses);
+        DNF(std::istream &source);
 
-    size_t size() const;
+        DNF(const DNF &);
+        DNF(DNF &&);
 
-    bool compute(TokenList values) const;
+        DNF &operator=(const DNF &);
+        DNF &operator=(DNF &&);
 
-    void write(std::ostream &target) const;
+        ~DNF();
 
-private:
+        size_t size() const;
 
-    // TODO: PIMPL
-    std::vector<std::vector<bool>> clauses;
+        bool compute(TokenList values) const;
 
-};
+        void write(std::ostream &target) const;
+
+    private:
+        struct State;
+
+        Implementation<State> state;
+    };
 
 #define DNFType GetTypeIdentifier<DNF>()
 
-template<>
-inline DNF extract(const SharedToken v) {
-    VERIFY((bool) v, "Uninitialized variable");
+    template <>
+    DNF PIXELPIPES_API extract(const SharedToken v);
 
-    VERIFY(v->type_id() == DNFType, "Illegal type");
+    template <>
+    SharedToken PIXELPIPES_API wrap(const DNF v);
 
-    auto container = std::static_pointer_cast<ContainerToken<DNF>>(v);
-    return container->get();
-    
-}
-
-template<>
-inline SharedToken wrap(const DNF v) {
-    return std::make_shared<ContainerToken<DNF>>(v);
-}
-
-typedef std::pair<SharedOperation, std::vector<int> > OperationData;
-
-class PIXELPIPES_API Pipeline: public std::enable_shared_from_this<Pipeline> {
-public:
-
-    Pipeline();
-
-    ~Pipeline() = default;
-
-    virtual void finalize();
-
-    virtual int append(std::string name, TokenList args, Span<int> inputs);
-
-    virtual Sequence<SharedToken> run(unsigned long index) noexcept(false);
-
-    virtual std::vector<std::string> get_labels();
-
-    std::vector<float> operation_time();
-
-protected:
-
-    typedef struct {
-        int count;
-        unsigned long elapsed;
-    } OperationStats;
-
-    bool finalized;
-
-    std::vector<SharedToken> cache;
-
-    std::vector<OperationData> operations;
-
-    std::vector<OperationStats> stats;
-
-    std::vector<std::string> labels;
-
-};
+    typedef std::pair<SharedOperation, std::vector<int>> OperationData;
 
 
+    class PIXELPIPES_API Pipeline
+    {
+        struct State;
 
-typedef std::shared_ptr<Pipeline> SharedPipeline;
+        struct StateDeleter {
 
-class PipelineCallback {
-public:
-    virtual void done(TokenList result) = 0;
+            void operator()(State* p) const;
+        };
 
-    virtual void error(const PipelineException &error) = 0;
+        // TODO: figure out what kind of magic is done here and replicate it.
+        std::unique_ptr<State, StateDeleter> state;
 
-};
+    public:
+        Pipeline();
 
-class PIXELPIPES_API PipelineException : public BaseException {
-public:
+        virtual ~Pipeline();
 
-    PipelineException(std::string reason, SharedPipeline pipeline, int operation);
-	int operation () const throw ();
+        //Pipeline(const Pipeline &);
+        Pipeline(Pipeline &&);
 
-private:
-    SharedPipeline pipeline; 
-    int _operation;
-};
+        //Pipeline &operator=(const Pipeline &);
+        Pipeline &operator=(Pipeline &&);
 
-/*
-class Engine: public std::enable_shared_from_this<Engine> {
-public:
-    Engine(int workers);
+        virtual void finalize();
 
-    ~Engine();
+        virtual int append(std::string name, TokenList args, Span<int> inputs);
 
-    void start();
+        virtual Sequence<SharedToken> run(unsigned long index) noexcept(false);
 
-    void stop();
+        virtual std::vector<std::string> get_labels();
 
-    bool running();
+        std::vector<float> operation_time();
 
-    bool add(std::string, SharedPipeline pipeline);
+    protected:
+        typedef struct
+        {
+            int count;
+            unsigned long elapsed;
+        } OperationStats;
+    };
 
-    bool remove(std::string);
+    class PipelineCallback
+    {
+    public:
+        virtual void done(TokenList result) = 0;
 
-    void run(std::string, unsigned long index, std::shared_ptr<PipelineCallback> callback) noexcept(false);
+        virtual void error(const PipelineException &error) = 0;
+    };
 
-private:
+    class PIXELPIPES_API PipelineException : public BaseException
+    {
+    public:
+        PipelineException(std::string reason, int operation);
+        int operation() const throw();
 
-    std::map<std::string, SharedPipeline> pipelines;
+    private:
+        int _operation;
+    };
 
-    std::shared_ptr<dispatch_queue> workers;
+    /*
+    class Engine: public std::enable_shared_from_this<Engine> {
+    public:
+        Engine(int workers);
 
-    std::recursive_mutex mutex_;
+        ~Engine();
 
-    int workers_count;
+        void start();
 
-};
+        void stop();
 
-class EngineException: public BaseException {
-public:
+        bool running();
 
-    EngineException(std::string reason);
+        bool add(std::string, SharedPipeline pipeline);
 
-};*/
+        bool remove(std::string);
+
+        void run(std::string, unsigned long index, std::shared_ptr<PipelineCallback> callback) noexcept(false);
+
+    private:
+
+        std::map<std::string, SharedPipeline> pipelines;
+
+        std::shared_ptr<dispatch_queue> workers;
+
+        std::recursive_mutex mutex_;
+
+        int workers_count;
+
+    };
+
+    class EngineException: public BaseException {
+    public:
+
+        EngineException(std::string reason);
+
+    };*/
 
 }

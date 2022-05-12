@@ -10,6 +10,7 @@
 #include <mutex>
 #include <string>
 #include <condition_variable>
+#include <filesystem>
 
 #include <pixelpipes/pipeline.hpp>
 #include <pixelpipes/serialization.hpp>
@@ -20,21 +21,37 @@ using namespace std::chrono;
 namespace pixelpipes
 {
 
-    PIXELPIPES_REGISTER_TYPE(DNFType, "dnf", DEFAULT_TYPE_CONSTRUCTOR(DNFType), default_type_resolve);
+    template <> std::filesystem::path extract(SharedToken t)
+    {
+        return std::filesystem::path(extract<std::string>(t));
+    }
 
-    PIXELPIPES_REGISTER_WRITER(DNFType, [](SharedToken v, std::ostream &target)
-                               { ContainerToken<DNF>::get_value(v).write(target); });
+    template <>
+    SharedToken wrap(std::filesystem::path value)
+    {
+        return wrap(value.string());
+    }
 
-    PIXELPIPES_REGISTER_READER(DNFType, [](std::istream &source)
-                               { return wrap(DNF(source)); });
-
-
-    PipelineException::PipelineException(std::string reason, SharedPipeline pipeline, int operation) : BaseException(std::string(reason.c_str()) + std::string(" (operation ") + std::to_string(operation) + std::string(")")), pipeline(pipeline), _operation(operation) {}
+    PipelineException::PipelineException(std::string reason, int operation) : BaseException(std::string(reason.c_str()) + std::string(" (operation ") + std::to_string(operation) + std::string(")")), _operation(operation) {}
 
     int PipelineException::operation() const throw()
     {
         return _operation;
     }
+
+    struct DNF::State {
+        std::vector<std::vector<bool>> clauses;
+    };
+
+    DNF::DNF() = default;
+
+    DNF::DNF(const DNF &) = default;
+    DNF::DNF(DNF &&) = default;
+
+    DNF& DNF::operator=(const DNF &) = default;
+    DNF& DNF::operator=(DNF &&) = default;
+
+    DNF::~DNF() = default;
 
     DNF::DNF(Span<Span<bool>> clauses)
     {
@@ -43,15 +60,15 @@ namespace pixelpipes
         {
             if (x.size() > 0)
             {
-                this->clauses.push_back(std::vector<bool>(x.begin(), x.end()));
+                state->clauses.push_back(std::vector<bool>(x.begin(), x.end()));
             }
         }
     }
 
     void DNF::write(std::ostream &target) const
     {
-        write_t(target, clauses.size());
-        for (auto x : clauses)
+        write_t(target, state->clauses.size());
+        for (auto x : state->clauses)
         {
             write_t(target, x.size());
             for (auto d : x)
@@ -62,14 +79,14 @@ namespace pixelpipes
     DNF::DNF(std::istream &source)
     {
         size_t len = read_t<size_t>(source);
-        clauses.reserve(len);
+        state->clauses.reserve(len);
         for (size_t i = 0; i < len; i++)
         {
             std::vector<bool> clause;
             size_t n = read_t<size_t>(source);
             for (size_t j = 0; j < n; j++)
                 clause.push_back(read_t<bool>(source));
-            clauses.push_back(clause);
+            state->clauses.push_back(clause);
         }
     }
 
@@ -78,7 +95,7 @@ namespace pixelpipes
 
         size_t count = 0;
 
-        for (auto x : clauses)
+        for (auto x : state->clauses)
         {
             count += x.size();
         }
@@ -91,16 +108,16 @@ namespace pixelpipes
 
         auto v = values.begin();
 
-        for (size_t i = 0; i < clauses.size(); i++)
+        for (size_t i = 0; i < state->clauses.size(); i++)
         {
             auto offset = v;
             bool result = true;
-            for (bool negate : clauses[i])
+            for (bool negate : state->clauses[i])
             {
                 result &= (*v) && (Boolean::get_value(*v) != negate);
                 if (!result)
                 {
-                    v = offset + clauses[i].size();
+                    v = offset + state->clauses[i].size();
                     break;
                 }
                 else
@@ -114,6 +131,27 @@ namespace pixelpipes
         return false;
     }
 
+    template<> DNF extract(const SharedToken v) {
+        VERIFY((bool) v, "Uninitialized variable");
+
+        VERIFY(v->type_id() == DNFType, "Illegal type");
+
+        auto container = std::static_pointer_cast<ContainerToken<DNF>>(v);
+        return container->get();
+        
+    }
+
+    template<> SharedToken wrap(const DNF v) {
+        return std::make_shared<ContainerToken<DNF>>(v);
+    }
+
+    PIXELPIPES_REGISTER_TYPE(DNFType, "dnf", DEFAULT_TYPE_CONSTRUCTOR(DNFType), default_type_resolve);
+
+    PIXELPIPES_REGISTER_WRITER(DNFType, [](SharedToken v, std::ostream &target)
+                               { ContainerToken<DNF>::get_value(v).write(target); });
+
+    PIXELPIPES_REGISTER_READER(DNFType, [](std::istream &source)
+                               { return wrap(DNF(source)); });
 
     class Output : public Operation
     {
@@ -285,8 +323,6 @@ namespace pixelpipes
         ContextData query;
     };
 
-    REGISTER_OPERATION("_context", ContextQuery, ContextData);
-
     class DebugOutput : public Operation
     {
     public:
@@ -309,67 +345,100 @@ namespace pixelpipes
         std::string prefix;
     };
 
+    REGISTER_OPERATION("_context", ContextQuery, ContextData);
+
     REGISTER_OPERATION("_cjump", ConditionalJump, DNF, int);
 
     REGISTER_OPERATION("_condition", Conditional, DNF);
 
     REGISTER_OPERATION("_debug", DebugOutput, std::string);
 
-    Pipeline::Pipeline() : finalized(false) {}
+    struct Pipeline::State {
+        bool finalized;
+
+        std::vector<SharedToken> cache;
+
+        std::vector<OperationData> operations;
+
+        std::vector<OperationStats> stats;
+
+        std::vector<std::string> labels;
+
+    };
+
+    void Pipeline::StateDeleter::operator()(State* p) const {
+        //std::cout << "Delete " << std::endl;
+        delete p;
+    }
+
+
+    Pipeline::Pipeline() : state(new Pipeline::State()) {
+
+    }
+
+    //Pipeline::Pipeline(const Pipeline &) = default;
+    Pipeline::Pipeline(Pipeline && other) = default;
+
+    //Pipeline& Pipeline::operator=(const Pipeline &) = default;
+    //Pipeline& Pipeline::operator=(Pipeline &&) = default;
+
+    Pipeline& Pipeline::operator=(Pipeline && other) = default;
+
+    Pipeline::~Pipeline() = default;
 
     void Pipeline::finalize()
     {
 
-        finalized = true;
+        state->finalized = true;
 
-        cache.resize(operations.size());
-        stats.resize(operations.size());
+        state->cache.resize(state->operations.size());
+        state->stats.resize(state->operations.size());
 
-        for (size_t i = 0; i < stats.size(); i++)
+        for (size_t i = 0; i < state->stats.size(); i++)
         {
-            stats[i].count = 0;
-            stats[i].elapsed = 0;
+            state->stats[i].count = 0;
+            state->stats[i].elapsed = 0;
         }
     }
 
     int Pipeline::append(std::string name, TokenList args, Span<int> inputs)
     {
 
-        if (finalized)
-            throw PipelineException("Pipeline is finalized", shared_from_this(), -1);
+        if (state->finalized)
+            throw PipelineException("Pipeline is finalized", -1);
 
         SharedOperation operation = create_operation(name, args);
 
         for (int i : inputs)
         {
-            if (i >= (int)operations.size() || i < 0)
-                throw PipelineException("Operation index out of bounds", shared_from_this(), -1);
+            if (i >= (int)state->operations.size() || i < 0)
+                throw PipelineException("Operation index out of bounds", -1);
 
-            if ((operations[i].first->type()) == GetTypeIdentifier<Output>())
+            if ((state->operations[i].first->type()) == GetTypeIdentifier<Output>())
             {
-                throw PipelineException("Cannot refer to output operation", shared_from_this(), -1);
+                throw PipelineException("Cannot refer to output operation", -1);
             }
         }
 
-        operations.push_back(pair<SharedOperation, std::vector<int>>(operation, std::vector<int>(inputs.begin(), inputs.end())));
+        state->operations.push_back(pair<SharedOperation, std::vector<int>>(operation, std::vector<int>(inputs.begin(), inputs.end())));
 
-        if ((operations.back().first->type()) == GetTypeIdentifier<Output>())
+        if ((state->operations.back().first->type()) == GetTypeIdentifier<Output>())
         {
-            auto output = std::static_pointer_cast<Output>(operations.back().first);
+            auto output = std::static_pointer_cast<Output>(state->operations.back().first);
             for (size_t i = 0; i < inputs.size(); i++)
-                labels.push_back(output->get_label());
+                state->labels.push_back(output->get_label());
         }
 
-        return (int) (operations.size() - 1);
+        return (int) (state->operations.size() - 1);
     }
 
     std::vector<std::string> Pipeline::get_labels()
     {
 
-        if (!finalized)
-            throw PipelineException("Pipeline not finalized", shared_from_this(), -1);
+        if (!state->finalized)
+            throw PipelineException("Pipeline not finalized", -1);
 
-        return std::vector<std::string>(labels.begin(), labels.end());
+        return std::vector<std::string>(state->labels.begin(), state->labels.end());
     }
 
     Sequence<SharedToken> Pipeline::run(unsigned long index)
@@ -378,35 +447,35 @@ namespace pixelpipes
         vector<SharedToken> context;
         vector<SharedToken> result;
 
-        if (!finalized)
-            throw PipelineException("Pipeline not finalized", shared_from_this(), -1);
+        if (!state->finalized)
+            throw PipelineException("Pipeline not finalized", -1);
 
         // auto start = high_resolution_clock::now();
 
-        context.resize(operations.size());
+        context.resize(state->operations.size());
 
         size_t i = 0;
 
         RandomGenerator generator = make_generator((int)index);
 
-        while (i < operations.size())
+        while (i < state->operations.size())
         {
 
-            if (cache[i])
+            if (state->cache[i])
             {
-                context[i] = cache[i];
-                if ((operations[i].first->type()) == GetTypeIdentifier<Output>())
+                context[i] = state->cache[i];
+                if ((state->operations[i].first->type()) == GetTypeIdentifier<Output>())
                 {
-                    result.push_back(cache[i]);
+                    result.push_back(state->cache[i]);
                 }
                 i++;
                 continue;
             }
 
             vector<SharedToken> local;
-            local.reserve(operations[i].second.size());
+            local.reserve(state->operations[i].second.size());
 
-            for (int j : operations[i].second)
+            for (int j : state->operations[i].second)
             {
                 local.push_back(context[j]);
             }
@@ -415,15 +484,13 @@ namespace pixelpipes
             {
                 auto operation_start = high_resolution_clock::now();
 
-                auto output = operations[i].first->run(make_span(local));
+                auto output = state->operations[i].first->run(make_span(local));
                 auto operation_end = high_resolution_clock::now();
 
-                stats[i].count++;
-                stats[i].elapsed += (unsigned long) duration_cast<microseconds>(operation_end - operation_start).count();
 
-                if ((operations[i].first->type()) == GetTypeIdentifier<ContextQuery>())
+                if ((state->operations[i].first->type()) == GetTypeIdentifier<ContextQuery>())
                 {
-                    switch (std::static_pointer_cast<ContextQuery>(operations[i].first)->get_query())
+                    switch (std::static_pointer_cast<ContextQuery>(state->operations[i].first)->get_query())
                     {
                     case ContextData::SampleIndex:
                     {
@@ -441,13 +508,16 @@ namespace pixelpipes
                         break;
                     }
                     default:
-                        throw PipelineException("Illegal query", shared_from_this(), (int) i);
+                        throw PipelineException("Illegal query", (int) i);
                     }
                 }
 
                 context[i] = output;
 
-                if ((operations[i].first)->type() == GetTypeIdentifier<Output>())
+                state->stats[i].count++;
+                state->stats[i].elapsed += (unsigned long) duration_cast<microseconds>(operation_end - operation_start).count();
+
+                if ((state->operations[i].first)->type() == GetTypeIdentifier<Output>())
                 {
                     for (auto x : local)
                     {
@@ -459,15 +529,15 @@ namespace pixelpipes
 
                 if (!output)
                 {
-                    throw OperationException("Operation output undefined", operations[i].first);
+                    throw OperationException("Operation output undefined", state->operations[i].first);
                 }
 
-                if ((operations[i].first)->type() == GetTypeIdentifier<Jump>())
+                if ((state->operations[i].first)->type() == GetTypeIdentifier<Jump>())
                 {
                     size_t jump = (size_t)Integer::get_value(context[i]);
 
-                    if ((i + jump) >= operations.size())
-                        throw PipelineException("Unable to execute jump", shared_from_this(), (int) i);
+                    if ((i + jump) >= state->operations.size())
+                        throw PipelineException("Unable to execute jump", (int) i);
 
                     i += 1 + jump;
                     continue;
@@ -477,7 +547,7 @@ namespace pixelpipes
             {
                 std::cout << "ERROR at operation " << i << ": " << e.what() << ", inputs:" << std::endl;
                 int k = 0;
-                for (int j : operations[i].second)
+                for (int j : state->operations[i].second)
                 {
                     std::cout << " * " << k << " (operation " << j << "): ";
                     if ((bool)(local[k]))
@@ -490,13 +560,13 @@ namespace pixelpipes
                     }
                     k++;
                 }
-                throw PipelineException(e.what(), shared_from_this(), (int) i);
+                throw PipelineException(e.what(), (int) i);
             }
 
             i++;
         }
 
-        VERIFY(result.size() == labels.size(), "Output mismatch");
+        VERIFY(result.size() == state->labels.size(), "Output mismatch");
 
         return result;
     }
@@ -506,7 +576,7 @@ namespace pixelpipes
 
         std::vector<float> extracted;
 
-        for (auto op : stats)
+        for (auto op : state->stats)
         {
             if (!op.count)
             {

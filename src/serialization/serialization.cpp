@@ -1,5 +1,6 @@
 #include <fstream>
 #include <algorithm>
+#include <filesystem>
 
 #include <pixelpipes/serialization.hpp>
 #include <pixelpipes/geometry.hpp>
@@ -115,8 +116,6 @@ namespace pixelpipes
     PIXELPIPES_REGISTER_READER(StringListType, [](std::istream &source) -> SharedToken
                                { return wrap(read_v<std::string>(source)); });
 
-
-
     PIXELPIPES_REGISTER_READER(Point2DType, [](std::istream &source) -> SharedToken
                                { return std::make_shared<Point2DVariable>(read_t<Point2D>(source)); });
 
@@ -129,11 +128,157 @@ namespace pixelpipes
     PIXELPIPES_REGISTER_READER(View3DType, [](std::istream &source) -> SharedToken
                                { return std::make_shared<View3DVariable>(read_t<View3D>(source)); });
 
-    PipelineWriter::PipelineWriter()
+    class PrefixList : public List
+    {
+    public:
+        PrefixList(Span<std::string> list, std::string prefix = std::string()) : list(list.begin(), list.end()), prefix(prefix)
+        {
+            if (list.empty())
+                throw TypeException("List is empty");
+        }
+
+        ~PrefixList() = default;
+
+        virtual size_t size() const
+        {
+            return list.size();
+        }
+
+        virtual TypeIdentifier element_type_id() const
+        {
+            return StringType;
+        }
+
+        virtual TypeIdentifier type_id() const
+        {
+            return GetTypeIdentifier<PrefixList>();
+        }
+
+        virtual SharedToken get(size_t index) const
+        {
+
+            if (index >= list.size())
+            {
+                throw TypeException("Index out of range");
+            }
+
+            return wrap(prefix + list[index]);
+        }
+
+    private:
+        std::vector<std::string> list;
+
+        std::string prefix;
+    };
+
+    class FileList : public Operation
+    {
+    public:
+        FileList(Sequence<std::string> list) : value(std::make_shared<StringList>(list))
+        {
+        }
+
+        virtual SharedToken run(TokenList inputs)
+        {
+            UNUSED(inputs);
+            return value;
+        }
+
+        virtual TypeIdentifier type()
+        {
+            return GetTypeIdentifier<FileList>();
+        }
+
+    private:
+        SharedToken value;
+    };
+
+    REGISTER_OPERATION("file_list", FileList, Sequence<std::string>);
+
+    SharedList make_relative(SharedList files, std::filesystem::path origin)
+    {
+
+        std::vector<std::string> relative;
+
+        for (size_t i = 0; i < files->size(); i++)
+        {
+            auto path = std::filesystem::absolute(extract<std::string>(files->get(i)));
+
+            if (!origin.empty())
+            {
+                relative.push_back(std::filesystem::relative(path, origin));
+            }
+            else
+            {
+                relative.push_back(path);
+            }
+        }
+
+        return std::make_shared<StringList>(make_span(relative));
+    }
+
+    SharedList make_absolute(SharedList files, std::filesystem::path origin)
+    {
+
+        std::vector<std::string> absolute;
+
+        for (size_t i = 0; i < files->size(); i++)
+        {
+
+            auto path = std::filesystem::path(extract<std::string>(files->get(i)));
+
+            if (path.is_relative())
+            {
+                absolute.push_back((origin / path).lexically_normal());
+            }
+            else
+            {
+                absolute.push_back(path.lexically_normal());
+            }
+        }
+
+        return std::make_shared<StringList>(make_span(absolute));
+    }
+
+    PipelineWriter::PipelineWriter(bool compress, bool relocatable) : compress(compress), relocatable(relocatable)
     {
     }
 
-    void PipelineWriter::write(std::ostream &target, bool compress)
+    void PipelineWriter::write(std::ostream &target)
+    {
+
+        if (relocatable)
+        {
+            origin = std::filesystem::current_path();
+        }
+        else
+        {
+            origin = "";
+        }
+
+        write_pipeline(target);
+    }
+
+    void PipelineWriter::write(std::string &target)
+    {
+
+        std::fstream stream(target, std::fstream::out);
+
+        if (relocatable)
+        {
+            origin = std::filesystem::absolute(target).parent_path();
+        }
+        else
+        {
+            origin = "";
+        }
+
+        write_pipeline(stream);
+
+        stream.close();
+    }
+
+    void PipelineWriter::write_pipeline(std::ostream &target)
     {
 
         if (compress)
@@ -191,12 +336,21 @@ namespace pixelpipes
         for (auto t : tokens)
         {
 
-            TypeName tn = type_name(t->type_id());
+            auto token = std::get<0>(t);
+
+            TypeName tn = type_name(token->type_id());
 
             write_t(target, type_mapping.find(tn)->second);
 
-            TokenWriter writer = std::get<0>(writers().find(t->type_id())->second);
-            writer(t, target);
+            TokenWriter writer = std::get<0>(writers().find(token->type_id())->second);
+
+            // We have marked filename lists during appending
+            if (std::get<1>(t))
+            {
+                token = make_relative(List::get_list(token, StringType), origin);
+            }
+
+            writer(token, target);
         }
 
         // Write the input dependencies for operations (the pipeline stuff)
@@ -217,20 +371,10 @@ namespace pixelpipes
         }
     }
 
-    void PipelineWriter::write(std::string &target, bool compress)
-    {
-
-        std::fstream stream(target, std::fstream::out);
-
-        write(stream, compress);
-
-        stream.close();
-    }
-
     int PipelineWriter::append(std::string name, TokenList args, Span<int> inputs)
     {
 
-        create_operation(name, args);
+        SharedOperation op = create_operation(name, args);
 
         OperationDescription meta = describe_operation(name);
 
@@ -247,6 +391,12 @@ namespace pixelpipes
 
         for (auto arg : args)
         {
+            bool filename = false;
+
+            if (op->type() == GetTypeIdentifier<FileList>() && List::is_list(arg, StringType))
+            {
+                filename = true;
+            }
 
             auto argtype = arg->type_id();
             {
@@ -279,7 +429,7 @@ namespace pixelpipes
                     used_modules.insert(source);
 
                 // TODO: this could be potentially optimized, remove redundancy
-                tokens.push_back(arg);
+                tokens.push_back({arg, filename});
 
                 token_indices.push_back((int)tokens.size() - 1);
             }
@@ -291,7 +441,7 @@ namespace pixelpipes
 
         operations.push_back(OperationData(name, token_indices, std::vector<int>(inputs.begin(), inputs.end())));
 
-        return (int) (operations.size() - 1);
+        return (int)(operations.size() - 1);
     }
 
     PipelineWriter::WriterMap &PipelineWriter::writers()
@@ -341,27 +491,57 @@ namespace pixelpipes
         return true;
     }
 
-    SharedPipeline PipelineReader::read(std::istream &source)
+    Pipeline PipelineReader::read(std::string &target)
+    {
+
+        std::fstream stream(target, std::fstream::in);
+
+        origin = std::filesystem::absolute(target).parent_path();
+
+        Pipeline pipeline;
+
+        read_stream(stream, pipeline);
+
+        stream.close();
+
+        return pipeline;
+    }
+
+    Pipeline PipelineReader::read(std::istream &source)
+    {
+
+        origin = std::filesystem::current_path().string();
+
+        Pipeline pipeline;
+
+        read_stream(source, pipeline);
+
+        return pipeline;
+    }
+
+    void PipelineReader::read_stream(std::istream &source, Pipeline &pipeline)
     {
 
         if (check_header(source, __stream_header_compressed))
         {
             DEBUGMSG("Compressed stream\n");
             InputCompressionStream cs(source);
-            return read_data(cs);
+            read_data(cs, pipeline);
         }
         else if (check_header(source, __stream_header_raw))
         {
             DEBUGMSG("Raw stream\n");
-            return read_data(source);
+            read_data(source, pipeline);
         }
         else
         {
             throw SerializationException("Illegal stream");
         }
+
+        pipeline.finalize();
     }
 
-    SharedPipeline PipelineReader::read_data(std::istream &source)
+    void PipelineReader::read_data(std::istream &source, Pipeline &pipeline)
     {
 
         // First, read the modules that have to be loaded and load them
@@ -411,8 +591,6 @@ namespace pixelpipes
                 }
             }
         }
-
-        SharedPipeline pipeline = std::make_shared<Pipeline>();
 
         std::vector<SharedToken> tokens;
 
@@ -467,28 +645,19 @@ namespace pixelpipes
                 {
                     if (t >= (int)tokens.size())
                         throw SerializationException("Illegal token index");
+
+                    if (name == "file_list" && List::is_list(tokens[t], StringType))
+                    { // TODO: this should be done without strings
+
+                        tokens[t] = make_absolute(List::get_list(tokens[t]), origin);
+                    }
+
                     arguments.push_back(tokens[t]);
                 }
 
-                pipeline->append(name, make_span(arguments), make_span(inputs));
+                pipeline.append(name, make_span(arguments), make_span(inputs));
             }
         }
-
-        pipeline->finalize();
-
-        return pipeline;
-    }
-
-    SharedPipeline PipelineReader::read(std::string &target)
-    {
-
-        std::fstream stream(target, std::fstream::in);
-
-        SharedPipeline pipeline = read(stream);
-
-        stream.close();
-
-        return pipeline;
     }
 
     PipelineReader::ReaderMap &PipelineReader::readers()

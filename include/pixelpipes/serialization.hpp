@@ -26,16 +26,16 @@ namespace pixelpipes
         SerializationException(std::string reason);
     };
 
-    class PIXELPIPES_API PipelineWriter : public std::enable_shared_from_this<PipelineWriter>
+    class PIXELPIPES_API PipelineWriter
     {
     public:
-        PipelineWriter();
+        PipelineWriter(bool compress = true, bool relocatable = false);
 
         ~PipelineWriter() = default;
 
-        void write(std::ostream &target, bool compress = true);
+        void write(std::ostream &target);
 
-        void write(std::string &target, bool compress = true);
+        void write(std::string &target);
 
         int append(std::string name, TokenList args, Span<int> inputs);
 
@@ -45,28 +45,35 @@ namespace pixelpipes
         typedef std::tuple<std::string, std::vector<int>, std::vector<int>> OperationData;
         typedef std::tuple<TokenWriter, SharedModule> WriterData;
         typedef std::map<TypeIdentifier, WriterData> WriterMap;
+        typedef std::tuple<SharedToken, bool> TokenData;
 
         static WriterMap &writers();
 
         std::set<SharedModule> used_modules;
         std::set<TypeIdentifier> used_types;
 
-        std::vector<SharedToken> tokens;
+        std::vector<TokenData> tokens;
         std::vector<OperationData> operations;
+
+        std::string origin;
+        bool compress;
+        bool relocatable;
+
+        void write_pipeline(std::ostream &target);
 
         void write_data(std::ostream &target);
     };
 
-    class PIXELPIPES_API PipelineReader : public std::enable_shared_from_this<PipelineReader>
+    class PIXELPIPES_API PipelineReader
     {
     public:
         PipelineReader();
 
         ~PipelineReader() = default;
 
-        SharedPipeline read(std::istream &target);
+        Pipeline read(std::istream &target);
 
-        SharedPipeline read(std::string &target);
+        Pipeline read(std::string &target);
 
         static void register_reader(TypeIdentifier identifier, TokenReader reader);
 
@@ -76,7 +83,11 @@ namespace pixelpipes
 
         static ReaderMap &readers();
 
-        SharedPipeline read_data(std::istream &source);
+        void read_stream(std::istream &source, Pipeline& pipeline);
+
+        void read_data(std::istream &source, Pipeline& pipeline);
+
+        std::string origin;
     };
 
 #define PIXELPIPES_REGISTER_READER(T, F) static AddModuleInitializer CONCAT(__reader_init_, __COUNTER__)([]() { PipelineReader::register_reader(T, F); })

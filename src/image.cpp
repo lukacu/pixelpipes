@@ -168,7 +168,7 @@ namespace pixelpipes
         return ImageChunkIterator(std::make_shared<EndCursor>());
     }
 
-    ImageChunkIterator::ImageChunkIterator(std::shared_ptr<ChunkCursor> impl) : impl(impl){}
+    ImageChunkIterator::ImageChunkIterator(std::shared_ptr<ChunkCursor> impl) : impl(impl) {}
 
     BufferImage::BufferImage(size_t width, size_t height, size_t channels, ImageDepth depth) : image_width(width), image_height(height), image_channels(channels), image_depth(depth), buffer(0), callback()
     {
@@ -186,16 +186,16 @@ namespace pixelpipes
         VERIFY(image_width > 0 && image_height > 0 && image_channels > 0, "Illegal input");
 
         VERIFY(buffer && callback, "Delegated memory must not be null and have a cleanup callback");
-
     }
-
 
     BufferImage::~BufferImage()
     {
-        if (callback) {
+        if (callback)
+        {
             callback();
             buffer = nullptr;
-        } else if (buffer)
+        }
+        else if (buffer)
             delete[] buffer;
     }
 
@@ -294,7 +294,8 @@ namespace pixelpipes
         return Type(AnyType);
     }
 
-    struct ImageList::ImageListState {
+    struct ImageList::ImageListState
+    {
         std::vector<Image> data;
 
         ImageListState(Span<Image> inputs) : data(inputs.begin(), inputs.end()) {}
@@ -305,13 +306,13 @@ namespace pixelpipes
     }
 
     ImageList::~ImageList() = default;
-/*
-    ImageList::ImageList() = default;*/
+    /*
+        ImageList::ImageList() = default;*/
     ImageList::ImageList(const ImageList &) = default;
     ImageList::ImageList(ImageList &&) = default;
 
-    ImageList& ImageList::operator=(const ImageList &) = default;
-    ImageList& ImageList::operator=(ImageList &&) = default;
+    ImageList &ImageList::operator=(const ImageList &) = default;
+    ImageList &ImageList::operator=(ImageList &&) = default;
 
     size_t ImageList::size() const
     {
@@ -365,9 +366,6 @@ namespace pixelpipes
         return std::make_shared<ImageList>(v);
     }
 
-
-
-
     PIXELPIPES_REGISTER_TYPE(ImageType, "image", imate_type_constructor, imate_type_denominator);
 
     void write_image(SharedToken v, std::ostream &target)
@@ -396,7 +394,7 @@ namespace pixelpipes
         size_t height = read_t<size_t>(source);
         size_t width = read_t<size_t>(source);
         size_t channels = read_t<size_t>(source);
-		unsigned short depth = read_t<unsigned short>(source);
+        unsigned short depth = read_t<unsigned short>(source);
 
         Image image = std::make_shared<BufferImage>(width, height, channels, (ImageDepth)depth);
 
@@ -407,7 +405,8 @@ namespace pixelpipes
         return image;
     }
 
-	PIXELPIPES_REGISTER_READER(ImageType, [](std::istream &source) -> SharedToken {return read_image(source); });
+    PIXELPIPES_REGISTER_READER(ImageType, [](std::istream &source) -> SharedToken
+                               { return read_image(source); });
 
     PIXELPIPES_REGISTER_TYPE_DEFAULT(ImageListType, "image_list");
 
@@ -424,7 +423,7 @@ namespace pixelpipes
                                        }
                                        return std::make_shared<ImageList>(make_span(list));
                                    }
-                                   catch (std::bad_alloc const&)
+                                   catch (std::bad_alloc const &)
                                    {
                                        throw SerializationException("Unable to allocate an array");
                                    }
@@ -440,7 +439,6 @@ namespace pixelpipes
         {
             write_image(list[i], target);
         } });
-
 
     SharedToken ConstantImage(TokenList inputs, Image image)
     {

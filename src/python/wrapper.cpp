@@ -268,6 +268,11 @@ py::array numpyFromVariable(pixelpipes::SharedToken variable) {
         return a;
     }
 
+    if (variable->type_id() == pixelpipes::StringType) {
+        py::str s = std::static_pointer_cast<pixelpipes::String>(variable)->get();
+        return s;
+    }
+
     return registry.extract(variable);
 
 }
@@ -435,7 +440,7 @@ PYBIND11_MODULE(pypixelpipes, m) {
     registry.register_enumeration<Interpolation>("interpolation"); 
     registry.register_enumeration<BorderStrategy>("border"); 
 
-    py::class_<Pipeline, std::shared_ptr<Pipeline> >(m, "Pipeline")
+    py::class_<Pipeline>(m, "Pipeline")
     .def(py::init<>())
     .def("finalize", &Pipeline::finalize, "Finalize pipeline")
     .def("labels", &Pipeline::get_labels, "Get output labels as a list")
@@ -463,16 +468,16 @@ PYBIND11_MODULE(pypixelpipes, m) {
     }, "Run pipeline", py::arg("index"));
 
 
-    py::class_<PipelineWriter, std::shared_ptr<PipelineWriter> >(m, "PipelineWriter")
-    .def(py::init<>())
-    .def("write", [](PipelineWriter& p, std::string filename, bool compress) { p.write(filename, compress); }, "Write the current pipeline", py::arg("filename"), py::arg("compress") = true)
+    py::class_<PipelineWriter>(m, "PipelineWriter")
+    .def(py::init<bool, bool>(), py::arg("compress") = true, py::arg("relocatable") = true)
+    .def("write", [](PipelineWriter& p, std::string filename) { p.write(filename); }, "Write the current pipeline", py::arg("filename"))
     .def("append", [](PipelineWriter& p, std::string& name, py::list args, std::vector<int> inputs) {
 
         return _add_operation(p, name, args, inputs);
 
     }, "Add operation to the pipeline writer");
     
-    py::class_<PipelineReader, std::shared_ptr<PipelineReader> >(m, "PipelineReader")
+    py::class_<PipelineReader>(m, "PipelineReader")
     .def(py::init<>())
     .def("read", [](PipelineReader& p, std::string filename) { return p.read(filename); }, "Read the pipeline");
 

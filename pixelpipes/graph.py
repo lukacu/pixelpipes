@@ -598,9 +598,13 @@ class GraphBuilder(object):
     def nodes(self):
         return dict(**self._nodes)
 
-    def build(self, groups=None):
-
+    def graph(self):
         return Graph(nodes=self._nodes)
+
+    def pipeline(self, fixedout=False, variables = None, output=None):
+        from pixelpipes.compiler import Compiler
+        
+        return Compiler(fixedout=fixedout).build(self, variables=variables, output=output)
 
     def rename(self, node: Node, newname: str):
         if not node in self._nodes.inverse:

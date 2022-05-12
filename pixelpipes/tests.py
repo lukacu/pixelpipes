@@ -8,7 +8,7 @@ from .graph import Constant, Output, SampleIndex, DebugOutput, outputs
 from .numbers import Floor, Round, UniformDistribution
 from .expression import Expression
 from .flow import Switch
-from .list import ConstantList, ConstantTable, ListElement, ListRange
+from .list import ConstantList, ConstantTable, FileList, ListElement, ListRange
 from .graph import GraphBuilder
 from .compiler import Compiler, Conditional
 
@@ -225,6 +225,25 @@ class TestPipes(unittest.TestCase):
 
         compare_serialized(graph)
         
+    def test_file_location(self):
+
+        files = ["a.txt", "b.txt", "c.txt"]
+
+        import tempfile
+
+        tmpfd, tmpname = tempfile.mkstemp()
+
+        os.close(tmpfd)
+
+        with GraphBuilder() as graph:
+            a = FileList(files)
+            outputs(ListElement(a, 0))
+
+        write_pipeline(tmpname, Compiler().compile(graph), relocatable=True)
+
+        pipeline = read_pipeline(tmpname)
+
+        self.assertEqual(str(pipeline.run(1)[0]), os.path.abspath(files[0]))
 
     def test_output_filter(self):
 

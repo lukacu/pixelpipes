@@ -4,7 +4,7 @@ from typing import Optional
 
 from attributee import String, Boolean
 
-from pixelpipes.list import PrefixStringList
+from pixelpipes.list import FileList
 
 from .. import LazyLoadEnum, load_module
 
@@ -30,18 +30,33 @@ class LoadImage(VirtualField):
     def generate(self, parent, resource):
         return ReadImage(filename=resource.access(self._field, parent), grayscale=self._grayscale)
 
+
+_EXTENSIONS = [".jpg", ".jpeg", ".png"]
+
+def _recursive_search(path):
+    for root, _, files in os.walk(path):
+        for basename in files:
+            if os.path.splitext(basename)[1].lower() in _EXTENSIONS:
+                filename = os.path.join(path, root, basename)
+                yield filename   
+
 class ImageDirectory(ResourceListSource):
 
-    EXTENSIONS = [".jpg", ".jpeg", ".png"]
-
     path = String()
-    grayscale = Boolean()
+    grayscale = Boolean(default=False)
+    recursive = Boolean(default=False)
 
     def _load(self):
-        files = [fi for fi in os.listdir(self.path) if os.path.splitext(fi)[1].lower() in ImageDirectory.EXTENSIONS]
-        path = self.path if self.path.endswith(os.sep) else (self.path + os.sep)
-        return {"lists": {
-            "file": (PrefixStringList, files, path)}, "size": len(files)}
+        if not self.recursive:
+            files = [os.path.join(self.path, fi) for fi in os.listdir(self.path) if os.path.splitext(fi)[1].lower() in _EXTENSIONS]
+        else:
+            files = list(_recursive_search(self.path))
+        
+        return {
+            "lists": {
+                "file": (FileList, files)}, 
+                "size": len(files)
+            }
 
     def fields(self):
         return dict(image=LoadImage(types.Image(channels=1 if self.grayscale else 3, depth=8), field="file", grayscale=self.grayscale), file=types.String())

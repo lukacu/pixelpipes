@@ -18,10 +18,10 @@ The C++ library can be used standalone and embedded in other scripting languages
 
 ### Installing
 
-The package can be installed as a Python wheel package, currently from a testing PyPi compatible repository located [here](https://data.vicos.si/lukacu/pip/).
+The package can be installed as a Python wheel package, currently from a testing PyPi compatible repository located [here](https://data.vicos.si/lukacu/pypi/).
 
 ```
-> pip install pixelpipes -i https://data.vicos.si/lukacu/pip/
+> pip install pixelpipes -i https://data.vicos.si/lukacu/pypi/
 ```
 
 ### Simple example
@@ -46,3 +46,8 @@ For development and testing purposes, the libraries can be compiled inplace usin
 ## Documentation
 
 ReadTheDocs: TODO
+
+
+## Acknowledgements
+
+The development of this package was supported by Sloveninan national research agency projects Z2-1866, J2-316 and 

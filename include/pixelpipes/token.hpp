@@ -376,7 +376,7 @@ namespace pixelpipes
         template <class T>
         const std::vector<T> elements() const
         {
-            if (std::is_same<T, C>::value) {
+            if constexpr (std::is_same<T, C>::value) {
                 return std::vector<T>(list);
             } else {
                 return List::elements<T>();

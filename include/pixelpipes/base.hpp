@@ -2,6 +2,7 @@
 #pragma once
 
 #include <cstring>
+#include <iostream>
 #include <sstream>
 #include <type_traits>
 #include <vector>
@@ -394,42 +395,65 @@ namespace pixelpipes
         }
     };
 
-    template <typename T>
+    template <typename T, typename D = std::default_delete<T>>
     class PIXELPIPES_API Implementation
     {
     protected:
         //[[no_unique_address]]
-        std::default_delete<T> del;
+        D del;
         T *raw;
 
-    public:
-        template <typename... Args>
-        Implementation(Args... args) : raw(new T(std::forward<Args>(args)...))
+        void reset()
         {
+            if (raw != nullptr)
+            {
+                del(raw);
+                raw = nullptr;
+            }
         }
+
+    public:
+        using element_type = T;
+        using deleter_type = D;
 
         Implementation(const Implementation<T> &other) : raw(new T(*other.raw))
         {
         }
 
-        Implementation(Implementation<T> &&other) : raw(new T(std::move(*other.raw)))
+        Implementation(Implementation<T> &&other)
         {
+            raw = std::move(other.raw);
+            other.raw = nullptr;
         }
 
-        ~Implementation() noexcept(std::is_nothrow_destructible<T>::value)
+        template <typename... Args>
+        Implementation(Args... args) : raw(new T(std::forward<Args>(args)...))
         {
-            del(raw);
+
         }
 
-        Implementation &operator=(const Implementation<T> &other) noexcept(std::is_nothrow_copy_assignable<T>::value)
+        ~Implementation() noexcept //(std::is_nothrow_destructible<T>::value)
         {
-            *raw = *other.raw;
+            reset();
+        }
+
+        Implementation &operator=(const Implementation<T> &other) noexcept //(std::is_nothrow_copy_assignable<T>::value)
+        {
+            if (this != &other)
+            {
+                *raw = *(other.raw);
+            }
             return *this;
         }
 
-        Implementation &operator=(Implementation<T> &&other) noexcept(std::is_nothrow_move_assignable<T>::value)
+        Implementation &operator=(Implementation<T> &&other) noexcept //(std::is_nothrow_move_assignable<T>::value)
         {
-            *raw = std::move(*other.raw);
+            if (this != &other)
+            {
+                reset();
+                raw = other.raw;
+                other.raw = nullptr;
+            }
             return *this;
         }
 
@@ -760,7 +784,7 @@ namespace pixelpipes
 
     class PIXELPIPES_API RandomGenerator
     {
-        typedef uint32_t (* Function)(uint32_t state);
+        typedef uint32_t (*Function)(uint32_t state);
 
         Function f_;
 
@@ -771,18 +795,20 @@ namespace pixelpipes
 
         RandomGenerator(Function _f, uint32_t _seed = 1) : f_(_f), seed_(_seed) {}
 
-        uint32_t operator()(void) {
+        uint32_t operator()(void)
+        {
 
             seed_ = f_(seed_);
             return seed_;
-
         }
 
-        uint32_t min() {
+        uint32_t min()
+        {
             return std::numeric_limits<uint32_t>::min();
         }
 
-        uint32_t max() {
+        uint32_t max()
+        {
             return std::numeric_limits<uint32_t>::max();
         }
     };

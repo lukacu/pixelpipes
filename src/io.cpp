@@ -7,26 +7,40 @@
 using namespace pixelpipes;
 using namespace lodepng;
 
-SharedToken ImageReadPngPalette(TokenList inputs) noexcept(false)
+namespace pixelpipes
 {
 
-    VERIFY(inputs.size() == 1, "Incorrect number of parameters");
+    SharedToken ImageReadPngPalette(TokenList inputs) noexcept(false)
+    {
 
-    std::string filename = extract<std::string>(inputs[0]);
-    std::vector<unsigned char> png;
-    unsigned width, height;
+        VERIFY(inputs.size() == 1, "Incorrect number of parameters");
 
-    unsigned error = lodepng::load_file(png, filename);
-    VERIFY(!error, lodepng_error_text(error));
+        std::string filename = extract<std::string>(inputs[0]);
+        std::vector<unsigned char> png;
+        unsigned width, height;
 
-    auto image = new std::vector<unsigned char>();
-    error = lodepng::decode(image[0], width, height, png, LCT_PALETTE, 8);
+        unsigned error = lodepng::load_file(png, filename);
+        VERIFY(!error, lodepng_error_text(error));
 
-    if (error) delete image;
+        auto image = new std::vector<unsigned char>();
+        error = lodepng::decode(image[0], width, height, png, LCT_PALETTE, 8);
 
-    VERIFY(!error, lodepng_error_text(error));
+        if (error)
+            delete image;
 
-    return std::make_shared<BufferImage>(width, height, 1, ImageDepth::Byte, &(*image)[0], [image](){ delete image; });
+        VERIFY(!error, lodepng_error_text(error));
+
+        return std::make_shared<BufferImage>(width, height, 1, ImageDepth::Byte, &(*image)[0], [image]()
+                                             { delete image; });
+    }
+
+    REGISTER_OPERATION_FUNCTION("load_png_palette", ImageReadPngPalette);
+    /*
+    PIXELPIPES_OPERATION("load_png_palette",
+            ImageReadPngPalette,
+            "Load a PNG image as palette indices",
+            output<Image<none, none, 1, ImageDepth::Byte>,
+            input<String<none>, std::string, "PNG file name">);
+    */
+
 }
-
-REGISTER_OPERATION_FUNCTION("load_png_palette", ImageReadPngPalette);

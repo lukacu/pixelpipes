@@ -98,7 +98,7 @@ namespace details {
 
     template <class T, class Tuple, std::size_t... I>
     constexpr std::shared_ptr<T> make_from_tuple_impl(Tuple&& t, std::index_sequence<I...>) {
-        return std::shared_ptr<T>(new T(std::get<I>(std::forward<Tuple>(t))...));
+        return std::shared_ptr<T>( new T(std::get<I>(std::forward<Tuple>(t))...));
     }
     
     template <class T, class Tuple>

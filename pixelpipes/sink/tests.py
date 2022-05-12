@@ -15,7 +15,7 @@ class TestSinks(unittest.TestCase):
         
         with GraphBuilder() as builder:
             outputs(Constant(1), ConstantList([10, 20, 30]))
-        graph = builder.build()
+        graph = builder.graph()
 
         batch_size = 10
 

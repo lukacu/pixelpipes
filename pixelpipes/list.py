@@ -69,28 +69,25 @@ class ConstantTable(Macro):
             return builder.nodes()
 
 
-class PrefixStringList(Node):
+class FileList(Node):
     """Sublist
 
     String list with a single prefix.
 
     Inputs:
-     - list: List of strings
-     - prefix: String to prepend to every element
+     - list: List of strings, each denoting a path to a file
 
     Category: list, string
     """
 
-
     list = List(String())
-    prefix = String(default="")
 
     def _output(self):
         # TODO: fix this, depth should not be hardcoded
         return types.List(types.String(), length=len(self.list))
 
     def operation(self):
-        return "list_prefix", list(self.list), self.prefix
+        return "file_list", list(self.list)
 
 class SublistSelect(Node):
 
