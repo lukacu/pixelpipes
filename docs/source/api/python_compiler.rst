@@ -1,5 +1,8 @@
-pixelpipes.compiler package
-===========================
+Compiler package
+================
+
+The compiler 
+
 
 Submodules
 ----------

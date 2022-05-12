@@ -21,6 +21,7 @@ Index
    :maxdepth: 2
 
    setup
+   architecture
    examples
+   api/index
    extending
-   api

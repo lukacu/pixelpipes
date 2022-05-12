@@ -5,6 +5,8 @@
 import os
 import sys
 
+from pixelpipes import __version__
+
 sys.path.insert(0, os.path.abspath('../..'))
 
 
@@ -29,10 +31,10 @@ master_doc = 'index'
 
 # General information about the project.
 project = u'PixelPipes'
-copyright = u'2021, Luka Cehovin Zajc'
+copyright = u'2022, Luka Cehovin Zajc'
 author = u'Luka Cehovin Zajc'
 
-version = "0.0.3" # TODO: update this automatically from main package
+version = __version__
 
 # The full version, including alpha/beta/rc tags.
 release = version

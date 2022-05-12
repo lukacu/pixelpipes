@@ -11,8 +11,6 @@ from distutils.cmd import Command
 from setuptools import Extension, setup
 from setuptools.command import build_py, build_ext
 
-__version__ = '0.0.4'
-
 platform = os.getenv("PYTHON_PLATFORM", sys.platform)
 
 # Override build command
@@ -175,6 +173,8 @@ ext_core = Extension(
 ext_modules = [
     ext_core
 ]
+
+from pixelpipes import __version__
 
 setup(
     name='pixelpipes',

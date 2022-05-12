@@ -1,7 +1,5 @@
-setup module
-============
+Installation and quick-start
+============================
 
-.. automodule:: setup
-   :members:
-   :undoc-members:
-   :show-inheritance:
+
+

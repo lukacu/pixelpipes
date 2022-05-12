@@ -9,7 +9,6 @@ PyTorch
 A simple example on how to download, prepare and convert PyTorch MNIST dataset into acceptable type for injecting it into pixelpipes graph.
 
 .. literalinclude:: ../../examples/example_pytorch.py
-   :lines: 4-14
 
 TensorFlow
 ----------
@@ -17,7 +16,6 @@ TensorFlow
 A simple example on how to download, prepare and convert TensorFlow MNIST dataset into acceptable type for injecting it into pixelpipes graph.
 
 .. literalinclude:: ../../examples/example_tensorflow.py
-   :lines: 4-14
 
 Injecting into graph
 --------------------
@@ -26,7 +24,6 @@ Before injection it is required to import used elements of pixelpipes package. U
 A uniform noise is added to a random image from the image list, which is then directed to graph's output.
 
 .. literalinclude:: ../../examples/example_pytorch.py
-   :lines: 18-30
 
 Batch iterator
 --------------
@@ -34,4 +31,4 @@ Batch iterator
 TODO
 
 .. literalinclude:: ../../examples/example_pytorch.py
-   :lines: 32-44
+
