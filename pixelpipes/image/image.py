@@ -237,23 +237,44 @@ class LoadPNGPaletteIndices(Node):
     def _output(self):
         return types.Image(channels=1, depth=8)
 
-
 class ReadImage(Node):
-    """Read image from file
-
-    Inputs:
-        filename: Input image
-        grayscale: Convert to grayscale
-
-    Category: image
-    Tags: image, input
+    """Read image from file with 8-bit per channel depth. Color or grayscale.
     """
 
-    filename = Input(types.String())
-    grayscale = Boolean(default=False)
+    filename = Input(types.String(), description="Input image")
+    grayscale = Boolean(default=False, description="Convert to grayscale, otherwise convert to color")
 
     def operation(self):
-        return "image:read", self.grayscale
+        if self.grayscale:
+            return "image:read_grayscale",
+        return "image:read_color",
+
+    def _output(self):
+        return types.Image()
+
+class ReadImage(Node):
+    """Read image from file with 8-bit per channel depth. Color or grayscale.
+    """
+
+    filename = Input(types.String(), description="Input image")
+    grayscale = Boolean(default=False, description="Convert to grayscale, otherwise convert to color")
+
+    def operation(self):
+        if self.grayscale:
+            return "image:read_grayscale",
+        return "image:read_color",
+
+    def _output(self):
+        return types.Image(channels=1 if self.grayscale else 3)
+
+class ReadImageAny(Node):
+    """Read image from file without conversions
+    """
+
+    filename = Input(types.String(), description="Input image")
+
+    def operation(self):
+        return "image:read",
 
     def _output(self):
         return types.Image()

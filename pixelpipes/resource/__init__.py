@@ -20,7 +20,10 @@ import pixelpipes.types as types
 from ..list import ListElement, ListLength, ListPermutation, ListRemap, RepeatElement, SublistSelect, ConstantList
 from ..numbers import Add, Round, UniformDistribution
 
-_RESOURCE_CACHE = PersistentDict(os.environ.get("PIXELPIPES_CACHE", os.path.join(Path.home(), ".cache/pixelpipes")))
+if "PIXELPIPES_CACHE" in os.environ:
+    _RESOURCE_CACHE = PersistentDict(os.environ.get("PIXELPIPES_CACHE"))
+else:
+    _RESOURCE_CACHE = dict()
 
 def make_hash(o):
     """

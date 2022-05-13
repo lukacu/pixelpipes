@@ -16,7 +16,7 @@ SET(OPENCV_STATIC_FLAGS
 -DWITH_JPEG=ON 
 -DWITH_OPENEXR=OFF 
 -DWITH_JASPER=OFF 
--DWITH_TIFF=OFF 
+-DWITH_TIFF=ON 
 -DWITH_WEBP=OFF 
 -DWITH_OPENCL=OFF 
 -DWITH_GTK=OFF 
@@ -30,6 +30,7 @@ SET(OPENCV_STATIC_FLAGS
 -DWITH_CUDA=OFF 
 -DWITH_PTHREADS_PF=OFF 
 -DBUILD_JPEG=ON 
+-DBUILD_TIFF=ON
 -DBUILD_OPENJPEG=ON
 -DBUILD_TESTS=OFF 
 -DBUILD_PERF_TESTS=OFF 
@@ -67,7 +68,7 @@ SET(OPENCV_INCLUDE_DIRS "${CMAKE_EXTERNALS_DIR}opencv/include/")
 SET(_SUFFIX ${CMAKE_STATIC_LIBRARY_SUFFIX})
 SET(_PREFIX ${CMAKE_STATIC_LIBRARY_PREFIX})
 
-foreach(M IN ITEMS zlib ittnotify libpng libopenjp2 libjpeg-turbo)
+foreach(M IN ITEMS zlib ittnotify libpng libopenjp2 libjpeg-turbo libtiff)
     add_library(opencv_3dparty_${M} STATIC IMPORTED)
     set_target_properties(opencv_3dparty_${M} 
         PROPERTIES 
@@ -103,7 +104,7 @@ set_target_properties(opencv_features2d PROPERTIES
 )
 
 set_target_properties(opencv_imgcodecs PROPERTIES
-  INTERFACE_LINK_LIBRARIES "opencv_core;opencv_imgproc;opencv_core;opencv_imgproc;\$<LINK_ONLY:opencv_3dparty_libjpeg-turbo>;\$<LINK_ONLY:opencv_3dparty_libopenjp2>;\$<LINK_ONLY:opencv_3dparty_libpng>;\$<LINK_ONLY:opencv_3dparty_zlib>"
+  INTERFACE_LINK_LIBRARIES "opencv_core;opencv_imgproc;opencv_core;opencv_imgproc;\$<LINK_ONLY:opencv_3dparty_libjpeg-turbo>;\$<LINK_ONLY:opencv_3dparty_libopenjp2>;\$<LINK_ONLY:opencv_3dparty_libpng>;\$<LINK_ONLY:opencv_3dparty_zlib>;\$<LINK_ONLY:opencv_3dparty_libtiff>"
 )
 
 set_target_properties(opencv_calib3d PROPERTIES

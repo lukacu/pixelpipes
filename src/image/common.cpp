@@ -156,7 +156,7 @@ namespace pixelpipes
         int size[3] = {(int)image->height(), (int)image->width(), (int)image->channels()};
         size_t step[3] = {(size_t)image->rowstep(), (size_t)image->colstep(), 1};
 
-        //bool transposed = false;
+        // bool transposed = false;
 
         /*if (image->channels() *image->element() != image->colstep())
         {
@@ -202,7 +202,7 @@ namespace pixelpipes
 
     size_t MatImage::element() const
     {
-        return ((size_t) depth() >> 3);
+        return ((size_t)depth() >> 3);
     }
 
     size_t MatImage::width() const
@@ -240,29 +240,58 @@ namespace pixelpipes
         return mat.data;
     }
 
-    SharedToken ImageRead(TokenList inputs, bool grayscale) noexcept(false)
+    SharedToken ImageRead(TokenList inputs) noexcept(false)
     {
 
         VERIFY(inputs.size() == 1, "Incorrect number of parameters");
 
         std::string filename = extract<std::string>(inputs[0]);
 
-        cv::Mat image = cv::imread(filename, grayscale ? cv::IMREAD_GRAYSCALE : cv::IMREAD_COLOR);
+        cv::Mat image = cv::imread(filename, cv::IMREAD_ANYCOLOR | cv::IMREAD_ANYDEPTH);
 
         if (image.empty())
-        {
-            throw TypeException("Image not found: " + filename);
-        }
-
-        if (image.channels() == 3)
-        {
-            cv::cvtColor(image, image, cv::COLOR_BGR2RGB);
-        }
+            throw TypeException("Image not found or IO error: " + filename);
 
         return wrap(image);
     }
 
-    REGISTER_OPERATION_FUNCTION("read", ImageRead, bool);
+    REGISTER_OPERATION_FUNCTION("read", ImageRead);
+
+    SharedToken ImageReadColor(TokenList inputs) noexcept(false)
+    {
+
+        VERIFY(inputs.size() == 1, "Incorrect number of parameters");
+
+        std::string filename = extract<std::string>(inputs[0]);
+
+        cv::Mat image = cv::imread(filename, cv::IMREAD_COLOR);
+
+        if (image.empty())
+            throw TypeException("Image not found or IO error: " + filename);
+
+        cv::cvtColor(image, image, cv::COLOR_BGR2RGB);
+
+        return wrap(image);
+    }
+
+    REGISTER_OPERATION_FUNCTION("read_color", ImageReadColor);
+
+    SharedToken ImageReadGrayscale(TokenList inputs) noexcept(false)
+    {
+
+        VERIFY(inputs.size() == 1, "Incorrect number of parameters");
+
+        std::string filename = extract<std::string>(inputs[0]);
+
+        cv::Mat image = cv::imread(filename, cv::IMREAD_GRAYSCALE);
+
+        if (image.empty())
+            throw TypeException("Image not found or IO error: " + filename);
+
+        return wrap(image);
+    }
+
+    REGISTER_OPERATION_FUNCTION("read_grayscale", ImageReadGrayscale);
 
     /**
      * @brief Converts depth of an image.
@@ -430,7 +459,7 @@ namespace pixelpipes
 
     /**
      * @brief Tabulates a function into a matrix of a given size
-     * 
+     *
      * TODO: reorganize into spearate methods
      *
      */
