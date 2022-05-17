@@ -138,7 +138,7 @@ namespace pixelpipes
         {
         case CV_8U:
             return 255;
-        case CV_16S:
+        case CV_16U:
             return 255 * 255;
         case CV_32F:
         case CV_64F:

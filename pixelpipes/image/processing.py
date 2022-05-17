@@ -32,6 +32,20 @@ class ImageBlend(Node):
         return types.Image(source1.width, source1.height, source1.channels, source1.depth)
 
 
+class ImageNormalize(Node):
+
+    source = Input(types.Image())
+
+    def operation(self):
+        return "image:normalize",
+
+    def validate(self, **inputs):
+        super().validate(**inputs)
+
+        source = inputs["source"]
+
+        return types.Image(source.width, source.height, source.channels, source.depth)
+
 class ImageDropout(Node):
     """Image dropout
 

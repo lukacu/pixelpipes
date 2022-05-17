@@ -444,7 +444,8 @@ class Compiler(object):
         pipeline_operations = []
     
         # Assemble a list of pipeline operations
-        for name, data, inputs in operations:
+        for i, (name, data, inputs) in enumerate(operations):
+            self._debug("{}: {}", i, data[0])
             pipeline_operations.append(PipelineOperation(name, data[0], list(data[1:]), inputs))
 
         return pipeline_operations

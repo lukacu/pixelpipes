@@ -246,8 +246,8 @@ namespace pixelpipes
         VERIFY(inputs.size() == 1, "Incorrect number of parameters");
 
         std::string filename = extract<std::string>(inputs[0]);
-
-        cv::Mat image = cv::imread(filename, cv::IMREAD_ANYCOLOR | cv::IMREAD_ANYDEPTH);
+//cv::IMREAD_ANYCOLOR | cv::IMREAD_ANYDEPTH
+        cv::Mat image = cv::imread(filename, cv::IMREAD_UNCHANGED);
 
         if (image.empty())
             throw TypeException("Image not found or IO error: " + filename);

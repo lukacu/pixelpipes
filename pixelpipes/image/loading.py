@@ -69,7 +69,6 @@ class ImageDirectory(ResourceListSource):
         elif self.reading == ImageReading.UNCHANGED:
             loader = lambda x: ReadImageAny(x)
 
-
         return dict(image=LoadImage(types.Image(), field="file", loader=loader), file=types.String())
 
 from .image import *

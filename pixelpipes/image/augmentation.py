@@ -1,7 +1,7 @@
 
 from attributee.primitives import Integer
 from pixelpipes.image.geometry import ImageRemap, Resize
-from ..graph import Macro, Input, Reference, SeedInput, types, Constant
+from ..graph import Macro, Input, Reference, SeedInput, types
 from ..graph import GraphBuilder
 from ..numbers import Add
 

@@ -764,5 +764,5 @@ class Copy(Node):
         return inputs["source"]
 
     def operation(self):
-        raise NodeException("Copy node should be removed, it does not do anything", node=self)
+        raise NodeException("Copy node should be removed during compilation", node=self)
 

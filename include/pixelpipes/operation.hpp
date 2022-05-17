@@ -1,4 +1,6 @@
 #pragma once
+
+#include <type_traits>
 #include <memory>
 #include <functional>
 #include <list>
@@ -177,6 +179,59 @@ protected:
 
 };
 
+/*
+template <typename...> struct parameter_filter;
+
+template <> struct parameter_filter<> { using type = std::tuple<>; };
+
+template <typename Head, typename ...Tail>
+struct parameter_filter<Head, Tail...>
+{
+    using type = typename std::conditional<Predicate<Head>::value,
+                               typename std::tuple_cat<std::make_tuple(Head), typename parameter_filter<Tail...>::type>::type,
+                               typename parameter_filter<Tail...>::type
+                          >::type;  
+};
+
+
+template<typename Fn, Fn fn, typename Base, typename ...Args>
+class OperationWrapper2: public Base {
+public:
+
+    using Parameters = 
+    using Inputs = 
+
+    OperationWrapper2(Args... args) : args(std::forward<Args>(args)...) {
+        static_assert(std::is_base_of<Operation, Base>::value, "Base class must inherit from Operation");
+    };
+    ~OperationWrapper2() = default;
+
+    virtual SharedToken run(TokenList inputs) {
+
+        try {
+
+            return details::apply(std::function(fn), inputs, args); 
+            
+        } catch (TypeException &e) {
+            throw OperationException(e.what(), this->shared_from_this());
+        }
+
+    }
+    
+    virtual TypeIdentifier type() {
+        return GetTypeIdentifier<OperationWrapper<Fn, fn, Base, Args...>>();
+    }
+
+    template<typename T> bool is() {
+        return type() == GetTypeIdentifier<T>();
+    }
+
+protected:
+
+    std::tuple<Args...> args;
+
+};
+*/
 typedef std::vector<TypeIdentifier> OperationArguments;
 
 struct OperationDescription {
@@ -245,7 +300,40 @@ template<typename OperationClass = Operation, typename ...Args>
 void register_operation_class(const std::string& name) {
     register_operation<OperationClass, Args...>(name);
 }
+/*
+template <typename...> struct filter;
 
+template <> struct filter<> { using type = std::tuple<>; };
+
+template <typename Head, typename ...Tail>
+struct filter<Head, Tail...>
+{
+    using type = typename std::conditional<Predicate<Head>::value,
+                               typename std::tuple_cat<std::make_tuple(Head), typename filter<Tail...>::type>::type,
+                               typename filter<Tail...>::type
+                          >::type;  
+};
+
+template<typename O, typename ...Args>
+void register_operation2(const std::string& name) {
+
+
+
+    if constexpr (std::is_function<O>::value) {
+
+
+    } else if constexpr (std::is_base_of<Operation, O>::value) {
+
+
+    } else {
+        static_assert(detail::always_false<O>, "Unrecognized base");
+    }
+
+    register_operation<OperationClass, Args...>(name);
+}
+#define PIXELPIPES_OPERATION(N, O, ...) static AddModuleInitializer CONCAT(__operation_add_, __COUNTER__)([]() { register_operation2<O, ## __VA_ARGS__>( N ); } )
+
+*/
 #define REGISTER_OPERATION_FUNCTION_WITH_BASE(N, FUNC, BASE, ...) static AddModuleInitializer CONCAT(__operation_add_, __COUNTER__)([]() { register_operation_function<decltype(&FUNC), &FUNC, BASE, ## __VA_ARGS__>( N ); })
 #define REGISTER_OPERATION_FUNCTION(N, FUNC, ...) REGISTER_OPERATION_FUNCTION_WITH_BASE(N, FUNC, Operation, ## __VA_ARGS__)
 #define REGISTER_OPERATION(N, O, ...) static AddModuleInitializer CONCAT(__operation_add_, __COUNTER__)([]() { register_operation_class<O, ## __VA_ARGS__>( N ); } )

@@ -250,10 +250,6 @@ namespace pixelpipes
 
 	typedef Type(*TypeValidator) (const TypeParameters &);
 
-    //typedef Function<Type(const Type &, const Type &)> TypeResolver;
-
-    //typedef Function<Type(const TypeParameters &)> TypeValidator;
-
     void PIXELPIPES_API type_register(TypeIdentifier i, std::string_view name, TypeValidator, TypeResolver);
 
     Type PIXELPIPES_API type_make(TypeIdentifier i, std::map<std::string, std::any> parameters);

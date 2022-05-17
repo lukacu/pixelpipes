@@ -26,6 +26,31 @@ SharedToken ImageBlend(TokenList inputs) {
 
 REGISTER_OPERATION_FUNCTION("blend", ImageBlend);
 
+
+SharedToken ImageNormalize(TokenList inputs) {
+
+    VERIFY(inputs.size() == 1, "Incorrect number of parameters");
+
+    cv::Mat image = extract<cv::Mat>(inputs[0]);
+
+    VERIFY(image.channels() == 1, "Only single channel images accepted");
+
+    int maxv = maximum_value(image);
+
+    cv::Mat result;
+
+    double vmax, vmin;
+    
+    cv::minMaxLoc(image, &vmin, &vmax, NULL, NULL);
+
+    result = ((image - vmin) / (vmax - vmin)) * maxv;
+
+    return wrap(result);
+}
+
+REGISTER_OPERATION_FUNCTION("normalize", ImageNormalize);
+
+
 /**
  * @brief Sets image pixels to zero with probability P.
  * 
