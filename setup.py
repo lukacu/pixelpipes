@@ -185,7 +185,7 @@ setup(
     description='Infinite data streams for deep learning',
     long_description='',
     ext_modules=ext_modules,
-    packages=setuptools.find_packages(),
+    packages=setuptools.find_packages(include=["pixelpipes", "pixelpipes.*"]),
     include_package_data=True,
     setup_requires=["pybind11>=2.5.0", "numpy>=1.19"],
     install_requires=[

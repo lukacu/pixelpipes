@@ -17,9 +17,8 @@ class TorchDataLoader(PipelineDataLoader):
 
     class _TorchBatchIterator(BatchIterator):
 
-        def __init__(self, commit, size: int, offset: int, transformers):
+        def __init__(self, commit, size: int, offset: int):
             super().__init__(commit, size, offset=offset)
-            self._transformers = transformers
 
         def _reduce(self, samples):
             batch = []
@@ -29,7 +28,7 @@ class TorchDataLoader(PipelineDataLoader):
             return [_transform_if_image(item) for item in batch]
 
     def __iter__(self):
-        return TorchDataLoader._TorchBatchIterator(self._commit, self._batch, offset=self._offset, transformers=self._transformers)
+        return TorchDataLoader._TorchBatchIterator(self._commit, self._batch, offset=self._offset)
 
     def __init__(self, pipeline: Pipeline, batch: int, workers: typing.Optional[typing.Union[int, WorkerPool]], offset: typing.Optional[int] = 1):
 

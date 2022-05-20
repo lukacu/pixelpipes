@@ -14,6 +14,7 @@ class Compiler(Attributee, Entrypoint):
     graph = Callable()
     debug = Boolean(default=False)
     predictive = Boolean(default=True)
+    relocatable = Boolean(default=True)
     compress = Boolean(default=True)
     fixedout = Boolean(default=False)
     output = String(default=None)
@@ -30,7 +31,7 @@ class Compiler(Attributee, Entrypoint):
 
             print("Compiled pipeline of %d operations, writing to %s" % (len(operations), self.save))
 
-            write_pipeline(self.save, operations, self.compress)
+            write_pipeline(self.save, operations, self.compress, self.relocatable)
 
             print("Done.")
 

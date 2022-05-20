@@ -209,7 +209,7 @@ py::object extract_image(SharedToken src)
     }
     }
 
-    result.inc_ref();
+    //result.inc_ref(); // This is probably not needed
     return result;
 }
 

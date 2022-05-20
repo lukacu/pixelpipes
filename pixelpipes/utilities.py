@@ -108,8 +108,6 @@ class PersistentDict:
         filename = self._filename(key)
         return os.path.isfile(filename)
 
-
-
 def find_nodes(module=None):
 
     from pixelpipes import Node
@@ -129,3 +127,23 @@ def find_nodes(module=None):
             nodes.append(member)
 
     return nodes
+
+def graph(constructor):
+
+    from pixelpipes.graph import GraphBuilder
+    def wrapper(*args, **kwargs):
+        with GraphBuilder() as builder:
+            constructor(*args, **kwargs)
+        return builder.graph()
+
+    return wrapper
+
+def pipeline(constructor, variables=None, fixedout=False):
+    
+    from pixelpipes.graph import GraphBuilder
+    def wrapper(*args, **kwargs):
+        with GraphBuilder() as builder:
+            constructor(*args, **kwargs)
+        return builder.pipeline(fixedout=fixedout, variables=variables)
+
+    return wrapper
