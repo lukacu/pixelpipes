@@ -2,6 +2,8 @@ import os
 import typing
 import pickle
 
+from pixelpipes.graph import Node, NodeException, Output, Reference
+
 class PersistentDict:
     """ A dictionary interface to a folder, with memory caching.
     """
@@ -128,12 +130,32 @@ def find_nodes(module=None):
 
     return nodes
 
+def _generate_outputs(out):
+    from collections.abc import Mapping, Sequence
+    if out is None:
+        # Perhaps output nodes were defined explicitly, leave this for compiler to find out
+        pass
+    elif isinstance(out, Mapping):
+        for k, v in out.items():
+            if not isinstance(v, Node) and not isinstance(v, Reference):
+                raise NodeException("Output not a node")
+            Output(v, k)
+    elif isinstance(out, Sequence):
+        for v in out:
+            if not isinstance(v, Node) and not isinstance(v, Reference):
+                raise NodeException("Output not a node") 
+            Output(v, "default")
+    elif isinstance(out, Node) or isinstance(out, Reference):
+            Output(out, "default")
+    else:
+        raise NodeException("Output not a node") 
+
 def graph(constructor):
 
     from pixelpipes.graph import GraphBuilder
     def wrapper(*args, **kwargs):
         with GraphBuilder() as builder:
-            constructor(*args, **kwargs)
+            _generate_outputs(constructor(*args, **kwargs))
         return builder.graph()
 
     return wrapper
@@ -143,7 +165,7 @@ def pipeline(constructor, variables=None, fixedout=False):
     from pixelpipes.graph import GraphBuilder
     def wrapper(*args, **kwargs):
         with GraphBuilder() as builder:
-            constructor(*args, **kwargs)
+            _generate_outputs(constructor(*args, **kwargs))
         return builder.pipeline(fixedout=fixedout, variables=variables)
 
     return wrapper

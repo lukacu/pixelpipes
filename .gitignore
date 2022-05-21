@@ -14,7 +14,7 @@ __pycache__
 *.pyc
 tmp
 .*
-dist
+dist/
 *_dsoinfo.py
 temp
 .*
