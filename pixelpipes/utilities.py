@@ -2,6 +2,9 @@ import os
 import typing
 import pickle
 
+import numpy as np
+
+from pixelpipes import Pipeline
 from pixelpipes.graph import Node, NodeException, Output, Reference
 
 class PersistentDict:
@@ -160,12 +163,32 @@ def graph(constructor):
 
     return wrapper
 
-def pipeline(constructor, variables=None, fixedout=False):
+def pipeline(variables=None, fixedout=False, debug=False):
     
+    from pixelpipes.compiler import Compiler
     from pixelpipes.graph import GraphBuilder
-    def wrapper(*args, **kwargs):
-        with GraphBuilder() as builder:
-            _generate_outputs(constructor(*args, **kwargs))
-        return builder.pipeline(fixedout=fixedout, variables=variables)
 
-    return wrapper
+    def inner(constructor):
+        def wrapper(*args, **kwargs):
+            with GraphBuilder() as builder:
+                _generate_outputs(constructor(*args, **kwargs))
+            return Compiler(fixedout=fixedout, debug=debug).build(builder, variables=variables)
+
+        return wrapper
+    return inner
+
+def collage(pipeline: Pipeline, index: int, rows: int, columns: int, offset: typing.Optional[int] = 0) -> np.ndarray:
+    assert rows > 0 and columns > 0
+    assert offset >= 0
+    assert index >= 0 and index < len(pipeline.outputs)
+
+    image = None
+    for i in range(rows):
+        column = []
+        for j in range(columns):
+            sample = pipeline.run(i * columns + j + 1 + offset)
+            column.append(sample[index])
+        column = np.concatenate(column, 1)
+        image = column if image is None else np.concatenate((image, column), 0)
+
+    return image

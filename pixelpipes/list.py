@@ -431,6 +431,7 @@ class RepeatElement(Node):
 class RandomListElement(Macro):
 
     source = Input(types.List(types.Primitive()))
+    seed = SeedInput()
 
     def validate(self, **inputs):
         super().validate(**inputs)
@@ -442,7 +443,7 @@ class RandomListElement(Macro):
         with GraphBuilder(prefix=parent) as builder:
 
             length = inputs["source"].type.length
-            generator = UniformDistribution(min=0, max=length-1)
+            generator = UniformDistribution(min=0, max=length-1, seed=inputs["seed"])
             index = Round(generator)
             ListElement(parent=inputs["source"], index=index, _name=parent)
 

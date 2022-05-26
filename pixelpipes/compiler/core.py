@@ -188,7 +188,7 @@ class Compiler(object):
                 inputs[input_name] = InferredReference(input_value, input_type)
 
             try:
-                subgraph = node.expand(inputs, name)
+                subgraph = node.expand(inputs, Reference(name))
 
             except Exception as ee:
                 raise CompilerException(

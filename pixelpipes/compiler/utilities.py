@@ -132,6 +132,7 @@ class Counter(object):
     def __call__(self) -> int:
         self._i += 1
         return self._i
+
 class BranchSet(object):
 
     def __init__(self, variables):

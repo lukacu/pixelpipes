@@ -14,7 +14,7 @@ from attributee.object import class_fullname
 from pixelpipes.utilities import PersistentDict
 
 from ..types import Type
-from ..graph import GraphBuilder, SeedInput, ValidationException, hidden, Macro, Input, Reference, Constant, Copy
+from ..graph import DebugOutput, GraphBuilder, SeedInput, ValidationException, hidden, Macro, Input, Reference, Constant, Copy
 from pixelpipes.types import List, Complex, Integer, TypeException
 import pixelpipes.types as types
 from ..list import ListElement, ListLength, ListPermutation, ListRemap, RepeatElement, SublistSelect, ConstantList
@@ -397,7 +397,7 @@ class GetRandomResource(Macro):
                 generator = UniformDistribution(min=0, max=length-1, seed=self.seed)
 
             index = Round(generator)
-
+            
             resource_type = resources_type.element()
 
             for field, typ in resources_type.fields().items():

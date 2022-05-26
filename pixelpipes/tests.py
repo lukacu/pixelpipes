@@ -81,16 +81,15 @@ class TestPipes(unittest.TestCase):
 
     def test_core_UniformDistribution(self):
 
-        a = 1.5
-        b = 3
+        a = 0
+        b = 4
 
         with GraphBuilder() as graph:
-            bb = Constant(a)
-            outputs(UniformDistribution(a, b), bb)
+            outputs(UniformDistribution(a, b))
 
         pipeline = Compiler.build_graph(graph)
 
-        for i in range(3):
+        for i in range(40):
             output = pipeline.run(i)
             self.assertGreaterEqual(output[0], a)
             self.assertLess(output[0], b)

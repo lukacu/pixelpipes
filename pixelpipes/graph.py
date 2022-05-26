@@ -7,9 +7,8 @@ from enum import Enum, auto
 
 import bidict
 
-
 from attributee import Attributee, Attribute, AttributeException, Undefined
-from attributee.containers import ReadonlyMapping, List
+from attributee.containers import ReadonlyMapping
 from attributee.object import class_fullname
 from attributee.primitives import Enumeration, to_number, Number, String
 
@@ -129,6 +128,106 @@ class SeedInput(Input):
     def __init__(self, description=""):
         super().__init__(types.Integer(), default="@[random]", description=description)
 
+_operation_registry = {}
+
+class OperationProxy:
+
+    def __add__(self, other):
+        other = _ensure_node(other)
+        return _BinaryOperationWrapper(self, other, BinaryOperation.ADD)
+
+    def __radd__(self, other):
+        other = _ensure_node(other)
+        return _BinaryOperationWrapper(other, self, BinaryOperation.ADD)
+
+    def __sub__(self, other):
+        other = _ensure_node(other)
+        return _BinaryOperationWrapper(self, other, BinaryOperation.SUBTRACT)
+
+    def __rsub__(self, other):
+        other = _ensure_node(other)
+        return _BinaryOperationWrapper(other, self, BinaryOperation.SUBTRACT)
+
+    def __mul__(self, other):
+        other = _ensure_node(other)
+        return _BinaryOperationWrapper(self, other, BinaryOperation.MULIPLY)
+
+    def __rmul__(self, other):
+        other = _ensure_node(other)
+        return _BinaryOperationWrapper(other, self, BinaryOperation.MULIPLY)
+
+    def __truediv__(self, other):
+        other = _ensure_node(other)
+        return _BinaryOperationWrapper(self, other, BinaryOperation.DIVIDE)
+
+    def __rtruediv__(self, other):
+        other = _ensure_node(other)
+        return _BinaryOperationWrapper(other, self, BinaryOperation.DIVIDE)
+
+    def __pow__(self, other):
+        other = _ensure_node(other)
+        return _BinaryOperationWrapper(self, other, BinaryOperation.POWER)
+
+    def __rpow__(self, other):
+        other = _ensure_node(other)
+        return _BinaryOperationWrapper(other, self, BinaryOperation.POWER)
+
+    def __mod__(self, other):
+        other = _ensure_node(other)
+        return _BinaryOperationWrapper(self, other, BinaryOperation.MODULO)
+
+    def __rmod__(self, other):
+        other = _ensure_node(other)
+        return _BinaryOperationWrapper(other, self, BinaryOperation.MODULO)
+
+    def __neg__(self):
+        return _UnaryOperationWrapper(self, UnaryOperation.NEGATE)
+
+    def __lt__(self, other):
+        other = _ensure_node(other)
+        return _BinaryOperationWrapper(self, other, BinaryOperation.LOWER)
+
+    def __le__(self, other):
+        other = _ensure_node(other)
+        return _BinaryOperationWrapper(self, other, BinaryOperation.LOWER_EQUAL)
+
+    def __gt__(self, other):
+        other = _ensure_node(other)
+        return _BinaryOperationWrapper(self, other, BinaryOperation.GREATER)
+
+    def __ge__(self, other):
+        other = _ensure_node(other)
+        return _BinaryOperationWrapper(self, other, BinaryOperation.GREATER_EQUAL)
+
+    def __eq__(self, other):
+        other = _ensure_node(other)
+        return _BinaryOperationWrapper(self, other, BinaryOperation.EQUAL)
+
+    def __ne__(self, other):
+        other = _ensure_node(other)
+        return _BinaryOperationWrapper(self, other, BinaryOperation.NOT_EQUAL)
+
+    def __getitem__(self, key):
+        return 
+
+    @staticmethod
+    def register_operation(operation: Operation, generator: typing.Callable,
+            output: typing.Union[types.Type, typing.Callable], *args: types.Type):
+        _operation_registry.setdefault(operation, []).append((args, output, generator))
+
+    @staticmethod
+    def query_operation(operation: Operation, *qargs: types.Type):
+        generators = _operation_registry.get(operation, [])
+
+        for args, output, generator in generators:
+            if len(args) != len(qargs):
+                continue
+            if not all([a1.castable(a2) for a1, a2 in zip(args, qargs)]):
+                continue
+            return generator, output
+
+        return None, None
+
 class Reference(object):
 
     def __init__(self, ref: typing.Union[str, "Reference"]):
@@ -155,11 +254,6 @@ class Reference(object):
         else:
             return None
 
-    def __add__(self, ref):
-        if isinstance(ref, Reference):
-            return Reference(self.name + ref.name)
-        else:
-            return Reference(self.name + str(ref))
 
     def __eq__(self, ref):
         if ref is None:
@@ -170,7 +264,7 @@ class Reference(object):
             return ref == self.name
         return False
 
-class InferredReference(Reference):
+class InferredReference(Reference, OperationProxy):
     """A node reference with type already inferred. Using during compilation in macro expansion.
 
     """
@@ -218,12 +312,8 @@ def _ensure_node(value):
     else:
         raise ValueError("Value is not a node or a number")
 
-_operation_registry = {}
-
-
-
 @hidden
-class Node(Attributee):
+class Node(Attributee, OperationProxy):
 
     def __init__(self, *args, _name: str = None, _auto: bool = True, _origin: "Node" = None, **kwargs):
         #Node constructor, please do not overload it directly, override _init method to add custom 
@@ -350,98 +440,7 @@ class Node(Attributee):
     def __hash__(self):
         return id(self)
 
-    def __add__(self, other):
-        other = _ensure_node(other)
-        return _BinaryOperationWrapper(self, other, BinaryOperation.ADD)
 
-    def __radd__(self, other):
-        other = _ensure_node(other)
-        return _BinaryOperationWrapper(other, self, BinaryOperation.ADD)
-
-    def __sub__(self, other):
-        other = _ensure_node(other)
-        return _BinaryOperationWrapper(self, other, BinaryOperation.SUBTRACT)
-
-    def __rsub__(self, other):
-        other = _ensure_node(other)
-        return _BinaryOperationWrapper(other, self, BinaryOperation.SUBTRACT)
-
-    def __mul__(self, other):
-        other = _ensure_node(other)
-        return _BinaryOperationWrapper(self, other, BinaryOperation.MULIPLY)
-
-    def __rmul__(self, other):
-        other = _ensure_node(other)
-        return _BinaryOperationWrapper(other, self, BinaryOperation.MULIPLY)
-
-    def __truediv__(self, other):
-        other = _ensure_node(other)
-        return _BinaryOperationWrapper(self, other, BinaryOperation.DIVIDE)
-
-    def __rtruediv__(self, other):
-        other = _ensure_node(other)
-        return _BinaryOperationWrapper(other, self, BinaryOperation.DIVIDE)
-
-    def __pow__(self, other):
-        other = _ensure_node(other)
-        return _BinaryOperationWrapper(self, other, BinaryOperation.POWER)
-
-    def __rpow__(self, other):
-        other = _ensure_node(other)
-        return _BinaryOperationWrapper(other, self, BinaryOperation.POWER)
-
-    def __mod__(self, other):
-        other = _ensure_node(other)
-        return _BinaryOperationWrapper(self, other, BinaryOperation.MODULO)
-
-    def __rmod__(self, other):
-        other = _ensure_node(other)
-        return _BinaryOperationWrapper(other, self, BinaryOperation.MODULO)
-
-    def __neg__(self):
-        return _UnaryOperationWrapper(self, UnaryOperation.NEGATE)
-
-    def __lt__(self, other):
-        other = _ensure_node(other)
-        return _BinaryOperationWrapper(self, other, BinaryOperation.LOWER)
-
-    def __le__(self, other):
-        other = _ensure_node(other)
-        return _BinaryOperationWrapper(self, other, BinaryOperation.LOWER_EQUAL)
-
-    def __gt__(self, other):
-        other = _ensure_node(other)
-        return _BinaryOperationWrapper(self, other, BinaryOperation.GREATER)
-
-    def __ge__(self, other):
-        other = _ensure_node(other)
-        return _BinaryOperationWrapper(self, other, BinaryOperation.GREATER_EQUAL)
-
-    def __eq__(self, other):
-        other = _ensure_node(other)
-        return _BinaryOperationWrapper(self, other, BinaryOperation.EQUAL)
-
-    def __ne__(self, other):
-        other = _ensure_node(other)
-        return _BinaryOperationWrapper(self, other, BinaryOperation.NOT_EQUAL)
-
-    @staticmethod
-    def register_operation(operation: Operation, generator: typing.Callable,
-            output: typing.Union[types.Type, typing.Callable], *args: types.Type):
-        _operation_registry.setdefault(operation, []).append((args, output, generator))
-
-    @staticmethod
-    def query_operation(operation: Operation, *qargs: types.Type):
-        generators = _operation_registry.get(operation, [])
-
-        for args, output, generator in generators:
-            if len(args) != len(qargs):
-                continue
-            if not all([a1.castable(a2) for a1, a2 in zip(args, qargs)]):
-                continue
-            return generator, output
-
-        return None, None
 
 @hidden
 class Macro(Node):
@@ -478,7 +477,7 @@ class _UnaryOperationWrapper(Macro):
         from pixelpipes.graph import GraphBuilder
 
         with GraphBuilder(prefix=parent) as builder:
-            output = self._generator(inputs["a"][0])
+            output = self._generator(inputs["a"])
 
             builder.rename(output, parent)
 
@@ -514,7 +513,42 @@ class _BinaryOperationWrapper(Macro):
         from pixelpipes.graph import GraphBuilder
 
         with GraphBuilder(prefix=parent) as builder:
-            output = self._generator(inputs["a"][0], inputs["b"][0])
+            output = self._generator(inputs["a"], inputs["b"])
+
+            builder.rename(output, parent)
+
+            return builder.nodes()
+
+@hidden
+class _IndexOperationWrapper(Macro):
+
+    a = Input(types.Any())
+    index = String()
+
+    def _nodeframe(self):
+        return traceback.extract_stack()[-4]
+
+    def _init(self):
+        self._generator = None
+
+    def validate(self, **inputs):
+        generator, output = Node.query_operation(self.operation, inputs["a"])
+
+        if generator is None:
+            raise ValidationException("Cannot resolve operation {} for {}".format(self.operation, inputs["a"]), node=self)
+
+        self._generator = generator
+
+        if isinstance(output, typing.Callable):
+            return output(inputs["a"])
+
+        return output
+
+    def expand(self, inputs, parent: str):
+        from pixelpipes.graph import GraphBuilder
+
+        with GraphBuilder(prefix=parent) as builder:
+            output = self._generator(inputs["a"][0])
 
             builder.rename(output, parent)
 
@@ -609,6 +643,9 @@ class GraphBuilder(object):
     def rename(self, node: Node, newname: str):
         if not node in self._nodes.inverse:
             return
+
+        if isinstance(newname, Reference):
+            newname = newname.name
 
         if newname.startswith("."):
             newname = self._prefix + newname

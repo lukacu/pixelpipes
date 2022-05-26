@@ -402,12 +402,12 @@ class Tests(unittest.TestCase):
 
         with GraphBuilder() as graph:
             n0 = ConstantImage(source=test_image)
-            f0 = Flip(source=n0, flip=-1)
-            o0 = Flip(source=f0, flip=-1)
-            f1 = Flip(source=n0, flip=0)
-            o1 = Flip(source=f1, flip=0)
-            f2 = Flip(source=n0, flip=1)
-            o2 = Flip(source=f2, flip=1)
+            f0 = Flip(n0, True, True)
+            o0 = Flip(f0, True, True)
+            f1 = Flip(n0, False, True)
+            o1 = Flip(f1, False, True)
+            f2 = Flip(n0, True, False)
+            o2 = Flip(f2, True, False)
             outputs(o0, o1, o2)
 
         pipeline = Compiler().build(graph)
@@ -427,10 +427,7 @@ class Tests(unittest.TestCase):
             o1 = Resize(source=n0, width=128, height=128)
             o2 = Resize(source=n0, width=256, height=128)
             o3 = Resize(source=n0, width=128, height=256)
-            o4 = Resize(source=n0, width=512, height=512)
-            o5 = Resize(source=n0, width=512, height=256)
-            o6 = Resize(source=n0, width=256, height=512)
-            outputs(o0, o1, o2, o3, o4, o5, o6)
+            outputs(o0, o1, o2, o3)
 
         pipeline = Compiler().build(graph)
         output = pipeline.run(1)
@@ -440,16 +437,10 @@ class Tests(unittest.TestCase):
         self.assertEqual(output[0].shape[1], 256)
         self.assertEqual(output[1].shape[0], 128)  
         self.assertEqual(output[1].shape[1], 128)      
-        self.assertEqual(output[2].shape[0], 256)  
-        self.assertEqual(output[2].shape[1], 128)   
-        self.assertEqual(output[3].shape[0], 128)  
-        self.assertEqual(output[3].shape[1], 256) 
-        self.assertEqual(output[4].shape[0], 512)  
-        self.assertEqual(output[4].shape[1], 512) 
-        self.assertEqual(output[5].shape[0], 512)  
-        self.assertEqual(output[5].shape[1], 256) 
-        self.assertEqual(output[6].shape[0], 256)  
-        self.assertEqual(output[6].shape[1], 512) 
+        self.assertEqual(output[2].shape[0], 128)   
+        self.assertEqual(output[2].shape[1], 256) 
+        self.assertEqual(output[3].shape[0], 256)  
+        self.assertEqual(output[3].shape[1], 128)  
 
     def test_image_geometry_MaskBoundingBox(self):
 

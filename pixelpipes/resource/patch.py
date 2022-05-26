@@ -3,7 +3,7 @@ from attributee import String, Float
 from pixelpipes.image.geometry import MaskBoundingBox
 
 from .. import types
-from ..graph import types, Input, Macro, ValidationException, Reference, Copy, GraphBuilder
+from ..graph import Constant, SeedInput, types, Input, Macro, ValidationException, Reference, Copy, GraphBuilder
 from ..numbers import UniformDistribution, Add, Subtract, Divide
 from ..complex import GetElement
 from ..geometry.view import CenterView, FocusView, TranslateView, Chain
@@ -125,7 +125,7 @@ class ResourceCenter(Macro):
 
             return builder.nodes()
 
-class RandomPatch(Macro):
+class RandomPatchView(Macro):
     """Generates a random patch view for a given image
 
     Returns a view that centers to a given mask or a bounding box
@@ -140,9 +140,10 @@ class RandomPatch(Macro):
     """
 
     source = Input(types.Image())
-    padding = Input(types.Integer())
     width = Input(types.Integer())
     height = Input(types.Integer())
+    padding = Input(types.Integer(), default=0)
+    seed = SeedInput()
 
     def _output(self):
         return View()
@@ -151,15 +152,12 @@ class RandomPatch(Macro):
 
         with GraphBuilder(prefix=parent) as builder:
 
-            properties = GetImageProperties(source=inputs["source"])
-            image_width = GetElement(source=properties, element="width")
-            image_height = GetElement(source=properties, element="height")
+            properties = GetImageProperties(inputs["source"])
+            image_width = GetElement(properties, "width")
+            image_height = GetElement(properties, "height")
 
-            offsetx = Add(inputs["padding"], Divide(inputs["width"], 2))
-            offsety = Add(inputs["padding"], Divide(inputs["height"], 2))
-
-            x = UniformDistribution(min=offsetx, max=Subtract(image_width, offsetx))
-            y = UniformDistribution(min=offsety, max=Subtract(image_height, offsety))
+            x = UniformDistribution(- inputs["padding"], image_width - inputs["width"] + inputs["padding"], seed=inputs["seed"])
+            y = UniformDistribution(- inputs["padding"], image_height - inputs["height"] + inputs["padding"], seed=inputs["seed"] * 2)
 
             TranslateView(x=-x, y=-y, _name=parent)
 

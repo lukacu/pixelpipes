@@ -353,6 +353,7 @@ class Primitive(Type):
         if isinstance(typ, Complex):
             return Any()
         return typ
+        
 class Complex(Type):
     """Base class for all non-primitive types. Complex type is essentially a flat structure key-value type that simplifies handling
     several inputs in parallel.
@@ -435,4 +436,4 @@ class Complex(Type):
         from pixelpipes.graph import Reference
         if not element in self:
             raise TypeException("Element {} not found in complex resource".format(element))
-        return Reference(parent + "." + element)
+        return Reference(parent.name + "." + element)

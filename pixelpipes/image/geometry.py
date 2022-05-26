@@ -1,5 +1,5 @@
 
-from attributee import Enumeration
+from attributee import Enumeration, Boolean
 
 from ..graph import Input, Node, ValidationException
 from .. import types
@@ -106,17 +106,17 @@ class Flip(Node):
 
     Inputs:
         - source: source image
-        - flipCode: 0 - x-axis, 1 - y-axis, -1 - both
 
     Category: image, other
     Tags: image
     """
 
     source = Input(types.Image())
-    flip = Input(types.Integer())
+    horizontal = Boolean()
+    vertical = Boolean()
 
     def operation(self):
-        return "image:flip",
+        return "image:flip", self.horizontal, self.vertical
 
     def validate(self, **inputs):
         super().validate(**inputs)
