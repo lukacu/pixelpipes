@@ -65,19 +65,19 @@ namespace pixelpipes
     {
         VERIFY((bool)v, "Uninitialized token");
 
-        if (v->type_id() == FloatType)
+        if (v->type_id() == FloatIdentifier)
         {
             float value = Float::get_value(v);
             return cv::Point2f(value, value);
         }
 
-        if (v->type_id() == IntegerType)
+        if (v->type_id() == IntegerIdentifier)
         {
             int value = Integer::get_value(v);
             return cv::Point2f(value, value);
         }
 
-        if (v->type_id() != Point2DType)
+        if (v->type_id() != Point2DIdentifier)
             throw TypeException("Not a point value");
 
         Point2D p = std::static_pointer_cast<Point2DVariable>(v)->get();
@@ -108,7 +108,7 @@ namespace pixelpipes
     {
         VERIFY((bool)v, "Uninitialized token");
 
-        if (v->type_id() != View2DType)
+        if (v->type_id() != View2DIdentifier)
             throw TypeException("Not a view value");
 
         View2D d = std::static_pointer_cast<View2DVariable>(v)->get();

@@ -48,84 +48,84 @@ namespace pixelpipes
         }
     }
 
-    PIXELPIPES_REGISTER_WRITER(IntegerType, [](SharedToken v, std::ostream &target)
+    PIXELPIPES_REGISTER_WRITER(IntegerIdentifier, [](SharedToken v, std::ostream &target)
                                {
     int i = Integer::get_value(v);
     write_t<int>(target, i); });
 
-    PIXELPIPES_REGISTER_WRITER(FloatType, [](SharedToken v, std::ostream &target)
+    PIXELPIPES_REGISTER_WRITER(FloatIdentifier, [](SharedToken v, std::ostream &target)
                                {
     float f = Float::get_value(v);
     target.write((char*)&f, sizeof(float)); });
 
-    PIXELPIPES_REGISTER_WRITER(BooleanType, [](SharedToken v, std::ostream &target)
+    PIXELPIPES_REGISTER_WRITER(BooleanIdentifier, [](SharedToken v, std::ostream &target)
                                {
     bool b = Boolean::get_value(v);
     unsigned char c = b ? 0xFF : 0;
     target.write((const char *) &c, 1); });
 
-    PIXELPIPES_REGISTER_WRITER(StringType, [](SharedToken v, std::ostream &target)
+    PIXELPIPES_REGISTER_WRITER(StringIdentifier, [](SharedToken v, std::ostream &target)
                                {
     std::string s = String::get_value(v);
     write_t(target, s); });
 
-    PIXELPIPES_REGISTER_WRITER(IntegerListType, [](SharedToken v, std::ostream &target)
+    PIXELPIPES_REGISTER_WRITER(IntegerListIdentifier, [](SharedToken v, std::ostream &target)
                                { write_v(target, extract<std::vector<int>>(v)); });
-    PIXELPIPES_REGISTER_WRITER(FloatListType, [](SharedToken v, std::ostream &target)
+    PIXELPIPES_REGISTER_WRITER(FloatListIdentifier, [](SharedToken v, std::ostream &target)
                                { write_v(target, extract<std::vector<float>>(v)); });
-    PIXELPIPES_REGISTER_WRITER(BooleanListType, [](SharedToken v, std::ostream &target)
+    PIXELPIPES_REGISTER_WRITER(BooleanListIdentifier, [](SharedToken v, std::ostream &target)
                                { write_v(target, extract<std::vector<bool>>(v)); });
-    PIXELPIPES_REGISTER_WRITER(StringListType, [](SharedToken v, std::ostream &target)
+    PIXELPIPES_REGISTER_WRITER(StringListIdentifier, [](SharedToken v, std::ostream &target)
                                { write_v(target, extract<std::vector<std::string>>(v)); });
 
-    PIXELPIPES_REGISTER_WRITER(Point2DType, [](SharedToken v, std::ostream &target)
+    PIXELPIPES_REGISTER_WRITER(Point2DIdentifier, [](SharedToken v, std::ostream &target)
                                {
     Point2D p = Point2DVariable::get_value(v);
     write_t(target, p); });
 
-    PIXELPIPES_REGISTER_WRITER(Point3DType, [](SharedToken v, std::ostream &target)
+    PIXELPIPES_REGISTER_WRITER(Point3DIdentifier, [](SharedToken v, std::ostream &target)
                                {
     Point3D p = Point3DVariable::get_value(v);
     write_t(target, p); });
 
-    PIXELPIPES_REGISTER_WRITER(View2DType, [](SharedToken v, std::ostream &target)
+    PIXELPIPES_REGISTER_WRITER(View2DIdentifier, [](SharedToken v, std::ostream &target)
                                {
     View2D w = View2DVariable::get_value(v);
     write_t(target, w); });
 
-    PIXELPIPES_REGISTER_WRITER(View3DType, [](SharedToken v, std::ostream &target)
+    PIXELPIPES_REGISTER_WRITER(View3DIdentifier, [](SharedToken v, std::ostream &target)
                                {
     View3D w = View3DVariable::get_value(v);
     write_t(target, w); });
 
-    PIXELPIPES_REGISTER_READER(IntegerType, [](std::istream &source) -> SharedToken
+    PIXELPIPES_REGISTER_READER(IntegerIdentifier, [](std::istream &source) -> SharedToken
                                { return std::make_shared<Integer>(read_t<int>(source)); });
-    PIXELPIPES_REGISTER_READER(FloatType, [](std::istream &source) -> SharedToken
+    PIXELPIPES_REGISTER_READER(FloatIdentifier, [](std::istream &source) -> SharedToken
                                { return std::make_shared<Float>(read_t<float>(source)); });
-    PIXELPIPES_REGISTER_READER(BooleanType, [](std::istream &source) -> SharedToken
+    PIXELPIPES_REGISTER_READER(BooleanIdentifier, [](std::istream &source) -> SharedToken
                                { return std::make_shared<Boolean>(read_t<unsigned char>(source) != 0); });
-    PIXELPIPES_REGISTER_READER(StringType, [](std::istream &source) -> SharedToken
+    PIXELPIPES_REGISTER_READER(StringIdentifier, [](std::istream &source) -> SharedToken
                                { return std::make_shared<String>(read_t<std::string>(source)); });
 
-    PIXELPIPES_REGISTER_READER(IntegerListType, [](std::istream &source) -> SharedToken
+    PIXELPIPES_REGISTER_READER(IntegerListIdentifier, [](std::istream &source) -> SharedToken
                                { return wrap(read_v<int>(source)); });
-    PIXELPIPES_REGISTER_READER(FloatListType, [](std::istream &source) -> SharedToken
+    PIXELPIPES_REGISTER_READER(FloatListIdentifier, [](std::istream &source) -> SharedToken
                                { return wrap(read_v<float>(source)); });
-    PIXELPIPES_REGISTER_READER(BooleanListType, [](std::istream &source) -> SharedToken
+    PIXELPIPES_REGISTER_READER(BooleanListIdentifier, [](std::istream &source) -> SharedToken
                                { return wrap(read_v<bool>(source)); });
-    PIXELPIPES_REGISTER_READER(StringListType, [](std::istream &source) -> SharedToken
+    PIXELPIPES_REGISTER_READER(StringListIdentifier, [](std::istream &source) -> SharedToken
                                { return wrap(read_v<std::string>(source)); });
 
-    PIXELPIPES_REGISTER_READER(Point2DType, [](std::istream &source) -> SharedToken
+    PIXELPIPES_REGISTER_READER(Point2DIdentifier, [](std::istream &source) -> SharedToken
                                { return std::make_shared<Point2DVariable>(read_t<Point2D>(source)); });
 
-    PIXELPIPES_REGISTER_READER(Point3DType, [](std::istream &source) -> SharedToken
+    PIXELPIPES_REGISTER_READER(Point3DIdentifier, [](std::istream &source) -> SharedToken
                                { return std::make_shared<Point3DVariable>(read_t<Point3D>(source)); });
 
-    PIXELPIPES_REGISTER_READER(View2DType, [](std::istream &source) -> SharedToken
+    PIXELPIPES_REGISTER_READER(View2DIdentifier, [](std::istream &source) -> SharedToken
                                { return std::make_shared<View2DVariable>(read_t<View2D>(source)); });
 
-    PIXELPIPES_REGISTER_READER(View3DType, [](std::istream &source) -> SharedToken
+    PIXELPIPES_REGISTER_READER(View3DIdentifier, [](std::istream &source) -> SharedToken
                                { return std::make_shared<View3DVariable>(read_t<View3D>(source)); });
 
     class PrefixList : public List
@@ -146,7 +146,7 @@ namespace pixelpipes
 
         virtual TypeIdentifier element_type_id() const
         {
-            return StringType;
+            return StringIdentifier;
         }
 
         virtual TypeIdentifier type_id() const
@@ -347,7 +347,7 @@ namespace pixelpipes
             // We have marked filename lists during appending
             if (std::get<1>(t))
             {
-                token = make_relative(List::get_list(token, StringType), origin);
+                token = make_relative(List::get_list(token, StringIdentifier), origin);
             }
 
             writer(token, target);
@@ -393,7 +393,7 @@ namespace pixelpipes
         {
             bool filename = false;
 
-            if (op->type() == GetTypeIdentifier<FileList>() && List::is_list(arg, StringType))
+            if (op->type() == GetTypeIdentifier<FileList>() && List::is_list(arg, StringIdentifier))
             {
                 filename = true;
             }
@@ -646,7 +646,7 @@ namespace pixelpipes
                     if (t >= (int)tokens.size())
                         throw SerializationException("Illegal token index");
 
-                    if (name == "file_list" && List::is_list(tokens[t], StringType))
+                    if (name == "file_list" && List::is_list(tokens[t], StringIdentifier))
                     { // TODO: this should be done without strings
 
                         tokens[t] = make_absolute(List::get_list(tokens[t]), origin);

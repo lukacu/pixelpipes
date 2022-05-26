@@ -145,7 +145,7 @@ namespace pixelpipes
         return std::make_shared<ContainerToken<DNF>>(v);
     }
 
-    PIXELPIPES_REGISTER_TYPE(DNFType, "dnf", DEFAULT_TYPE_CONSTRUCTOR(DNFType), default_type_resolve);
+    PIXELPIPES_REGISTER_TYPE(DNFType, "dnf");
 
     PIXELPIPES_REGISTER_WRITER(DNFType, [](SharedToken v, std::ostream &target)
                                { ContainerToken<DNF>::get_value(v).write(target); });
@@ -452,7 +452,7 @@ namespace pixelpipes
 
         // auto start = high_resolution_clock::now();
 
-        context.resize(state->operations.size());
+        context.resize(state->operations.size(), SharedToken());
 
         size_t i = 0;
 

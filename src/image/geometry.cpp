@@ -166,6 +166,8 @@ REGISTER_OPERATION_FUNCTION("bounds", MaskBounds);
 /**
  * @brief Performs image resize.
  * 
+ * TODO: split into two operations
+ * 
  */
 SharedToken ImageResize(TokenList inputs, Interpolation interpolation) {
 
@@ -177,7 +179,7 @@ SharedToken ImageResize(TokenList inputs, Interpolation interpolation) {
         int height = Integer::get_value(inputs[2]);
 
         cv::Mat result;
-        cv::resize(image, result, cv::Size(height, width), 0, 0, interpolate_convert(interpolation));
+        cv::resize(image, result, cv::Size(width, height), 0, 0, interpolate_convert(interpolation));
 
         return wrap(result);
 
@@ -232,20 +234,32 @@ REGISTER_OPERATION_FUNCTION("rotate", Rotate);
  * @brief Flips a 2D array around vertical, horizontal, or both axes.
  * 
  */
-SharedToken Flip(TokenList inputs) noexcept(false) {
+SharedToken Flip(TokenList inputs, bool horizontal, bool vertical) noexcept(false) {
     
-    VERIFY(inputs.size() == 2, "Incorrect number of parameters");
+    VERIFY(inputs.size() == 1, "Incorrect number of parameters");
 
     cv::Mat image = extract<cv::Mat>(inputs[0]);
-    int flip_code = Integer::get_value(inputs[1]);
-    
+
     cv::Mat result;
-    cv::flip(image, result, flip_code); 
+
+    if (horizontal) {
+        if (vertical) {
+            cv::flip(image, result, -1); 
+        } else {
+            cv::flip(image, result, 1); 
+        }
+    } else {
+        if (!vertical) {
+            result = image;
+        } else {
+            cv::flip(image, result, 0); 
+        }
+    }
 
     return wrap(result);
 }
 
-REGISTER_OPERATION_FUNCTION("flip", Flip);
+REGISTER_OPERATION_FUNCTION("flip", Flip, bool, bool);
 
 /**
  * @brief Returns a bounding box of custom size.
@@ -254,7 +268,7 @@ REGISTER_OPERATION_FUNCTION("flip", Flip);
 SharedToken ImageCrop(TokenList inputs) {
 
     VERIFY(inputs.size() == 2, "Incorrect number of parameters");
-    VERIFY(List::is_list(inputs[1], FloatType), "Not a float list");
+    VERIFY(List::is_list(inputs[1], FloatIdentifier), "Not a float list");
 
     cv::Mat image = extract<cv::Mat>(inputs[0]);
     auto bbox = std::static_pointer_cast<List>(inputs[1]);

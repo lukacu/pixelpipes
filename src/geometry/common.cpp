@@ -19,7 +19,7 @@ namespace pixelpipes {
 SharedToken BoundingBox(TokenList inputs) {
 
     verify(inputs.size() == 1, "Incorrect number of parameters");
-    verify(List::is_list(inputs[0], Point2DType), "Not a list of points");
+    verify(List::is_list(inputs[0], Point2DIdentifier), "Not a list of points");
 
     std::vector<Point2D> points = extract<std::vector<Point2D>>(inputs[0]);
 

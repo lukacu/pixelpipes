@@ -122,7 +122,7 @@ public:
     virtual SharedToken run(TokenList inputs) {
 
         verify(inputs.size() == 2, "Incorrect number of parameters");
-        verify(List::is_list(inputs[0], Point2DType), "Not a list of points");
+        verify(List::is_list(inputs[0], Point2DIdentifier), "Not a list of points");
 
         std::vector<cv::Point2f> points = extract<std::vector<cv::Point2f>>(inputs[0]);
         cv::Matx33f transform = extract<cv::Matx33f>(inputs[1]);

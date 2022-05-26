@@ -110,7 +110,7 @@ namespace pixelpipes
 
     constexpr static TypeIdentifier AnyType = 0;
 
-    constexpr static TypeIdentifier ListType = 1;
+    constexpr static TypeIdentifier TensorIdentifierMask = 1;
 
     /**
      * The function that returns the type id.
@@ -122,7 +122,7 @@ namespace pixelpipes
     auto PIXELPIPES_TYPE_API GetTypeIdentifier() noexcept -> TypeIdentifier
     {
         if constexpr (detail::is_container<T>::value) {
-            return GetTypeIdentifier<typename T::value_type >() + ListType;
+            return GetTypeIdentifier<typename T::value_type >() + TensorIdentifierMask;
         } else if constexpr (detail::is_reference<T>::value) {
             return  GetTypeIdentifier<typename std::pointer_traits<T>::element_type >();
         } else  {
@@ -147,13 +147,19 @@ namespace pixelpipes
             throw TypeException(reason);
     }
 
-    template <typename T>
-    auto PIXELPIPES_TYPE_API GetListIdentifier() noexcept -> TypeIdentifier
-    {
-        return ((uintptr_t)&detail::TypeIdentifierToken<T>::id) + ListType;
-    }
+#define DEBUG_MODE
 
-    typedef std::map<std::string, std::any> TypeParameters;
+#ifdef DEBUG_MODE
+#define DEBUG(X)                     \
+    {                                \
+        std::cout << X << std::endl; \
+    }
+#define VERIFY(C, M) verify((C), (M))
+#else
+#define DEBUG(X)
+#define VERIFY(C, M)
+#endif
+
 /*
     class PIXELPIPES_API String
     {
@@ -203,56 +209,77 @@ namespace pixelpipes
         Implementation<Data> data;
     };
 */
-    class Type
-    {
-    public:
-        PIXELPIPES_API Type(const Type &);
 
-        PIXELPIPES_API Type(TypeIdentifier id, const TypeParameters parameters);
+    struct PIXELPIPES_API TypeSize {
+        int data;
 
-        PIXELPIPES_API Type(TypeIdentifier id);
+        TypeSize();
+        TypeSize(int x);
+        TypeSize(size_t x);
+        TypeSize(const TypeSize& x);
 
-        virtual PIXELPIPES_API ~Type() = default;
+        TypeSize operator+(const TypeSize& other) const;
+        TypeSize operator-(const TypeSize& other) const;
+        TypeSize operator*(const TypeSize& other) const;
+        TypeSize operator/(const TypeSize& other) const;
+        bool operator==(const TypeSize& other) const;
 
-        TypeIdentifier PIXELPIPES_API identifier() const;
-
-        TypeName PIXELPIPES_API name() const;
-
-        template <typename T>
-        T parameter(const std::string key) const
-        {
-
-            auto val = _parameters.find(key);
-
-            if (val == _parameters.end())
-                throw TypeException("Parameter not found");
-
-            try
-            {
-                return std::any_cast<T>(val->second);
-            }
-            catch (const std::bad_any_cast &e)
-            {
-                throw TypeException("Parameter not convertable");
-            }
-        }
-
-        bool has(const std::string key) const;
-
-    private:
-        TypeIdentifier _id;
-
-        std::map<std::string, std::any> _parameters;
     };
 
+    const TypeSize unknown = {-1};
 
-	typedef Type(*TypeResolver) (const Type &, const Type &);
+    const TypeSize unavailable = {-2};
 
-	typedef Type(*TypeValidator) (const TypeParameters &);
 
-    void PIXELPIPES_API type_register(TypeIdentifier i, std::string_view name, TypeValidator, TypeResolver);
+    class PIXELPIPES_API Type
+    {
+    public:
+        Type(const Type &);
 
-    Type PIXELPIPES_API type_make(TypeIdentifier i, std::map<std::string, std::any> parameters);
+        Type(TypeIdentifier element, const Span<TypeSize> parameters);
+
+        Type(TypeIdentifier element);
+
+        virtual ~Type() = default;
+
+        TypeIdentifier element() const;
+
+        TypeName name() const;
+
+        TypeSize shape(size_t i) const;
+
+        size_t dimensions() const;
+
+        bool is_fixed() const;
+
+        bool is_scalar() const;
+
+    private:
+        TypeIdentifier _element;
+
+        Sequence<TypeSize> _shape;
+    };
+
+    template<typename T> 
+    class ScalarType : Type {
+        public:
+
+        ScalarType(): Type(GetTypeIdentifier<T>()) {}
+
+    };
+
+    template<typename T> 
+    inline Type ListType(TypeSize length) 
+    {
+        return Type(GetTypeIdentifier<T>(), make_span(std::vector<TypeSize>{length}));
+    }
+
+    inline Type ListType(TypeIdentifier element, TypeSize length) 
+    {
+        return Type(element, make_span(std::vector<TypeSize>{length}));
+    }
+
+    void PIXELPIPES_API type_register(TypeIdentifier i, std::string_view name);
 
     Type PIXELPIPES_API type_common(const Type &me, const Type &other);
 
@@ -262,17 +289,6 @@ namespace pixelpipes
 
     TypeName PIXELPIPES_API type_name(TypeIdentifier i);
 
-    Type default_type_resolve(const Type &, const Type &);
-
-	template<TypeIdentifier T>
-	Type default_type_constructor(const TypeParameters&) {
-		return Type(T);
-	}
-
-#define DEFAULT_TYPE_CONSTRUCTOR(T) [](const TypeParameters&) { return Type(T); }
-
-#define PIXELPIPES_REGISTER_TYPE(T, NAME, VALIDATOR, RESOLVER) static AddModuleInitializer CONCAT(__type_init_, __COUNTER__)([]() { type_register(T, NAME, VALIDATOR, RESOLVER); })
-
-#define PIXELPIPES_REGISTER_TYPE_DEFAULT(T, NAME) static AddModuleInitializer CONCAT(__type_init_, __COUNTER__)([]() { type_register(T, NAME, DEFAULT_TYPE_CONSTRUCTOR(T), default_type_resolve); })
+#define PIXELPIPES_REGISTER_TYPE(T, NAME) static AddModuleInitializer CONCAT(__type_init_, __COUNTER__)([]() { type_register(T, NAME); })
 
 }

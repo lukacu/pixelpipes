@@ -14,19 +14,6 @@ namespace pixelpipes
         return std::shared_ptr<T>();
     }
 
-#define DEBUG_MODE
-
-#ifdef DEBUG_MODE
-#define DEBUG(X)                     \
-    {                                \
-        std::cout << X << std::endl; \
-    }
-#define VERIFY(C, M) verify((C), (M))
-#else
-#define DEBUG(X)
-#define VERIFY(C, M)
-#endif
-
     class PIXELPIPES_API Token
     {
     public:
@@ -153,12 +140,12 @@ namespace pixelpipes
     };
 */
 
-    #define TokenType GetTypeIdentifier<SharedToken>()
+    #define TokenIdentifier GetTypeIdentifier<SharedToken>()
 
-    #define IntegerType GetTypeIdentifier<int>()
-    #define FloatType GetTypeIdentifier<float>()
-    #define BooleanType GetTypeIdentifier<bool>()
-    #define StringType GetTypeIdentifier<std::string>()
+    #define IntegerIdentifier GetTypeIdentifier<int>()
+    #define FloatIdentifier GetTypeIdentifier<float>()
+    #define BooleanIdentifier GetTypeIdentifier<bool>()
+    #define StringIdentifier GetTypeIdentifier<std::string>()
 
     typedef ScalarToken<int> Integer;
     typedef ScalarToken<float> Float;
@@ -171,7 +158,7 @@ namespace pixelpipes
     inline E extract(const SharedToken v)                                                         \
     {                                                                                                \
         VERIFY((bool)v, "Uninitialized token");                                                   \
-        if (v->type_id() != IntegerType)                                                                \
+        if (v->type_id() != IntegerIdentifier)                                                                \
             throw TypeException("Unexpected token type: expected int, got " + v->describe()); \
         return (E)std::static_pointer_cast<Integer>(v)->get();                                       \
     }                                                                                                \
@@ -186,7 +173,7 @@ namespace pixelpipes
     {
         VERIFY((bool)v, "Uninitialized token");
 
-        if (v->type_id() != IntegerType)
+        if (v->type_id() != IntegerIdentifier)
             throw TypeException("Unexpected token type: expected int, got " + v->describe());
 
         return std::static_pointer_cast<Integer>(v)->get();
@@ -203,13 +190,13 @@ namespace pixelpipes
     {
         VERIFY((bool)v, "Uninitialized token");
 
-        if (v->type_id() == FloatType)
+        if (v->type_id() == FloatIdentifier)
             return std::static_pointer_cast<ContainerToken<float>>(v)->get() != 0;
 
-        if (v->type_id() == IntegerType)
+        if (v->type_id() == IntegerIdentifier)
             return std::static_pointer_cast<ContainerToken<int>>(v)->get() != 0;
 
-        if (v->type_id() == BooleanType)
+        if (v->type_id() == BooleanIdentifier)
             return std::static_pointer_cast<ContainerToken<bool>>(v)->get();
 
         throw TypeException("Unexpected token type: expected bool, got " + v->describe());
@@ -226,13 +213,13 @@ namespace pixelpipes
     {
         VERIFY((bool)v, "Uninitialized token");
 
-        if (v->type_id() == IntegerType)
+        if (v->type_id() == IntegerIdentifier)
             return (float)std::static_pointer_cast<ContainerToken<int>>(v)->get();
 
-        if (v->type_id() == BooleanType)
+        if (v->type_id() == BooleanIdentifier)
             return (float)std::static_pointer_cast<ContainerToken<bool>>(v)->get();
 
-        if (v->type_id() != FloatType)
+        if (v->type_id() != FloatIdentifier)
             throw TypeException("Unexpected token type: expected float, got " + v->describe());
 
         return std::static_pointer_cast<Float>(v)->get();
@@ -249,7 +236,7 @@ namespace pixelpipes
     {
         VERIFY((bool)v, "Uninitialized token");
 
-        if (v->type_id() != StringType)
+        if (v->type_id() != StringIdentifier)
             throw TypeException("Unexpected token type: expected string, got " + v->describe());
 
         return std::static_pointer_cast<String>(v)->get();
@@ -291,7 +278,7 @@ namespace pixelpipes
 
         inline static bool is(SharedToken v)
         {
-            return ((bool)v && ((v->type_id() & ListType) != 0));
+            return ((bool)v && ((v->type_id() & TensorIdentifierMask) != 0));
         }
 
         inline static bool is_list(SharedToken v)
@@ -394,10 +381,10 @@ namespace pixelpipes
     typedef ContainerList<bool> BooleanList;
     typedef ContainerList<std::string> StringList;
 
-    #define FloatListType GetTypeIdentifier<Span<float>>()
-    #define IntegerListType GetTypeIdentifier<Span<int>>()
-    #define BooleanListType GetTypeIdentifier<Span<bool>>()
-    #define StringListType GetTypeIdentifier<Span<std::string>>()
+    #define FloatListIdentifier GetTypeIdentifier<Span<float>>()
+    #define IntegerListIdentifier GetTypeIdentifier<Span<int>>()
+    #define BooleanListIdentifier GetTypeIdentifier<Span<bool>>()
+    #define StringListIdentifier GetTypeIdentifier<Span<std::string>>()
 
 #define _LIST_MAKE_EXTRACTORS(T)                      \
     template <>                                           \

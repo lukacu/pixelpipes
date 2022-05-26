@@ -4,20 +4,20 @@
 namespace pixelpipes
 {
     
-    PIXELPIPES_REGISTER_TYPE_DEFAULT(TokenType, "token");
+    PIXELPIPES_REGISTER_TYPE(TokenIdentifier, "token");
 
-    PIXELPIPES_REGISTER_TYPE_DEFAULT(IntegerType, "integer");
-    PIXELPIPES_REGISTER_TYPE_DEFAULT(FloatType, "float");
-    PIXELPIPES_REGISTER_TYPE_DEFAULT(BooleanType, "boolean");
-    PIXELPIPES_REGISTER_TYPE_DEFAULT(StringType, "string");
+    PIXELPIPES_REGISTER_TYPE(IntegerIdentifier, "integer");
+    PIXELPIPES_REGISTER_TYPE(FloatIdentifier, "float");
+    PIXELPIPES_REGISTER_TYPE(BooleanIdentifier, "boolean");
+    PIXELPIPES_REGISTER_TYPE(StringIdentifier, "string");
 
-    PIXELPIPES_REGISTER_TYPE_DEFAULT(IntegerListType, "integer_list");
-    PIXELPIPES_REGISTER_TYPE_DEFAULT(FloatListType, "float_list");
-    PIXELPIPES_REGISTER_TYPE_DEFAULT(BooleanListType, "boolean_list");
-    PIXELPIPES_REGISTER_TYPE_DEFAULT(StringListType, "string_list");
+    PIXELPIPES_REGISTER_TYPE(IntegerListIdentifier, "integer_list");
+    PIXELPIPES_REGISTER_TYPE(FloatListIdentifier, "float_list");
+    PIXELPIPES_REGISTER_TYPE(BooleanListIdentifier, "boolean_list");
+    PIXELPIPES_REGISTER_TYPE(StringListIdentifier, "string_list");
 
     Type Token::type() const {
-        return type_make(type_id(), {});
+        return Type(type_id(), {});
     }
 
     std::string Token::describe() const
@@ -46,11 +46,11 @@ namespace pixelpipes
 
     TypeIdentifier List::type_id() const
     {
-        return element_type_id() | ListType;
+        return element_type_id() | TensorIdentifierMask;
     }
 
     Type List::type() const {
-        return type_make(type_id(), {});
+        return ListType(type_id(), size());
     }
 
 

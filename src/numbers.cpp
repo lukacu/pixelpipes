@@ -3,13 +3,7 @@
 
 #include <pixelpipes/operation.hpp>
 
-#ifndef max
-#define max std::max
-#endif
-
-#ifndef min
-#define min std::min
-#endif
+#include "debug.h"
 
 namespace pixelpipes {
 
@@ -26,7 +20,7 @@ public:
 
         float num = dst(generator);
 
-        return std::make_shared<Float>(num);
+        return wrap(num);
     } 
 
 private:
@@ -49,7 +43,9 @@ public:
 
         float num = dst(generator);
 
-        return std::make_shared<Float>(num);
+        //PRINTMSG("%f %f %f %f \n", dst.a(), dst.b(), num, Float::get_value(inputs[2]));
+
+        return wrap(num);
 
     }
 
@@ -244,7 +240,7 @@ SharedToken Maximum(TokenList inputs) {
 
     for (auto input : inputs) {
         integer &= Integer::is(input);
-        value = max(value, Float::get_value(input));
+        value = MAX(value, Float::get_value(input));
     }
 
     if (integer)
@@ -265,7 +261,7 @@ SharedToken Minimum(TokenList inputs) {
 
     for (auto input : inputs) {
         integer &= Integer::is(input);
-        value = min(value, Float::get_value(input));
+        value = MIN(value, Float::get_value(input));
     }
 
     if (integer)

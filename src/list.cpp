@@ -111,7 +111,7 @@ namespace pixelpipes
         virtual TypeIdentifier element_type_id() const
         {
 
-            return list->element_type_id() & ListType;
+            return list->element_type_id() & TensorIdentifierMask;
         }
 
         virtual SharedToken get(size_t index) const
@@ -337,7 +337,7 @@ namespace pixelpipes
 
         VERIFY(inputs.size() == 2, "Incorrect number of parameters");
 
-        if (List::is_list(inputs[0]) && List::is_list(inputs[1], IntegerType))
+        if (List::is_list(inputs[0]) && List::is_list(inputs[1], IntegerIdentifier))
             throw TypeException("Not a list");
 
         SharedList list = List::get_list(inputs[0]);
@@ -368,7 +368,7 @@ namespace pixelpipes
 
         VERIFY(inputs.size() == 2, "Incorrect number of parameters");
 
-        if (List::is_list(inputs[0]) && List::is_list(inputs[1], IntegerType))
+        if (List::is_list(inputs[0]) && List::is_list(inputs[1], IntegerIdentifier))
             throw TypeException("Not a list");
 
         SharedList list = List::get_list(inputs[0]);
@@ -541,16 +541,16 @@ namespace pixelpipes
 
         VERIFY(inputs.size() == 2, "Incorrect number of parameters");
 
-        VERIFY(List::is_list(inputs[0], IntegerType) || List::is_list(inputs[0], FloatType), "Not an numeric list");
+        VERIFY(List::is_list(inputs[0], IntegerIdentifier) || List::is_list(inputs[0], FloatIdentifier), "Not an numeric list");
 
         SharedList a = List::get_list(inputs[0]);
         SharedList b;
 
-        if (inputs[1]->type_id() == IntegerType || inputs[1]->type_id() == FloatType)
+        if (inputs[1]->type_id() == IntegerIdentifier || inputs[1]->type_id() == FloatIdentifier)
         {
             b = std::make_shared<ConstantList>(inputs[1], a->size());
         }
-        else if (List::is_list(inputs[1], IntegerType) || List::is_list(inputs[1], FloatType))
+        else if (List::is_list(inputs[1], IntegerIdentifier) || List::is_list(inputs[1], FloatIdentifier))
         {
             throw TypeException("Not an numeric list");
         }
@@ -634,7 +634,7 @@ namespace pixelpipes
                 throw TypeException("Incorrect number of parameters");
             }
 
-            if (!(List::is_list(inputs[0], IntegerType) && List::is_list(inputs[1], IntegerType)))
+            if (!(List::is_list(inputs[0], IntegerIdentifier) && List::is_list(inputs[1], IntegerIdentifier)))
                 throw TypeException("Not an integer list");
 
             SharedList a = List::get_list(inputs[0]);
@@ -659,7 +659,7 @@ namespace pixelpipes
                 throw TypeException("Incorrect number of parameters");
             }
 
-            if (!(List::is_list(inputs[0], IntegerType) && List::is_list(inputs[1], IntegerType)))
+            if (!(List::is_list(inputs[0], IntegerIdentifier) && List::is_list(inputs[1], IntegerIdentifier)))
                 throw TypeException("Not an integer list");
 
             SharedList a = List::get_list(inputs[0]);
@@ -684,7 +684,7 @@ namespace pixelpipes
                 throw TypeException("Incorrect number of parameters");
             }
 
-            if (!List::is_list(inputs[0], IntegerType))
+            if (!List::is_list(inputs[0], IntegerIdentifier))
                 throw TypeException("Not an integer list");
 
             SharedList a = List::get_list(inputs[0]);
@@ -711,7 +711,7 @@ namespace pixelpipes
 
         VERIFY(inputs.size() == 2, "Incorrect number of parameters");
 
-        VERIFY(List::is_list(inputs[0], FloatType) && List::is_list(inputs[1], FloatType), "Not a float list");
+        VERIFY(List::is_list(inputs[0], FloatIdentifier) && List::is_list(inputs[1], FloatIdentifier), "Not a float list");
 
         SharedList a = List::get_list(inputs[0]);
         SharedList b = List::get_list(inputs[1]);
@@ -801,7 +801,7 @@ namespace pixelpipes
 
         VERIFY(inputs.size() > 0, "No inputs");
 
-        if (inputs[0]->type_id() == IntegerType)
+        if (inputs[0]->type_id() == IntegerIdentifier)
         {
 
             std::vector<int> result;

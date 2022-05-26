@@ -6,7 +6,7 @@ namespace pixelpipes {
 SharedToken PointsCenter(TokenList inputs) {
 
     VERIFY(inputs.size() == 1, "Incorrect number of parameters");
-    VERIFY(List::is_list(inputs[0], Point2DType), "Not a point list");
+    VERIFY(List::is_list(inputs[0], Point2DIdentifier), "Not a point list");
 
     SharedList list = List::cast(inputs[0]);
     Point2D accumulator{0, 0};
@@ -204,7 +204,7 @@ SharedToken PointsArithmeticOperation(TokenList inputs, ArithmeticOperation op) 
     std::vector<Point2D> result;
 
     // Both inputs are lists
-    if (List::is(inputs[0]) && List::is_list(inputs[1], Point2DType)) {
+    if (List::is(inputs[0]) && List::is_list(inputs[1], Point2DIdentifier)) {
 
         SharedList list0 = List::cast(inputs[0]);
         SharedList list1 = List::cast(inputs[1]);

@@ -16,7 +16,7 @@ SharedToken Polygon(TokenList inputs) noexcept(false) {
   
 
     VERIFY(inputs.size() == 3, "Incorrect number of parameters");
-    VERIFY(List::is_list(inputs[0], Point2DType), "Not a list of points");
+    VERIFY(List::is_list(inputs[0], Point2DIdentifier), "Not a list of points");
 
     int width = Integer::get_value(inputs[1]);
     int height = Integer::get_value(inputs[2]);

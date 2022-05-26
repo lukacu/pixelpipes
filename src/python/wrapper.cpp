@@ -250,25 +250,25 @@ py::array numpyFromVariable(pixelpipes::SharedToken variable) {
         return py::reinterpret_steal<py::array>(handle);
     }
 
-    if (variable->type_id() == pixelpipes::IntegerType) {
+    if (variable->type_id() == pixelpipes::IntegerIdentifier) {
         py::array_t<int> a({1});
         a.mutable_data(0)[0] = std::static_pointer_cast<pixelpipes::Integer>(variable)->get();
         return a;
     }
 
-    if (variable->type_id() == pixelpipes::FloatType) {
+    if (variable->type_id() == pixelpipes::FloatIdentifier) {
         py::array_t<float> a({1});
         a.mutable_data(0)[0] = std::static_pointer_cast<pixelpipes::Float>(variable)->get();
         return a;
     }
 
-    if (variable->type_id() == pixelpipes::BooleanType) {
+    if (variable->type_id() == pixelpipes::BooleanIdentifier) {
         py::array_t<int> a({1});
         a.mutable_data(0)[0] = (int) std::static_pointer_cast<pixelpipes::Boolean>(variable)->get();
         return a;
     }
 
-    if (variable->type_id() == pixelpipes::StringType) {
+    if (variable->type_id() == pixelpipes::StringIdentifier) {
         py::str s = std::static_pointer_cast<pixelpipes::String>(variable)->get();
         return s;
     }
@@ -500,9 +500,9 @@ PYBIND11_MODULE(pypixelpipes, m) {
 
     py::set_shared_data("_pixelpipes_python_registry", &registry);
 
-    registry.register_wrapper(TokenType, generic_convert, false);
+    registry.register_wrapper(TokenIdentifier, generic_convert, false);
 
-    registry.register_wrapper(IntegerType, [](py::object src) {
+    registry.register_wrapper(IntegerIdentifier, [](py::object src) {
 
         if  (py::int_::check_(src)) {
             py::int_ value(src);
@@ -513,7 +513,7 @@ PYBIND11_MODULE(pypixelpipes, m) {
  
     });
 
-    registry.register_wrapper(FloatType, [](py::object src) {
+    registry.register_wrapper(FloatIdentifier, [](py::object src) {
 
         if  (py::float_::check_(src)) {
             py::float_ value(src);
@@ -529,7 +529,7 @@ PYBIND11_MODULE(pypixelpipes, m) {
 
     }); 
 
-    registry.register_wrapper(StringType, [](py::object src) {
+    registry.register_wrapper(StringIdentifier, [](py::object src) {
 
         if  (py::str::check_(src)) {
             py::str str(src);
@@ -540,7 +540,7 @@ PYBIND11_MODULE(pypixelpipes, m) {
 
     });
 
-    registry.register_wrapper(BooleanType, [](py::object src) {
+    registry.register_wrapper(BooleanIdentifier, [](py::object src) {
 
         if  (py::bool_::check_(src)) {
             py::bool_ value(src);
@@ -558,7 +558,7 @@ PYBIND11_MODULE(pypixelpipes, m) {
 
     registry.register_wrapper(DNFType, &wrap_dnf_clause, false);
 
-    registry.register_wrapper(Point2DType, [](py::object src) {
+    registry.register_wrapper(Point2DIdentifier, [](py::object src) {
 
         if  (py::tuple::check_(src)) {
             py::tuple tuple(src);
@@ -574,7 +574,7 @@ PYBIND11_MODULE(pypixelpipes, m) {
 
     });
 
-    registry.register_extractor(Point2DType, [](SharedToken src) {
+    registry.register_extractor(Point2DIdentifier, [](SharedToken src) {
 
         Point2D point = extract<Point2D>(src);
         py::array_t<float> result({2});
@@ -584,7 +584,7 @@ PYBIND11_MODULE(pypixelpipes, m) {
 
     });
 
-    registry.register_extractor(View2DType, [](SharedToken src) {
+    registry.register_extractor(View2DIdentifier, [](SharedToken src) {
 
         View2D view = View2DVariable::get_value(src);
 

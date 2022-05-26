@@ -209,7 +209,7 @@ REGISTER_OPERATION_FUNCTION("coarse_dropout", ImageCoarseDropout);
 SharedToken ImageCut(TokenList inputs) {
 
     VERIFY(inputs.size() == 2, "Incorrect number of parameters");
-    VERIFY(List::is_list(inputs[1], FloatType), "Not a float list");
+    VERIFY(List::is_list(inputs[1], FloatIdentifier), "Not a float list");
 
     cv::Mat image = extract<cv::Mat>(inputs[0]);
     auto bbox = std::static_pointer_cast<List>(inputs[1]);

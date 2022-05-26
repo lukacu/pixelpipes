@@ -281,19 +281,6 @@ namespace pixelpipes
         }
     }
 
-    Type imate_type_constructor(const TypeParameters &type)
-    {
-        UNUSED(type);
-        return Type(ImageType);
-    }
-
-    Type imate_type_denominator(const Type &me, const Type &other)
-    {
-        UNUSED(me);
-        UNUSED(other);
-        return Type(AnyType);
-    }
-
     struct ImageList::ImageListState
     {
         std::vector<Image> data;
@@ -366,7 +353,7 @@ namespace pixelpipes
         return std::make_shared<ImageList>(v);
     }
 
-    PIXELPIPES_REGISTER_TYPE(ImageType, "image", imate_type_constructor, imate_type_denominator);
+    PIXELPIPES_REGISTER_TYPE(ImageType, "image");
 
     void write_image(SharedToken v, std::ostream &target)
     {
@@ -408,7 +395,7 @@ namespace pixelpipes
     PIXELPIPES_REGISTER_READER(ImageType, [](std::istream &source) -> SharedToken
                                { return read_image(source); });
 
-    PIXELPIPES_REGISTER_TYPE_DEFAULT(ImageListType, "image_list");
+    PIXELPIPES_REGISTER_TYPE(ImageListType, "image_list");
 
     PIXELPIPES_REGISTER_READER(ImageListType,
                                [](std::istream &source) -> SharedToken

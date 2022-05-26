@@ -8,6 +8,7 @@
 #include <vector>
 #include <utility>
 #include <memory>
+#include <cmath>
 
 #ifdef _WIN32
 #include <windows.h>
@@ -60,6 +61,14 @@ const std::string os_pathsep(":");
     {                 \
         (void)(expr); \
     } while (0)
+
+#ifndef MAX
+#define MAX std::max
+#endif
+
+#ifndef MIN
+#define MIN std::min
+#endif
 
 namespace pixelpipes
 {

@@ -39,15 +39,15 @@ namespace pixelpipes
     PIXELPIPES_OPERATION("load_png_palette",
             ImageReadPngPalette,
             "Load a PNG image as palette indices",
-            Image<none, none, 1, ImageDepth::Byte>,
-            input<String<none>, std::string, "PNG file name">);
+            types::Image(undefined, undefined, 1),
+            input<types::Char(undefined), std::string, "PNG file name">);
 
     input<type, native, description>
     parameter<native, description> = def
-    inputs<type, native, description>
-    
 
-
+    type<char>
+    type<byte, none, none>
+    type<
 
     */
 
