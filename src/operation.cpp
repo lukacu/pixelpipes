@@ -11,11 +11,14 @@ uint32_t xorshift32(uint32_t m_seed)
 {
     m_seed ^= m_seed << 13;
     m_seed ^= m_seed >> 17;
-    m_seed ^= m_seed << 15;
+    m_seed ^= m_seed << 5;
     return m_seed;
 }
 
 RandomGenerator make_generator(uint32_t seed) {
+    if (seed == 0) {
+        seed = ~seed;
+    }
     return RandomGenerator(xorshift32, seed);
 }
 
