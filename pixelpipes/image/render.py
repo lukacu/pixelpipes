@@ -26,7 +26,7 @@ class NormalNoise(Node):
     seed = SeedInput()
     
     def operation(self):
-        return "image:normal_noise",
+        return "opencv:normal_noise",
 
     def validate(self, **inputs):
         super().validate(**inputs)
@@ -59,7 +59,7 @@ class UniformNoise(Node):
     seed = SeedInput()
 
     def operation(self):
-        return "image:uniform_noise",
+        return "opencv:uniform_noise",
 
     def validate(self, **inputs):
         super().validate(**inputs)
@@ -89,10 +89,10 @@ class LinearImage(Node):
     height = Input(types.Integer())
     min = Input(types.Float())
     max = Input(types.Float())
-    flip = Boolean(default=False)
+    flip = Input(types.Boolean(), default=False)
 
     def operation(self):
-        return "image:linear", self.flip
+        return "opencv:linear_image",
 
     def validate(self, **inputs):
         super().validate(**inputs)
@@ -122,7 +122,7 @@ class Polygon(Node):
     height = Input(types.Integer())
 
     def operation(self):
-        return "image:polygon",
+        return "opencv:polygon",
 
     def validate(self, **inputs):
         super().validate(**inputs)

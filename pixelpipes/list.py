@@ -1,7 +1,7 @@
 from attributee.primitives import Boolean, String
 from attributee import List, Primitive
 
-from . import ComparisonOperations, LogicalOperations, types
+from . import types
 from .graph import Node, Input, SeedInput, ValidationException, hidden, Macro, GraphBuilder, Reference
 from .numbers import Round, UniformDistribution
 
@@ -70,14 +70,8 @@ class ConstantTable(Macro):
 
 
 class FileList(Node):
-    """Sublist
-
-    String list with a single prefix.
-
-    Inputs:
-     - list: List of strings, each denoting a path to a file
-
-    Category: list, string
+    """ String list of file patchs. Use this operation to inject file dependencies into the 
+    pipeline.
     """
 
     list = List(String())
@@ -269,23 +263,20 @@ class ListRange(Node):
     start = Input(types.Float())
     end = Input(types.Float())
     length = Input(types.Integer())
-    round = Boolean(default=False)
+    round = Input(types.Boolean(), default=False)
 
     def validate(self, **inputs):
         super().validate(**inputs)
-        return types.List(types.Integer() if self.round else types.Float(), inputs["length"].value)
+        return types.List(types.Float(), inputs["length"].value)
 
     def operation(self):
-        return "list_range", self.round
+        return "list_range",
 
 
 class ListPermute(Node):
     """List permute
 
     Randomly permutes an input list
-
-    Inputs:
-        - source: A list type
 
     Category: list
     """
@@ -305,13 +296,11 @@ class ListPermutation(Node):
 
     Generates a list of numbers from 0 to length in random order.
 
-    Inputs:
-        - length: List length
-
     Category: list
     """
 
     length = Input(types.Integer())
+    seed = SeedInput()
 
     def validate(self, **inputs):
         super().validate(**inputs)
@@ -465,27 +454,32 @@ class _ListCompare(Node):
 class ListCompareEqual(_ListCompare):
 
     def operation(self):
-        return "list_compare", ComparisonOperations["EQUAL"]
+        return "list_compare_equal",
+
+class ListCompareNotEqual(_ListCompare):
+
+    def operation(self):
+        return "list_compare_not_equal",
 
 class ListCompareLower(_ListCompare):
 
     def operation(self):
-        return "list_compare", ComparisonOperations["LOWER"]
+        return "list_compare_less",
 
 class ListCompareLowerEqual(_ListCompare):
 
     def operation(self):
-        return "list_compare", ComparisonOperations["LOWER_EQUAL"]
+        return "list_compare_less_equal",
 
 class ListCompareGreater(_ListCompare):
 
     def operation(self):
-        return "list_compare", ComparisonOperations["GREATER"]
+        return "list_compare_greater",
 
 class ListCompareGreaterEqual(_ListCompare):
 
     def operation(self):
-        return "list_compare", ComparisonOperations["GREATER_EQUAL"]
+        return "list_compare_grater_equal",
 
 class _ListLogical(Node):
 
@@ -501,20 +495,20 @@ class _ListLogical(Node):
 class ListLogicalNot(_ListLogical):
 
     def operation(self):
-        return "list_compare", LogicalOperations["NOT"]
+        return "list_logical_not",
 
 class ListLogicalAnd(_ListLogical):
 
     b = Input(types.List(types.Number()))
 
     def operation(self):
-        return "list_compare", LogicalOperations["AND"]
+        return "list_logical_and",
 
 class ListLogicalOr(_ListLogical):
 
     b = Input(types.List(types.Number()))
 
     def operation(self):
-        return "list_compare", LogicalOperations["OR"]
+        return "list_logical_or",
 
 # TODO: register artithmetic operations

@@ -12,23 +12,17 @@ class MakeRectangle(Node):
     """Make Rectangle
     
     Creates a bounding box from four values.
-
-    Inputs:
-        - x1: left bound
-        - x2: right bound
-        - y1: top bound
-        - y2: bottom bound
-
+    
     Category: Rectangle
     """
 
     x1 = Input(types.Integer())
-    x2 = Input(types.Integer())
     y1 = Input(types.Integer())
+    x2 = Input(types.Integer())
     y2 = Input(types.Integer())
 
     def operation(self):
-        return "geometry:make_rectangle",
+        return "make_rectangle",
 
     def _output(self):
         return Rectangle()

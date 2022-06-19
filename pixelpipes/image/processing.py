@@ -22,7 +22,7 @@ class ImageBlend(Node):
     alpha = Input(types.Float())
 
     def operation(self):
-        return "image:blend",
+        return "opencv:blend",
 
     def validate(self, **inputs):
         super().validate(**inputs)
@@ -37,7 +37,7 @@ class ImageNormalize(Node):
     source = Input(types.Image())
 
     def operation(self):
-        return "image:normalize",
+        return "opencv:normalize",
 
     def validate(self, **inputs):
         super().validate(**inputs)
@@ -64,7 +64,7 @@ class ImageDropout(Node):
     seed = SeedInput()
 
     def operation(self):
-        return "image:dropout",
+        return "opencv:dropout",
 
     def validate(self, **inputs):
         super().validate(**inputs)
@@ -93,7 +93,7 @@ class ImageCoarseDropout(Node):
     seed = SeedInput()
 
     def operation(self):
-        return "image:coarse_dropout",
+        return "opencv:coarse_dropout",
 
     def validate(self, **inputs):
         super().validate(**inputs)
@@ -121,7 +121,7 @@ class ImageCut(Node):
     bbox = Input(BoundingBox())
 
     def operation(self):
-        return "image:cut",
+        return "opencv:cut",
 
     def validate(self, **inputs):
         super().validate(**inputs)
@@ -147,7 +147,7 @@ class ImageSolarize(Node):
     threshold = Input(types.Float())
 
     def operation(self):
-        return "image:solarize",
+        return "opencv:solarize",
 
     def validate(self, **inputs):
         super().validate(**inputs)

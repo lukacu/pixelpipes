@@ -2,15 +2,25 @@
 #include <iostream>
 #include <algorithm>
 
+#include <pixelpipes/tensor.hpp>
 #include <pixelpipes/operation.hpp>
 
 namespace pixelpipes
 {
 
+    inline Shape resize(Shape shape, Size size)
+    {
+        std::vector<Size> _s(shape.begin(), shape.end());
+        _s[0] = size;
+
+        return Shape(shape.element(), make_span(_s));
+    }
+
     class Proxy : public List
     {
+        PIXELPIPES_RTTI(Proxy, List)
     public:
-        Proxy(SharedList list) : list(list)
+        Proxy(const ListReference &list) : list(list.reborrow())
         {
 
             if (!list)
@@ -21,41 +31,32 @@ namespace pixelpipes
 
         virtual ~Proxy() = default;
 
-        virtual size_t size() const
+        virtual Shape shape() const
         {
-
-            return list->size();
+            return list->shape();
         }
 
-        virtual TypeIdentifier type_id() const
+        virtual size_t length() const
         {
-
-            return list->type_id();
+            return list->length();
         }
 
-        virtual TypeIdentifier element_type_id() const
+        virtual TokenReference get(size_t index) const
         {
-
-            return list->element_type_id();
-        }
-
-        virtual SharedToken get(size_t index) const
-        {
-
             return list->get(index);
         }
 
     protected:
-        SharedList list;
+        ListReference list;
     };
 
     class Sublist : public Proxy
     {
+        PIXELPIPES_RTTI(Sublist, Proxy)
     public:
-        Sublist(SharedList list, size_t from, size_t to) : Proxy(list), from(from), to(to)
+        Sublist(const ListReference &list, size_t from, size_t to) : Proxy(list), from(from), to(to)
         {
-
-            if (to < from || to >= list->size())
+            if (to < from || to >= list->length())
             {
                 throw TypeException("Illegal sublist range");
             }
@@ -63,15 +64,18 @@ namespace pixelpipes
 
         ~Sublist() = default;
 
-        virtual size_t size() const
+        virtual Shape shape() const
         {
+            return resize(list->shape(), length());
+        }
 
+        virtual size_t length() const
+        {
             return to - from + 1;
         }
 
-        virtual SharedToken get(size_t index) const
+        virtual TokenReference get(size_t index) const
         {
-
             index += from;
 
             if (index > to)
@@ -88,8 +92,9 @@ namespace pixelpipes
 
     class Table : public Proxy
     {
+        PIXELPIPES_RTTI(Table, Proxy)
     public:
-        Table(SharedList list, size_t row) : Proxy(list), row(row)
+        Table(const ListReference &list, size_t row) : Proxy(list), _row(row)
         {
 
             if (!list)
@@ -97,107 +102,105 @@ namespace pixelpipes
                 throw TypeException("Empty parent list");
             }
 
-            VERIFY(list->size() % row == 0, "");
+            VERIFY(list->length() % row == 0, "");
+
+            _shape =  list->shape().pop().push(row).push(length());
         }
 
         ~Table() = default;
 
-        virtual size_t size() const
+        virtual size_t length() const
         {
-
-            return list->size() / row;
+            return list->length() / _row;
         }
 
-        virtual TypeIdentifier element_type_id() const
+        virtual TokenReference get(size_t index) const
         {
-
-            return list->element_type_id() & TensorIdentifierMask;
-        }
-
-        virtual SharedToken get(size_t index) const
-        {
-
-            if (index >= size())
+            if (index >= length())
             {
                 throw TypeException("Index out of range");
             }
-
-            return std::make_shared<Sublist>(list, index * row, (index + 1) * row - 1);
+            return create<Sublist>(list, index * _row, (index + 1) * _row - 1);
         }
 
     private:
-        size_t row;
+        size_t _row;
+        Shape _shape;
     };
 
     class CompositeList : public List
     {
+        PIXELPIPES_RTTI(CompositeList, List)
     public:
-        CompositeList(std::initializer_list<SharedList> ilists) : lists{ilists}
+        CompositeList(const std::initializer_list<ListReference> &ilists) : lists{ilists}
         {
 
             VERIFY(lists.size() > 0, "At least one list required");
 
-            TypeIdentifier etype = lists[0]->element_type_id();
+            Shape eshape = lists[0]->shape().pop();
 
-            for (SharedList l : lists)
+            for (auto l = lists.begin(); l != lists.end(); l++)
             {
-                VERIFY(l->element_type_id() == etype, "Inconsitent list types");
+                auto s = (*l)->shape().pop();
+                VERIFY(s == eshape, "Inconsitent list types");
             }
         }
 
-        CompositeList(std::vector<SharedList> lists) : lists{lists}
+        CompositeList(const Span<ListReference> &lists) : lists{lists}
         {
 
             VERIFY(lists.size() > 0, "At least one list required");
 
-            TypeIdentifier etype = lists[0]->element_type_id();
+            Shape eshape = lists[0]->shape().pop();
 
-            for (SharedList l : lists)
+            for (auto l = lists.begin(); l != lists.end(); l++)
             {
-                VERIFY(l->element_type_id() == etype, "Inconsitent list types");
+                auto s = (*l)->shape().pop();
+                VERIFY(s == eshape, "Inconsitent list types");
             }
         }
 
         ~CompositeList() = default;
 
-        virtual size_t size() const
+        virtual Shape shape() const
+        {
+            return resize(lists[0]->shape(), length());
+        }
+
+        virtual size_t length() const
         {
             size_t total = 0;
 
-            for (SharedList l : lists)
+            for (auto l = lists.begin(); l != lists.end(); l++)
             {
-                total = l->size();
+                total += (*l)->length();
             }
 
             return total;
         }
 
-        virtual TypeIdentifier element_type_id() const
-        {
-            return lists[0]->element_type_id();
-        }
-
-        virtual SharedToken get(size_t index) const
+        virtual TokenReference get(size_t index) const
         {
 
-            for (SharedList l : lists)
+            for (auto l = lists.begin(); l != lists.end(); l++)
             {
-                if (index < l->size())
-                    return l->get(index);
-                index -= l->size() - 1;
+                if (index < (*l)->length())
+                    return (*l)->get(index);
+                index -= (*l)->length() - 1;
             }
 
             throw TypeException("Index out of range");
         }
 
     private:
-        std::vector<SharedList> lists;
+        Sequence<ListReference> lists;
     };
 
-    class MappedList : public List
+    class MappedList : public Proxy
     {
+        PIXELPIPES_RTTI(MappedList, Proxy)
     public:
-        MappedList(SharedList list, std::vector<int> map) : list(list), map(map)
+        MappedList(const ListReference &list, std::vector<int> map) : Proxy(list), map(map)
         {
 
             if (!list)
@@ -207,26 +210,25 @@ namespace pixelpipes
 
             for (auto index : map)
             {
-                if (index < 0 || ((size_t)index >= list->size()))
+                if (index < 0 || ((size_t)index >= list->length()))
                     throw TypeException("Illegal list index");
             }
         }
 
         ~MappedList() = default;
 
-        virtual size_t size() const
+        virtual Shape shape() const
+        {
+            return resize(list->shape(), length());
+        }
+
+        virtual size_t length() const
         {
 
             return map.size();
         }
 
-        virtual TypeIdentifier element_type_id() const
-        {
-
-            return list->element_type_id();
-        }
-
-        virtual SharedToken get(size_t index) const
+        virtual TokenReference get(size_t index) const
         {
 
             if (index >= map.size())
@@ -238,580 +240,344 @@ namespace pixelpipes
         }
 
     private:
-        SharedList list;
-
         std::vector<int> map;
     };
 
     class ConstantList : public List
     {
+        PIXELPIPES_RTTI(ConstantList, List)
     public:
-        ConstantList(SharedToken value, size_t length) : value(value), length(length)
+        ConstantList(const TokenReference &value, size_t length) : _value(value.reborrow()), _length(length)
         {
+            VERIFY((bool) _value, "Undefined value");
 
-            if (!value || List::is(value))
-                throw TypeException("Wrong token type");
+            _shape = _value->shape().push(length);
         }
 
         ~ConstantList() = default;
 
-        virtual size_t size() const { return length; }
-
-        virtual TypeIdentifier element_type_id() const { return value->type_id(); }
-
-        virtual SharedToken get(size_t index) const
+        virtual Shape shape() const
         {
-            if (index >= length)
+            return _shape;
+        }
+
+        virtual size_t length() const { return _length; }
+
+        virtual TokenReference get(size_t index) const
+        {
+            if (index >= _length)
                 throw TypeException("Index out of range");
-            return value;
+            return _value.reborrow();
         }
 
     private:
-        SharedToken value;
-
-        size_t length;
+        TokenReference _value;
+        size_t _length;
+        Shape _shape;
     };
 
     /**
      * @brief Returns a sublist of a given list for a specified first and last element.
      *
      */
-    SharedToken SublistSelect(TokenList inputs)
+    TokenReference sublist_select(const ListReference &list, int begin, int end)
     {
-
-        VERIFY(inputs.size() == 3, "Incorrect number of parameters");
-
-        SharedList list = List::get_list(inputs[0]);
-        int begin = Integer::get_value(inputs[1]);
-        int end = Integer::get_value(inputs[2]);
-
-        return std::make_shared<Sublist>(list, begin, end);
+        return create<Sublist>(list, begin, end);
     }
 
-    REGISTER_OPERATION_FUNCTION("list_sublist", SublistSelect);
+    PIXELPIPES_OPERATION_AUTO("list_sublist", sublist_select);
 
     /**
      * @brief Returns a view of the list where every element is a row.
      *
      */
-    SharedToken ListAsTable(TokenList inputs)
+    TokenReference list_table(const ListReference &list, int row)
     {
-
-        VERIFY(inputs.size() == 2, "Incorrect number of parameters");
-
-        SharedList list = List::get_list(inputs[0]);
-        int row = Integer::get_value(inputs[1]);
-
-        return std::make_shared<Table>(list, row);
+        return create<Table>(list, row);
     }
 
-    REGISTER_OPERATION_FUNCTION("list_table", ListAsTable);
+    PIXELPIPES_OPERATION_AUTO("list_table", list_table);
 
     /**
      * @brief Returns a concatenation of given input lists.
      *
      */
-    SharedToken ListConcatenate(TokenList inputs)
+    TokenReference list_concatenate(const TokenList &inputs)
     {
 
         VERIFY(inputs.size() > 1, "Incorrect number of parameters");
 
-        std::vector<SharedList> lists;
+        std::vector<ListReference> lists;
 
         for (size_t i = 0; i < inputs.size(); i++)
         {
-            lists.push_back(List::get_list(inputs[i]));
+            lists.push_back(extract<ListReference>(inputs[i]));
         }
 
-        return std::make_shared<CompositeList>(lists);
+        return create<CompositeList>(make_span(lists));
     }
 
-    REGISTER_OPERATION_FUNCTION("list_concatenate", ListConcatenate);
+    PIXELPIPES_OPERATION("list_concatenate", list_concatenate);
 
     /**
      * @brief Filters a list with another list used as a mask.
      *
      */
-    SharedToken FilterSelect(TokenList inputs)
+    TokenReference list_filter(const ListReference &list, Sequence<bool> map)
     {
-
-        VERIFY(inputs.size() == 2, "Incorrect number of parameters");
-
-        if (List::is_list(inputs[0]) && List::is_list(inputs[1], IntegerIdentifier))
-            throw TypeException("Not a list");
-
-        SharedList list = List::get_list(inputs[0]);
-        SharedList filter = List::get_list(inputs[1]);
-
-        if (list->size() != filter->size())
+        if (list->length() != map.size())
             throw TypeException("Filter length mismatch");
 
-        std::vector<int> map;
+        std::vector<int> remap;
 
-        for (size_t i = 0; i < filter->size(); i++)
+        for (size_t i = 0; i < map.size(); i++)
         {
-            if (Integer::get_value(filter->get(i)) != 0)
-                map.push_back((int)i);
+            if (map[i])
+                remap.push_back((int)i);
         }
 
-        return std::make_shared<MappedList>(list, map);
+        return create<MappedList>(list, remap);
     }
 
-    REGISTER_OPERATION_FUNCTION("list_filter", FilterSelect);
+    PIXELPIPES_OPERATION_AUTO("list_filter", list_filter);
 
     /**
      * @brief Maps elements from a list to another list using a list of indices.
      *
      */
-    SharedToken ListRemap(TokenList inputs)
+    TokenReference list_remap(const ListReference &list, Sequence<int> map)
     {
-
-        VERIFY(inputs.size() == 2, "Incorrect number of parameters");
-
-        if (List::is_list(inputs[0]) && List::is_list(inputs[1], IntegerIdentifier))
-            throw TypeException("Not a list");
-
-        SharedList list = List::get_list(inputs[0]);
-        SharedList map = List::get_list(inputs[1]);
-
-        int length = (int)list->size();
+        int length = (int)list->length();
 
         std::vector<int> remap;
 
-        for (size_t i = 0; i < map->size(); i++)
+        for (size_t i = 0; i < map.size(); i++)
         {
-            int k = Integer::get_value(map->get(i));
-            if (k < 0 || k >= length)
+            if (map[i] < 0 || map[i] >= length)
                 throw TypeException("Index out of bounds");
-            remap.push_back(k);
+            remap.push_back(map[i]);
         }
 
-        return std::make_shared<MappedList>(list, remap);
+        return create<MappedList>(list, remap);
     }
 
-    REGISTER_OPERATION_FUNCTION("list_remap", ListRemap);
+    PIXELPIPES_OPERATION_AUTO("list_remap", list_remap);
 
     /**
      * @brief Returns an element from a given list.
      *
      */
-    SharedToken ListElement(TokenList inputs)
+    TokenReference list_element(const ListReference &list, int index)
     {
-
-        VERIFY(inputs.size() == 2, "Incorrect number of parameters");
-
-        SharedList list = List::get_list(inputs[0]);
-        int index = Integer::get_value(inputs[1]);
-
         return list->get(index);
     }
 
-    REGISTER_OPERATION_FUNCTION("list_element", ListElement);
+    PIXELPIPES_OPERATION_AUTO("list_element", list_element);
 
     /**
      * @brief Returns a virtual list with the given variable replicated a given number of times.
      *
      */
-    SharedToken RepeatElement(TokenList inputs)
+    TokenReference repeat_element(const TokenReference &value, int length)
     {
-
-        VERIFY(inputs.size() == 2, "Incorrect number of parameters");
-
-        int length = Integer::get_value(inputs[1]);
-
         VERIFY(length >= 1, "List length should be 1 or more");
-
-        SharedToken value = inputs[0];
-
-        return std::make_shared<ConstantList>(inputs[0], length);
+        return create<ConstantList>(value, length);
     }
 
-    REGISTER_OPERATION_FUNCTION("list_repeat", RepeatElement);
+    PIXELPIPES_OPERATION_AUTO("list_repeat", repeat_element);
 
     /**
      * @brief Returns a list from start to end with linear progression over length elements.
      *
      */
-    SharedToken RangeList(TokenList inputs, bool round)
+    TokenReference list_range(float start, float end, int length, bool round)
     {
-
-        VERIFY(inputs.size() == 3, "Incorrect number of parameters");
-
-        float start = Float::get_value(inputs[0]);
-        float end = Float::get_value(inputs[1]);
-        size_t length = (size_t)Integer::get_value(inputs[2]);
-
         VERIFY(length >= 1, "List length should be 1 or more");
 
         if (round)
         {
             std::vector<int> data;
-            for (size_t i = 0; i < length; i++)
+            for (size_t i = 0; i < (size_t)length; i++)
             {
                 data.push_back((int)((i / (float)length) * (end - start) + start));
             }
 
-            return std::make_shared<IntegerList>(make_span(data));
+            return create<IntegerVector>(make_span(data));
         }
         else
         {
 
             std::vector<float> data;
-            for (size_t i = 0; i < length; i++)
+            for (size_t i = 0; i < (size_t)length; i++)
             {
                 data.push_back((i / (float)length) * (end - start) + start);
             }
 
-            return std::make_shared<FloatList>(make_span(data));
+            return create<FloatVector>(make_span(data));
         }
     }
 
-    REGISTER_OPERATION_FUNCTION("list_range", RangeList, bool);
+    PIXELPIPES_OPERATION_AUTO("list_range", list_range);
 
     /**
      * @brief Creates a permutation mapping.
      *
      */
-    SharedToken ListPermute(TokenList inputs)
+    TokenReference list_permute(const ListReference &list, int seed)
     {
-
-        VERIFY(inputs.size() == 2, "Incorrect number of parameters");
-
-        SharedList list = List::get_list(inputs[0]);
-
-        size_t length = list->size();
+        size_t length = list->length();
 
         std::vector<int> indices;
         for (size_t i = 0; i < length; i++)
         {
             indices.push_back((int)i);
         }
-        std::shuffle(indices.begin(), indices.end(), StohasticOperation::create_generator(inputs[1]));
+        std::shuffle(indices.begin(), indices.end(), create_generator(seed));
 
-        return std::make_shared<MappedList>(list, indices);
+        return create<MappedList>(list, indices);
     }
 
-    REGISTER_OPERATION_FUNCTION_WITH_BASE("list_permute", ListPermute, StohasticOperation);
+    PIXELPIPES_OPERATION_AUTO("list_permute", list_permute);
 
     /**
      * @brief Creates a random permutation of indices from 0 to length.
      *
      */
-    SharedToken MakePermutation(TokenList inputs)
+    TokenReference make_permutation(int length, int seed)
     {
 
-        VERIFY(inputs.size() == 2, "Incorrect number of parameters");
-
-        size_t length = (size_t)Integer::get_value(inputs[0]);
-
         std::vector<int> indices;
-        for (size_t i = 0; i < length; i++)
+        for (size_t i = 0; i < (size_t)length; i++)
         {
             indices.push_back((int)i);
         }
-        std::shuffle(indices.begin(), indices.end(), StohasticOperation::create_generator(inputs[1]));
+        std::shuffle(indices.begin(), indices.end(), create_generator(seed));
 
-        return std::make_shared<IntegerList>(make_span(indices));
+        return create<IntegerVector>(make_span(indices));
     }
 
-    REGISTER_OPERATION_FUNCTION_WITH_BASE("list_permutation", MakePermutation, StohasticOperation);
+    PIXELPIPES_OPERATION_AUTO("list_permutation", make_permutation);
 
     /**
      * @brief Returns a scalar length of an input list.
      *
      */
-    SharedToken ListLength(TokenList inputs)
+    int list_length(const ListReference &list)
     {
-
-        VERIFY(inputs.size() == 1, "Incorrect number of parameters");
-
-        SharedList list = List::get_list(inputs[0]);
-
-        return std::make_shared<Integer>((int)list->size());
+        return (int)list->length();
     }
 
-    REGISTER_OPERATION_FUNCTION("list_length", ListLength);
+    PIXELPIPES_OPERATION_AUTO("list_length", list_length);
 
-    /**
-     * @brief Compares a list to a list or scalar. Returns a list of integer 0 or 1.
-     *
-     */
-    SharedToken ListCompare(TokenList inputs, ComparisonOperation operation)
+    template <typename Op, typename F, typename R>
+    TokenReference list_elementwise_binary(const Sequence<F>& a, const Sequence<F>& b)
     {
+        Op operation;
 
-        VERIFY(inputs.size() == 2, "Incorrect number of parameters");
+        if (a.size() != b.size())
+            throw TypeException("List length mismatch");
 
-        VERIFY(List::is_list(inputs[0], IntegerIdentifier) || List::is_list(inputs[0], FloatIdentifier), "Not an numeric list");
+        Sequence<R> result(a.size());
 
-        SharedList a = List::get_list(inputs[0]);
-        SharedList b;
+        for (size_t i = 0; i < a.size(); i++)
+            result[i] = (operation(a[i], b[i]));
 
-        if (inputs[1]->type_id() == IntegerIdentifier || inputs[1]->type_id() == FloatIdentifier)
-        {
-            b = std::make_shared<ConstantList>(inputs[1], a->size());
-        }
-        else if (List::is_list(inputs[1], IntegerIdentifier) || List::is_list(inputs[1], FloatIdentifier))
-        {
-            throw TypeException("Not an numeric list");
-        }
-        else
-        {
-            b = List::get_list(inputs[1]);
-        }
-
-        if (a->size() != b->size())
-            throw TypeException("Filter length mismatch");
-
-        std::vector<int> result;
-        result.reserve(a->size());
-
-        switch (operation)
-        {
-        case ComparisonOperation::EQUAL:
-        {
-            for (size_t i = 0; i < a->size(); i++)
-            {
-                result.push_back(Float::get_value(a->get(i)) == Float::get_value(b->get(i)));
-            }
-            break;
-        }
-        case ComparisonOperation::NOT_EQUAL:
-        {
-            for (size_t i = 0; i < a->size(); i++)
-            {
-                result.push_back(Float::get_value(a->get(i)) != Float::get_value(b->get(i)));
-            }
-            break;
-        }
-        case ComparisonOperation::LOWER:
-        {
-            for (size_t i = 0; i < a->size(); i++)
-            {
-                result.push_back(Float::get_value(a->get(i)) < Float::get_value(b->get(i)));
-            }
-            break;
-        }
-        case ComparisonOperation::LOWER_EQUAL:
-        {
-            for (size_t i = 0; i < a->size(); i++)
-            {
-                result.push_back(Float::get_value(a->get(i)) <= Float::get_value(b->get(i)));
-            }
-            break;
-        }
-        case ComparisonOperation::GREATER:
-        {
-            for (size_t i = 0; i < a->size(); i++)
-            {
-                result.push_back(Float::get_value(a->get(i)) > Float::get_value(b->get(i)));
-            }
-            break;
-        }
-        case ComparisonOperation::GREATER_EQUAL:
-        {
-            for (size_t i = 0; i < a->size(); i++)
-            {
-                result.push_back(Float::get_value(a->get(i)) >= Float::get_value(b->get(i)));
-            }
-            break;
-        }
-        }
-
-        return std::make_shared<IntegerList>(make_span(result));
+        return wrap(result);
     }
 
-    REGISTER_OPERATION_FUNCTION("list_compare", ListCompare, ComparisonOperation);
+#define list_sum list_elementwise_binary<std::plus<float>, float, float>
+    PIXELPIPES_OPERATION_AUTO("list_sum", list_sum);
 
-    SharedToken ListLogical(TokenList inputs, LogicalOperation operation)
+#define list_minus list_elementwise_binary<std::minus<float>, float, float>
+    PIXELPIPES_OPERATION_AUTO("list_minus", list_minus);
+
+#define list_multiply list_elementwise_binary<std::multiplies<float>, float, float>
+    PIXELPIPES_OPERATION_AUTO("list_multiply", list_multiply);
+
+#define list_divide list_elementwise_binary<std::divides<float>, float, float>
+    PIXELPIPES_OPERATION_AUTO("list_divide", list_divide);
+
+#define list_modulus list_elementwise_binary<std::modulus<int>, int, int>
+    PIXELPIPES_OPERATION_AUTO("list_modulus", list_modulus);
+
+#define list_compare_equal list_elementwise_binary<std::equal_to<float>, float, bool>
+    PIXELPIPES_OPERATION_AUTO("list_compare_equal", list_compare_equal);
+
+#define list_compare_not_equal list_elementwise_binary<std::not_equal_to<float>, float, bool>
+    PIXELPIPES_OPERATION_AUTO("list_compare_not_equal", list_compare_not_equal);
+
+#define list_compare_greater list_elementwise_binary<std::greater<float>, float, bool>
+    PIXELPIPES_OPERATION_AUTO("list_compare_greater", list_compare_greater);
+
+#define list_compare_less list_elementwise_binary<std::less<float>, float, bool>
+    PIXELPIPES_OPERATION_AUTO("list_compare_less", list_compare_less);
+
+#define list_compare_greater_equal list_elementwise_binary<std::greater_equal<float>, float, bool>
+    PIXELPIPES_OPERATION_AUTO("list_compare_greater_equal", list_compare_greater_equal);
+
+#define list_compare_less_equal list_elementwise_binary<std::less_equal<float>, float, bool>
+    PIXELPIPES_OPERATION_AUTO("list_compare_less_equal", list_compare_less_equal);
+
+    TokenReference list_logical_and(const Sequence<bool>& a, const Sequence<bool>& b)
     {
+        if (a.size() != b.size())
+            throw TypeException("List length mismatch");
 
-        switch (operation)
+        Sequence<bool> result(a.size());
+        for (size_t i = 0; i < a.size(); i++)
         {
-        case LogicalOperation::AND:
-        {
-            if (inputs.size() != 2)
-            {
-                throw TypeException("Incorrect number of parameters");
-            }
-
-            if (!(List::is_list(inputs[0], IntegerIdentifier) && List::is_list(inputs[1], IntegerIdentifier)))
-                throw TypeException("Not an integer list");
-
-            SharedList a = List::get_list(inputs[0]);
-            SharedList b = List::get_list(inputs[1]);
-
-            if (a->size() != b->size())
-                throw TypeException("Filter length mismatch");
-
-            std::vector<int> result;
-
-            for (size_t i = 0; i < a->size(); i++)
-            {
-                result.push_back((Integer::get_value(a->get(i)) != 0) && (Integer::get_value(b->get(i)) != 0));
-            }
-
-            return std::make_shared<IntegerList>(make_span(result));
-        }
-        case LogicalOperation::OR:
-        {
-            if (inputs.size() != 2)
-            {
-                throw TypeException("Incorrect number of parameters");
-            }
-
-            if (!(List::is_list(inputs[0], IntegerIdentifier) && List::is_list(inputs[1], IntegerIdentifier)))
-                throw TypeException("Not an integer list");
-
-            SharedList a = List::get_list(inputs[0]);
-            SharedList b = List::get_list(inputs[1]);
-
-            if (a->size() != b->size())
-                throw TypeException("Filter length mismatch");
-
-            std::vector<int> result;
-
-            for (size_t i = 0; i < a->size(); i++)
-            {
-                result.push_back((Integer::get_value(a->get(i)) != 0) || (Integer::get_value(b->get(i)) != 0));
-            }
-
-            return std::make_shared<IntegerList>(make_span(result));
-        }
-        case LogicalOperation::NOT:
-        {
-            if (inputs.size() != 1)
-            {
-                throw TypeException("Incorrect number of parameters");
-            }
-
-            if (!List::is_list(inputs[0], IntegerIdentifier))
-                throw TypeException("Not an integer list");
-
-            SharedList a = List::get_list(inputs[0]);
-
-            std::vector<int> result;
-
-            for (size_t i = 0; i < a->size(); i++)
-            {
-                result.push_back(!(Integer::get_value(a->get(i)) != 0));
-            }
-
-            return std::make_shared<IntegerList>(make_span(result));
-        }
+            result[i] = (a[i] && b[i]);
         }
 
-        return std::make_shared<IntegerList>();
+        return wrap(result);
     }
 
-    REGISTER_OPERATION_FUNCTION("logical", ListLogical, LogicalOperation);
+    PIXELPIPES_OPERATION_AUTO("list_logical_and", list_logical_and);
 
-    // TODO: support for integer operations
-    SharedToken ListArithmetic(TokenList inputs, ArithmeticOperation operation)
+    TokenReference list_logical_or(const Sequence<bool>& a, const Sequence<bool>& b)
     {
+        if (a.size() != b.size())
+            throw TypeException("List length mismatch");
 
-        VERIFY(inputs.size() == 2, "Incorrect number of parameters");
-
-        VERIFY(List::is_list(inputs[0], FloatIdentifier) && List::is_list(inputs[1], FloatIdentifier), "Not a float list");
-
-        SharedList a = List::get_list(inputs[0]);
-        SharedList b = List::get_list(inputs[1]);
-
-        if (a->size() != b->size())
-            throw TypeException("Filter length mismatch");
-
-        switch (operation)
+        Sequence<bool> result(a.size());
+        for (size_t i = 0; i < a.size(); i++)
         {
-        case ArithmeticOperation::ADD:
-        {
-
-            std::vector<float> result;
-
-            for (size_t i = 0; i < a->size(); i++)
-            {
-                result.push_back(Float::get_value(a->get(i)) + Float::get_value(b->get(i)));
-            }
-
-            return std::make_shared<FloatList>(make_span(result));
+            result[i] = (a[i] || b[i]);
         }
-        case ArithmeticOperation::SUBTRACT:
-        {
-            std::vector<float> result;
 
-            for (size_t i = 0; i < a->size(); i++)
-            {
-                result.push_back(Float::get_value(a->get(i)) - Float::get_value(b->get(i)));
-            }
-
-            return std::make_shared<FloatList>(make_span(result));
-        }
-        case ArithmeticOperation::MULTIPLY:
-        {
-            std::vector<float> result;
-
-            for (size_t i = 0; i < a->size(); i++)
-            {
-                result.push_back(Float::get_value(a->get(i)) * Float::get_value(b->get(i)));
-            }
-
-            return std::make_shared<FloatList>(make_span(result));
-        }
-        case ArithmeticOperation::DIVIDE:
-        {
-            std::vector<float> result;
-
-            for (size_t i = 0; i < a->size(); i++)
-            {
-                result.push_back(Float::get_value(a->get(i)) / Float::get_value(b->get(i)));
-            }
-
-            return std::make_shared<FloatList>(make_span(result));
-        }
-        case ArithmeticOperation::POWER:
-        {
-            std::vector<float> result;
-
-            for (size_t i = 0; i < a->size(); i++)
-            {
-                result.push_back(pow(Float::get_value(a->get(i)), Float::get_value(b->get(i))));
-            }
-
-            return std::make_shared<FloatList>(make_span(result));
-        }
-        case ArithmeticOperation::MODULO:
-        {
-            std::vector<float> result;
-
-            for (size_t i = 0; i < a->size(); i++)
-            {
-                result.push_back(fmod(Float::get_value(a->get(i)), Float::get_value(b->get(i))));
-            }
-
-            return std::make_shared<FloatList>(make_span(result));
-        }
-        default:
-            throw TypeException("Unsupported operation");
-        }
+        return wrap(result);
     }
 
-    REGISTER_OPERATION_FUNCTION("list_arithmetic", ListArithmetic, ArithmeticOperation);
+    PIXELPIPES_OPERATION_AUTO("list_logical_or", list_logical_or);
+
+    TokenReference list_logical_not(const Sequence<bool>& a)
+    {
+        Sequence<bool> result(a.size());
+        for (size_t i = 0; i < a.size(); i++)
+        {
+            result[i] = (!a[i]);
+        }
+
+        return wrap(result);
+    }
+
+    PIXELPIPES_OPERATION_AUTO("list_logical_not", list_logical_not);
 
     // TODO: better detecton of integer lists vs float
-    SharedToken ListBuild(TokenList inputs)
+    TokenReference list_build(const TokenList &inputs)
     {
 
         VERIFY(inputs.size() > 0, "No inputs");
 
-        if (inputs[0]->type_id() == IntegerIdentifier)
+        if (inputs[0]->shape().element() == IntegerIdentifier)
         {
 
             std::vector<int> result;
 
             for (size_t i = 0; i < inputs.size(); i++)
-            {
-                result.push_back(Integer::get_value(inputs[i]));
-            }
+                result.push_back(extract<int>(inputs[i]));
 
-            return std::make_shared<IntegerList>(make_span(result));
+            return create<IntegerVector>(make_span(result));
         }
         else
         {
@@ -820,23 +586,13 @@ namespace pixelpipes
 
             for (size_t i = 0; i < inputs.size(); i++)
             {
-                result.push_back(Float::get_value(inputs[i]));
+                result.push_back(extract<float>(inputs[i]));
             }
 
-            return std::make_shared<FloatList>(make_span(result));
+            return create<FloatVector>(make_span(result));
         }
     }
 
-    REGISTER_OPERATION_FUNCTION("list_build", ListBuild);
-    /*
-    SharedVariable RandomNumbers(std::vector<SharedVariable> inputs) {
+    PIXELPIPES_OPERATION("list_build", list_build);
 
-        VERIFY(inputs.size() == 3, "No inputs");
-
-        int n = Integer::get_value(inputs[0]);
-
-    }
-
-    REGISTER_OPERATION_FUNCTION("random_numbers", RandomNumbers);
-    */
 }

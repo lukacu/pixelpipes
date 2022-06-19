@@ -7,11 +7,11 @@
 #include <type_traits>
 #include <string_view>
 
-#include <pixelpipes/base.hpp>
+#include <pixelpipes/details/utilities.hpp>
 
 namespace pixelpipes {
 
-namespace detail {
+namespace details {
 
 template <typename E>
 struct enum_range {
@@ -179,7 +179,7 @@ constexpr std::size_t values_count(const bool (&valid)[N]) noexcept {
 
 template <typename E, bool IsFlags, int Min, std::size_t... I>
 constexpr auto values(std::index_sequence<I...>) noexcept {
-  static_assert(std::is_enum_v<E>, "detail::values requires enum type.");
+  static_assert(std::is_enum_v<E>, "details::values requires enum type.");
   constexpr bool valid[sizeof...(I)] = {is_valid<E, value<E, Min, IsFlags>(I)>()...};
   constexpr std::size_t count = values_count(valid);
 

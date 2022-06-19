@@ -37,7 +37,7 @@ class ImageNoise(Macro):
 
             noise = NormalNoise(width=width, height=height, mean=0, std=inputs["amount"], seed=inputs["seed"])
 
-            ConvertDepth(ConvertDepth(inputs["source"], "Double") + noise, depth="Byte", _name=parent)
+            ConvertDepth(ConvertDepth(inputs["source"], "Float") + noise, depth="Byte", _name=parent)
 
             return builder.nodes()
 

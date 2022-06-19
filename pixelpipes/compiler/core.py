@@ -255,10 +255,12 @@ class Compiler(object):
                 aliases[aliases.get(name, name)] = aliases.get(
                     node.source.name, node.source.name)
             elif isinstance(node, Constant):
-                if node.key() in values:
-                    aliases[aliases.get(name, name)] = values[node.key()]
-                else:
-                    values[node.key()] = aliases.get(name, name)
+                key = node.key()
+                if key is not None:
+                    if key in values:
+                        aliases[aliases.get(name, name)] = values[key]
+                    else:
+                        values[key] = aliases.get(name, name)
 
         if not output_nodes:
             raise CompilerException("No output selected or available")

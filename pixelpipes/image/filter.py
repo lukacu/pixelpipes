@@ -1,7 +1,5 @@
 
-from attributee import Boolean, Enumeration
-
-from ..graph import GraphBuilder, Input, Macro, Node, Reference
+from ..graph import EnumerationInput, GraphBuilder, Input, Macro, Node, Reference
 from .. import types
 from ..image import BorderStrategy
 from  .geometry import Transpose
@@ -19,7 +17,7 @@ class GaussianKernel(Node):
     size = Input(types.Integer())
 
     def operation(self):
-        return "image:gaussian_kernel",
+        return "opencv:gaussian_kernel",
 
     def validate(self, **inputs):
         super().validate(**inputs)
@@ -39,7 +37,7 @@ class UniformKernel(Node):
     size = Input(types.Integer())
 
     def operation(self):
-        return "image:uniform_kernel",
+        return "opencv:uniform_kernel",
 
     def validate(self, **inputs):
         super().validate(**inputs)
@@ -63,7 +61,7 @@ class MedianBlur(Node):
     size = Input(types.Integer())
     
     def operation(self):
-        return "image:median_blur",
+        return "opencv:median_blur",
 
     def validate(self, **inputs):
         super().validate(**inputs)
@@ -93,7 +91,7 @@ class BilateralFilter(Node):
     sigma_space = Input(types.Float())
     
     def operation(self):
-        return "image:bilateral_filter",
+        return "opencv:bilateral_filter",
 
     def validate(self, **inputs):
         super().validate(**inputs)
@@ -117,10 +115,10 @@ class LinearFilter(Node):
 
     source = Input(types.Image())
     kernel = Input(types.Image(channels=1, depth=32))
-    border = Enumeration(BorderStrategy, default="Reflect")
+    border = EnumerationInput(BorderStrategy, default="Reflect")
 
     def operation(self):
-        return "image:linear_filter", self.border
+        return "opencv:linear_filter", 
 
     def validate(self, **inputs):
         super().validate(**inputs)
@@ -146,7 +144,7 @@ class GaussianFilter(Macro):
     source = Input(types.Image())
     size_x = Input(types.Integer())
     size_y = Input(types.Integer())
-    border = Enumeration(BorderStrategy, default="Reflect")
+    border = EnumerationInput(BorderStrategy, default="Reflect")
 
     def validate(self, **inputs):
         super().validate(**inputs)
@@ -185,7 +183,7 @@ class AverageFilter(Macro):
     source = Input(types.Image())
     size_x = Input(types.Integer())
     size_y = Input(types.Integer())
-    border = Enumeration(BorderStrategy, default="Reflect")
+    border = EnumerationInput(BorderStrategy, default="Reflect")
 
     def validate(self, **inputs):
         super().validate(**inputs)

@@ -13,7 +13,9 @@
 #include <filesystem>
 
 #include <pixelpipes/pipeline.hpp>
+#include <pixelpipes/buffer.hpp>
 #include <pixelpipes/serialization.hpp>
+#include <pixelpipes/operation.hpp>
 
 using namespace std;
 using namespace std::chrono;
@@ -21,25 +23,24 @@ using namespace std::chrono;
 namespace pixelpipes
 {
 
-    template <> std::filesystem::path extract(SharedToken t)
+    template <>
+    std::filesystem::path extract(const TokenReference &t)
     {
         return std::filesystem::path(extract<std::string>(t));
     }
 
     template <>
-    SharedToken wrap(std::filesystem::path value)
+    TokenReference wrap(std::filesystem::path value)
     {
         return wrap(value.string());
     }
 
-    PipelineException::PipelineException(std::string reason, int operation) : BaseException(std::string(reason.c_str()) + std::string(" (operation ") + std::to_string(operation) + std::string(")")), _operation(operation) {}
+    PipelineException::PipelineException(std::string reason) : BaseException(std::string(reason.c_str())) {}
 
-    int PipelineException::operation() const throw()
+    OperationException::OperationException(std::string reason, const OperationReference& reference, int position) : PipelineException(std::string(reason.c_str()) + std::string(" (operation ") + operation_name(reference) + ", " + std::to_string(position) + std::string(")")), _position(position) {}
+
+    struct DNF::State
     {
-        return _operation;
-    }
-
-    struct DNF::State {
         std::vector<std::vector<bool>> clauses;
     };
 
@@ -48,8 +49,8 @@ namespace pixelpipes
     DNF::DNF(const DNF &) = default;
     DNF::DNF(DNF &&) = default;
 
-    DNF& DNF::operator=(const DNF &) = default;
-    DNF& DNF::operator=(DNF &&) = default;
+    DNF &DNF::operator=(const DNF &) = default;
+    DNF &DNF::operator=(DNF &&) = default;
 
     DNF::~DNF() = default;
 
@@ -114,7 +115,7 @@ namespace pixelpipes
             bool result = true;
             for (bool negate : state->clauses[i])
             {
-                result &= (*v) && (Boolean::get_value(*v) != negate);
+                result &= (*v) && (extract<bool>(*v) != negate);
                 if (!result)
                 {
                     v = offset + state->clauses[i].size();
@@ -131,27 +132,26 @@ namespace pixelpipes
         return false;
     }
 
-    template<> DNF extract(const SharedToken v) {
-        VERIFY((bool) v, "Uninitialized variable");
-
-        VERIFY(v->type_id() == DNFType, "Illegal type");
-
-        auto container = std::static_pointer_cast<ContainerToken<DNF>>(v);
-        return container->get();
-        
+    template <>
+    inline DNF extract(const TokenReference &v)
+    {
+        VERIFY((bool)v, "Uninitialized token");
+        VERIFY(v->is<ContainerToken<DNF>>(), "Incorrect token type, expected DNF");
+        return v->cast<ContainerToken<DNF>>()->get();
     }
 
-    template<> SharedToken wrap(const DNF v) {
-        return std::make_shared<ContainerToken<DNF>>(v);
+    template <>
+    inline TokenReference wrap(DNF v)
+    {
+        return create<ContainerToken<DNF>>(v);
     }
 
-    PIXELPIPES_REGISTER_TYPE(DNFType, "dnf");
-
-    PIXELPIPES_REGISTER_WRITER(DNFType, [](SharedToken v, std::ostream &target)
-                               { ContainerToken<DNF>::get_value(v).write(target); });
-
-    PIXELPIPES_REGISTER_READER(DNFType, [](std::istream &source)
-                               { return wrap(DNF(source)); });
+    PIXELPIPES_REGISTER_SERIALIZER(
+        GetTypeIdentifier<ContainerToken<DNF>>(), "_dnf_",
+        [](std::istream &source)
+        { return wrap(DNF(source)); },
+        [](const TokenReference &v, std::ostream &target)
+        { extract<DNF>(v).write(target); });
 
     class Output : public Operation
     {
@@ -159,7 +159,7 @@ namespace pixelpipes
         Output(std::string label) : label(label) {}
         virtual ~Output() = default;
 
-        virtual SharedToken run(TokenList inputs)
+        virtual TokenReference run(const TokenList &inputs)
         {
 
             VERIFY(inputs.size() == 1, "One input required");
@@ -177,11 +177,13 @@ namespace pixelpipes
             return GetTypeIdentifier<Output>();
         }
 
+        virtual Sequence<TokenReference> serialize() { return Sequence<TokenReference>({wrap(label)}); }
+
     private:
         std::string label;
     };
 
-    REGISTER_OPERATION("_output", Output, std::string);
+    PIXELPIPES_OPERATION_CLASS("_output", Output, std::string);
 
     class Jump : public Operation
     {
@@ -195,12 +197,12 @@ namespace pixelpipes
 
         ~Jump() = default;
 
-        virtual SharedToken run(TokenList inputs)
+        virtual TokenReference run(const TokenList &inputs)
         {
 
             VERIFY(inputs.size() == 1, "Incorrect number of parameters");
 
-            return make_shared<Integer>(offset);
+            return create<IntegerScalar>(offset);
         }
 
         virtual TypeIdentifier type()
@@ -208,21 +210,25 @@ namespace pixelpipes
             return GetTypeIdentifier<Jump>();
         };
 
+        virtual Sequence<TokenReference> serialize() { return Sequence<TokenReference>({wrap(offset)}); }
+
     protected:
         int offset;
     };
 
-    REGISTER_OPERATION("_jump", Jump, int);
+    PIXELPIPES_OPERATION_CLASS("_jump", Jump, int);
 
     class Constant : public Operation
     {
     public:
-        Constant(SharedToken value) : value(value) {}
+        Constant(const TokenReference &value) : value(value.reborrow()) {
+            VERIFY((bool) value, "Constant value undefined");
+        }
 
-        virtual SharedToken run(TokenList inputs)
+        virtual TokenReference run(const TokenList &inputs)
         {
             UNUSED(inputs);
-            return value;
+            return value.reborrow();
         }
 
         virtual TypeIdentifier type()
@@ -230,11 +236,13 @@ namespace pixelpipes
             return GetTypeIdentifier<Constant>();
         }
 
+        virtual Sequence<TokenReference> serialize() { return Sequence<TokenReference>({value.reborrow()}); }
+
     private:
-        SharedToken value;
+        TokenReference value;
     };
 
-    REGISTER_OPERATION("_constant", Constant, SharedToken);
+    PIXELPIPES_OPERATION_CLASS("_constant", Constant, TokenReference);
 
     class ConditionalJump : public Jump
     {
@@ -246,21 +254,25 @@ namespace pixelpipes
         }
         ~ConditionalJump() = default;
 
-        virtual SharedToken run(TokenList inputs)
+        virtual TokenReference run(const TokenList &inputs)
         {
 
-            if (condition.compute(inputs.slice(2, inputs.size() - 2))) {
-                return make_shared<Integer>(0);
-            } else {
-                return make_shared<Integer>(offset);
+            if (condition.compute(inputs.slice(2, inputs.size() - 2)))
+            {
+                return create<IntegerScalar>(0);
             }
-
+            else
+            {
+                return create<IntegerScalar>(offset);
+            }
         }
 
         virtual TypeIdentifier type()
         {
             return GetTypeIdentifier<ConditionalJump>();
         }
+
+        virtual Sequence<TokenReference> serialize() { return Sequence<TokenReference>({wrap(condition)}); }
 
     private:
         DNF condition;
@@ -277,21 +289,25 @@ namespace pixelpipes
 
         ~Conditional() = default;
 
-        virtual SharedToken run(TokenList inputs)
+        virtual TokenReference run(const TokenList &inputs)
         {
 
-            if (condition.compute(inputs.slice(2, inputs.size() - 2))) {
-                return inputs[0];
-            } else {
-                return inputs[1];
+            if (condition.compute(inputs.slice(2, inputs.size() - 2)))
+            {
+                return inputs[0].reborrow();
             }
-
+            else
+            {
+                return inputs[1].reborrow();
+            }
         }
 
         virtual TypeIdentifier type()
         {
             return GetTypeIdentifier<Conditional>();
         }
+
+        virtual Sequence<TokenReference> serialize() { return Sequence<TokenReference>({wrap(condition)}); }
 
     private:
         DNF condition;
@@ -303,10 +319,10 @@ namespace pixelpipes
         ContextQuery(ContextData query) : query(query) {}
         ~ContextQuery() = default;
 
-        virtual SharedToken run(TokenList inputs)
+        virtual TokenReference run(const TokenList &inputs)
         {
             UNUSED(inputs);
-            return empty<Integer>();
+            return empty<IntegerScalar>();
         }
 
         ContextData get_query()
@@ -318,6 +334,8 @@ namespace pixelpipes
         {
             return GetTypeIdentifier<ContextQuery>();
         }
+
+        virtual Sequence<TokenReference> serialize() { return Sequence<TokenReference>({wrap(query)}); }
 
     protected:
         ContextData query;
@@ -331,58 +349,60 @@ namespace pixelpipes
         }
         ~DebugOutput() = default;
 
-        virtual SharedToken run(TokenList inputs)
+        virtual TokenReference run(const TokenList &inputs)
         {
 
             VERIFY(inputs.size() == 1, "Only one input supported for debug");
 
-            std::cout << prefix << *inputs[0] << std::endl;
+            std::cout << prefix << inputs[0]->describe() << std::endl;
 
-            return inputs[0];
+            return inputs[0].reborrow();
         }
+
+        virtual Sequence<TokenReference> serialize() { return Sequence<TokenReference>({wrap(prefix)}); }
 
     protected:
         std::string prefix;
     };
 
-    REGISTER_OPERATION("_context", ContextQuery, ContextData);
+    PIXELPIPES_OPERATION_CLASS("_context", ContextQuery, ContextData);
 
-    REGISTER_OPERATION("_cjump", ConditionalJump, DNF, int);
+    PIXELPIPES_OPERATION_CLASS("_cjump", ConditionalJump, DNF, int);
 
-    REGISTER_OPERATION("_condition", Conditional, DNF);
+    PIXELPIPES_OPERATION_CLASS("_condition", Conditional, DNF);
 
-    REGISTER_OPERATION("_debug", DebugOutput, std::string);
+    PIXELPIPES_OPERATION_CLASS("_debug", DebugOutput, std::string);
 
-    struct Pipeline::State {
+    struct Pipeline::State
+    {
         bool finalized;
 
-        std::vector<SharedToken> cache;
+        std::vector<TokenReference> cache;
 
         std::vector<OperationData> operations;
 
         std::vector<OperationStats> stats;
 
         std::vector<std::string> labels;
-
     };
 
-    void Pipeline::StateDeleter::operator()(State* p) const {
-        //std::cout << "Delete " << std::endl;
+    void Pipeline::StateDeleter::operator()(State *p) const
+    {
+        // std::cout << "Delete " << std::endl;
         delete p;
     }
 
-
-    Pipeline::Pipeline() : state(new Pipeline::State()) {
-
+    Pipeline::Pipeline() : state(new Pipeline::State())
+    {
     }
 
-    //Pipeline::Pipeline(const Pipeline &) = default;
-    Pipeline::Pipeline(Pipeline && other) = default;
+    // Pipeline::Pipeline(const Pipeline &) = default;
+    Pipeline::Pipeline(Pipeline &&other) = default;
 
-    //Pipeline& Pipeline::operator=(const Pipeline &) = default;
-    //Pipeline& Pipeline::operator=(Pipeline &&) = default;
+    // Pipeline& Pipeline::operator=(const Pipeline &) = default;
+    // Pipeline& Pipeline::operator=(Pipeline &&) = default;
 
-    Pipeline& Pipeline::operator=(Pipeline && other) = default;
+    Pipeline &Pipeline::operator=(Pipeline &&other) = default;
 
     Pipeline::~Pipeline() = default;
 
@@ -401,58 +421,68 @@ namespace pixelpipes
         }
     }
 
-    int Pipeline::append(std::string name, TokenList args, Span<int> inputs)
+    int Pipeline::append(std::string name, const TokenList &args, const Span<int> &inputs)
     {
 
         if (state->finalized)
-            throw PipelineException("Pipeline is finalized", -1);
+            throw PipelineException("Pipeline is finalized");
 
-        SharedOperation operation = create_operation(name, args);
+        OperationReference operation = create_operation(name, args);
 
         for (int i : inputs)
         {
             if (i >= (int)state->operations.size() || i < 0)
-                throw PipelineException("Operation index out of bounds", -1);
+                throw OperationException("Operation index out of bounds", operation, state->operations.size());
 
             if ((state->operations[i].first->type()) == GetTypeIdentifier<Output>())
             {
-                throw PipelineException("Cannot refer to output operation", -1);
+                throw OperationException("Cannot refer to output operation", operation, state->operations.size());
             }
         }
 
-        state->operations.push_back(pair<SharedOperation, std::vector<int>>(operation, std::vector<int>(inputs.begin(), inputs.end())));
+        state->operations.push_back(pair<OperationReference, std::vector<int>>(std::move(operation), std::vector<int>(inputs.begin(), inputs.end())));
 
         if ((state->operations.back().first->type()) == GetTypeIdentifier<Output>())
         {
-            auto output = std::static_pointer_cast<Output>(state->operations.back().first);
+            auto label = (state->operations.back().first.get_as<Output>())->get_label();
             for (size_t i = 0; i < inputs.size(); i++)
-                state->labels.push_back(output->get_label());
+                state->labels.push_back(label);
         }
 
-        return (int) (state->operations.size() - 1);
+        return (int)(state->operations.size() - 1);
     }
 
-    std::vector<std::string> Pipeline::get_labels()
+    Sequence<std::string> Pipeline::get_labels() const
     {
 
         if (!state->finalized)
-            throw PipelineException("Pipeline not finalized", -1);
+            throw PipelineException("Pipeline not finalized");
 
-        return std::vector<std::string>(state->labels.begin(), state->labels.end());
+        return Sequence<std::string>(state->labels);
     }
 
-    Sequence<SharedToken> Pipeline::run(unsigned long index)
+    size_t Pipeline::size() const
+    {
+        return state->operations.size();
+    }
+
+    Pipeline::OperationData Pipeline::get(size_t i) const
+    {
+        return {state->operations[i].first.reborrow(), state->operations[i].second};
+    }
+
+    Sequence<TokenReference> Pipeline::run(unsigned long index)
     {
 
-        vector<SharedToken> context;
-        vector<SharedToken> result;
+        vector<TokenReference> context;
+        vector<TokenReference> result;
 
         if (!state->finalized)
-            throw PipelineException("Pipeline not finalized", -1);
+            throw PipelineException("Pipeline not finalized");
 
         // auto start = high_resolution_clock::now();
 
-        context.resize(state->operations.size(), SharedToken());
+        context.resize(state->operations.size());
 
         size_t i = 0;
 
@@ -463,21 +493,21 @@ namespace pixelpipes
 
             if (state->cache[i])
             {
-                context[i] = state->cache[i];
+                context[i] = state->cache[i].reborrow();
                 if ((state->operations[i].first->type()) == GetTypeIdentifier<Output>())
                 {
-                    result.push_back(state->cache[i]);
+                    result.push_back(state->cache[i].reborrow());
                 }
                 i++;
                 continue;
             }
 
-            vector<SharedToken> local;
+            vector<TokenReference> local;
             local.reserve(state->operations[i].second.size());
 
             for (int j : state->operations[i].second)
             {
-                local.push_back(context[j]);
+                local.push_back(context[j].reborrow());
             }
 
             try
@@ -487,41 +517,38 @@ namespace pixelpipes
                 auto output = state->operations[i].first->run(make_span(local));
                 auto operation_end = high_resolution_clock::now();
 
-
                 if ((state->operations[i].first->type()) == GetTypeIdentifier<ContextQuery>())
                 {
-                    switch (std::static_pointer_cast<ContextQuery>(state->operations[i].first)->get_query())
+                    switch ((state->operations[i].first.get_as<ContextQuery>())->get_query())
                     {
                     case ContextData::SampleIndex:
                     {
-                        output = make_shared<Integer>(index);
+                        output = create<IntegerScalar>(index);
                         break;
                     }
                     case ContextData::OperationIndex:
                     {
-                        output = make_shared<Integer>((int)i);
+                        output = create<IntegerScalar>((int)i);
                         break;
                     }
                     case ContextData::RandomSeed:
                     {
-                        output = make_shared<Integer>(generator());
+                        output = create<IntegerScalar>(generator());
                         break;
                     }
                     default:
-                        throw PipelineException("Illegal query", (int) i);
+                        throw OperationException("Illegal query", state->operations[i].first, (int)i);
                     }
                 }
 
-                context[i] = output;
-
                 state->stats[i].count++;
-                state->stats[i].elapsed += (unsigned long) duration_cast<microseconds>(operation_end - operation_start).count();
+                state->stats[i].elapsed += (unsigned long)duration_cast<microseconds>(operation_end - operation_start).count();
 
                 if ((state->operations[i].first)->type() == GetTypeIdentifier<Output>())
                 {
-                    for (auto x : local)
+                    for (auto x = local.begin(); x != local.end(); x++)
                     {
-                        result.push_back(x);
+                        result.push_back(std::move(*x));
                     }
                     i++;
                     continue;
@@ -529,15 +556,17 @@ namespace pixelpipes
 
                 if (!output)
                 {
-                    throw OperationException("Operation output undefined", state->operations[i].first);
+                    throw OperationException("Operation output undefined", state->operations[i].first, (int)i);
                 }
+
+                context[i] = std::move(output);
 
                 if ((state->operations[i].first)->type() == GetTypeIdentifier<Jump>())
                 {
-                    size_t jump = (size_t)Integer::get_value(context[i]);
+                    size_t jump = (size_t)extract<int>(context[i]);
 
                     if ((i + jump) >= state->operations.size())
-                        throw PipelineException("Unable to execute jump", (int) i);
+                        throw PipelineException("Unable to execute jump");
 
                     i += 1 + jump;
                     continue;
@@ -560,7 +589,7 @@ namespace pixelpipes
                     }
                     k++;
                 }
-                throw PipelineException(e.what(), (int) i);
+                throw OperationException(e.what(), state->operations[i].first, (int)i);
             }
 
             i++;
@@ -568,7 +597,9 @@ namespace pixelpipes
 
         VERIFY(result.size() == state->labels.size(), "Output mismatch");
 
-        return result;
+        auto r = Sequence<TokenReference>(result);
+
+        return r;
     }
 
     std::vector<float> Pipeline::operation_time()
@@ -673,4 +704,6 @@ namespace pixelpipes
 
     }
     */
+
+    PIXELPIPES_REGISTER_ENUM("context", ContextData);
 }

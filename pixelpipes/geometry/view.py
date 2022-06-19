@@ -25,7 +25,7 @@ class TranslateView(Node):
         return View()
 
     def operation(self):
-        return "geometry:translate",
+        return "opencv:translate_view2d",
 
 class RotateView(Node):
     """Rotate View
@@ -44,7 +44,7 @@ class RotateView(Node):
         return View()
 
     def operation(self):
-        return "geometry:rotate",
+        return "opencv:rotate_view2d",
 
 class ScaleView(Node):
     """Scale View
@@ -65,7 +65,7 @@ class ScaleView(Node):
         return View()
 
     def operation(self):
-        return "geometry:scale",
+        return "opencv:scale_view2d",
 
 class IdentityView(Node):
     """Identity View
@@ -79,7 +79,7 @@ class IdentityView(Node):
         return View()
 
     def operation(self):
-        return "geometry:identity",
+        return "opencv:identity",
 
 class Chain(Node):
     """Chain views
@@ -112,7 +112,7 @@ class Chain(Node):
         return config
 
     def operation(self):
-        return "geometry:chain",
+        return "opencv:chain_view2d",
 
 class AffineView(Macro):
     """Affine View
@@ -167,7 +167,7 @@ class CenterView(Node):
         return View()
 
     def operation(self):
-        return "geometry:center_view",
+        return "center_view",
 
 class FocusView(Node):
     """Focus View
@@ -188,6 +188,6 @@ class FocusView(Node):
         return View()
 
     def operation(self):
-        return "geometry:focus_view",
+        return "focus_view",
 
 # TODO: register arithmetic operations

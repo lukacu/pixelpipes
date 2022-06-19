@@ -1,16 +1,18 @@
 
+import inspect
 import typing
 import threading
 import numbers
 import traceback
 from enum import Enum, auto
+import numpy as np
 
 import bidict
 
-from attributee import Attributee, Attribute, AttributeException, Undefined
+from attributee import Attributee, Attribute, AttributeException, Undefined, Any, Enumeration
 from attributee.containers import ReadonlyMapping
 from attributee.object import class_fullname
-from attributee.primitives import Enumeration, to_number, Number, String
+from attributee.primitives import to_number, to_logical, to_string, String
 
 import pixelpipes.types as types
 
@@ -83,7 +85,7 @@ class Input(Attribute):
     def __init__(self, reftype: types.Type, default: typing.Optional[typing.Union[str, float, int]] = None, description: typing.Optional[str] = ""):
         self._type = reftype
         assert isinstance(reftype, types.Type)
-        assert default is None or isinstance(default, (int, float)) or Reference.parse(default) is not None, "Default should be none or number or a reference: %s" % default
+        assert default is None or isinstance(default, (int, float, bool, str)) or Reference.parse(default) is not None, "Default should be a primitive type or a reference: %s" % default
         super().__init__(default = Undefined() if default is None else default, description=description)
 
     def coerce(self, value, _):
@@ -113,6 +115,12 @@ class Input(Attribute):
         if self._type.castable(types.Integer()):
             return to_number(value, conversion=int)
 
+        if self._type.castable(types.Boolean()):
+            return to_logical(value)
+
+        if self._type.castable(types.String()):
+            return to_string(value)
+
         raise AttributeException("Illegal value: {}".format(value))
 
     def dump(self, value):
@@ -127,6 +135,43 @@ class SeedInput(Input):
     
     def __init__(self, description=""):
         super().__init__(types.Integer(), default="@[random]", description=description)
+
+class EnumerationInput(Input):
+    
+    def __init__(self, options, default=None, description=""):
+        if inspect.isclass(options) and issubclass(options, Enum):
+            self._mapping = options
+        elif isinstance(options, typing.Mapping):
+            self._mapping = options
+            self._inverse = {v: k for k, v in options.items()}
+        else:
+            raise AttributeException("Not an enum class or dictionary")
+        super().__init__(types.Integer(), default=default, description=description)
+
+    def coerce(self, value, _):
+        if isinstance(value, Node):
+            from pixelpipes.graph import GraphBuilder
+            builder = GraphBuilder.default()
+            if builder is not None:
+                return builder.reference(value)
+            else:
+                raise AttributeException("Unable to resolve node's reference")
+
+        if isinstance(value, Reference):
+            return value
+
+        if value not in self._mapping:
+            raise AttributeException("Illegal value: {}".format(value))
+
+        return self._mapping[value]
+
+    def dump(self, value):
+        if isinstance(value, Reference):
+            return str(value)
+        if inspect.isclass(self._mapping) and isinstance(value, self._mapping):
+            return value.value
+        else:
+            return self._inverse[value]
 
 _operation_registry = {}
 
@@ -708,7 +753,7 @@ class Constant(Node):
     node_description = "Outputs a constant number"
     node_category = "numeric"
 
-    value = Number(default=0)
+    value = Any()
 
     def operation(self):
         return "_constant", self.value
@@ -719,17 +764,28 @@ class Constant(Node):
     @staticmethod
     def resolve_type(value) -> types.Type:
         if isinstance(value, int):
-            return types.Integer(value)
-        else:
-            return types.Float(value)
+            return types.Integer()
+        elif isinstance(value, float):
+            return types.Float()
+        elif isinstance(value, str):
+            return types.String()
+        elif isinstance(value, bool):
+            return types.Boolean()
+        elif isinstance(value, np.ndarray):
+            return types.Image()
+        elif isinstance(value, list):
+            return types.List()
 
     def key(self):
-        typ = Constant.resolve_type(self.value)
-        if isinstance(typ, types.Integer):
-            return ("int", self.value)
-        else:
-            return ("float", self.value)
-
+        if isinstance(self.value, int):
+            return ("int", hash(self.value))
+        elif isinstance(self.value, float):
+            return ("float", hash(self.value))
+        elif isinstance(self.value, str):
+            return ("str", hash(self.value))
+        elif isinstance(self.value, bool):
+            return ("bool", hash(self.value))
+        return None
 
 class SampleIndex(Node):
     """Returns current sample index.

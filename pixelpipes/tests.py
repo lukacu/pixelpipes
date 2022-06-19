@@ -25,8 +25,7 @@ def compare_serialized(graph):
 
     os.close(tmpfd)
 
-    write_pipeline(tmpname, compiler.compile(graph))
-
+    write_pipeline(tmpname, pipeline1)
     pipeline2 = read_pipeline(tmpname)
 
     for i in range(1, 100):
@@ -52,7 +51,7 @@ class TestPipes(unittest.TestCase):
             n3 = Expression(source="((x ^ 2 - y) * 2) / 5 + 2", variables=dict(x=n1, y=n2))
             Output(n3)
 
-        pipeline = Compiler.build_graph(graph)
+        pipeline = Compiler().build(graph)
         output = pipeline.run(1)
 
         self.assertEqual(output[0], 6)
@@ -64,7 +63,7 @@ class TestPipes(unittest.TestCase):
             n2 = Constant(value=3)
             outputs(n1+n2, n1-n2, n1*n2, n1/n2, n1**n2, n1%n2, -n1)
 
-        pipeline = Compiler.build_graph(graph)
+        pipeline = Compiler().build(graph)
         output = pipeline.run(1)
 
         self.assertEqual(output[0], 9)
@@ -106,7 +105,7 @@ class TestPipes(unittest.TestCase):
 
         pipeline = Compiler.build_graph(graph)
         sample = pipeline.run(1)
-        np.testing.assert_array_equal(sample[0], [[0], [1], [2]])
+        np.testing.assert_array_equal(sample[0], [0, 1, 2])
 
     def test_core_ListRange(self):
 
@@ -117,8 +116,8 @@ class TestPipes(unittest.TestCase):
 
         pipeline = Compiler.build_graph(graph)
         sample = pipeline.run(1)
-        np.testing.assert_array_equal(sample[0], np.array([range(0, 10, 1)], dtype=np.int32).T)
-        np.testing.assert_array_equal(sample[1], np.array([range(0, 10, 1)], dtype=np.float32).T / 2)
+        np.testing.assert_array_equal(sample[0], np.array(range(0, 10, 1), dtype=np.int32))
+        np.testing.assert_array_equal(sample[1], np.array(range(0, 10, 1), dtype=np.float32) / 2)
 
     def test_core_ConstantTable(self):
 
@@ -238,7 +237,7 @@ class TestPipes(unittest.TestCase):
             a = FileList(files)
             outputs(ListElement(a, 0))
 
-        write_pipeline(tmpname, Compiler().compile(graph), relocatable=True)
+        write_pipeline(tmpname, Compiler().build(graph))
 
         pipeline = read_pipeline(tmpname)
 

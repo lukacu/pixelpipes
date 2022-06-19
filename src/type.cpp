@@ -11,12 +11,24 @@ namespace pixelpipes
 
 	// TODO: base exception impl probably does not belong here
 
+    BaseException::BaseException() : BaseException("")
+	{
+
+	}
+
 	BaseException::BaseException(std::string r) : reason(nullptr)
 	{
 
-		reason = new char[r.size()];
+		reason = new char[r.size()+1];
 		std::strcpy(reason, r.c_str());
 	}
+
+	BaseException::BaseException(const BaseException& e) : reason(nullptr)
+	{
+		reason = new char[strlen(e.what())+1];
+		std::strcpy(reason, e.what());
+	}
+
 
 	BaseException::~BaseException()
 	{
@@ -24,10 +36,22 @@ namespace pixelpipes
 			delete[] reason;
 	}
 
+    BaseException& BaseException::operator=( const BaseException& e ) noexcept {
+		if (reason)
+			delete[] reason;
+
+		reason = new char[strlen(e.what())];
+		std::strcpy(reason, e.what());
+		return *this;
+	}
+
+
 	const char *BaseException::what() const throw()
 	{
 		return reason;
 	}
+
+	IllegalStateException::IllegalStateException(std::string reason) : BaseException(reason) {}
 
 	TypeException::TypeException(std::string reason) : BaseException(reason) {}
 	/*
@@ -74,170 +98,276 @@ namespace pixelpipes
 			return data->text;
 		}
 	*/
-	typedef std::tuple<TypeName, SharedModule> TypeData;
-	typedef std::map<TypeIdentifier, TypeData> TypeMap;
 
-	TypeSize::TypeSize() : data(-1) {}
+#define IS_UNKNOWN(S) (S == (unknown))
 
-	TypeSize::TypeSize(int x) : data(x) {}
-
-	TypeSize::TypeSize(size_t x) : data((int)x) {}
-
-	TypeSize::TypeSize(const TypeSize &x) : data(x.data) {}
-
-	TypeSize TypeSize::operator+(const TypeSize &other) const
+	Size Size::operator+(const Size &other) const
 	{
-		if (data < 0 || other.data < 0)
-			return MIN(data, other.data);
+		if (IS_UNKNOWN(data) || IS_UNKNOWN(other.data))
+			return MAX(data, other.data);
 		return data + other.data;
 	}
 
-	TypeSize TypeSize::operator-(const TypeSize &other) const
+	Size Size::operator-(const Size &other) const
 	{
-		if (data < 0 || other.data < 0)
-			return MIN(data, other.data);
+		if (IS_UNKNOWN(data) || IS_UNKNOWN(other.data))
+			return MAX(data, other.data);
 		return data - other.data;
 	}
 
-	TypeSize TypeSize::operator*(const TypeSize &other) const
+	Size Size::operator*(const Size &other) const
 	{
-		if (data < 0 || other.data < 0)
-			return MIN(data, other.data);
+		if (IS_UNKNOWN(data) || IS_UNKNOWN(other.data))
+			return MAX(data, other.data);
 		return data * other.data;
 	}
 
-	TypeSize TypeSize::operator/(const TypeSize &other) const
+	Size Size::operator/(const Size &other) const
 	{
-		if (data < 0 || other.data < 0)
-			return MIN(data, other.data);
+		if (IS_UNKNOWN(data) || IS_UNKNOWN(other.data))
+			return MAX(data, other.data);
 		return data / other.data;
 	}
 
-	bool TypeSize::operator==(const TypeSize &other) const
+	Size Size::operator%(const Size &other) const
 	{
-		// if (data == -1 || other.data < 0)
+		if (IS_UNKNOWN(data) || IS_UNKNOWN(other.data))
+			return MAX(data, other.data);
+		return data % other.data;
+	}
 
+	bool Size::operator==(const Size &other) const
+	{
 		return data == other.data;
 	}
 
-	TypeMap &types()
+	bool Size::operator==(int v) const
 	{
-		static TypeMap map;
-		return map;
+		return data == (size_t)v;
 	}
 
-	Type::Type(const Type &t) : Type(t._element, t._shape)
+	bool Size::operator==(size_t v) const
+	{
+		return data == v;
+	}
+
+	Size::operator bool() const
+	{
+		return !IS_UNKNOWN(data);
+	}
+
+	Size Size::operator&(const Size &other) const
+	{
+		if (IS_UNKNOWN(data) || IS_UNKNOWN(other.data))
+			return unknown;
+
+		return Size(data == other.data ? data : unknown);
+	}
+	/*
+		TypeMap &types()
+		{
+			static TypeMap map;
+			return map;
+		}*/
+
+	Shape::Shape() : Shape(AnyType)
 	{
 	}
 
-	Type::Type(TypeIdentifier element) : Type(element, {})
+	Shape::Shape(TypeIdentifier element) : Shape(element, SizeSpan{})
 	{
 	}
 
-	Type::Type(TypeIdentifier element, const Span<TypeSize> shape) : _element(element), _shape(shape)
+	Shape::Shape(TypeIdentifier element, const View<Size>& shape) : _element(element), _shape(shape)
 	{
-		VERIFY((element & TensorIdentifierMask) == 0, "Only scalar element type identifiers allowed");
 	}
 
-	TypeIdentifier Type::element() const
+	Shape::Shape(TypeIdentifier element, const Sizes& shape) : _element(element), _shape(SizeSequence(shape))
+	{
+	}
+
+	TypeIdentifier Shape::element() const
 	{
 		return _element;
 	}
 
-	TypeName Type::name() const
+	Size Shape::operator[](size_t index) const
 	{
-		auto data = types().find(_element);
-		return std::get<0>(data->second);
+		if (index >= _shape.size())
+			return 1;
+		return _shape.at(index);
 	}
 
-	TypeSize Type::shape(size_t i) const
-	{
-		return _shape[i];
-	}
-
-	size_t Type::dimensions() const
+	size_t Shape::dimensions() const
 	{
 		return _shape.size();
 	}
 
-	bool Type::is_fixed() const
+	bool Shape::is_fixed() const
 	{
 		bool fixed = true;
-		for (auto d : _shape) {
+		for (const auto& d : _shape)
+		{
 			fixed &= d.data > 0;
 		}
 		return fixed;
 	}
 
-	bool Type::is_scalar() const
+	bool Shape::is_scalar() const
 	{
 		bool scalar = true;
-		for (auto d : _shape) {
+		for (auto d : std::as_const(_shape))
+		{
 			scalar &= d.data == 1;
 		}
 		return scalar;
 	}
 
-	void type_register(TypeIdentifier i, std::string_view name)
+	Shape Shape::push(Size s) const
+	{
+		std::vector<Size> _s;
+		_s.push_back(s);
+		_s.insert(_s.end(), _shape.begin(), _shape.end());
+
+		return Shape(element(), make_view(_s));
+	}
+
+	Shape Shape::pop() const
+	{
+		return Shape(element(), make_view(_shape, 1));
+	}
+
+	Shape Shape::operator&(const Shape &other) const
 	{
 
-		DEBUGMSG("Registering type %s (%ld) \n", std::string(name).data(), i);
+		std::vector<Size> _s;
 
-		if (types().find(i) != types().end())
+		TypeIdentifier e = (other.element() == element()) ? element() : AnyType;
+
+		size_t _d = MAX(dimensions(), other.dimensions());
+
+		_s.reserve(_d);
+
+		for (size_t i = 0; i < _d; i++)
 		{
-			throw TypeException("Type already registered");
+			_s.push_back(this->operator[](i) & other[i]);
 		}
 
-		for (auto d : types())
+		return Shape(e, make_span(_s));
+	}
+
+	bool Shape::operator==(const Shape &other) const
+	{
+		if (element() != other.element())
+			return false;
+
+		if (dimensions() != other.dimensions())
+			return false;
+
+		for (size_t i = 0; i < dimensions(); i++)
+		{
+			if ((size_t) this->operator[](i) != (size_t) other[i])
+				return false;
+		}
+
+		return true;
+	}
+	/*
+		void type_register(TypeIdentifier i, std::string_view name)
 		{
 
-			if (std::get<0>(d.second) == name)
+			DEBUGMSG("Registering type %s (%ld) \n", std::string(name).data(), i);
+
+			if (types().find(i) != types().end())
 			{
-				throw TypeException(Formatter() << "Type already registered with name " << name);
+				throw TypeException("Type already registered");
 			}
-		}
 
-		SharedModule source = Module::context();
-
-		types().insert(TypeMap::value_type{i, TypeData{name, source}});
-	}
-
-	TypeIdentifier type_find(TypeName name)
-	{
-		for (auto d : types())
-		{
-			if (std::get<0>(d.second) == name)
+			for (auto d = types().begin(); d != types().end(); d++)
 			{
-				return d.first;
+
+				if (std::get<0>(d->second) == name)
+				{
+					throw TypeException(Formatter() << "Type already registered with name " << name);
+				}
 			}
+
+			ModuleReference source = Module::context();
+
+			types().insert(TypeMap::value_type{i, TypeData{name, source.reborrow()}});
 		}
-		throw TypeException(Formatter() << "Type for name " << name << " not found");
+
+		TypeIdentifier type_find(TypeName name)
+		{
+			for (auto d = types().begin(); d != types().end(); d++)
+			{
+				if (std::get<0>(d->second) == name)
+				{
+					return d->first;
+				}
+			}
+			throw TypeException(Formatter() << "Type for name " << name << " not found");
+		}
+
+		ModuleReference type_source(TypeIdentifier i)
+		{
+
+			auto item = types().find(i);
+
+			if (item == types().end())
+			{
+				throw TypeException((Formatter() << "Unknown type identifier: " << i << "").str());
+			}
+
+			return std::get<1>(item->second).reborrow();
+		}
+
+		TypeName type_name(TypeIdentifier i)
+		{
+
+			auto item = types().find(i);
+
+			if (item == types().end())
+			{
+				return (Formatter() << "??? (" << i << ")").str();
+			}
+
+			return std::string(std::get<0>(item->second));
+		}
+	*/
+
+	typedef std::map<std::string, EnumerationMap> EnumerationRegistry;
+
+	EnumerationRegistry &_enum_registry()
+	{
+		static EnumerationRegistry map;
+		return map;
 	}
 
-	SharedModule type_source(TypeIdentifier i)
+	EnumerationMap describe_enumeration(std::string &name)
 	{
 
-		auto item = types().find(i);
+		auto item = _enum_registry().find(name);
 
-		if (item == types().end())
+		if (item == _enum_registry().end())
 		{
-			throw TypeException((Formatter() << "Unknown type identifier: " << i << "").str());
+
+			throw std::invalid_argument("Unknown enumeration");
 		}
 
-		return std::get<1>(item->second);
+		return item->second;
 	}
 
-	TypeName type_name(TypeIdentifier i)
+	void register_enumeration(const std::string &name, EnumerationMap mapping)
 	{
 
-		auto item = types().find(i);
+		auto item = _enum_registry().find(name);
 
-		if (item == types().end())
+		if (item == _enum_registry().end())
 		{
-			return (Formatter() << "??? (" << i << ")").str();
+			DEBUGMSG("Adding enumeration %s\n", name.c_str());
+			_enum_registry().insert(std::pair<std::string, EnumerationMap>(name, mapping));
 		}
-
-		return std::string(std::get<0>(item->second));
 	}
 
 }

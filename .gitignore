@@ -23,3 +23,5 @@ temp
 Debug
 *.ilk
 *.pdb
+*.gz
+*.idx?-ubyte

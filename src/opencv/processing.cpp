@@ -1,37 +1,26 @@
-#include <pixelpipes/image.hpp>
 
 #include "common.hpp"
 
 namespace pixelpipes {
 
+// TODO: make all element type specific loops templated
+
 /**
  * @brief Blends two images using alpha.
  * 
  */
-SharedToken ImageBlend(TokenList inputs) {
-
-    VERIFY(inputs.size() == 3, "Incorrect number of parameters");
-
-    cv::Mat image_0 = extract<cv::Mat>(inputs[0]);
-    cv::Mat image_1 = extract<cv::Mat>(inputs[1]);
-    float alpha = Float::get_value(inputs[2]);  
+cv::Mat blend(const cv::Mat& a, const cv::Mat& b, float alpha) {
+ 
     float beta = (1 - alpha);
-
     cv::Mat result;
-
-    cv::addWeighted(image_0, alpha, image_1, beta, 0.0, result);
-
-    return wrap(result);
+    cv::addWeighted(a, alpha, b, beta, 0.0, result);
+    return result;
 }
 
-REGISTER_OPERATION_FUNCTION("blend", ImageBlend);
+PIXELPIPES_OPERATION_AUTO("blend", blend);
 
 
-SharedToken ImageNormalize(TokenList inputs) {
-
-    VERIFY(inputs.size() == 1, "Incorrect number of parameters");
-
-    cv::Mat image = extract<cv::Mat>(inputs[0]);
+cv::Mat normalize(const cv::Mat& image) {
 
     VERIFY(image.channels() == 1, "Only single channel images accepted");
 
@@ -45,24 +34,18 @@ SharedToken ImageNormalize(TokenList inputs) {
 
     result = ((image - vmin) / (vmax - vmin)) * maxv;
 
-    return wrap(result);
+    return result;
 }
 
-REGISTER_OPERATION_FUNCTION("normalize", ImageNormalize);
-
+PIXELPIPES_OPERATION_AUTO("normalize", normalize);
 
 /**
  * @brief Sets image pixels to zero with probability P.
  * 
  */
-SharedToken ImageDropout(TokenList inputs) noexcept(false) {
+cv::Mat dropout(const cv::Mat& image, float dropout_p, int seed) noexcept(false) {
 
-    VERIFY(inputs.size() == 3, "Incorrect number of parameters");
-
-    cv::Mat image = extract<cv::Mat>(inputs[0]);
-    float dropout_p = Float::get_value(inputs[1]);
-
-	cv::RNG generator(Integer::get_value(inputs[2]));
+	cv::RNG generator(seed);
     cv::Mat result = image.clone();
 
     if (result.channels() == 1) {
@@ -109,23 +92,16 @@ SharedToken ImageDropout(TokenList inputs) noexcept(false) {
         }
     }
 
-    return wrap(result);
+    return result;
 }
 
-REGISTER_OPERATION_FUNCTION("dropout", ImageDropout);
-
+PIXELPIPES_OPERATION_AUTO("dropout", dropout);
 
 /**
  * @brief Divides image to pacthes and sets patch pixels to zero with probability P.
  * 
  */
-SharedToken ImageCoarseDropout(TokenList inputs) noexcept(false) {
-
-    VERIFY(inputs.size() == 4, "Incorrect number of parameters");
-
-    cv::Mat image = extract<cv::Mat>(inputs[0]);
-    float dropout_p = Float::get_value(inputs[1]);
-    float dropout_size = Float::get_value(inputs[2]);
+cv::Mat coarse_dropout(const cv::Mat& image, float dropout_p, float dropout_size, int seed) noexcept(false) {
 
     cv::Mat result = image.clone();
 
@@ -134,7 +110,7 @@ SharedToken ImageCoarseDropout(TokenList inputs) noexcept(false) {
     int num_patches_x = (int) (1 / dropout_size);
     int num_patches_y = (int) (1 / dropout_size);
 
-    cv::RNG generator(Integer::get_value(inputs[3]));
+    cv::RNG generator(seed);
 
     if (result.channels() == 1) {
         for (int yp = 0; yp < num_patches_y; yp++) {
@@ -197,33 +173,22 @@ SharedToken ImageCoarseDropout(TokenList inputs) noexcept(false) {
         }
     }
 
-    return wrap(result);
+    return result;
 }
 
-REGISTER_OPERATION_FUNCTION("coarse_dropout", ImageCoarseDropout);
+PIXELPIPES_OPERATION_AUTO("coarse_dropout", coarse_dropout);
 
 /**
  * @brief Cuts region form an image defined by the bounding box.
  * 
  */
-SharedToken ImageCut(TokenList inputs) {
-
-    VERIFY(inputs.size() == 2, "Incorrect number of parameters");
-    VERIFY(List::is_list(inputs[1], FloatIdentifier), "Not a float list");
-
-    cv::Mat image = extract<cv::Mat>(inputs[0]);
-    auto bbox = std::static_pointer_cast<List>(inputs[1]);
-
-    float left = Float::get_value(bbox->get(0));
-    float top = Float::get_value(bbox->get(1));
-    float right = Float::get_value(bbox->get(2));
-    float bottom = Float::get_value(bbox->get(3));
+cv::Mat cut(const cv::Mat& image, const Rectangle& region) {
 
     cv::Mat result = image.clone();
 
     if (result.channels() == 1) {
-        for (int y = (int) top; y < (int) bottom; y++) {
-            for (int x = (int) left; x < (int) right; x++) {
+        for (int y = (int) region.top; y < (int) region.bottom; y++) {
+            for (int x = (int) region.left; x < (int) region.right; x++) {
                 if (result.depth() == CV_8U) {
                     result.at<uchar>(y,x) = 0;                   
                 }
@@ -238,8 +203,8 @@ SharedToken ImageCut(TokenList inputs) {
     }
 
     else if (result.channels() == 3) {
-        for (int y = (int) top; y < (int) bottom; y++) {
-            for (int x = (int) left; x < (int) right; x++) {
+        for (int y = (int) region.top; y < (int) region.bottom; y++) {
+            for (int x = (int) region.left; x < (int) region.right; x++) {
                 if (result.depth() == CV_8U) {
                     cv::Vec3b & color = result.at<cv::Vec3b>(y,x);
                     color[0] = 0;
@@ -262,25 +227,20 @@ SharedToken ImageCut(TokenList inputs) {
         }
     }
 
-    return wrap(result);
+    return result;
 }
 
-REGISTER_OPERATION_FUNCTION("cut", ImageCut);
+PIXELPIPES_OPERATION_AUTO("cut", cut);
 
 
 /**
  * @brief Inverts all values above a threshold in image.
  * 
  */
-SharedToken ImageSolarize(TokenList inputs) {
+cv::Mat solarize(const cv::Mat& image, float threshold) {
 
-    VERIFY(inputs.size() == 2, "Incorrect number of parameters");
-
-    cv::Mat image = extract<cv::Mat>(inputs[0]);
-    
     VERIFY(image.channels() == 1, "Image has more than one channel");
 
-    float threshold = Float::get_value(inputs[1]);  
     float max = maximum_value(image);
 
     cv::Mat result = image.clone();
@@ -307,10 +267,10 @@ SharedToken ImageSolarize(TokenList inputs) {
         }
     }
 
-    return wrap(result);
+    return result;
 }
 
-REGISTER_OPERATION_FUNCTION("solarize", ImageSolarize);
+PIXELPIPES_OPERATION_AUTO("solarize", solarize);
 
 
 }

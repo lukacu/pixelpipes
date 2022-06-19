@@ -15,8 +15,7 @@ int main(int argc, const char* argv[]) {
 
         try {
 
-        PipelineReader reader;
-        Pipeline p = reader.read(arg);
+        Pipeline p = read_pipeline(arg);
 
         unsigned long i = 1;
 

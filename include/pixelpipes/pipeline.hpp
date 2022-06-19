@@ -45,17 +45,6 @@ namespace pixelpipes
         Implementation<State> state;
     };
 
-#define DNFType GetTypeIdentifier<DNF>()
-
-    template <>
-    DNF PIXELPIPES_API extract(const SharedToken v);
-
-    template <>
-    SharedToken PIXELPIPES_API wrap(const DNF v);
-
-    typedef std::pair<SharedOperation, std::vector<int>> OperationData;
-
-
     class PIXELPIPES_API Pipeline
     {
         struct State;
@@ -69,6 +58,8 @@ namespace pixelpipes
         std::unique_ptr<State, StateDeleter> state;
 
     public:
+        typedef std::pair<OperationReference, Sequence<int>> OperationData;
+
         Pipeline();
 
         virtual ~Pipeline();
@@ -81,11 +72,15 @@ namespace pixelpipes
 
         virtual void finalize();
 
-        virtual int append(std::string name, TokenList args, Span<int> inputs);
+        virtual int append(std::string name, const TokenList& args, const Span<int>& inputs);
 
-        virtual Sequence<SharedToken> run(unsigned long index) noexcept(false);
+        virtual Sequence<TokenReference> run(unsigned long index) noexcept(false);
 
-        virtual std::vector<std::string> get_labels();
+        size_t size() const;
+
+        OperationData get(size_t i) const;
+
+        virtual Sequence<std::string> get_labels() const;
 
         std::vector<float> operation_time();
 
@@ -108,11 +103,19 @@ namespace pixelpipes
     class PIXELPIPES_API PipelineException : public BaseException
     {
     public:
-        PipelineException(std::string reason, int operation);
-        int operation() const throw();
+        PipelineException(std::string reason);
+        PipelineException(const PipelineException& e) = default;
+    };
+
+    class PIXELPIPES_API OperationException : public PipelineException
+    {
+    public:
+        OperationException(std::string reason, const OperationReference& reference, int position);
+        OperationException(const OperationException& e) = default;
 
     private:
-        int _operation;
+        int _position;
+        std::string name;
     };
 
     /*

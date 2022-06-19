@@ -57,7 +57,7 @@ class TestPipes(unittest.TestCase):
         pipeline = Compiler().build(graph)
         output = pipeline.run(1)
 
-        np.testing.assert_equal(output[0], np.array([[0], [10], [0], [10]]))    
+        np.testing.assert_equal(output[0], np.array([0, 0, 10, 10]))    
 
     def test_geometry_rectangle_ResizeRectangle(self):
 
@@ -68,7 +68,7 @@ class TestPipes(unittest.TestCase):
         pipeline = Compiler().build(graph)
         output = pipeline.run(1)
 
-        np.testing.assert_equal(output[0], np.array([[-5, 5, 15, 25]]).T)
+        np.testing.assert_equal(output[0], np.array([-5, 5, 15, 25]))
 
     def test_geometry_view_View(self):
 
@@ -89,7 +89,7 @@ class TestPipes(unittest.TestCase):
 
         pipeline = Compiler().build(graph)
         sample = pipeline.run(1)
-        np.testing.assert_equal(sample[0], np.array([[0], [10], [0], [10]]))
+        np.testing.assert_equal(sample[0], np.array([0, 0, 10, 10]))
 
     def test_serialization(self):
 
@@ -108,8 +108,7 @@ class TestPipes(unittest.TestCase):
 
         tmp = tempfile.mktemp()
 
-        write_pipeline(tmp, compiler.compile(graph))
-
+        write_pipeline(tmp, pipeline1)
         pipeline2 = read_pipeline(tmp)
 
         a = pipeline1.run(1)

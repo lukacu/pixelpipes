@@ -28,15 +28,15 @@ namespace pixelpipes
 
     ModuleException::ModuleException(std::string reason) : BaseException(reason) {}
 
-    std::map<std::string, SharedModule> &Module::modules()
+    std::map<std::string, ModuleReference> &Module::modules()
     {
-        static std::map<std::string, SharedModule> n;
+        static std::map<std::string, ModuleReference> n;
         return n;
     }
 
     static std::recursive_mutex module_load_lock;
 
-    static SharedModule load_context;
+    static ModuleReference load_context;
 
     static std::vector<path> module_paths;
 
@@ -102,12 +102,12 @@ namespace pixelpipes
         throw ModuleException(Formatter() << "Module " << name << " not found");
     }
 
-    SharedModule Module::context()
+    ModuleReference Module::context()
     {
 
         std::lock_guard<std::recursive_mutex> lock(module_load_lock);
 
-        return load_context;
+        return load_context.reborrow();
     }
 
     bool Module::load(std::string_view libname)
@@ -137,13 +137,13 @@ namespace pixelpipes
             return false;
         }
 
-        SharedModule mod = std::shared_ptr<Module>(new Module(handle, libname_str));
+        ModuleReference mod = create<Module>(handle, libname_str);
 
-        modules().insert(std::pair<std::string, SharedModule>(libname, mod));
+        modules().insert(std::pair<std::string, ModuleReference>(libname, mod.reborrow()));
 
         auto init = mod->symbol<ModuleInitHook>("pixelpipes_module_init");
 
-        load_context = mod;
+        load_context = mod.reborrow();
 
         DEBUGMSG("Running init hook with module context\n");
 
@@ -152,7 +152,7 @@ namespace pixelpipes
             init();
         }
 
-        load_context.reset();
+        load_context.relinquish();
 
         DEBUGMSG("Context reset\n");
 

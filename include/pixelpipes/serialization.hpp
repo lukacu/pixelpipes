@@ -12,86 +12,37 @@
 namespace pixelpipes
 {
 
-    class PipelineWriter;
-
-    class PipelineReader;
-
-    typedef void (* TokenWriter) (SharedToken, std::ostream &);
-
-    typedef SharedToken (* TokenReader)(std::istream &);
-
     class PIXELPIPES_API SerializationException : public BaseException
     {
     public:
         SerializationException(std::string reason);
+        SerializationException(const SerializationException& e) = default;
+
     };
 
-    class PIXELPIPES_API PipelineWriter
+    class PIXELPIPES_API Serializer
     {
     public:
-        PipelineWriter(bool compress = true, bool relocatable = false);
 
-        ~PipelineWriter() = default;
+        virtual void write(const TokenReference&, std::ostream &) = 0;
 
-        void write(std::ostream &target);
+        virtual TokenReference read(std::istream &) = 0;
 
-        void write(std::string &target);
-
-        int append(std::string name, TokenList args, Span<int> inputs);
-
-        static void register_writer(TypeIdentifier identifier, TokenWriter writer);
-
-    private:
-        typedef std::tuple<std::string, std::vector<int>, std::vector<int>> OperationData;
-        typedef std::tuple<TokenWriter, SharedModule> WriterData;
-        typedef std::map<TypeIdentifier, WriterData> WriterMap;
-        typedef std::tuple<SharedToken, bool> TokenData;
-
-        static WriterMap &writers();
-
-        std::set<SharedModule> used_modules;
-        std::set<TypeIdentifier> used_types;
-
-        std::vector<TokenData> tokens;
-        std::vector<OperationData> operations;
-
-        std::string origin;
-        bool compress;
-        bool relocatable;
-
-        void write_pipeline(std::ostream &target);
-
-        void write_data(std::ostream &target);
     };
 
-    class PIXELPIPES_API PipelineReader
-    {
-    public:
-        PipelineReader();
+    typedef void (* TokenWriter) (const TokenReference&, std::ostream &);
 
-        ~PipelineReader() = default;
+    typedef TokenReference (* TokenReader)(std::istream &);
 
-        Pipeline read(std::istream &target);
+    void PIXELPIPES_API type_register_serializer(TypeIdentifier i, std::string_view name, TokenReader reader, TokenWriter writer);
 
-        Pipeline read(std::string &target);
+#define PIXELPIPES_REGISTER_SERIALIZER(T, UID, READER, WRITER) static AddModuleInitializer CONCAT(__type_io_init_, __COUNTER__)([]() { type_register_serializer(T, UID, READER, WRITER); })
 
-        static void register_reader(TypeIdentifier identifier, TokenReader reader);
+    void PIXELPIPES_API write_pipeline(const Pipeline& pipeline, std::ostream &drain, bool compress = true, bool relocatable = true);
+    void PIXELPIPES_API write_pipeline(const Pipeline& pipeline, const std::string &drain, bool compress = true, bool relocatable = true);
 
-    private:
-        typedef std::tuple<TokenReader, SharedModule> ReaderData;
-        typedef std::map<TypeIdentifier, ReaderData> ReaderMap;
-
-        static ReaderMap &readers();
-
-        void read_stream(std::istream &source, Pipeline& pipeline);
-
-        void read_data(std::istream &source, Pipeline& pipeline);
-
-        std::string origin;
-    };
-
-#define PIXELPIPES_REGISTER_READER(T, F) static AddModuleInitializer CONCAT(__reader_init_, __COUNTER__)([]() { PipelineReader::register_reader(T, F); })
-#define PIXELPIPES_REGISTER_WRITER(T, F) static AddModuleInitializer CONCAT(__writer_init_, __COUNTER__)([]() { PipelineWriter::register_writer(T, F); })
+    Pipeline PIXELPIPES_API read_pipeline(std::istream &source);
+    Pipeline PIXELPIPES_API read_pipeline(const std::string &source);
 
     template <typename T>
     T read_t(std::istream &source)
@@ -102,16 +53,16 @@ namespace pixelpipes
     }
 
     template <typename T>
-    void write_t(std::ostream &target, T i)
+    void write_t(std::ostream &drain, T i)
     {
-        target.write((char *)&i, sizeof(T));
+        drain.write((char *)&i, sizeof(T));
     }
 
     template <>
-    inline void write_t(std::ostream &target, bool b)
+    inline void write_t(std::ostream &drain, bool b)
     {
         unsigned char c = b ? 0xFF : 0;
-        target.write((const char *)&c, sizeof(unsigned char));
+        drain.write((const char *)&c, sizeof(unsigned char));
     }
 
     template <>
@@ -123,11 +74,11 @@ namespace pixelpipes
     }
 
     template <>
-    inline void write_t(std::ostream &target, std::string s)
+    inline void write_t(std::ostream &drain, std::string s)
     {
         size_t len = s.size();
-        write_t(target, len);
-        target.write(&s[0], len);
+        write_t(drain, len);
+        drain.write(&s[0], len);
     }
 
     template <>
@@ -144,6 +95,37 @@ namespace pixelpipes
         catch (std::bad_alloc const&)
         {
             throw SerializationException(Formatter() << "Unable to allocate a string of length " << len);
+        }
+    }
+
+    template <typename T>
+    inline void write_sequence(std::ostream &drain, const Span<T>& list)
+    {
+        write_t(drain, list.size());
+        for (size_t i = 0; i < list.size(); i++)
+        {
+            write_t(drain, list[i]);
+        }
+    }
+
+    template <typename T>
+    inline Sequence<T> read_sequence(std::istream &source)
+    {
+        try
+        {
+            size_t len = read_t<size_t>(source);
+            std::vector<T> list;
+            if (len)
+                list.resize(len);
+            for (size_t i = 0; i < len; i++)
+            {
+                list[i] = read_t<T>(source);
+            }
+            return list;
+        }
+        catch (std::bad_alloc &exception)
+        {
+            throw SerializationException("Unable to allocate an array");
         }
     }
 

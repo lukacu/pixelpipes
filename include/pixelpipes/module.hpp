@@ -16,18 +16,21 @@ namespace pixelpipes {
 class PIXELPIPES_API ModuleException : public BaseException {
 public:
     ModuleException(std::string reason);
+    ModuleException(const ModuleException& e) = default;
 };
 
 class Module;
 
-typedef std::shared_ptr<Module> SharedModule;
+typedef Pointer<Module> ModuleReference;
 
-typedef Function<void(SharedModule)> ModuleCallback;
+typedef Function<void(ModuleReference)> ModuleCallback;
 
 class Module {
 public:
 
     ~Module();
+
+    Module(void* handle, std::string name);
 
     template<typename T> T symbol(std::string name) const {
 
@@ -43,17 +46,15 @@ public:
 
     static PIXELPIPES_API bool load(std::string_view);
 
-    static SharedModule context();
+    static ModuleReference context();
 
 private:
 
-    static std::map<std::string, SharedModule>& modules();
+    static std::map<std::string, ModuleReference>& modules();
 
     void* handle;
 
     std::string module_name;
-
-    Module(void* handle, std::string name);
 
     void* get_symbol(const std::string& name) const;
 

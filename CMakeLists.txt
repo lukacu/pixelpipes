@@ -10,6 +10,7 @@ SET(PROJECT_VERSION 0.1.0)
 SET(CMAKE_CXX_STANDARD 17)
 SET(CMAKE_CXX_VISIBILITY_PRESET hidden)
 SET(CMAKE_C_VISIBILITY_PRESET hidden)
+set(CMAKE_CXX_EXTENSIONS OFF)
 
 option(BUILD_INPLACE "Build to source directory" OFF)
 option(BUILD_PYTHON "Build the Python wrapper" ON)
@@ -57,18 +58,20 @@ INCLUDE(cmake/opencv.cmake)
 
 SET(CORE_SOURCE
     src/queue.cpp
-    src/pipeline.cpp
-    src/module.cpp
     src/type.cpp
-    src/token.cpp
-    src/serialization/serialization.cpp
-    src/serialization/compression.cpp
+    src/token.cpp    
+    src/module.cpp
     src/operation.cpp
-    src/geometry.cpp
-    src/image.cpp
+    src/pipeline.cpp
     src/numbers.cpp
+    src/buffer.cpp
+    src/tensor.cpp
+    src/geometry.cpp    
+    src/image.cpp
+    src/io.cpp 
     src/list.cpp
-    src/io.cpp
+    src/serialization/compression.cpp
+    src/serialization/serialization.cpp
 )
 
 INCLUDE_DIRECTORIES(${OPENCV_INCLUDE_DIRS} ${lodepng_SOURCE_DIR} ${ZLIB_INCLUDE_DIRS}
@@ -80,28 +83,22 @@ ADD_LIBRARY(pixelpipes SHARED ${CORE_SOURCE})
 TARGET_LINK_LIBRARIES(pixelpipes ${CMAKE_DL_LIBS} lodepng ${ZLIB_LIBS})
 target_compile_definitions(pixelpipes PRIVATE PIXELPIPES_BUILD_CORE)
 
-ADD_LIBRARY(pixelpipes_geometry SHARED 
-    src/geometry/common.cpp
-    src/geometry/points.cpp
-    src/geometry/view.cpp
+ADD_LIBRARY(pixelpipes_opencv SHARED 
+    src/opencv/common.cpp
+    src/opencv/view.cpp
+    src/opencv/arithmetic.cpp
+    src/opencv/filter.cpp
+    src/opencv/geometry.cpp
+    src/opencv/processing.cpp
+    src/opencv/render.cpp
     )
 
-TARGET_LINK_LIBRARIES(pixelpipes_geometry pixelpipes ${OPENCV_LIBS})
-
-ADD_LIBRARY(pixelpipes_image SHARED 
-    src/image/common.cpp
-    src/image/arithmetic.cpp
-    src/image/filter.cpp
-    src/image/geometry.cpp
-    src/image/processing.cpp
-    src/image/render.cpp
-    )
-    
-TARGET_LINK_LIBRARIES(pixelpipes_image pixelpipes ${OPENCV_LIBS})
- 
+TARGET_LINK_LIBRARIES(pixelpipes_opencv pixelpipes ${OPENCV_LIBS})
 
 # CMake config file
 INCLUDE(CMakePackageConfigHelpers)
+
+SET(BINARY_TARGETS pixelpipes pixelpipes_opencv)
 
 # https://martinopilia.com/posts/2018/09/15/building-python-extension.html
 
@@ -115,7 +112,7 @@ IF(BUILD_PYTHON)
 
   ADD_LIBRARY(pypixelpipes SHARED 
       src/python/wrapper.cpp
-      src/python/image.cpp 
+      src/python/array.cpp 
   )
 
   TARGET_LINK_LIBRARIES(pypixelpipes pixelpipes ${Python_LIBRARIES})

@@ -10,332 +10,338 @@
 #include <pixelpipes/token.hpp>
 #include <pixelpipes/module.hpp>
 
-namespace pixelpipes {
+namespace pixelpipes
+{
 
-class OperationException;
-
-enum class ComparisonOperation {EQUAL, LOWER, LOWER_EQUAL, GREATER, GREATER_EQUAL, NOT_EQUAL};
-enum class LogicalOperation {AND, OR, NOT};
-enum class ArithmeticOperation {ADD, SUBTRACT, MULTIPLY, DIVIDE, POWER, MODULO};
-
-enum class SamplingDistribution {Normal, Uniform};
-
-enum class ContextData {SampleIndex, OperationIndex, RandomSeed};
-
-
-PIXELPIPES_CONVERT_ENUM(ContextData)
-PIXELPIPES_CONVERT_ENUM(SamplingDistribution)
-
-PIXELPIPES_CONVERT_ENUM(ArithmeticOperation)
-PIXELPIPES_CONVERT_ENUM(LogicalOperation)
-PIXELPIPES_CONVERT_ENUM(ComparisonOperation)
-
-typedef Span<SharedToken> TokenList;
-
-typedef Span<Type> TypeList;
-
-class Operation;
-
-typedef std::shared_ptr<Operation> SharedOperation;
-
-RandomGenerator make_generator(uint32_t seed);
-
-class PIXELPIPES_API Operation: public std::enable_shared_from_this<Operation> {
-public:
-    
-    ~Operation() = default;
-
-    virtual SharedToken run(TokenList inputs) = 0;
-
-    //virtual Type& validate(TypeList inputs) = 0;
-
-    virtual TypeIdentifier type();
-
-protected:
-
-    Operation();
-
-};
-
-class PIXELPIPES_API StohasticOperation: public Operation {
-public:
-    
-    ~StohasticOperation() = default;
-
-    static RandomGenerator create_generator(SharedToken seed);
-
-protected:
-
-    StohasticOperation();
-
-};
-
-
-class PIXELPIPES_API OperationException : public BaseException {
-public:
-
-    OperationException(std::string reason, SharedOperation operation): BaseException(reason), operation(operation) {}
-
-private:
-
-    SharedOperation operation;
-};
-
-namespace details {
-
-    template <class F, class Tuple, std::size_t... I>
-    constexpr decltype(auto) apply_impl(F&& f, TokenList inputs, 
-                Tuple t, std::index_sequence<I...>) {
-                    UNUSED(t); // don't know why this causes unused error?
-        return std::invoke(std::forward<F>(f), inputs, std::get<I>(std::forward<Tuple>(t))...);
-    }
-
-    template <class F, class Tuple>
-    constexpr decltype(auto) apply(F&& f, TokenList inputs, Tuple t)
+    enum class ComparisonOperation
     {
-        return apply_impl(
-            std::forward<F>(f), inputs, std::forward<Tuple>(t),
-            std::make_index_sequence<std::tuple_size_v<std::remove_reference_t<Tuple>>>{});
-    }
-
-    template <class T, class Tuple, std::size_t... I>
-    constexpr std::shared_ptr<T> make_from_tuple_impl(Tuple&& t, std::index_sequence<I...>) {
-        return std::shared_ptr<T>( new T(std::get<I>(std::forward<Tuple>(t))...));
-    }
-    
-    template <class T, class Tuple>
-    constexpr std::shared_ptr<T> make_from_tuple(Tuple&& t) {
-        return make_from_tuple_impl<T>(std::forward<Tuple>(t),
-            std::make_index_sequence<std::tuple_size_v<std::remove_reference_t<Tuple>>>{});
-    }
-
-    typedef TokenList::const_iterator ArgIterator;
-
-    template <typename A>
-    std::tuple<> iterate_args(ArgIterator current, ArgIterator end) {
-        if (current != end) {
-            throw TypeException("Number of inputs does not match");
-        }
-
-        return std::make_tuple();
-    }
-
-    // base template with 1 argument (which will be called from the variadic one).
-    template <typename A, typename Arg>
-    std::tuple<Arg> iterate_args(ArgIterator current, ArgIterator end) {
-
-        if (current == end) {
-            throw TypeException("Number of inputs does not match");
-        }
-
-
-        return std::tuple(extract<Arg>(*current));
-    }
-
-    template <typename A, typename First, typename Second, typename... Args>
-    std::tuple<First, Second, Args...> iterate_args(ArgIterator current, ArgIterator end) {
-        if (current == end) {
-            throw TypeException("Number of inputs does not match");
-        }
-
-        return std::tuple_cat(iterate_args<A, First>(current, end), iterate_args<A, Second, Args...>(current+1, end));
-
-    }
-
-}
-
-template<typename Fn, Fn fn, typename Base, typename ...Args>
-class OperationWrapper: public Base {
-public:
-
-    OperationWrapper(Args... args) : args(std::forward<Args>(args)...) {
-        static_assert(std::is_base_of<Operation, Base>::value, "Base class must inherit from Operation");
+        EQUAL,
+        LOWER,
+        LOWER_EQUAL,
+        GREATER,
+        GREATER_EQUAL,
+        NOT_EQUAL
     };
-    ~OperationWrapper() = default;
-
-    virtual SharedToken run(TokenList inputs) {
-
-        try {
-
-            return details::apply(std::function(fn), inputs, args); 
-            
-        } catch (TypeException &e) {
-            throw OperationException(e.what(), this->shared_from_this());
-        }
-
-    }
-    
-    virtual TypeIdentifier type() {
-        return GetTypeIdentifier<OperationWrapper<Fn, fn, Base, Args...>>();
-    }
-
-    template<typename T> bool is() {
-        return type() == GetTypeIdentifier<T>();
-    }
-
-protected:
-
-    std::tuple<Args...> args;
-
-};
-
-/*
-template <typename...> struct parameter_filter;
-
-template <> struct parameter_filter<> { using type = std::tuple<>; };
-
-template <typename Head, typename ...Tail>
-struct parameter_filter<Head, Tail...>
-{
-    using type = typename std::conditional<Predicate<Head>::value,
-                               typename std::tuple_cat<std::make_tuple(Head), typename parameter_filter<Tail...>::type>::type,
-                               typename parameter_filter<Tail...>::type
-                          >::type;  
-};
-
-
-template<typename Fn, Fn fn, typename Base, typename ...Args>
-class OperationWrapper2: public Base {
-public:
-
-    using Parameters = 
-    using Inputs = 
-
-    OperationWrapper2(Args... args) : args(std::forward<Args>(args)...) {
-        static_assert(std::is_base_of<Operation, Base>::value, "Base class must inherit from Operation");
+    enum class LogicalOperation
+    {
+        AND,
+        OR,
+        NOT
     };
-    ~OperationWrapper2() = default;
+    enum class ArithmeticOperation
+    {
+        ADD,
+        SUBTRACT,
+        MULTIPLY,
+        DIVIDE,
+        POWER,
+        MODULO
+    };
 
-    virtual SharedToken run(TokenList inputs) {
+    enum class SamplingDistribution
+    {
+        Normal,
+        Uniform
+    };
 
-        try {
+    enum class ContextData
+    {
+        SampleIndex,
+        OperationIndex,
+        RandomSeed
+    };
 
-            return details::apply(std::function(fn), inputs, args); 
-            
-        } catch (TypeException &e) {
-            throw OperationException(e.what(), this->shared_from_this());
+    PIXELPIPES_CONVERT_ENUM(ContextData)
+    PIXELPIPES_CONVERT_ENUM(SamplingDistribution)
+
+    PIXELPIPES_CONVERT_ENUM(ArithmeticOperation)
+    PIXELPIPES_CONVERT_ENUM(LogicalOperation)
+    PIXELPIPES_CONVERT_ENUM(ComparisonOperation)
+
+    typedef View<TokenReference> TokenList;
+
+    class Operation;
+
+    typedef Pointer<Operation> OperationReference;
+
+    RandomGenerator make_generator(uint32_t seed);
+
+    RandomGenerator create_generator(TokenReference seed);
+
+    RandomGenerator create_generator(int seed);
+
+    class PIXELPIPES_API Operation
+    {
+    public:
+        ~Operation() = default;
+
+        virtual TokenReference run(const TokenList& inputs) = 0;
+
+        virtual TypeIdentifier type();
+
+        template <typename T>
+        bool is()
+        {
+            return type() == GetTypeIdentifier<T>();
         }
 
+        virtual Sequence<TokenReference> serialize() = 0;
+
+    protected:
+        Operation();
+    };
+
+    namespace details
+    {
+
+        template<typename T>
+        using base_type = typename std::remove_cv<typename std::remove_reference<T>::type>;
+
+        template<typename T>
+        using base_type_t = typename std::remove_cv<typename std::remove_reference<T>::type>::type;
+
+        template <typename... T>
+        using tuple_with_base_types = std::tuple<typename base_type<T>::type...>;
+
+        template <typename... T>
+        tuple_with_base_types<T...> tuple_base_type(std::tuple<T...> const& t) {
+            return tuple_with_base_types { t };
+        }
+
+        template <typename>
+        struct function_traits;
+
+        template <typename R, typename... Args>
+        struct function_traits<R(Args...)>
+        {
+            using output = R;
+            using inputs = std::tuple<Args ...>;
+            constexpr static size_t arity = sizeof...(Args);
+        };
+
+        template<class R, class... Args>
+        struct function_traits<R(*)(Args...)> : public function_traits<R(Args...)>
+        {};
+
+        template<typename R, typename ...Args> 
+        struct function_traits<std::function<R(Args...)>>
+        {
+            typedef R output;
+            typedef std::tuple<Args ...> inputs;
+            constexpr static size_t arity = sizeof...(Args);
+        };
+
+        template <class Tuple,
+                  class T = std::decay_t<std::tuple_element_t<0, std::decay_t<Tuple>>>>
+        std::vector<T> to_vector(Tuple &&tuple)
+        {
+            return std::apply([](auto &&...elems)
+                              { return std::vector<T>{std::forward<decltype(elems)>(elems)...}; },
+                              std::forward<Tuple>(tuple));
+        }
+
+        template <class F, class Tuple, std::size_t... I>
+        constexpr decltype(auto) apply_impl(F &&f, TokenList inputs,
+                                            Tuple t, std::index_sequence<I...>)
+        {
+            UNUSED(t); // don't know why this causes unused error?
+            return std::invoke(std::forward<F>(f), inputs, std::get<I>(std::forward<Tuple>(t))...);
+        }
+
+        template <class F, class Tuple>
+        constexpr decltype(auto) apply(F &&f, TokenList inputs, Tuple t)
+        {
+            return apply_impl(
+                std::forward<F>(f), inputs, std::forward<Tuple>(t),
+                std::make_index_sequence<std::tuple_size_v<std::remove_reference_t<Tuple>>>{});
+        }
+
+        template <class T, class Tuple, std::size_t... I>
+        constexpr Pointer<T> make_from_tuple_impl(Tuple &&t, std::index_sequence<I...>)
+        {
+            return create<T>(std::get<I>(std::forward<Tuple>(t))...);
+        }
+
+        template <class T, class Tuple>
+        constexpr Pointer<T> make_from_tuple(Tuple &&t)
+        {
+            return make_from_tuple_impl<T>(std::forward<Tuple>(t),
+                                           std::make_index_sequence<std::tuple_size_v<std::remove_reference_t<Tuple>>>{});
+        }
+
+        template <size_t... Indices>
+        struct indices
+        {
+            using next = indices<Indices..., sizeof...(Indices)>;
+        };
+
+        template <typename FuncType,
+                  typename VecType,
+                  size_t... I,
+                  typename Traits = function_traits<FuncType>,
+                  typename ReturnT = typename Traits::output>
+        ReturnT do_call(FuncType func,
+                        VecType &args,
+                        std::index_sequence<I...>)
+        {
+            VERIFY(args.size() >= Traits::arity, "Argument size mismatch");
+            return func(args[I]...);
+        }
+
+        template <typename FuncType,
+                  typename VecType,
+                  typename Traits = function_traits<FuncType>,
+                  typename ReturnT = typename Traits::output>
+        ReturnT unpack_caller(FuncType func,
+                              VecType &args)
+        {
+            return do_call(func, args, std::make_index_sequence<Traits::arity>{});
+        }
+
+        typedef TokenList::const_iterator ArgIterator;
+
+        template <typename A>
+        std::tuple<> extract_args(ArgIterator current, ArgIterator end)
+        {
+            if (current != end)
+                throw TypeException("Number of inputs does not match");
+
+            return std::make_tuple();
+        }
+
+        // base template with 1 argument (which will be called from the variadic one).
+        template <typename A, typename Arg>
+        tuple_with_base_types<Arg> extract_args(ArgIterator current, ArgIterator end)
+        {
+
+            if (current == end)
+                throw TypeException("Number of inputs does not match");
+
+            return std::tuple<base_type_t<Arg>>(extract<base_type_t<Arg>>(*current));
+        }
+
+        template <typename A, typename First, typename Second, typename... Args>
+        tuple_with_base_types<First, Second, Args...> extract_args(ArgIterator current, ArgIterator end)
+        {
+            if (current == end)
+                throw TypeException("Number of inputs does not match");
+
+            return std::tuple_cat(extract_args<A, First>(current, end), extract_args<A, Second, Args...>(current + 1, end));
+        }
+
+        template <typename A, typename X>
+        struct extract_args_tuple {};
+
+        template <class A, typename... Args>
+        struct extract_args_tuple<A, std::tuple<Args ...>>
+        {
+            static tuple_with_base_types<Args...> run(ArgIterator begin, ArgIterator end) {
+                return extract_args<A, Args...>(begin, end);
+            }
+        };
+
     }
-    
-    virtual TypeIdentifier type() {
-        return GetTypeIdentifier<OperationWrapper<Fn, fn, Base, Args...>>();
+
+    template <typename Run, Run fn_run, bool unpack>
+    class OperationWrapper : public Operation
+    {
+        using OperationType = OperationWrapper<Run, fn_run, unpack>;
+        using ArgTypes = typename details::function_traits<Run>::inputs;
+
+    public:
+        OperationWrapper() = default;
+        ~OperationWrapper() = default;
+
+        virtual TokenReference run(const TokenList& inputs)
+        {
+            if constexpr (unpack) {
+                auto converted = details::extract_args_tuple<OperationType, ArgTypes>::run(inputs.begin(), inputs.end());
+                return wrap(std::apply(std::function(fn_run), converted));
+            } else {
+                return fn_run(inputs);
+            }
+
+        }
+
+        virtual TypeIdentifier type()
+        {
+            return GetTypeIdentifier<OperationType>();
+        }
+
+        virtual Sequence<TokenReference> serialize() { return Sequence<TokenReference>(); }
+
+    };
+
+    typedef Sequence<TypeIdentifier> OperationArguments;
+
+    struct OperationDescription
+    {
+        TypeIdentifier identifier;
+        OperationArguments arguments;
+    };
+
+    template <typename OperationClass = Operation, typename... Args>
+    struct OperationFactory
+    {
+
+        static OperationDescription describe()
+        {
+            return OperationDescription{GetTypeIdentifier<OperationClass>(), OperationArguments{GetTypeIdentifier<Args>()...}};
+        }
+
+        static OperationReference new_instance(TokenList inputs)
+        {
+            auto converted = details::extract_args<OperationClass, Args...>(inputs.begin(), inputs.end());
+            auto op = details::make_from_tuple<OperationClass>(converted);
+            return op;
+        }
+    };
+
+    typedef Function<OperationReference(TokenList)> OperationConstructor;
+    typedef Function<OperationDescription()> OperationDescriber;
+
+    OperationReference PIXELPIPES_API make_operation(const std::string &key, const TokenList& inputs);
+    void PIXELPIPES_API register_operation(const std::string &key, OperationConstructor constructor, OperationDescriber describer);
+    bool PIXELPIPES_API is_operation_registered(const std::string &key);
+
+    template <typename OperationClass = Operation, typename... Args>
+    void register_operation(const std::string &key)
+    {
+        register_operation(key, OperationFactory<OperationClass, Args...>::new_instance, OperationFactory<OperationClass, Args...>::describe);
     }
 
-    template<typename T> bool is() {
-        return type() == GetTypeIdentifier<T>();
+    template <typename... Args>
+    OperationReference make_operation(const std::string &key, Args &&...args)
+    {
+        return make_operation(key, TokenList({args...}));
     }
 
-protected:
+    OperationDescription PIXELPIPES_API describe_operation(const std::string &key);
+    ModuleReference PIXELPIPES_API operation_source(const std::string &key);
+    OperationReference PIXELPIPES_API create_operation(const std::string &key, const TokenList& inputs);
+    OperationReference PIXELPIPES_API create_operation(const std::string &key, const std::initializer_list<TokenReference>& inputs);
+    std::string PIXELPIPES_API operation_name(const OperationReference&);
 
-    std::tuple<Args...> args;
-
-};
-*/
-typedef std::vector<TypeIdentifier> OperationArguments;
-
-struct OperationDescription {
-
-    SharedModule source;
-    OperationArguments arguments;
-
-};
-
-template <typename OperationClass = Operation, typename ...Args>
-struct OperationFactory {
-
-    static OperationArguments arguments() { 
-
-        return OperationArguments { GetTypeIdentifier<Args>()... };
-
+    template <typename Run, Run fn_run>
+    void register_operation_auto(const std::string &name)
+    {
+        register_operation<OperationWrapper<Run, fn_run, true>>(name);
     }
 
-    static SharedOperation new_instance(TokenList inputs) { 
-
-        if (inputs.size() != sizeof...(Args))
-            throw TypeException("Wrong number of parameters");
-
-        auto converted = details::iterate_args<OperationClass, Args...>(inputs.begin(), inputs.end());
-
-        auto op = details::make_from_tuple<OperationClass>(converted);
-
-        return op;
-
+    template <typename Run, Run fn_run>
+    void register_operation_manual(const std::string &name)
+    {
+        register_operation<OperationWrapper<Run, fn_run, false>>(name);
     }
 
-};
-
-typedef Function<SharedOperation(TokenList)> OperationConstructor;
-typedef Function<OperationArguments()> OperationDescriber;
-typedef std::tuple<OperationConstructor, OperationDescriber, SharedModule> Factory;
-
-SharedOperation PIXELPIPES_API make_operation(const std::string& key, TokenList inputs);
-void PIXELPIPES_API register_operation(const std::string& key, OperationConstructor constructor, OperationDescriber describer);
-bool PIXELPIPES_API is_operation_registered(const std::string& key);
-
-template <typename OperationClass = Operation, typename ...Args>
-void register_operation(const std::string& key) {
-
-    register_operation(key, OperationFactory<OperationClass, Args...>::new_instance, OperationFactory<OperationClass, Args...>::arguments);
-
-}
-
-template <typename ...Args>
-SharedOperation make_operation(const std::string& key, Args&& ... args) {
-
-    return make_operation(key, TokenList({args ...}));
-
-}
-
-OperationDescription PIXELPIPES_API describe_operation(const std::string& key);
-SharedOperation PIXELPIPES_API create_operation(const std::string& key, TokenList inputs);
-SharedOperation PIXELPIPES_API create_operation(const std::string& key, std::initializer_list<SharedToken> inputs);
-
-template<typename Fn, Fn fn, typename Base, typename ...Args>
-void register_operation_function(const std::string& name) {
-    register_operation<OperationWrapper<Fn, fn, Base, Args...>, Args...>(name);
-}
-
-template<typename OperationClass = Operation, typename ...Args>
-void register_operation_class(const std::string& name) {
-    register_operation<OperationClass, Args...>(name);
-}
-/*
-template <typename...> struct filter;
-
-template <> struct filter<> { using type = std::tuple<>; };
-
-template <typename Head, typename ...Tail>
-struct filter<Head, Tail...>
-{
-    using type = typename std::conditional<Predicate<Head>::value,
-                               typename std::tuple_cat<std::make_tuple(Head), typename filter<Tail...>::type>::type,
-                               typename filter<Tail...>::type
-                          >::type;  
-};
-
-template<typename O, typename ...Args>
-void register_operation2(const std::string& name) {
-
-
-
-    if constexpr (std::is_function<O>::value) {
-
-
-    } else if constexpr (std::is_base_of<Operation, O>::value) {
-
-
-    } else {
-        static_assert(detail::always_false<O>, "Unrecognized base");
+    template <typename Operation, typename... Args>
+    void register_operation_class(const std::string &name)
+    {
+        register_operation<Operation, Args...>(name);
     }
 
-    register_operation<OperationClass, Args...>(name);
-}
-#define PIXELPIPES_OPERATION(N, O, ...) static AddModuleInitializer CONCAT(__operation_add_, __COUNTER__)([]() { register_operation2<O, ## __VA_ARGS__>( N ); } )
-
-*/
-#define REGISTER_OPERATION_FUNCTION_WITH_BASE(N, FUNC, BASE, ...) static AddModuleInitializer CONCAT(__operation_add_, __COUNTER__)([]() { register_operation_function<decltype(&FUNC), &FUNC, BASE, ## __VA_ARGS__>( N ); })
-#define REGISTER_OPERATION_FUNCTION(N, FUNC, ...) REGISTER_OPERATION_FUNCTION_WITH_BASE(N, FUNC, Operation, ## __VA_ARGS__)
-#define REGISTER_OPERATION(N, O, ...) static AddModuleInitializer CONCAT(__operation_add_, __COUNTER__)([]() { register_operation_class<O, ## __VA_ARGS__>( N ); } )
+#define PIXELPIPES_OPERATION_AUTO(NAME, RUN) static AddModuleInitializer CONCAT(__operation_add_, __COUNTER__)([]() { register_operation_auto<decltype(&(RUN)), (RUN)>(NAME); })
+#define PIXELPIPES_OPERATION(NAME, RUN) static AddModuleInitializer CONCAT(__operation_add_, __COUNTER__)([]() { register_operation_manual<decltype(&(RUN)), (RUN)>(NAME); })
+#define PIXELPIPES_OPERATION_CLASS(N, ...) static AddModuleInitializer CONCAT(__operation_add_, __COUNTER__)([]() { register_operation_class<__VA_ARGS__>( N ); })
 
 }

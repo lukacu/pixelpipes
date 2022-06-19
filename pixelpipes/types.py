@@ -228,6 +228,18 @@ class Float(Number):
         else:
             return super().common(typ)
 
+class Boolean(Number):
+
+    def __init__(self, value: bool = None):
+        super().__init__()
+        self._set("value", float(value) if value is not None else None)
+
+    def common(self, typ: "Type") -> "Type":
+        if isinstance(typ, Boolean):
+            return Boolean(**self._common_parameters(typ))
+        else:
+            return super().common(typ)
+
 class ImagePurpose(Enum):
     VISUAL = 1
     MASK = 2

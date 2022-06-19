@@ -1,18 +1,17 @@
 
 from numbers import Number
 
-from pixelpipes.graph import GraphBuilder
+from pixelpipes.graph import GraphBuilder, EnumerationInput
 from pixelpipes.graph import Input, Macro, Node, hidden
 import numpy as np
 
-from attributee import Enumeration, Boolean, Attribute, AttributeException, List, String
+from attributee import Boolean, Attribute, AttributeException, List
 from attributee.object import Callable
 
 from pixelpipes.list import ListElement
 import pixelpipes.types as types
 
-from ..geometry.types import View
-from . import InterpolationMode, BorderStrategy, ImageDepth
+from . import ImageDepth
 
 def ImageProperties(width=None, height=None, channels=None, depth=None):
     return types.Complex({"width": types.Integer(width),
@@ -59,31 +58,6 @@ class ImageInput(Attribute):
 
     def dump(self, value: np.ndarray):
         return value.tolist()
-
-class ConstantImage(Node):
-    """Constant in-memory image, preloaded when the graph is compiled
-
-    Provides a way to inject a numpy array object as image into the pipeline.
-
-    Inputs:
-     - source: A Numpy type image
-
-    Category: image, input
-    """
-
-    source = ImageInput()
-
-    def validate(self, **inputs):
-        super().validate(**inputs)
-        _, typ = _convert_image(self.source)
-        return typ
-
-    def operation(self):
-        return "image_constant", self.source
-
-    # Prevent errors when cloning during compilation
-    def duplicate(self, **inputs):
-        return self
 
 class ConstantImageList(Node):
     """Constant in-memory image list.
@@ -246,8 +220,8 @@ class ReadImage(Node):
 
     def operation(self):
         if self.grayscale:
-            return "image:read_grayscale",
-        return "image:read_color",
+            return "opencv:image_read_grayscale",
+        return "opencv:image_read_color",
 
     def _output(self):
         return types.Image()
@@ -261,8 +235,8 @@ class ReadImage(Node):
 
     def operation(self):
         if self.grayscale:
-            return "image:read_grayscale",
-        return "image:read_color",
+            return "opencv:image_read_grayscale",
+        return "opencv:image_read_color",
 
     def _output(self):
         return types.Image(channels=1 if self.grayscale else 3)
@@ -274,7 +248,7 @@ class ReadImageAny(Node):
     filename = Input(types.String(), description="Input image")
 
     def operation(self):
-        return "image:read",
+        return "opencv:image_read",
 
     def _output(self):
         return types.Image()
@@ -293,10 +267,10 @@ class ConvertDepth(Node):
     """
 
     source = Input(types.Image())
-    depth = Enumeration(ImageDepth)
+    depth = EnumerationInput(ImageDepth)
 
     def operation(self):
-        return "image:convert", self.depth
+        return "opencv:convert_depth", 
 
     def validate(self, **inputs):
         super().validate(**inputs)
@@ -320,7 +294,7 @@ class Grayscale(Node):
     source = Input(types.Image())
 
     def operation(self):
-        return "image:grayscale",
+        return "opencv:grayscale",
 
     def validate(self, **inputs):
         super().validate(**inputs)
@@ -346,7 +320,7 @@ class Threshold(Node):
     threshold = Input(types.Float())
 
     def operation(self):
-        return "image:threshold",
+        return "opencv:threshold",
 
     def validate(self, **inputs):
         super().validate(**inputs)
@@ -370,7 +344,7 @@ class Invert(Node):
     source = Input(types.Image())
 
     def operation(self):
-        return "image:invert",
+        return "opencv:invert",
 
     def validate(self, **inputs):
         super().validate(**inputs)
@@ -393,11 +367,10 @@ class Equals(Node):
     """   
 
     source = Input(types.Image(channels=1))
-    #value = Input(types.Float())
     value = Input(types.Integer())
 
     def operation(self):
-        return "image:equals",
+        return "opencv:equals",
 
     def validate(self, **inputs):
         super().validate(**inputs)
@@ -423,7 +396,7 @@ class Channel(Node):
     index = Input(types.Integer())
 
     def operation(self):
-        return "image:channel",
+        return "opencv:extract_channel",
 
     def validate(self, **inputs):
         super().validate(**inputs)
@@ -453,7 +426,7 @@ class Merge(Node):
     source3 = Input(types.Image(channels=1))
 
     def operation(self):
-        return "image:merge",
+        return "opencv:mwerge_channels",
 
     def validate(self, **inputs):
         super().validate(**inputs)
@@ -476,10 +449,10 @@ class Moments(Node):
     """
 
     source = Input(types.Image())
-    binary = Boolean(default=True)
+    binary = Input(types.Boolean(), default=True)
 
     def operation(self):
-        return "image:moments", self.binary
+        return "opencv:moments", 
 
     def validate(self, **inputs):
         super().validate(**inputs)

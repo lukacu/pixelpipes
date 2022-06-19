@@ -32,19 +32,19 @@ class _ArithmeticPointOperation(Node):
 
 class AddPoint(_ArithmeticPointOperation):
     def operation(self):
-        return "geometry:point_arithmetic", ArithmeticOperations["ADD"]
+        return "point2d_add", 
 
 class SubtractPoint(_ArithmeticPointOperation):
     def operation(self):
-        return "geometry:point_arithmetic", ArithmeticOperations["SUBTRACT"]
+        return "point2d_subtract",
 
 class MultiplyPoint(_ArithmeticPointOperation):
     def operation(self):
-        return "geometry:point_arithmetic", ArithmeticOperations["MULTIPLY"]
+        return "point2d_multiply",
 
 class DividePoint(_ArithmeticPointOperation):
     def operation(self):
-        return "geometry:point_arithmetic", ArithmeticOperations["DIVIDE"]
+        return "point2d_divide", 
 
 for op, cb in [(BinaryOperation.ADD, AddPoint), (BinaryOperation.SUBTRACT, SubtractPoint), (BinaryOperation.MULIPLY, MultiplyPoint), (BinaryOperation.DIVIDE, DividePoint)]:
     Node.register_operation(op, cb, _infer_type_point, Point(), PointBroadcastType)
@@ -72,19 +72,19 @@ class _ArithmeticPointsOperation(Node):
         return _infer_type_points(inputs["a"], inputs["b"])
 class AddPoints(_ArithmeticPointsOperation):
     def operation(self):
-        return "geometry:points_arithmetic", ArithmeticOperations["ADD"]
+        return "points2d_add",
 
 class SubtractPoints(_ArithmeticPointsOperation):
     def operation(self):
-        return "geometry:points_arithmetic", ArithmeticOperations["SUBTRACT"]
+        return "points2d_subtract",
 
 class MultiplyPoints(_ArithmeticPointsOperation):
     def operation(self):
-        return "geometry:points_arithmetic", ArithmeticOperations["MULTIPLY"]
+        return "points2d_multiply",
 
 class DividePoints(_ArithmeticPointsOperation):
     def operation(self):
-        return "geometry:points_arithmetic", ArithmeticOperations["DIVIDE"]
+        return "points2d_divide",
 
 for op, cb in [(BinaryOperation.ADD, AddPoints), (BinaryOperation.SUBTRACT, SubtractPoints), (BinaryOperation.MULIPLY, MultiplyPoints), (BinaryOperation.DIVIDE, DividePoints)]:
     Node.register_operation(op, cb, _infer_type_points, Points(), PointsBroadcastType)
@@ -107,7 +107,7 @@ class PointsBounds(Node):
         return Rectangle()
 
     def operation(self):
-        return "geometry:bounding_box",
+        return "bounding_box",
 
 # TODO: move to view.py
 class ViewPoints(Node):
@@ -126,7 +126,7 @@ class ViewPoints(Node):
     view = Input(View())
 
     def operation(self):
-        return "geometry:view_points",
+        return "opencv:view_points",
 
     def validate(self, **inputs):
         super().validate(**inputs)
@@ -149,7 +149,7 @@ class PointsCenter(Node):
     source = Input(Points())
 
     def operation(self):
-        return "geometry:points_center",
+        return "points2d_center",
 
     def _output(self) -> types.Type:
         return Point()
@@ -170,7 +170,7 @@ class MakePoint(Node):
     y = Input(types.Number())
 
     def operation(self):
-        return "geometry:make_point",
+        return "make_point2d",
 
     def _output(self) -> types.Type:
         return Point()
@@ -190,7 +190,7 @@ class MakePoints(Node):
     inputs = List(Input(types.Number()))
 
     def operation(self):
-        return "geometry:make_points",
+        return "make_points2d",
 
     def validate(self, **inputs):
         super().validate(**inputs)
@@ -239,7 +239,7 @@ class MakeRectangle(Macro):
         return Rectangle()
 
     def operation(self):
-        return "geometry:bounding_box",
+        return "bounding_box",
 
     def expand(self, inputs, parent: str):
         return ListBuild([inputs["left"], inputs["top"], inputs["right"], inputs["bottom"]])
@@ -256,7 +256,7 @@ class PointsFromRectangle(Node):
     source = Input(Rectangle())
 
     def operation(self):
-        return "geometry:points_from_rectangle",
+        return "points_from_rectangle",
 
     def _output(self) -> types.Type:
         return Points(length=4)

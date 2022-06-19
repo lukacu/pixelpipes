@@ -1,5 +1,5 @@
 from __future__ import absolute_import
-from typing import Iterable, List, Mapping
+from typing import Iterable, List, Mapping, Optional
 
 import os
 
@@ -73,27 +73,6 @@ ArithmeticOperations = LazyLoadEnum("arithmetic")
 
 PipelineOperation = namedtuple("PipelineOperation", ["id", "name", "arguments", "inputs"])
 
-def write_pipeline(filename: str, operations: Iterable[PipelineOperation], compress : bool = True, relocatable : bool = True):
-        from . import pypixelpipes
-
-        writer = pypixelpipes.PipelineWriter(compress, relocatable)
-
-        indices = {}
-        for op in operations:
-            input_indices = [indices[id] for id in op.inputs]
-            indices[op.id] = writer.append(op.name, op.arguments, input_indices)
-            assert indices[op.id] >= 0
-
-        writer.write(filename)
-
-def read_pipeline(filename: str):
-    from . import pypixelpipes
-
-    reader = pypixelpipes.PipelineReader()
-    pipeline = reader.read(filename)
-
-    return Pipeline(pipeline)
-
 class Pipeline(object):
     """Wrapper for the C++ pipeline object, includes metadata
     """
@@ -137,3 +116,11 @@ class Pipeline(object):
         for k, v in zip(self._operations, stats):
             print("%s: %.3f ms" % (k, v))
         
+def write_pipeline(filename: str, pipeline: Pipeline, compress: Optional[bool] = True):
+        from . import pypixelpipes
+        pypixelpipes.write_pipeline(pipeline._pipeline, filename, compress)
+
+def read_pipeline(filename: str):
+    from . import pypixelpipes
+    pipeline = pypixelpipes.read_pipeline(filename)
+    return Pipeline(pipeline)

@@ -1,7 +1,5 @@
 
-from attributee import Enumeration, Boolean
-
-from ..graph import Input, Node, ValidationException
+from ..graph import EnumerationInput, Input, Node, ValidationException
 from .. import types
 
 from . import BorderStrategy, InterpolationMode
@@ -23,11 +21,10 @@ class Scale(Node):
 
     source = Input(types.Image())
     scale = Input(types.Float())
-
-    interpolation = Enumeration(InterpolationMode, default="Linear")
+    interpolation = EnumerationInput(InterpolationMode, default="Linear")
 
     def operation(self):
-        return "image:resize", self.interpolation
+        return "opencv:rescale",
 
     def validate(self, **inputs):
         super().validate(**inputs)
@@ -57,14 +54,14 @@ class Transpose(Node):
     source = Input(types.Image())
 
     def operation(self):
-        return "image:transpose",
+        return "opencv:transpose",
 
     def validate(self, **inputs):
         super().validate(**inputs)
         source = inputs["source"]
         return types.Image(source.height, source.width, source.channels, source.depth)
 
-class Rotate(Node):
+class Rotate90(Node):
     """Rotate
 
     Rotate an image 90, -90 or 180 degrees.
@@ -81,7 +78,7 @@ class Rotate(Node):
     clockwise = Input(types.Integer())
 
     def operation(self):
-        return "image:rotate",
+        return "opencv:rotate90",
 
     def validate(self, **inputs):
         super().validate(**inputs)
@@ -112,17 +109,17 @@ class Flip(Node):
     """
 
     source = Input(types.Image())
-    horizontal = Boolean()
-    vertical = Boolean()
+    horizontal = Input(types.Boolean())
+    vertical = Input(types.Boolean())
 
     def operation(self):
-        return "image:flip", self.horizontal, self.vertical
+        return "opencv:flip",
 
     def validate(self, **inputs):
         super().validate(**inputs)
 
         source = inputs["source"]
-
+        # TODO: incorrect
         return types.Image(source.width, source.height, source.channels, source.depth)
 
 
@@ -144,10 +141,10 @@ class Resize(Node):
     width = Input(types.Integer())
     height = Input(types.Integer())
 
-    interpolation = Enumeration(InterpolationMode, default="Linear")
+    interpolation = EnumerationInput(InterpolationMode, default="Linear")
 
     def operation(self):
-        return "image:resize", self.interpolation
+        return "opencv:resize",
 
     def validate(self, **inputs):
         super().validate(**inputs)
@@ -171,7 +168,7 @@ class MaskBoundingBox(Node):
     source = Input(types.Image(channels=1))
 
     def operation(self):
-        return "image:bounds",
+        return "opencv:mask_bounds",
 
     def _output(self):
         return BoundingBox()
@@ -193,7 +190,7 @@ class ImageCrop(Node):
     bbox = Input(BoundingBox())
 
     def operation(self):
-        return "image:crop",
+        return "opencv:crop",
 
     def validate(self, **inputs):
         super().validate(**inputs)
@@ -222,11 +219,11 @@ class ViewImage(Node):
     view = Input(View())
     width = Input(types.Integer())
     height = Input(types.Integer())
-    interpolation = Enumeration(InterpolationMode, default="Linear")
-    border = Enumeration(BorderStrategy, default="ConstantLow")
+    interpolation = EnumerationInput(InterpolationMode, default="Linear")
+    border = EnumerationInput(BorderStrategy, default="ConstantLow")
 
     def operation(self):
-        return "image:view", self.interpolation, self.border
+        return "opencv:view", 
 
     def validate(self, **inputs):
         super().validate(**inputs)
@@ -253,11 +250,11 @@ class ImageRemap(Node):
     source = Input(types.Image())
     x = Input(types.Image(channels=1, depth=32))
     y = Input(types.Image(channels=1, depth=32))
-    interpolation = Enumeration(InterpolationMode, default="Linear")
-    border = Enumeration(BorderStrategy, default="ConstantLow")
+    interpolation = EnumerationInput(InterpolationMode, default="Linear")
+    border = EnumerationInput(BorderStrategy, default="ConstantLow")
 
     def operation(self):
-        return "image:remap", self.interpolation, self.border
+        return "opencv:remap",
 
     def validate(self, **inputs):
         super().validate(**inputs)
@@ -266,7 +263,8 @@ class ImageRemap(Node):
 
         dest = inputs["x"].common(inputs["y"])
 
-        if dest.width is None or dest.height is None:
-            raise ValidationException("X and Y lookup maps mush have same size", self)
+        # TODO: size inference does not work at the moment
+        #if dest.width is None or dest.height is None:
+        #    raise ValidationException("X and Y lookup maps mush have same size", self)
 
         return types.Image(dest.width, dest.height, source.channels, source.depth)

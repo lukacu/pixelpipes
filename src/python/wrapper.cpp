@@ -1,6 +1,8 @@
 
 #include <fstream>
 
+#define NPY_NO_DEPRECATED_API NPY_1_7_API_VERSION
+
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
 #include <pybind11/functional.h>
@@ -11,26 +13,25 @@
 #include <pixelpipes/operation.hpp>
 #include <pixelpipes/serialization.hpp>
 #include <pixelpipes/geometry.hpp>
-#include <pixelpipes/image.hpp>
-#include <pixelpipes/python.hpp>
+#include <pixelpipes/tensor.hpp>
 
 // Some direct NumPy hacks (TODO: replace with Pybind API when possible)
 #include <numpy/arrayobject.h>
 
 #include "../debug.h"
 
-
 namespace py = pybind11;
 
 using namespace pixelpipes;
 
+PYBIND11_DECLARE_HOLDER_TYPE(T, pixelpipes::Pointer<T>)
+
 // image.cpp
-SharedToken wrap_image(py::object src);
-py::object extract_image(SharedToken src);
-SharedToken wrap_image_list(py::object src);
-py::object extract_image_list(SharedToken src);
-
-
+TokenReference wrap_tensor(const py::object &src);
+py::object extract_tensor(const TokenReference &src);
+TokenReference wrap_tensor_list(const py::object &src);
+// py::object extract_tensor_list(TokenReference src);
+/*
 //const static int initialized = init_conversion();
 void register_python_wrappers(Module& m);
 
@@ -40,7 +41,7 @@ public:
     PythonModuleImpl() {};
     ~PythonModuleImpl() {};
 
-    virtual py::object extract(const SharedToken &src) {
+    virtual py::object extract(const TokenReference &src) {
 
         VERIFY((bool) src, "Undefined value");
 
@@ -55,13 +56,13 @@ public:
         return item->second(src);
     }
 
-    virtual SharedToken wrap(py::object src, TypeIdentifier type_hint = 0) {
+    virtual TokenReference wrap(py::object src, TypeIdentifier type_hint = 0) {
 
         if (!type_hint) {
 
             for (auto wrapper : allwrappers) {
 
-                SharedToken v = wrapper(src);
+                TokenReference v = wrapper(src);
 
                 if (v) return v;
 
@@ -77,7 +78,7 @@ public:
                 throw std::invalid_argument(Formatter() << "No conversion from Python available for type hint " << type_name(type_hint));
             }
 
-            SharedToken variable = item->second(src);
+            TokenReference variable = item->second(src);
 
             if (!(bool) variable) {
                 throw std::invalid_argument(Formatter() << "Conversion from Python failed for type hint " << type_name(type_hint));
@@ -113,38 +114,6 @@ public:
 
     }
 
-    virtual EnumerationMap enumeration(std::string& name) {
-
-        auto item = enumerations.find(name);
-
-        if (item == enumerations.end()) {
-
-            throw std::invalid_argument("Unknown enumeration");
-        }
-
-        return item->second;
-
-    }
-
-    template <typename T>
-    void register_enumeration(const std::string& name) {
-
-        static_cast<PythonModule*>(this)->register_enumeration<T>(name);
-
-    }
-
-protected:
-
-    virtual void _register_enumeration(const std::string& name, EnumerationMap mapping) {
-
-        auto item = enumerations.find(name);
-
-        if (item == enumerations.end()) {
-            DEBUGMSG("Adding enumeration %s\n", name.c_str());
-            enumerations.insert(std::pair<std::string, EnumerationMap>(name, mapping));
-        }
-
-    }
 
     std::map<TypeIdentifier, PythonWrapper> wrappers;
 
@@ -157,29 +126,29 @@ protected:
 };
 
 static PythonModuleImpl registry;
-
-class PyPipelineCallback : public PipelineCallback {
-  public:
+*/
+class PyPipelineCallback : public PipelineCallback
+{
+public:
     using PipelineCallback::PipelineCallback;
 
-    void done(TokenList result) override {
+    void done(TokenList result) override
+    {
         PYBIND11_OVERLOAD_PURE(
             void,
             PipelineCallback,
             done,
-            result
-        );
+            result);
     }
 
-    void error(const PipelineException &e) override {
+    void error(const PipelineException &e) override
+    {
         PYBIND11_OVERLOAD_PURE(
             void,
             PipelineCallback,
             error,
-            e
-        );
+            e);
     }
-
 };
 
 // Solution based on: https://www.pierov.org/2020/03/01/python-custom-exceptions-c-extensions/
@@ -207,7 +176,7 @@ static PyObject *PipelineError_getoperation(PyObject *selfPtr, void *closure) {
         return code.ptr();
     } catch (py::error_already_set &e) {
         // We could simply backpropagate the exception with e.restore, but
-        // exceptions like OSError return None when an attribute is not set. 
+        // exceptions like OSError return None when an attribute is not set.
         py::none ret;
         ret.inc_ref();
         return ret.ptr();
@@ -215,26 +184,61 @@ static PyObject *PipelineError_getoperation(PyObject *selfPtr, void *closure) {
 }
 
 static PyGetSetDef PipelineError_getsetters[] = {
-	{"operation", PipelineError_getoperation, NULL, NULL, NULL},
-	{NULL}
+    {"operation", PipelineError_getoperation, NULL, NULL, NULL},
+    {NULL}
 };*/
 
-//static PyObject *PyPipelineError;
+// static PyObject *PyPipelineError;
 
-typedef void (*PythonInitalizerCallback) (PythonModule&);
+py::array token_to_python(const pixelpipes::TokenReference &variable)
+{
+    if (!variable)
+        throw py::value_error("Undefined result token");
 
-py::array numpyFromVariable(pixelpipes::SharedToken variable) {
+    if (variable->is<String>())
+    {
+        py::str s = cast<String>(variable)->get();
+        return s;
+    }
 
-    if (List::is(variable)) {
-        pixelpipes::SharedList list = std::static_pointer_cast<pixelpipes::List>(variable);
-        if (!list->size()) {
+    if (variable->is<IntegerScalar>())
+    {
+        py::array_t<int> a({1});
+        a.mutable_data(0)[0] = cast<IntegerScalar>(variable)->get();
+        return a;
+    }
+
+    if (variable->is<FloatScalar>())
+    {
+        py::array_t<float> a({1});
+        a.mutable_data(0)[0] = cast<FloatScalar>(variable)->get();
+        return a;
+    }
+
+    if (variable->is<BooleanScalar>())
+    {
+        py::array_t<int> a({1});
+        a.mutable_data(0)[0] = (int)cast<BooleanScalar>(variable)->get();
+        return a;
+    }
+
+    if (variable->is<Tensor>())
+    {
+        return extract_tensor(variable);
+    };
+
+    if (variable->is<List>()) {
+        
+        ListReference list = extract<ListReference>(variable);
+
+        if (!list->length()) {
             return py::array();
         }
 
-        py::list planes(list->size());
-      
-        for (size_t i = 0; i < list->size(); i++) {
-            py::array t = numpyFromVariable(list->get(i));
+        py::list planes(list->length());
+
+        for (size_t i = 0; i < list->length(); i++) {
+            py::array t = token_to_python(list->get(i));
 
             std::vector<ssize_t> shape(t.ndim() + 1);
             shape[0] = 1;
@@ -243,67 +247,128 @@ py::array numpyFromVariable(pixelpipes::SharedToken variable) {
 
             planes[i] = t;
         }
- 
+
         auto handle = py::handle(PyArray_Concatenate(planes.ptr(), 0));
         //return py::array(handle, false);
 
         return py::reinterpret_steal<py::array>(handle);
     }
 
-    if (variable->type_id() == pixelpipes::IntegerIdentifier) {
-        py::array_t<int> a({1});
-        a.mutable_data(0)[0] = std::static_pointer_cast<pixelpipes::Integer>(variable)->get();
-        return a;
-    }
-
-    if (variable->type_id() == pixelpipes::FloatIdentifier) {
-        py::array_t<float> a({1});
-        a.mutable_data(0)[0] = std::static_pointer_cast<pixelpipes::Float>(variable)->get();
-        return a;
-    }
-
-    if (variable->type_id() == pixelpipes::BooleanIdentifier) {
-        py::array_t<int> a({1});
-        a.mutable_data(0)[0] = (int) std::static_pointer_cast<pixelpipes::Boolean>(variable)->get();
-        return a;
-    }
-
-    if (variable->type_id() == pixelpipes::StringIdentifier) {
-        py::str s = std::static_pointer_cast<pixelpipes::String>(variable)->get();
-        return s;
-    }
-
-    return registry.extract(variable);
-
+    return py::none();
 }
 
-SharedToken generic_convert(py::object src) {
+TokenReference wrap_dnf_clause(py::object src)
+{
 
-    return registry.wrap(src);
+    try
+    {
+        auto original = py::cast<std::vector<std::vector<bool>>>(src);
+        // TODO: make this nicer once we figure out how to convert nested types
+        std::vector<Sequence<bool>> data;
+        std::vector<Span<bool>> data2;
+
+        for (auto x : original)
+        {
+            data.push_back(Sequence<bool>(x));
+            data2.push_back(data.back());
+        }
+
+        DNF a(make_span(data2));
+
+        return create<ContainerToken<DNF>>(a);
+    }
+    catch (const std::exception &exc)
+    {
+    }
 
     return empty();
-
 }
 
-template <typename T>
-SharedToken wrap_list(py::object src) {
+#define _CONVERT_VECTOR(src, elem)                                    \
+    try                                                               \
+    {                                                                 \
+        auto list = Sequence<elem>(py::cast<std::vector<elem>>(src)); \
+        return create<Vector<elem>>(make_span(list));                 \
+    }                                                                 \
+    catch (...)                                                       \
+    {                                                                 \
+    }
 
+TokenReference python_to_token(py::object src)
+{
 
-    if (py::list::check_(src)) {
-        try {
+    if (py::int_::check_(src))
+    {
+        py::int_ value(src);
+        return create<IntegerScalar>(value);
+    }
 
-            auto list = Sequence<T>(py::cast<std::vector<T>>(src));
-            return std::make_shared<ContainerList<T>>(make_span(list));
+    if (py::float_::check_(src))
+    {
+        py::float_ value(src);
+        return create<FloatScalar>(value);
+    }
 
-        } catch(...) {}
+    if (py::str::check_(src))
+    {
+        py::str str(src);
+        return create<String>(str);
+    }
+
+    if (py::bool_::check_(src))
+    {
+        py::bool_ value(src);
+        return create<BooleanScalar>(value);
+    }
+
+    if (py::list::check_(src))
+    {
+
+        _CONVERT_VECTOR(src, int);
+        _CONVERT_VECTOR(src, float);
+        _CONVERT_VECTOR(src, bool);
+        _CONVERT_VECTOR(src, char);
+
+        try
+        {
+            auto list = Sequence<std::string>(py::cast<std::vector<std::string>>(src));
+            return create<StringList>(make_span(list));
+        }
+        catch (...)
+        {
+        }
+    }
+
+    if (py::array::check_(src))
+    {
+        return wrap_tensor(src);
+    }
+
+    // Temporary solution, remove when predictive optimization is moved to C++
+    TokenReference dnf = wrap_dnf_clause(src);
+    if ((bool)dnf)
+        return dnf;
+
+    if (py::list::check_(src)) 
+    {
+        auto list = py::list(src);
+
+        Sequence<TokenReference> converted(list.size());
+
+        for (size_t i = 0; i < list.size(); i++) {
+            converted[i] = python_to_token(list[i]);
+        }
+
+        return create<GenericList>(converted);
 
     }
-    return empty<List>();
 
+    throw py::value_error("Unable to convert Python data");
 }
+
 /*
 template <typename T>
-SharedToken wrap_table(py::object src) {
+TokenReference wrap_table(py::object src) {
 
     if (py::list::check_(src)) {
         try {
@@ -318,101 +383,59 @@ SharedToken wrap_table(py::object src) {
 
 }*/
 
-SharedToken wrap_dnf_clause(py::object src) {
+template <typename T>
+int _add_operation(T &pipeline, std::string &name, py::list args, std::vector<int> inputs)
+{
 
-    try {
+    try
+    {
 
-        auto original = py::cast<std::vector<std::vector<bool>>>(src);
-        // TODO: make this nicer once we figure out how to convert nested types
-        std::vector<Sequence<bool>> data;
-        std::vector<Span<bool>> data2;
+        std::vector<TokenReference> arguments;
 
-        for (auto x : original) {
-            data.push_back(Sequence<bool>(x));
-            data2.push_back(data.back());
+        OperationDescription type_hints = describe_operation(name);
+
+        if (type_hints.arguments.size() != args.size())
+            throw std::invalid_argument("Argument number mismatch");
+
+        for (size_t i = 0; i < args.size(); i++)
+        {
+            arguments.push_back(python_to_token(args[i]));
         }
 
-        DNF a(make_span(data2));
-
-        return std::make_shared<ContainerToken<DNF>>(a);
- 
-    } catch(const std::exception &exc) {
-        //DEBUGMSG("Conversion failed: %s\n", exc.what());
+        return pipeline.append(name, make_span(arguments), make_span(inputs));
     }
-
-    return empty();
-
-}
-
-
-template <typename T>
-SharedToken wrap_container(py::object src) {
-
-    try {
-
-        auto object = py::cast<T>(src);
-
-        DEBUGMSG("Conversion type: %s\n", type_name(GetTypeIdentifier<T>()));
-        return std::make_shared<ContainerToken<T>>(object);
- 
-    } catch(const std::exception &exc) {
-        //DEBUGMSG("Conversion failed: %s\n", exc.what());
-    }
-
-    
-
-    return empty();
-
-}
-
-template<typename T>
-int _add_operation(T& pipeline, std::string& name, py::list args, std::vector<int> inputs) {
-
-    try {
-
-    std::vector<SharedToken> arguments;
-
-    OperationDescription type_hints = describe_operation(name);
-
-    if (type_hints.arguments.size() != args.size())
-        throw std::invalid_argument("Argument number mismatch");
-
-    for (size_t i = 0; i < args.size(); i++) {
-        arguments.push_back(registry.wrap(args[i], type_hints.arguments[i]));
-    }
-
-    return pipeline.append(name, make_span(arguments), make_span(inputs));
-
-    } catch (BaseException& e) {
+    catch (BaseException &e)
+    {
         throw py::value_error(e.what());
     }
-
 }
 
+PYBIND11_MODULE(pypixelpipes, m)
+{
 
-PYBIND11_MODULE(pypixelpipes, m) {
-
-    if (_import_array() < 0) {
+    if (_import_array() < 0)
+    {
         throw py::import_error("Unable to load NumPy");
     }
 
     m.doc() = "Python Wrapper for PixelPipes Engine";
+    /*
+        PyPipelineError = PyErr_NewException("PipelineError", NULL, NULL);
+        if (PyPipelineError) {
+            PyTypeObject *as_type = reinterpret_cast<PyTypeObject *>(PyPipelineError);
+            as_type->tp_str = PipelineError_tp_str;
+            PyObject *descr = PyDescr_NewGetSet(as_type, PipelineError_getsetters);
+            auto dict = py::reinterpret_borrow<py::dict>(as_type->tp_dict);
+            dict[py::handle(PyDescr_NAME(descr))] = py::handle(descr);
+
+            Py_XINCREF(PyPipelineError);
+            m.add_object("PipelineError", py::handle(PyPipelineError));
+        }
+    */
 /*
-    PyPipelineError = PyErr_NewException("PipelineError", NULL, NULL);
-    if (PyPipelineError) {
-        PyTypeObject *as_type = reinterpret_cast<PyTypeObject *>(PyPipelineError);
-        as_type->tp_str = PipelineError_tp_str;
-        PyObject *descr = PyDescr_NewGetSet(as_type, PipelineError_getsetters);
-        auto dict = py::reinterpret_borrow<py::dict>(as_type->tp_dict);
-        dict[py::handle(PyDescr_NAME(descr))] = py::handle(descr);
-
-        Py_XINCREF(PyPipelineError);
-        m.add_object("PipelineError", py::handle(PyPipelineError));
-    }
-*/
-
     static py::exception<PipelineException> PyPipelineError(m, "PipelineException", PyExc_RuntimeError);
-    py::register_exception_translator([](std::exception_ptr p) {
+    py::register_exception_translator([](std::exception_ptr p)
+                                      {
         try {
             if (p) {
                 std::rethrow_exception(p);
@@ -421,196 +444,70 @@ PYBIND11_MODULE(pypixelpipes, m) {
             py::tuple args(2);
             args[0] = e.what();
             args[1] = e.operation();
-            // TODO: also pass some hint about operation
+            // TODO: also pass some hint about operation?
             PyPipelineError(e.what());
-        }
-    });
-
+        } });*/
+/*
     static py::exception<TypeException> PyVariableException(m, "VariableException", PyExc_RuntimeError);
     static py::exception<ModuleException> PyModuleException(m, "ModuleException", PyExc_RuntimeError);
     static py::exception<OperationException> PyOperationException(m, "OperationException", PyExc_RuntimeError);
     static py::exception<SerializationException> PySerializationException(m, "SerializationException", PyExc_RuntimeError);
-
-    registry.register_enumeration<ComparisonOperation>("comparison");
-    registry.register_enumeration<LogicalOperation>("logical");
-    registry.register_enumeration<ArithmeticOperation>("arithmetic");
-    registry.register_enumeration<ContextData>("context"); 
-
-    registry.register_enumeration<ImageDepth>("depth"); 
-    registry.register_enumeration<Interpolation>("interpolation"); 
-    registry.register_enumeration<BorderStrategy>("border"); 
+*/
+    py::register_exception<SerializationException>(m, "SerializationException");
+    py::register_exception<OperationException>(m, "OperationException");
+    py::register_exception<TypeException>(m, "TypeException");
+    py::register_exception<ModuleException>(m, "ModuleException");
+    py::register_exception<IllegalStateException>(m, "IllegalStateException");
+    py::register_exception<PipelineException>(m, "PipelineException");
 
     py::class_<Pipeline>(m, "Pipeline")
-    .def(py::init<>())
-    .def("finalize", &Pipeline::finalize, "Finalize pipeline")
-    .def("labels", &Pipeline::get_labels, "Get output labels as a list")
-    .def("append", [](Pipeline& p, std::string& name, py::list args, std::vector<int> inputs) {
+        .def(py::init<>())
+        .def("finalize", &Pipeline::finalize, "Finalize pipeline")
+        .def("labels", &Pipeline::get_labels, "Get output labels as a list")
+        .def(
+            "append", [](Pipeline &p, std::string &name, py::list args, std::vector<int> inputs)
+            { return _add_operation(p, name, args, inputs); },
+            "Add operation to pipeline")
+        .def(
+            "run", [](Pipeline &p, unsigned long index)
+            {
+                Sequence<TokenReference> result;
 
-        return _add_operation(p, name, args, inputs);
+                { // release GIL lock when running pure C++, reacquire it when we are converting data
+                    py::gil_scoped_release gil;
+                    result = p.run(index);
+                }
 
-    }, "Add operation to pipeline")
-    .def("run", [](Pipeline& p, unsigned long index) {
-        std::vector<SharedToken> result;
+                std::vector<py::object> transformed;
+                for (auto element = result.begin(); element != result.end(); element++) {
+                        transformed.push_back(token_to_python(*element));
+                }
 
-        { // release GIL lock when running pure C++, reacquire it when we are converting data
-            py::gil_scoped_release gil; 
-            auto tmp = p.run(index);
-            result = std::vector(tmp.begin(), tmp.end());
-        }
+                return transformed; },
+            "Run pipeline", py::arg("index"));
 
-        std::vector<py::object> transformed;
-        for (auto element : result) {
-                transformed.push_back(numpyFromVariable(element));
-        }
+    m.def(
+        "read_pipeline", [](std::string &name)
+        { 
+            return read_pipeline(name); 
+        },
+        py::arg("filename"));
 
-        return transformed; 
+    m.def(
+        "write_pipeline", [](const Pipeline &pipeline, std::string &name, bool compress)
+        { 
+            return write_pipeline(pipeline, name, compress); 
+        },
+        py::arg("pipeline"), py::arg("filename"), py::arg("compress") = true);
 
-    }, "Run pipeline", py::arg("index"));
+    py::class_<PipelineCallback, PyPipelineCallback, std::shared_ptr<PipelineCallback>>(m, "PipelineCallback")
+        .def(py::init());
 
+    // py::class_<Operation, OperationReference >(m, "Operation");
 
-    py::class_<PipelineWriter>(m, "PipelineWriter")
-    .def(py::init<bool, bool>(), py::arg("compress") = true, py::arg("relocatable") = true)
-    .def("write", [](PipelineWriter& p, std::string filename) { p.write(filename); }, "Write the current pipeline", py::arg("filename"))
-    .def("append", [](PipelineWriter& p, std::string& name, py::list args, std::vector<int> inputs) {
+    m.def("enum", [](std::string &name)
+          { return describe_enumeration(name); });
 
-        return _add_operation(p, name, args, inputs);
-
-    }, "Add operation to the pipeline writer");
-    
-    py::class_<PipelineReader>(m, "PipelineReader")
-    .def(py::init<>())
-    .def("read", [](PipelineReader& p, std::string filename) { return p.read(filename); }, "Read the pipeline");
-
-    py::class_<PipelineCallback, PyPipelineCallback, std::shared_ptr<PipelineCallback> >(m, "PipelineCallback")
-    .def(py::init());
-
-    py::class_<Operation, SharedOperation >(m, "Operation");
-
-    m.def("enum", [](std::string& name) {
-
-        return registry.enumeration(name);
-
-    });
-
-    m.def("load", [](std::string& name) {
-
-        return Module::load(name);
-
-    });
-
-    py::set_shared_data("_pixelpipes_python_registry", &registry);
-
-    registry.register_wrapper(TokenIdentifier, generic_convert, false);
-
-    registry.register_wrapper(IntegerIdentifier, [](py::object src) {
-
-        if  (py::int_::check_(src)) {
-            py::int_ value(src);
-            return std::make_shared<Integer>(value);
-        }
-
-        return empty<Integer>();
- 
-    });
-
-    registry.register_wrapper(FloatIdentifier, [](py::object src) {
-
-        if  (py::float_::check_(src)) {
-            py::float_ value(src);
-            return std::make_shared<Float>(value);
-        }
-
-        if  (py::int_::check_(src)) {
-            int value = (int) py::int_(src);
-            return std::make_shared<Float>(value);
-        }
-
-        return empty<Float>();
-
-    }); 
-
-    registry.register_wrapper(StringIdentifier, [](py::object src) {
-
-        if  (py::str::check_(src)) {
-            py::str str(src);
-            return std::make_shared<String>(str);
-        }
-
-        return empty<String>();
-
-    });
-
-    registry.register_wrapper(BooleanIdentifier, [](py::object src) {
-
-        if  (py::bool_::check_(src)) {
-            py::bool_ value(src);
-            return std::make_shared<Boolean>(value);
-        }
-
-        return empty<Boolean>();
-
-    });
-
-    registry.register_wrapper(GetTypeIdentifier<Sequence<int>>(), &wrap_list<int>);
-    registry.register_wrapper(GetTypeIdentifier<Sequence<float>>(), &wrap_list<float>);
-    registry.register_wrapper(GetTypeIdentifier<Sequence<std::string>>(), &wrap_list<std::string>);
-    registry.register_wrapper(GetTypeIdentifier<Sequence<bool>>(), &wrap_list<bool>);
-
-    registry.register_wrapper(DNFType, &wrap_dnf_clause, false);
-
-    registry.register_wrapper(Point2DIdentifier, [](py::object src) {
-
-        if  (py::tuple::check_(src)) {
-            py::tuple tuple(src);
-            if (tuple.size() == 2) {
-                py::float_ x(tuple[0]);
-                py::float_ y(tuple[1]);
-
-                return MAKE_POINT(x, y);
-            }
-        }
-
-        return empty<Point2DVariable>();
-
-    });
-
-    registry.register_extractor(Point2DIdentifier, [](SharedToken src) {
-
-        Point2D point = extract<Point2D>(src);
-        py::array_t<float> result({2});
-        *result.mutable_data(0) = point.x;
-        *result.mutable_data(1) = point.y;
-        return result;
-
-    });
-
-    registry.register_extractor(View2DIdentifier, [](SharedToken src) {
-
-        View2D view = View2DVariable::get_value(src);
-
-        py::array_t<float> result({3, 3});
-
-        *result.mutable_data(0, 0) = view.m00;
-        *result.mutable_data(0, 1) = view.m01;
-        *result.mutable_data(0, 2) = view.m02;
-        *result.mutable_data(1, 0) = view.m10;
-        *result.mutable_data(1, 1) = view.m11;
-        *result.mutable_data(1, 2) = view.m12;
-        *result.mutable_data(2, 0) = view.m20;
-        *result.mutable_data(2, 1) = view.m21;
-        *result.mutable_data(2, 2) = view.m22;
-
-        return result;
-
-    });
-
-    registry.register_wrapper(ImageType, &wrap_image);
-
-    registry.register_extractor(ImageType, &extract_image);
-
-    registry.register_wrapper(GetTypeIdentifier<Span<Image>>(), &wrap_image_list);
-
-    registry.register_extractor(GetTypeIdentifier<Span<Image>>(), &extract_image_list);
-
-
+    m.def("load", [](std::string &name)
+          { return Module::load(name); });
 }

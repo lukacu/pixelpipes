@@ -130,53 +130,33 @@ class _BinaryOperator(Node):
 
         integer = isinstance(inputs["a"], types.Integer) and isinstance(inputs["b"], types.Integer)
 
-        if inputs["a"].value is not None and inputs["b"].value is not None:
-            return self._compute(inputs["a"].value, inputs["b"].value)
-
         return types.Integer() if integer else types.Float()
-
-    def _compute(self, a, b):
-        raise NotImplementedError()
 
 class Add(_BinaryOperator):
 
     def operation(self):
         return "numbers_add",
 
-    def _compute(self, a, b):
-        return Constant.resolve_type(a + b)
-
 class Multiply(_BinaryOperator):
 
     def operation(self):
         return "numbers_multiply",
-
-    def _compute(self, a, b):
-        return Constant.resolve_type(a * b)
 
 class Subtract(_BinaryOperator):
 
     def operation(self):
         return "numbers_subtract",
 
-    def _compute(self, a, b):
-        return Constant.resolve_type(a - b)
-
 class Divide(_BinaryOperator):
 
     def operation(self):
         return "numbers_divide",
 
-    def _compute(self, a, b):
-        return types.Float(a / b)
 
 class Power(_BinaryOperator):
 
     def operation(self):
         return "numbers_power",
-
-    def _compute(self, a, b):
-        return Constant.resolve_type(a ** b)
 
 class Modulo(_BinaryOperator):
 
@@ -185,9 +165,6 @@ class Modulo(_BinaryOperator):
 
     def operation(self):
         return "numbers_modulo",
-
-    def _compute(self, a, b):
-        return types.Integer(a % b)
 
 @hidden
 class _ComparisonOperation(_BinaryOperator):
@@ -198,103 +175,47 @@ class _ComparisonOperation(_BinaryOperator):
             return types.Integer(inferred.value != 0)
 
         return types.Integer()
+
+
 class Greater(_ComparisonOperation):
 
     def operation(self):
-        return "comparison", ComparisonOperations["GREATER"]
-
-    def _compute(self, a, b):
-        return types.Integer(a > b)
+        return "compare_greater",
 
 class Lower(_ComparisonOperation):
 
     def operation(self):
-        return "comparison", ComparisonOperations["LOWER"]
-
-    def _compute(self, a, b):
-        return types.Integer(a < b)
+        return "compare_less",
 
 class GreaterEqual(_ComparisonOperation):
 
     def operation(self):
-        return "comparison", ComparisonOperations["GREATER_EQUAL"]
+        return "compare_greater_equal",
 
-    def _compute(self, a, b):
-        return types.Integer(a >= b)
+class NotEqual(_ComparisonOperation):
+
+    def operation(self):
+        return "compare_not_equal",
 
 class LowerEqual(_ComparisonOperation):
 
     def operation(self):
-        return "comparison", ComparisonOperations["LOWER_EQUAL"]
-
-    def _compute(self, a, b):
-        return types.Integer(a <= b)
+        return "compare_less_equal",
 
 class Equal(_ComparisonOperation):
 
     def operation(self):
-        return "comparison", ComparisonOperations["EQUAL"]
-
-    def _compute(self, a, b):
-        return types.Integer(a == b)
+        return "compare_equal",
 
 class Maximum(_BinaryOperator):
 
     def operation(self):
         return "numbers_max",
 
-    def _compute(self, a, b):
-        return Constant.resolve_type(max(a, b))
-
 class Minimum(_BinaryOperator):
 
     def operation(self):
         return "numbers_min", 
-
-    def _compute(self, a, b):
-        return Constant.resolve_type(min(a, b))
-
-class Threshold(Node):
-
-    threshold = Number()
-    comparison = Enumeration(ComparisonOperations)
-    source = Input(types.Number())
-
-    def _output(self):
-        return types.Integer()
-
-    def operation(self):
-        return "threshold", self.threshold, self.comparison
-
-class _ThresholdsComparison(Node):
-
-    thresholds = List(Number())
-    comparison = List(Enumeration(ComparisonOperations))
-    inputs = List(Input(types.Number()))
-
-    def _init(self):
-        if len(self.inputs) == 0:
-            raise NodeException("No inputs provided", node=self)
-
-        if len(self.inputs) != len(self.thresholds) or len(self.inputs) != len(self.comparison):
-            raise NodeException("Number of inputs and conditions does not match", node=self)
-
-    def input_values(self):
-        return [self.inputs[int(name)] for name, _ in self.get_inputs()]
-
-    def get_inputs(self):
-        return [(str(k), types.Number()) for k, _ in enumerate(self.inputs)]
-
-    def duplicate(self, _origin=None, **inputs):
-        config = self.dump()
-        for k, v in inputs.items():
-            i = int(k)
-            assert i >= 0 and i < len(config["inputs"])
-            config["inputs"][i] = v
-        return self.__class__(_origin=_origin, **config)
-
-    def _output(self):
-        return types.Integer()
 
 def _numeric_unary_generator(proto, a):
     refa, typa = tuple(a)
@@ -331,3 +252,5 @@ Node.register_operation(BinaryOperation.GREATER, Greater, _infer_logical, types.
 Node.register_operation(BinaryOperation.GREATER_EQUAL, GreaterEqual, _infer_logical, types.Number(), types.Number())
 Node.register_operation(BinaryOperation.LOWER, Lower, _infer_logical, types.Number(), types.Number())
 Node.register_operation(BinaryOperation.LOWER_EQUAL, LowerEqual, _infer_logical, types.Number(), types.Number())
+Node.register_operation(BinaryOperation.EQUAL, Equal, _infer_logical, types.Number(), types.Number())
+Node.register_operation(BinaryOperation.NOT_EQUAL, NotEqual, _infer_logical, types.Number(), types.Number())

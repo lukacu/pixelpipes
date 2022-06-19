@@ -25,7 +25,7 @@ class TestSinks(unittest.TestCase):
             self.assertIsInstance(batch[0], np.ndarray)
             self.assertIsInstance(batch[1], np.ndarray)
             self.assertEqual(batch[0].shape, (batch_size, 1))
-            self.assertEqual(batch[1].shape, (batch_size, 3, 1))
+            self.assertEqual(batch[1].shape, (batch_size, 3))
             return
 
     """

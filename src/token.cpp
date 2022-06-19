@@ -3,21 +3,10 @@
 
 namespace pixelpipes
 {
-    
-    PIXELPIPES_REGISTER_TYPE(TokenIdentifier, "token");
 
-    PIXELPIPES_REGISTER_TYPE(IntegerIdentifier, "integer");
-    PIXELPIPES_REGISTER_TYPE(FloatIdentifier, "float");
-    PIXELPIPES_REGISTER_TYPE(BooleanIdentifier, "boolean");
-    PIXELPIPES_REGISTER_TYPE(StringIdentifier, "string");
-
-    PIXELPIPES_REGISTER_TYPE(IntegerListIdentifier, "integer_list");
-    PIXELPIPES_REGISTER_TYPE(FloatListIdentifier, "float_list");
-    PIXELPIPES_REGISTER_TYPE(BooleanListIdentifier, "boolean_list");
-    PIXELPIPES_REGISTER_TYPE(StringListIdentifier, "string_list");
-
-    Type Token::type() const {
-        return Type(type_id(), {});
+    Shape Token::shape() const
+    {
+        return Shape(AnyType, SizeSpan{});
     }
 
     std::string Token::describe() const
@@ -27,31 +16,72 @@ namespace pixelpipes
         return ss.str();
     }
 
-    std::ostream &operator<<(std::ostream &os, const Token &v)
-    {
-        v.describe(os);
-        return os;
-    }
-
-    std::ostream &operator<<(std::ostream &os, const SharedToken &v)
-    {
-        v->describe(os);
-        return os;
-    }
-
     void List::describe(std::ostream &os) const
     {
-        os << "[List: length " << size() << ", elements: " << type_name(element_type_id()) << "]";
+        os << "[List: length " << length() << "]";
     }
 
-    TypeIdentifier List::type_id() const
+    GenericList::GenericList(const std::initializer_list<TokenReference> &elements) : _elements{elements}
     {
-        return element_type_id() | TensorIdentifierMask;
+
+        if (elements.size() == 0)
+        {
+            _shape = Shape();
+        }
+        else
+        {
+
+            Shape eshape = _elements[0]->shape();
+
+            for (auto l = _elements.begin(); l != _elements.end(); l++)
+            {
+                _shape = _shape & (*l)->shape();
+            }
+
+            _shape = _shape.push(_elements.size());
+        }
     }
 
-    Type List::type() const {
-        return ListType(type_id(), size());
+    GenericList::GenericList(const View<TokenReference> &elements) : _elements{elements}
+    {
+
+        if (elements.size() == 0)
+        {
+            _shape = Shape();
+        }
+        else
+        {
+            _shape = _elements[0]->shape();
+
+            for (auto l = _elements.begin(); l != _elements.end(); l++)
+            {
+                _shape = _shape & (*l)->shape();
+            }
+
+            _shape = _shape.push(_elements.size());
+        }
     }
 
+    GenericList::~GenericList() = default;
+
+    Shape GenericList::shape() const
+    {
+        return _shape;
+    }
+
+    size_t GenericList::length() const
+    {
+        return _elements.size();
+    }
+
+    TokenReference GenericList::get(size_t index) const
+    {
+        if (index >= _elements.size())
+        {
+            throw TypeException("Index out of range");
+        }
+
+        return _elements[index].reborrow();
+    }
 
 }

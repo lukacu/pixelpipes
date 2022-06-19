@@ -52,7 +52,7 @@ class ImageAdd(Node):
     source2 = Input(types.Union(types.Image(), types.Number()))
 
     def operation(self):
-        return "image:add",
+        return "opencv:image_add",
 
     def validate(self, **inputs):
         super().validate(**inputs)
@@ -81,7 +81,7 @@ class ImageSubtract(Node):
     source2 = Input(types.Union(types.Image(), types.Number()))
 
     def operation(self):
-        return "image:subtract",
+        return "opencv:image_subtract",
 
     def validate(self, **inputs):
         super().validate(**inputs)
@@ -110,7 +110,7 @@ class ImageMultiply(Node):
     source2 = Input(types.Union(types.Image(), types.Number()))
 
     def operation(self):
-        return "image:multiply",
+        return "opencv:image_multiply",
 
     def validate(self, **inputs):
         super().validate(**inputs)

@@ -5,395 +5,197 @@
 
 #include "debug.h"
 
-namespace pixelpipes {
+namespace pixelpipes
+{
 
-class NormalDistribution : public StohasticOperation {
-public:
+#define IS_INTEGER(x) ((x)->is<ContainerToken<int>>())
 
-    virtual SharedToken run(TokenList inputs) {
-
-        VERIFY(inputs.size() == 3, "Illegal number of inputs");
-
-        RandomGenerator generator = StohasticOperation::create_generator(inputs[2]);
-
-        std::normal_distribution<float> dst(Float::get_value(inputs[0]), Float::get_value(inputs[1]));
-
-        float num = dst(generator);
-
-        return wrap(num);
-    } 
-
-private:
-    std::normal_distribution<float> distribution;
-};
-
-REGISTER_OPERATION("random_normal", NormalDistribution);
-
-
-class UniformDistribution : public StohasticOperation {
-public:
-
-    virtual SharedToken run(TokenList inputs) {
-
-        VERIFY(inputs.size() == 3, "Illegal number of inputs");
-
-        RandomGenerator generator = StohasticOperation::create_generator(inputs[2]);
-
-        std::uniform_real_distribution<float> dst(Float::get_value(inputs[0]), Float::get_value(inputs[1]));
-
-        float num = dst(generator);
-
-        //PRINTMSG("%f %f %f %f \n", dst.a(), dst.b(), num, Float::get_value(inputs[2]));
-
-        return wrap(num);
-
+    float sample_normal(float mean, float stdev, int seed)
+    {
+        RandomGenerator generator = create_generator(seed);
+        std::normal_distribution<float> dst(mean, stdev);
+        return dst(generator);
     }
 
-};
+    PIXELPIPES_OPERATION_AUTO("random_normal", sample_normal);
 
-REGISTER_OPERATION("random_uniform", UniformDistribution);
-
-class Round : public Operation {
-public:
-
-    virtual SharedToken run(TokenList inputs) {
-
-        VERIFY(inputs.size() == 1, "Illegal number of inputs");
-
-        float value = Float::get_value(inputs[0]);
-
-        return std::make_shared<Integer>(static_cast<int>(round(value)));
-
+    float sample_uniform(float min, float max, int seed)
+    {
+        RandomGenerator generator = create_generator(seed);
+        std::uniform_real_distribution<float> dst(min, max);
+        return dst(generator);
     }
 
-};
+    PIXELPIPES_OPERATION_AUTO("random_uniform", sample_uniform);
 
-REGISTER_OPERATION("numbers_round", Round);
-
-class Floor : public Operation {
-public:
-
-    virtual SharedToken run(TokenList inputs) {
-
-        VERIFY(inputs.size() == 1, "Illegal number of inputs");
-
-        float value = Float::get_value(inputs[0]);
-
-        return std::make_shared<Integer>(static_cast<int>(floor(value)));
-
+    int round_value(float value)
+    {
+        return static_cast<int>(round(value));
     }
 
-};
+    PIXELPIPES_OPERATION_AUTO("numbers_round", round_value);
 
-REGISTER_OPERATION("numbers_floor", Floor);
-
-class Ceil : public Operation {
-public:
-
-    virtual SharedToken run(TokenList inputs) {
-
-        VERIFY(inputs.size() == 1, "Illegal number of inputs");
-
-        float value = Float::get_value(inputs[0]);
-
-        return std::make_shared<Integer>(static_cast<int>(ceil(value)));
-
+    int floor_value(float value)
+    {
+        return static_cast<int>(floor(value));
     }
 
-};
+    PIXELPIPES_OPERATION_AUTO("numbers_floor", floor_value);
 
-REGISTER_OPERATION("numbers_ceil", Ceil);
+    int ceil_value(float value)
+    {
+        return static_cast<int>(ceil(value));
+    }
 
-class Add : public Operation {
-public:
+    PIXELPIPES_OPERATION_AUTO("numbers_ceil", ceil_value);
 
-    virtual SharedToken run(TokenList inputs) {
-
+    TokenReference number_add(const TokenList& inputs)
+    {
         VERIFY(inputs.size() >= 1, "Illegal number of inputs");
 
         float value = 0;
         bool integer = true;
 
-        for (auto input : inputs) {
-            integer &= Integer::is(input);
-            value += Float::get_value(input);
+        for (auto input = inputs.begin(); input != inputs.end(); input++)
+        {
+            integer &= IS_INTEGER(*input);
+            value += extract<float>(*input);
         }
 
         if (integer)
-            return std::make_shared<Integer>((int)value);
+            return wrap((int)value);
         else
-            return std::make_shared<Float>(value);
-
+            return wrap(value);
     }
 
-};
+    PIXELPIPES_OPERATION("numbers_add", number_add);
 
-REGISTER_OPERATION("numbers_add", Add);
+    TokenReference number_subtract(const TokenReference& a, const TokenReference& b)
+    {
+        float v1 = extract<float>(a);
+        float v2 = extract<float>(b);
 
-class Subtract : public Operation {
-public:
-
-    virtual SharedToken run(TokenList inputs) {
-
-        VERIFY(inputs.size() == 2, "Illegal number of inputs");
-
-        float v1 = Float::get_value(inputs[0]);
-        float v2 = Float::get_value(inputs[1]);
-
-        if (Integer::is(inputs[0]) && Integer::is(inputs[1])) {
-                return std::make_shared<Integer>((int)(v1 - v2));
-        } else
-            return std::make_shared<Float>(v1 - v2);
-
+        if (IS_INTEGER(a) && IS_INTEGER(b))
+        {
+            return wrap((int)(v1 - v2));
+        }
+        else
+            return wrap(v1 - v2);
     }
 
-};
+    PIXELPIPES_OPERATION_AUTO("numbers_subtract", number_subtract);
 
-REGISTER_OPERATION("numbers_subtract", Subtract);
+    TokenReference number_multiply(const TokenList& inputs)
+    {
 
-class Multiply : public Operation {
-public:
-
-    virtual SharedToken run(TokenList inputs) {
-
-        VERIFY(inputs.size() >= 1,"Illegal number of inputs");
+        VERIFY(inputs.size() >= 1, "Illegal number of inputs");
 
         float value = 1;
         bool integer = true;
 
-        for (auto input : inputs) {
-            integer &= Integer::is(input);
-            value *= Float::get_value(input);
+        for (auto input = inputs.begin(); input != inputs.end(); input++)
+        {
+            integer &= IS_INTEGER(*input);
+            value *= extract<float>(*input);
         }
 
         if (integer)
-            return std::make_shared<Integer>((int)value);
+            return wrap((int)value);
         else
-            return std::make_shared<Float>(value);
-
+            return wrap(value);
     }
 
-};
+    PIXELPIPES_OPERATION("numbers_multiply", number_multiply);
 
-REGISTER_OPERATION("numbers_multiply", Multiply);
-
-class Divide : public Operation {
-public:
-
-    virtual SharedToken run(TokenList inputs) {
-
-        VERIFY(inputs.size() == 2, "Illegal number of inputs");
-
-        float v1 = Float::get_value(inputs[0]);
-        float v2 = Float::get_value(inputs[1]);
-
-        return std::make_shared<Float>(v1 / v2);
-
+    float number_divide(float a, float b)
+    {
+        VERIFY(b != 0, "Division with zero");
+        return a / b;
     }
 
-};
+    PIXELPIPES_OPERATION_AUTO("numbers_divide", number_divide);
 
-REGISTER_OPERATION("numbers_divide", Divide);
-
-class Power : public Operation {
-public:
-
-    virtual SharedToken run(TokenList inputs) {
-
-        VERIFY(inputs.size() == 2, "Illegal number of inputs");
-
-        float value = Float::get_value(inputs[0]);
-        float exponent = Float::get_value(inputs[1]);
-
-        return std::make_shared<Float>(pow(value, exponent));
-
+    float number_power(float value, float exponent)
+    {
+        return pow(value, exponent);
     }
 
-};
+    PIXELPIPES_OPERATION_AUTO("numbers_power", number_power);
 
-REGISTER_OPERATION("numbers_power", Power);
-
-class Modulo : public Operation {
-public:
-
-    virtual SharedToken run(TokenList inputs) {
-
-        VERIFY(inputs.size() == 2, "Illegal number of inputs");
-
-        int value = Integer::get_value(inputs[0]);
-        int quotient = Integer::get_value(inputs[1]);
-
-        return std::make_shared<Integer>(value % quotient);
-
+    int number_modulo(int value, int quotient)
+    {
+        return value % quotient;
     }
 
-};
+    PIXELPIPES_OPERATION_AUTO("numbers_modulo", number_modulo);
 
-REGISTER_OPERATION("numbers_modulo", Modulo);
+    TokenReference Maximum(const TokenList& inputs)
+    {
 
-SharedToken Maximum(TokenList inputs) {
+        VERIFY(inputs.size() > 1, "Illegal number of inputs, at least one required");
 
-    VERIFY(inputs.size() > 1, "Illegal number of inputs, at least one required");
+        float value = extract<float>(inputs[0]);
+        bool integer = true;
 
-    float value = Float::get_value(inputs[0]);
-    bool integer = true;
-
-    for (auto input : inputs) {
-        integer &= Integer::is(input);
-        value = MAX(value, Float::get_value(input));
-    }
-
-    if (integer)
-        return std::make_shared<Integer>((int)value);
-    else
-        return std::make_shared<Float>(value);
-
-}
-
-REGISTER_OPERATION_FUNCTION("numbers_max", Maximum);
-
-SharedToken Minimum(TokenList inputs) {
-
-    VERIFY(inputs.size() > 1, "Illegal number of inputs, at least one required");
-
-    float value = Float::get_value(inputs[0]);
-    bool integer = true;
-
-    for (auto input : inputs) {
-        integer &= Integer::is(input);
-        value = MIN(value, Float::get_value(input));
-    }
-
-    if (integer)
-        return std::make_shared<Integer>((int)value);
-    else
-        return std::make_shared<Float>(value);
-
-}
-
-REGISTER_OPERATION_FUNCTION("numbers_min", Minimum);
-
-inline bool compare_values(float a, float b, ComparisonOperation operation) {
-
-    switch (operation) {
-    case ComparisonOperation::EQUAL:
-        return a == b;
-    case ComparisonOperation::NOT_EQUAL:
-        return a != b;
-    case ComparisonOperation::GREATER_EQUAL:
-        return a >= b;
-    case ComparisonOperation::LOWER_EQUAL:
-        return a <= b;
-    case ComparisonOperation::LOWER:
-        return a < b;
-    case ComparisonOperation::GREATER:
-        return a > b;
-    }
-
-    return false;
-
-}
-
-class Threshold : public Operation {
-public:
-
-    Threshold(float threshold, ComparisonOperation comparison):
-        threshold(threshold), comparison(comparison) {}
-
-    virtual SharedToken run(TokenList inputs) {
-
-        VERIFY(inputs.size() == 1, "Illegal number of inputs");
-
-        bool result = compare_values(Float::get_value(inputs[0]), threshold, comparison);
-
-        return std::make_shared<Boolean>(result);
-
-    }
-
-private:
-
-    float threshold;
-    ComparisonOperation comparison;
-
-};
-
-REGISTER_OPERATION("threshold", Threshold, float, ComparisonOperation);
-
-
-SharedToken Comparison(TokenList inputs, ComparisonOperation comparison) {
-
-    VERIFY(inputs.size() == 2, "Illegal number of inputs");
-
-    bool result = compare_values(Float::get_value(inputs[0]), Float::get_value(inputs[1]), comparison);
-
-    return std::make_shared<Boolean>(result);
-
-}
-
-REGISTER_OPERATION_FUNCTION("comparison", Comparison, ComparisonOperation);
-
-class ThresholdsConjunction : public Operation {
-public:
-
-    ThresholdsConjunction(std::vector<float> thresholds, std::vector<ComparisonOperation> comparison):
-        thresholds(thresholds), comparison(comparison) {
-        VERIFY(thresholds.size() == comparison.size(), "Length mismatch");
-        VERIFY(thresholds.size() >= 1, "At least one comparison required");
-    }
-
-    virtual SharedToken run(TokenList inputs) {
-
-        VERIFY(inputs.size() == thresholds.size(), "Illegal number of inputs");
-
-        bool result = true;
-
-        for (size_t i = 0; i < thresholds.size(); i++) {
-            float value = Float::get_value(inputs[i]);
-            result &= compare_values(value, thresholds[i], comparison[i]);
+        for (auto input = inputs.begin(); input != inputs.end(); input++)
+        {
+            integer &= IS_INTEGER(*input);
+            value = MAX(value, extract<float>(*input));
         }
 
-        return std::make_shared<Integer>((int) result);
-
+        if (integer)
+            return wrap((int)value);
+        else
+            return wrap(value);
     }
 
-private:
+    PIXELPIPES_OPERATION("numbers_max", Maximum);
 
-    std::vector<float> thresholds;
-    std::vector<ComparisonOperation> comparison;
-};
+    TokenReference number_minimum(const TokenList& inputs)
+    {
 
-//REGISTER_OPERATION("threshold_c", ThresholdsConjunction, std::vector<float>, std::vector<ComparisonOperation>);
+        VERIFY(inputs.size() > 1, "Illegal number of inputs, at least one required");
 
-class ThresholdsDisjunction : public Operation {
-public:
+        float value = extract<float>(inputs[0]);
+        bool integer = true;
 
-    ThresholdsDisjunction(std::vector<float> thresholds, std::vector<ComparisonOperation> comparison):
-        thresholds(thresholds), comparison(comparison) {
-        VERIFY(thresholds.size() == comparison.size(), "Length mismatch");
-        VERIFY(thresholds.size() >= 1, "At least one comparison required");
-    }
-
-    virtual SharedToken run(TokenList inputs) {
-
-        VERIFY(inputs.size() == thresholds.size(), "Illegal number of inputs");
-
-        bool result = false;
-
-        for (size_t i = 0; i < thresholds.size(); i++) {
-            float value = Float::get_value(inputs[i]);
-            result |= compare_values(value, thresholds[i], comparison[i]);
+        for (auto input = inputs.begin(); input != inputs.end(); input++)
+        {
+            integer &= IS_INTEGER(*input);
+            value = MIN(value, extract<float>(*input));
         }
 
-        return std::make_shared<Integer>((int) result);
-
+        if (integer)
+            return wrap((int)value);
+        else
+            return wrap(value);
     }
 
-private:
+    PIXELPIPES_OPERATION("numbers_min", number_minimum);
 
-    std::vector<float> thresholds;
-    std::vector<ComparisonOperation> comparison;
-};
+    template <typename Op>
+    TokenReference compare_binary(float a, float b)
+    {
+        Op operation;
+        return wrap(operation(a, b));
+    }
 
-//REGISTER_OPERATION("numbers.threshold_d", ThresholdsDisjunction, std::vector<float>, std::vector<ComparisonOperation>);
+#define compare_equal compare_binary<std::equal_to<float>>
+    PIXELPIPES_OPERATION_AUTO("compare_equal", compare_equal);
+
+#define compare_not_equal compare_binary<std::not_equal_to<float>>
+    PIXELPIPES_OPERATION_AUTO("compare_not_equal", compare_not_equal);
+
+#define compare_greater compare_binary<std::greater<float>>
+    PIXELPIPES_OPERATION_AUTO("compare_greater", compare_greater);
+
+#define compare_less compare_binary<std::less<float>>
+    PIXELPIPES_OPERATION_AUTO("compare_less", compare_less);
+
+#define compare_greater_equal compare_binary<std::greater_equal<float>>
+    PIXELPIPES_OPERATION_AUTO("compare_greater_equal", compare_greater_equal);
+
+#define compare_less_equal compare_binary<std::less_equal<float>>
+    PIXELPIPES_OPERATION_AUTO("compare_less_equal", compare_less_equal);
 
 }

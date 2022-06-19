@@ -4,86 +4,63 @@
 
 namespace pixelpipes
 {
-
     class Token;
-    typedef std::shared_ptr<Token> SharedToken;
+    typedef Pointer<Token> TokenReference;
 
     template <typename T = Token>
-    std::shared_ptr<T> empty()
+    Pointer<T> empty()
     {
-        return std::shared_ptr<T>();
+        return Pointer<T>();
     }
 
-    class PIXELPIPES_API Token
+    class PIXELPIPES_API Token : public virtual details::RTTI
     {
+        PIXELPIPES_RTTI(Token)
     public:
-        virtual TypeIdentifier type_id() const = 0;
-
-        virtual Type type() const;
+        virtual Shape shape() const;
 
         virtual void describe(std::ostream &os) const = 0;
 
         std::string describe() const;
-
-        friend std::ostream &operator<<(std::ostream &os, const Token &v);
-
-        friend std::ostream &operator<<(std::ostream &os, const SharedToken &v);
     };
 
-    template <typename T>
-    T extract(SharedToken)
+    inline std::ostream& operator<<(std::ostream& os, const TokenReference& token)
     {
-        static_assert(detail::always_false<T>, "Conversion not supported");
-    }
-
-    template <typename T>
-    SharedToken wrap(T value)
-    {
-        static_assert(detail::always_false<T>, "Conversion not supported");
-        return SharedToken();
-    }
-
-    template <>
-    inline SharedToken extract(const SharedToken v)
-    {
-        return v;
-    }
-
-    template <>
-    inline SharedToken wrap(const SharedToken v)
-    {
-        return v;
+        if (!token) {
+            os << "[Empty token]";
+        } else {
+            os << token->describe();
+        }
+        return os;
     }
 
     template <typename T>
     class PIXELPIPES_API ContainerToken : public Token
     {
+        PIXELPIPES_RTTI(ContainerToken<T>, Token)
     public:
         ContainerToken(T value) : value(value)
         {
-            get();
         };
 
         ~ContainerToken() = default;
 
-        virtual TypeIdentifier type_id() const { return GetTypeIdentifier<T>(); };
-
-        T get() const { return value; };
-
-        inline static bool is(SharedToken v)
+        virtual Shape shape() const
         {
-            return (v->type_id() == GetTypeIdentifier<T>());
+            return Shape(GetTypeIdentifier<T>());
         }
 
-        static T get_value(const SharedToken v)
+        virtual TypeIdentifier container_type() const
         {
 
-            return extract<T>(v);
+            return GetTypeIdentifier<ContainerToken<T>>();
         }
+
+        inline T get() const { return value; };
 
         virtual void describe(std::ostream &os) const
         {
-            os << "[Container for " << type_name(type_id()) << "]";
+            os << "[Container for " << details::TypeInfo<T>::Name() << "]";
         }
 
     protected:
@@ -91,364 +68,245 @@ namespace pixelpipes
     };
 
     template <typename T>
+    T extract(const TokenReference& v)
+    {
+        UNUSED(v);
+        static_assert(details::always_false<T>, "Conversion not supported");
+    }
+
+    template <typename T>
+    inline TokenReference wrap(T v)
+    {
+        UNUSED(v);
+        static_assert(details::always_false<T>, "Conversion not supported");
+        return empty();
+    }
+
+    template <>
+    inline TokenReference extract(const TokenReference& v)
+    {
+        return v.reborrow();
+    }
+
+    template <>
+    inline TokenReference wrap(const TokenReference v)
+    {
+        return v.reborrow();
+    }
+
+    template <typename T>
     class PIXELPIPES_API ScalarToken : public ContainerToken<T>
     {
+        PIXELPIPES_RTTI(ScalarToken<T>, ContainerToken<T>)
     public:
-        ScalarToken(T value) : ContainerToken<T>(value){};
+        ScalarToken(T value) : ContainerToken<T>(value) { static_assert(std::is_fundamental_v<T>, "Only primitive types allowed"); };
 
         ~ScalarToken() = default;
 
         virtual void describe(std::ostream &os) const
         {
-            os << "[Scalar " << type_name(this->type_id()) << ", value: " << this->value << "]";
+            os << "[Scalar " << details::TypeInfo<T>::Name() << ", value: " << this->get() << "]";
         }
     };
 
-/*
-    class PIXELPIPES_API StringToken : public Token
-    {
-    public:
-        StringToken(T value) : value(value)
-        {
-            get();
-        };
+#define TokenIdentifier GetTypeIdentifier<TokenReference>()
 
-        ~StringToken() = default;
+#define IntegerIdentifier GetTypeIdentifier<int>()
+#define ShortIdentifier GetTypeIdentifier<ushort>()
+#define FloatIdentifier GetTypeIdentifier<float>()
+#define BooleanIdentifier GetTypeIdentifier<bool>()
+#define CharIdentifier GetTypeIdentifier<uchar>()
 
-        virtual TypeIdentifier type_id() const { return GetTypeIdentifier<char *>(); };
+    typedef ScalarToken<int> IntegerScalar;
+    typedef ScalarToken<float> FloatScalar;
+    typedef ScalarToken<bool> BooleanScalar;
+    typedef ScalarToken<uchar> CharScalar;
+    typedef ScalarToken<ushort> ShortScalar;
 
-        T get() const { return value; };
-
-        inline static bool is(SharedToken v)
-        {
-            return (v->type_id() == GetTypeIdentifier<T>());
-        }
-
-        static T get_value(const SharedToken v)
-        {
-
-            return extract<T>(v);
-        }
-
-        virtual void describe(std::ostream &os) const
-        {
-            os << "[String token " << type_name(type_id()) << "]";
-        }
-
-    protected:
-        T value;
-    };
-*/
-
-    #define TokenIdentifier GetTypeIdentifier<SharedToken>()
-
-    #define IntegerIdentifier GetTypeIdentifier<int>()
-    #define FloatIdentifier GetTypeIdentifier<float>()
-    #define BooleanIdentifier GetTypeIdentifier<bool>()
-    #define StringIdentifier GetTypeIdentifier<std::string>()
-
-    typedef ScalarToken<int> Integer;
-    typedef ScalarToken<float> Float;
-    typedef ScalarToken<bool> Boolean;
-    typedef ScalarToken<std::string> String;
+#define _IS_SCALAR_TOKEN(TOKEN, INNER) (((TOKEN)->is<ContainerToken<INNER>>()))
 
 // TODO: validate
-#define PIXELPIPES_CONVERT_ENUM(E)                                                                   \
-    template <>                                                                                      \
-    inline E extract(const SharedToken v)                                                         \
-    {                                                                                                \
-        VERIFY((bool)v, "Uninitialized token");                                                   \
-        if (v->type_id() != IntegerIdentifier)                                                                \
-            throw TypeException("Unexpected token type: expected int, got " + v->describe()); \
-        return (E)std::static_pointer_cast<Integer>(v)->get();                                       \
-    }                                                                                                \
-    template <>                                                                                      \
-    inline SharedToken wrap(const E v)                                                            \
-    {                                                                                                \
-        return std::make_shared<Integer>((int)v);                                                    \
+#define PIXELPIPES_CONVERT_ENUM(E)            \
+    template <>                               \
+    inline E extract(const TokenReference &v)    \
+    {                                         \
+        int raw = extract<int>(v);            \
+        return (E)raw;                        \
+    }                                         \
+    template <>                               \
+    inline TokenReference wrap(E v)       \
+    {                                         \
+        return create<IntegerScalar>((int)v); \
     }
 
     template <>
-    inline int extract(const SharedToken v)
+    inline int extract(const TokenReference& v)
     {
         VERIFY((bool)v, "Uninitialized token");
 
-        if (v->type_id() != IntegerIdentifier)
-            throw TypeException("Unexpected token type: expected int, got " + v->describe());
+        if (_IS_SCALAR_TOKEN(v, int))
+            return v->cast<ContainerToken<int>>()->get();
 
-        return std::static_pointer_cast<Integer>(v)->get();
+        if (_IS_SCALAR_TOKEN(v, short))
+            return v->cast<ContainerToken<short>>()->get();
+
+        if (_IS_SCALAR_TOKEN(v, bool))
+            return v->cast<ContainerToken<bool>>()->get() ? 1 : 0;
+
+        throw TypeException("Unexpected token type: expected int, got " + v->describe());
     }
 
     template <>
-    inline SharedToken wrap(const int v)
+    inline TokenReference wrap(const int v)
     {
-        return std::make_shared<Integer>(v);
+        return create<IntegerScalar>(v);
     }
 
+
     template <>
-    inline bool extract(const SharedToken v)
+    inline short extract(const TokenReference& v)
     {
         VERIFY((bool)v, "Uninitialized token");
 
-        if (v->type_id() == FloatIdentifier)
-            return std::static_pointer_cast<ContainerToken<float>>(v)->get() != 0;
+        if (_IS_SCALAR_TOKEN(v, short))
+            return v->cast<ContainerToken<short>>()->get();
 
-        if (v->type_id() == IntegerIdentifier)
-            return std::static_pointer_cast<ContainerToken<int>>(v)->get() != 0;
+        if (_IS_SCALAR_TOKEN(v, bool))
+            return v->cast<ContainerToken<bool>>()->get() ? 1 : 0;
 
-        if (v->type_id() == BooleanIdentifier)
-            return std::static_pointer_cast<ContainerToken<bool>>(v)->get();
+        throw TypeException("Unexpected token type: expected short, got " + v->describe());
+    }
+
+    template <>
+    inline TokenReference wrap(const short v)
+    {
+        return create<ShortScalar>(v);
+    }
+
+    template <>
+    inline bool extract(const TokenReference& v)
+    {
+        VERIFY((bool)v, "Uninitialized token");
+
+        if (_IS_SCALAR_TOKEN(v, bool))
+            return v->cast<ContainerToken<bool>>()->get();
+
+        if (_IS_SCALAR_TOKEN(v, float))
+            return v->cast<ScalarToken<float>>()->get() != 0;
+
+        if (_IS_SCALAR_TOKEN(v, int))
+            return v->cast<ContainerToken<int>>()->get() != 0;
 
         throw TypeException("Unexpected token type: expected bool, got " + v->describe());
     }
 
     template <>
-    inline SharedToken wrap(const bool v)
+    inline TokenReference wrap(const bool v)
     {
-        return std::make_shared<Boolean>(v);
+        return create<BooleanScalar>(v);
     }
 
     template <>
-    inline float extract(const SharedToken v)
+    inline char extract(const TokenReference& v)
     {
         VERIFY((bool)v, "Uninitialized token");
 
-        if (v->type_id() == IntegerIdentifier)
-            return (float)std::static_pointer_cast<ContainerToken<int>>(v)->get();
+        if (_IS_SCALAR_TOKEN(v, char))
+            return v->cast<ContainerToken<char>>()->get();
 
-        if (v->type_id() == BooleanIdentifier)
-            return (float)std::static_pointer_cast<ContainerToken<bool>>(v)->get();
-
-        if (v->type_id() != FloatIdentifier)
-            throw TypeException("Unexpected token type: expected float, got " + v->describe());
-
-        return std::static_pointer_cast<Float>(v)->get();
+        throw TypeException("Unexpected token type: expected char, got " + v->describe());
     }
 
     template <>
-    inline SharedToken wrap(const float v)
+    inline TokenReference wrap(const char v)
     {
-        return std::make_shared<Float>(v);
+        return create<ScalarToken<char>>(v);
     }
 
     template <>
-    inline std::string extract(const SharedToken v)
+    inline float extract(const TokenReference& v)
     {
         VERIFY((bool)v, "Uninitialized token");
 
-        if (v->type_id() != StringIdentifier)
-            throw TypeException("Unexpected token type: expected string, got " + v->describe());
+        if (_IS_SCALAR_TOKEN(v, float))
+            return (float)v->cast<ContainerToken<float>>()->get();
 
-        return std::static_pointer_cast<String>(v)->get();
+        if (_IS_SCALAR_TOKEN(v, int))
+            return (float)v->cast<ContainerToken<int>>()->get();
+
+        if (_IS_SCALAR_TOKEN(v, short))
+            return (float)v->cast<ContainerToken<short>>()->get();
+
+        if (_IS_SCALAR_TOKEN(v, bool))
+            return (float)v->cast<ContainerToken<bool>>()->get();
+
+        throw TypeException("Unexpected token type: expected float, got " + v->describe());
     }
 
     template <>
-    inline SharedToken wrap(const std::string v)
+    inline TokenReference wrap(const float v)
     {
-        return std::make_shared<String>(v);
+        return create<FloatScalar>(v);
     }
 
-
-    class PIXELPIPES_API Container: public Token
+    class PIXELPIPES_API List : public virtual Token
     {
+        PIXELPIPES_RTTI(List, Token)
     public:
-        ~Container() = default;
+        virtual ~List() = default;
 
-        virtual TypeIdentifier type_id() const = 0;
+        virtual size_t length() const = 0;
 
-        virtual TypeIdentifier element_type_id() const = 0;
+        virtual Shape shape() const = 0;
 
-    };
-
-
-    class PIXELPIPES_API List : public Container
-    {
-    public:
-        ~List() = default;
-
-        virtual size_t size() const = 0;
-
-        virtual TypeIdentifier type_id() const;
-
-        virtual Type type() const;
-
-        virtual TypeIdentifier element_type_id() const = 0;
-
-        virtual SharedToken get(size_t index) const = 0;
-
-        inline static bool is(SharedToken v)
-        {
-            return ((bool)v && ((v->type_id() & TensorIdentifierMask) != 0));
-        }
-
-        inline static bool is_list(SharedToken v)
-        {
-            return ((bool)v && List::is(v));
-        }
-
-        inline static bool is_list(SharedToken v, TypeIdentifier type)
-        {
-            return ((bool)v && List::is(v)) && std::static_pointer_cast<List>(v)->element_type_id() == type;
-        }
-
-        inline static std::shared_ptr<List> get_list(SharedToken v)
-        {
-            VERIFY(is_list(v), "Not a list");
-            return std::static_pointer_cast<List>(v);
-        }
-
-        inline static std::shared_ptr<List> get_list(SharedToken v, TypeIdentifier type)
-        {
-            VERIFY(is_list(v, type), "Not a list");
-            return std::static_pointer_cast<List>(v);
-        }
-
-        inline static size_t length(SharedToken v)
-        {
-            VERIFY((bool)v, "Uninitialized token");
-
-            if (!List::is_list(v))
-                throw TypeException("Not a list");
-            return std::static_pointer_cast<List>(v)->size();
-        }
-
-        static std::shared_ptr<List> cast(SharedToken v)
-        {
-            VERIFY((bool)v, "Uninitialized token");
-
-            if (!List::is_list(v))
-                throw TypeException("Not a list");
-            return std::static_pointer_cast<List>(v);
-        }
+        virtual TokenReference get(size_t index) const = 0;
 
         // Slow default template version
         template <class C>
-        const std::vector<C> elements() const
+        const Sequence<C> elements() const
         {
 
             std::vector<C> result;
+            result.reserve(length());
 
-            for (size_t i = 0; i < size(); i++)
+            for (size_t i = 0; i < length(); i++)
             {
                 result.push_back(extract<C>(get(i)));
             }
 
-            return result;
+            return Sequence<C>(result);
         }
 
         virtual void describe(std::ostream &os) const;
     };
 
-    typedef std::shared_ptr<List> SharedList;
+    typedef Pointer<List> ListReference;
 
-    template <typename C>
-    class PIXELPIPES_API ContainerList : public List
+    template <>
+    inline ListReference extract(const TokenReference& v)
     {
+        VERIFY((bool)v, "Uninitialized token");
+        VERIFY(v->is<List>(), "Not a list");
+        return cast<List>(v);
+    }
+
+    class PIXELPIPES_API GenericList : public List
+    {
+        PIXELPIPES_RTTI(GenericList, List)
     public:
-        ContainerList(){};
-        ContainerList(Span<C> list) : list(list){};
-        ~ContainerList() = default;
+        GenericList(const std::initializer_list<TokenReference> &elements);
+        GenericList(const View<TokenReference> &elements);
 
-        inline static bool is_list(SharedToken v)
-        {
-            return List::is_list(v, GetTypeIdentifier<C>());
-        }
+        virtual ~GenericList();
 
-        virtual size_t size() const { return list.size(); }
+        virtual Shape shape() const;
 
-        virtual TypeIdentifier element_type_id() const { return GetTypeIdentifier<C>(); };
-
-        virtual SharedToken get(size_t index) const { return std::make_shared<ScalarToken<C>>(list[index]); }
-
-        template <class T>
-        const std::vector<T> elements() const
-        {
-            if constexpr (std::is_same<T, C>::value) {
-                return std::vector<T>(list);
-            } else {
-                return List::elements<T>();
-            }
-        }
+        virtual size_t length() const;
+        virtual TokenReference get(size_t index) const;
 
     private:
-
-        Sequence<C> list;
-
+        Sequence<TokenReference> _elements;
+        Shape _shape;
     };
-
-    typedef ContainerList<float> FloatList;
-    typedef ContainerList<int> IntegerList;
-    typedef ContainerList<bool> BooleanList;
-    typedef ContainerList<std::string> StringList;
-
-    #define FloatListIdentifier GetTypeIdentifier<Span<float>>()
-    #define IntegerListIdentifier GetTypeIdentifier<Span<int>>()
-    #define BooleanListIdentifier GetTypeIdentifier<Span<bool>>()
-    #define StringListIdentifier GetTypeIdentifier<Span<std::string>>()
-
-#define _LIST_MAKE_EXTRACTORS(T)                      \
-    template <>                                           \
-    inline std::vector<T> extract(const SharedToken v) \
-    {                                                     \
-        VERIFY((bool)v, "Uninitialized token");        \
-        VERIFY(List::is_list(v), "Not a list");           \
-        auto list = std::static_pointer_cast<List>(v);    \
-        return list->elements<T>();                       \
-    }                                                     \
-    template <>                                           \
-    inline Sequence<T> extract(const SharedToken v) \
-    {                                                     \
-        VERIFY((bool)v, "Uninitialized token");        \
-        VERIFY(List::is_list(v), "Not a list");           \
-        auto list = std::static_pointer_cast<List>(v);    \
-        return Sequence<T>(list->elements<T>());          \
-    }   
-
-    template <>                                           
-    inline SharedToken wrap(const std::vector<int> v)    
-    {                                                     
-        return std::make_shared<ContainerList<int>>(make_span(v));     
-    }
-
-    template <>                                           
-    inline SharedToken wrap(const std::vector<float> v)    
-    {                                                     
-        return std::make_shared<ContainerList<float>>(make_span(v));     
-    }
-
-    template <>                                           
-    inline SharedToken wrap(const std::vector<std::string> v)    
-    {                                                     
-        return std::make_shared<ContainerList<std::string>>(make_span(v));     
-    }
-
-    template <>                                           
-    inline SharedToken wrap(const std::vector<bool> v)    
-    {                                                     
-        Sequence<bool> s(v);
-        return std::make_shared<ContainerList<bool>>(make_span(s));     
-    }
-
-    _LIST_MAKE_EXTRACTORS(int)
-    _LIST_MAKE_EXTRACTORS(bool)
-    _LIST_MAKE_EXTRACTORS(float)
-    _LIST_MAKE_EXTRACTORS(std::string)
-
-    /*
-                auto table = std::static_pointer_cast<Table<detail::inner_type_t<T>>>(v);
-                return table->elements();
-
-
-    */
-
-    /*
-    template<typename T>
-    SharedToken wrap(const T v) {
-        if constexpr (is_vector<typename T::value_type>::value) {
-            return std::make_shared<Table<detail::inner_type_t<T>>>(v);
-        } else {
-            return std::make_shared<ContainerList>(v);
-        }
-    }*/
 
 }
