@@ -549,7 +549,7 @@ inline void verify(bool condition, std::string reason = std::string("Assertion f
             return *((C *)(this->_ptr + i));
         }
 
-        inline const reference at(size_type i) const
+        inline const_reference at(size_type i) const
         {
             return  *((pointer) this->_ptr + i);
         }
@@ -574,7 +574,7 @@ inline void verify(bool condition, std::string reason = std::string("Assertion f
             return at(i);
         }
 
-        inline const reference operator[](size_type i) const
+        inline const_reference operator[](size_type i) const
         {
             return at(i);
         }
@@ -908,12 +908,12 @@ inline void verify(bool condition, std::string reason = std::string("Assertion f
             return seed_;
         }
 
-        uint32_t min()
+        static constexpr uint32_t min()
         {
             return std::numeric_limits<uint32_t>::min();
         }
 
-        uint32_t max()
+        static constexpr uint32_t max()
         {
             return std::numeric_limits<uint32_t>::max();
         }

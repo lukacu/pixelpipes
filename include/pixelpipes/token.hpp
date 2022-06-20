@@ -45,7 +45,7 @@ namespace pixelpipes
 
         ~ContainerToken() = default;
 
-        virtual Shape shape() const
+        virtual Shape shape() const override
         {
             return Shape(GetTypeIdentifier<T>());
         }
@@ -58,7 +58,7 @@ namespace pixelpipes
 
         inline T get() const { return value; };
 
-        virtual void describe(std::ostream &os) const
+        virtual void describe(std::ostream &os) const override
         {
             os << "[Container for " << details::TypeInfo<T>::Name() << "]";
         }
@@ -103,7 +103,7 @@ namespace pixelpipes
 
         ~ScalarToken() = default;
 
-        virtual void describe(std::ostream &os) const
+        virtual void describe(std::ostream &os) const override
         {
             os << "[Scalar " << details::TypeInfo<T>::Name() << ", value: " << this->get() << "]";
         }
@@ -257,7 +257,7 @@ namespace pixelpipes
 
         virtual size_t length() const = 0;
 
-        virtual Shape shape() const = 0;
+        virtual Shape shape() const override = 0;
 
         virtual TokenReference get(size_t index) const = 0;
 
@@ -277,7 +277,7 @@ namespace pixelpipes
             return Sequence<C>(result);
         }
 
-        virtual void describe(std::ostream &os) const;
+        virtual void describe(std::ostream &os) const override;
     };
 
     typedef Pointer<List> ListReference;
@@ -299,10 +299,10 @@ namespace pixelpipes
 
         virtual ~GenericList();
 
-        virtual Shape shape() const;
+        virtual Shape shape() const override;
 
-        virtual size_t length() const;
-        virtual TokenReference get(size_t index) const;
+        virtual size_t length() const override;
+        virtual TokenReference get(size_t index) const override;
 
     private:
         Sequence<TokenReference> _elements;

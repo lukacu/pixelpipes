@@ -23,7 +23,7 @@ if (MSVC)
     add_compile_options(/W4 /WX /wd4251)
 else()
     add_compile_options(-Wall -Wextra -pedantic -Werror)
-	set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -Wl,--no-undefined" )
+    #set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -Wl,--no-undefined" )
 endif()
 
 FIND_PACKAGE(Threads REQUIRED)

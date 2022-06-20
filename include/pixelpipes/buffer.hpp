@@ -15,19 +15,23 @@ namespace pixelpipes
     typedef View<uchar> ByteView;
 
     template <typename T, typename C>
-    class PIXELPIPES_API SliceIterator : public std::iterator<std::input_iterator_tag, C>
+    class PIXELPIPES_API SliceIterator
     {
     public:
-        using value_type = T;
-        using pointer_type = T *;
-        using slice = C;
+        using iterator_category = std::input_iterator_tag;
+        using value_type = C;
+        using difference_type = size_t;
+        using pointer = C *;
+        using reference = C& ;
+        using slice_type = T;
+        using slice_pointer = T *;
 
         SliceIterator() : SliceIterator(nullptr, 0){};
-        SliceIterator(pointer_type data, size_t length) : SliceIterator(data, make_view(Sequence<size_t>({length})), make_view(Sequence<size_t>({1})), 1)
+        SliceIterator(slice_pointer data, size_t length) : SliceIterator(data, make_view(Sequence<size_t>({length})), make_view(Sequence<size_t>({1})), 1)
         {
         }
 
-        SliceIterator(pointer_type data, const Sizes &shape, const Sizes &strides, size_t element) : _data(data)
+        SliceIterator(slice_pointer data, const Sizes &shape, const Sizes &strides, size_t element) : _data(data)
         {
             VERIFY(strides.size() == shape.size(), "Size mismatch");
             
@@ -57,7 +61,7 @@ namespace pixelpipes
             }
 
             _position = SizeSequence::repeat(_strides.size(), 0);
-            _current = slice{_data, _length};
+            _current = value_type{_data, _length};
         }
 
         inline SliceIterator &operator++()
@@ -72,8 +76,8 @@ namespace pixelpipes
         }
         inline bool operator==(const SliceIterator &rhs) const { return _current.data() == rhs._current.data() && _current.size() == rhs._current.size(); }
         inline bool operator!=(const SliceIterator &rhs) const { return !(this->operator==(rhs)); }
-        inline const slice operator*() { return _current; }
-        inline const slice operator->() { return _current; }
+        inline const value_type operator*() { return _current; }
+        inline const value_type operator->() { return _current; }
 
     protected:
         inline void increment()
@@ -97,16 +101,16 @@ namespace pixelpipes
                 size_t offset = 0;
                 for (size_t i = 0; i < _position.size(); i++)
                     offset += _strides[i] * _position[i];
-                _current = slice{_data + offset, _length};
+                _current = value_type{_data + offset, _length};
             }
             else
             {
-                _current = slice{nullptr, 0};
+                _current = value_type{nullptr, 0};
             }
         }
 
-        slice _current;
-        pointer_type _data;
+        value_type _current;
+        slice_pointer _data;
         size_t _length;
         SizeSequence _strides;
         SizeSequence _shape;
@@ -120,7 +124,7 @@ namespace pixelpipes
     {
         PIXELPIPES_RTTI(Buffer, Token)
     public:
-        virtual void describe(std::ostream &os) const;
+        virtual void describe(std::ostream &os) const override;
 
         virtual ~Buffer() = default;
 
@@ -141,7 +145,7 @@ namespace pixelpipes
     {
         PIXELPIPES_RTTI(FlatBuffer, Buffer)
     public:
-        virtual Shape shape() const;
+        virtual Shape shape() const override;
 
         FlatBuffer(const ByteSpan &data);
 
@@ -149,15 +153,15 @@ namespace pixelpipes
 
         virtual ~FlatBuffer() = default;
 
-        virtual size_t size() const;
+        virtual size_t size() const override;
 
-        virtual ReadonlySliceIterator read_slices() const;
+        virtual ReadonlySliceIterator read_slices() const override;
 
-        virtual WriteableSliceIterator write_slices();
+        virtual WriteableSliceIterator write_slices() override;
 
-        virtual const uchar *const_data() const;
+        virtual const uchar *const_data() const override;
 
-        virtual uchar *data();
+        virtual uchar *data() override;
 
     private:
         ByteSequence _data;
@@ -180,13 +184,13 @@ namespace pixelpipes
 
         ~String() = default;
 
-        virtual Shape shape() const;
+        virtual Shape shape() const override;
 
-        virtual TokenReference get(size_t index) const;
+        virtual TokenReference get(size_t index) const override;
 
-        virtual size_t length() const;
+        virtual size_t length() const override;
 
-        virtual void describe(std::ostream &os) const;
+        virtual void describe(std::ostream &os) const override;
 
         inline std::string get() const
         {
@@ -238,13 +242,13 @@ namespace pixelpipes
         StringList(View<std::string> list);
         ~StringList() = default;
 
-        virtual size_t length() const;
+        virtual size_t length() const override;
 
-        virtual Shape shape() const;
+        virtual Shape shape() const override;
 
         virtual const Span<std::string> get() const;
 
-        virtual TokenReference get(size_t index) const;
+        virtual TokenReference get(size_t index) const override;
 
         template <class T>
         const Sequence<T> elements() const

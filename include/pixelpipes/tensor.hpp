@@ -30,27 +30,27 @@ namespace pixelpipes
     public:
         virtual ~Tensor() = default;
 
-        virtual void describe(std::ostream &os) const;
+        virtual void describe(std::ostream &os) const override;
 
-        virtual Shape shape() const = 0;
+        virtual Shape shape() const override = 0;
 
-        virtual size_t length() const = 0;
+        virtual size_t length() const override = 0;
 
-        virtual size_t size() const = 0;
+        virtual size_t size() const override = 0;
 
         virtual size_t cell_size() const = 0;
 
-        virtual TokenReference get(size_t i) const = 0;
+        virtual TokenReference get(size_t i) const override = 0;
 
         virtual TokenReference get(const Sizes &i) const = 0;
 
-        virtual ReadonlySliceIterator read_slices() const = 0;
+        virtual ReadonlySliceIterator read_slices() const override = 0;
 
-        virtual WriteableSliceIterator write_slices() = 0;
+        virtual WriteableSliceIterator write_slices() override = 0;
 
-        virtual const uchar *const_data() const = 0;
+        virtual const uchar *const_data() const override = 0;
 
-        virtual uchar *data() = 0;
+        virtual uchar *data() override = 0;
 
         virtual SizeSequence strides() const = 0;
     };
@@ -116,38 +116,38 @@ namespace pixelpipes
 
         virtual ~ArrayTensor() = default;
 
-        virtual Shape shape() const
+        virtual Shape shape() const override
         {
             return Shape(GetTypeIdentifier<T>(), _shape);
         }
 
-        virtual size_t length() const
+        virtual size_t length() const override
         {
             return _shape[0];
         }
 
-        virtual void describe(std::ostream &os) const
+        virtual void describe(std::ostream &os) const override
         {
             os << "[Tensor]";
         }
 
-        virtual size_t size() const
+        virtual size_t size() const override
         {
             return _data.size();
         }
 
-        virtual size_t cell_size() const
+        virtual size_t cell_size() const override
         {
             return sizeof(T);
         }
 
-        virtual TokenReference get(const Sizes &index) const
+        virtual TokenReference get(const Sizes &index) const override
         {
             size_t o = get_offset(index);
             return create<ScalarToken<T>>(_data.at<T>(o));
         }
 
-        virtual TokenReference get(size_t i) const
+        virtual TokenReference get(size_t i) const override
         {
 
             if constexpr (N == 1)
@@ -182,27 +182,27 @@ namespace pixelpipes
             }
         } 
 
-        virtual ReadonlySliceIterator read_slices() const
+        virtual ReadonlySliceIterator read_slices() const override
         {
             return ReadonlySliceIterator(const_data(), _shape, _strides, sizeof(T));
         }
 
-        virtual WriteableSliceIterator write_slices()
+        virtual WriteableSliceIterator write_slices() override
         {
             return WriteableSliceIterator(data(), _shape, _strides, sizeof(T));
         }
 
-        virtual const uchar *const_data() const
+        virtual const uchar *const_data() const override
         {
             return _data.data();
         }
 
-        virtual SizeSequence strides() const
+        virtual SizeSequence strides() const override
         {
             return _strides;
         }
 
-        virtual uchar *data()
+        virtual uchar *data() override
         {
             // TODO: hackish
             return (uchar *)_data.data();
@@ -380,13 +380,15 @@ namespace pixelpipes
         {
         }
 
-        virtual void describe(std::ostream &os) const
+        virtual void describe(std::ostream &os) const override
         {
 
             os << "[Vector of " << details::TypeName<T>() << ", length " << this->length() << "]";
         }
 
-        virtual const Span<T> get() const { return Span<T>((T *)this->_data.data(), this->_data.size() / sizeof(T)); }
+        using ArrayTensor<T, 1>::get;
+        
+        const Span<T> get() const { return Span<T>((T *)this->_data.data(), this->_data.size() / sizeof(T)); }
     };
 
     template <typename T>
@@ -402,7 +404,7 @@ namespace pixelpipes
         {
         }
 
-        virtual void describe(std::ostream &os) const
+        virtual void describe(std::ostream &os) const override
         {
             auto shape = this->shape();
             os << "[Matrix of " << details::TypeName<T>() << ", " << (size_t)shape[0] << " x " << (size_t)shape[1] << "]";

@@ -271,6 +271,7 @@ namespace pixelpipes
             template <typename F>
             bool Reset(S &expected, S desired, F &&f)
             {
+                UNUSED(desired);
                 //CHECK(size_t(desired) <= 127) << "State is unrepresentable";
 
                 size_t loaded = value.load();

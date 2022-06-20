@@ -127,6 +127,8 @@ namespace pixelpipes
 
 #ifdef _MSC_VER
         auto handle = LoadLibrary(fullname.string().c_str());
+#elif defined(__APPLE__)
+        auto handle = dlopen(fullname.c_str(), RTLD_NOW);
 #else
         auto handle = dlopen(fullname.c_str(), RTLD_DEEPBIND | RTLD_NOW);
 #endif

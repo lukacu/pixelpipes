@@ -31,17 +31,17 @@ namespace pixelpipes
 
         virtual ~Proxy() = default;
 
-        virtual Shape shape() const
+        virtual Shape shape() const override
         {
             return list->shape();
         }
 
-        virtual size_t length() const
+        virtual size_t length() const override
         {
             return list->length();
         }
 
-        virtual TokenReference get(size_t index) const
+        virtual TokenReference get(size_t index) const override
         {
             return list->get(index);
         }
@@ -64,17 +64,17 @@ namespace pixelpipes
 
         ~Sublist() = default;
 
-        virtual Shape shape() const
+        virtual Shape shape() const override
         {
             return resize(list->shape(), length());
         }
 
-        virtual size_t length() const
+        virtual size_t length() const override
         {
             return to - from + 1;
         }
 
-        virtual TokenReference get(size_t index) const
+        virtual TokenReference get(size_t index) const override
         {
             index += from;
 
@@ -109,12 +109,12 @@ namespace pixelpipes
 
         ~Table() = default;
 
-        virtual size_t length() const
+        virtual size_t length() const override
         {
             return list->length() / _row;
         }
 
-        virtual TokenReference get(size_t index) const
+        virtual TokenReference get(size_t index) const override
         {
             if (index >= length())
             {
@@ -162,12 +162,12 @@ namespace pixelpipes
 
         ~CompositeList() = default;
 
-        virtual Shape shape() const
+        virtual Shape shape() const override
         {
             return resize(lists[0]->shape(), length());
         }
 
-        virtual size_t length() const
+        virtual size_t length() const override
         {
             size_t total = 0;
 
@@ -179,7 +179,7 @@ namespace pixelpipes
             return total;
         }
 
-        virtual TokenReference get(size_t index) const
+        virtual TokenReference get(size_t index) const override
         {
 
             for (auto l = lists.begin(); l != lists.end(); l++)
@@ -217,18 +217,18 @@ namespace pixelpipes
 
         ~MappedList() = default;
 
-        virtual Shape shape() const
+        virtual Shape shape() const override
         {
             return resize(list->shape(), length());
         }
 
-        virtual size_t length() const
+        virtual size_t length() const override
         {
 
             return map.size();
         }
 
-        virtual TokenReference get(size_t index) const
+        virtual TokenReference get(size_t index) const override
         {
 
             if (index >= map.size())
@@ -256,14 +256,14 @@ namespace pixelpipes
 
         ~ConstantList() = default;
 
-        virtual Shape shape() const
+        virtual Shape shape() const override
         {
             return _shape;
         }
 
-        virtual size_t length() const { return _length; }
+        virtual size_t length() const override { return _length; }
 
-        virtual TokenReference get(size_t index) const
+        virtual TokenReference get(size_t index) const override
         {
             if (index >= _length)
                 throw TypeException("Index out of range");

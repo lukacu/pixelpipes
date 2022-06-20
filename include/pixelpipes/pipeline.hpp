@@ -113,6 +113,11 @@ namespace pixelpipes
         OperationException(std::string reason, const OperationReference& reference, int position);
         OperationException(const OperationException& e) = default;
 
+        inline int position() const
+        {
+            return _position;
+        }
+        
     private:
         int _position;
         std::string name;

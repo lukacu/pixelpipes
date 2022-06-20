@@ -105,7 +105,7 @@ namespace pixelpipes
 
         template <typename... T>
         tuple_with_base_types<T...> tuple_base_type(std::tuple<T...> const& t) {
-            return tuple_with_base_types { t };
+            return tuple_with_base_types<T...> { t };
         }
 
         template <typename>
