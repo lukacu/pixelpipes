@@ -25,7 +25,7 @@ namespace pixelpipes
         {
             seed = ~seed;
         }
-        return RandomGenerator(xorshift32, seed);
+        return RandomGenerator(xorshift32, xorshift32(seed));
     }
 
     Operation::Operation() {}

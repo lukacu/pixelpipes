@@ -402,7 +402,7 @@ namespace pixelpipes
 
     /**
      * @brief Combines 3 single channel images into color image.
-     *
+     * TODO: make number of channels variable
      */
     cv::Mat merge(const cv::Mat &c0, const cv::Mat &c1, const cv::Mat &c2) noexcept(false)
     {
@@ -422,7 +422,7 @@ namespace pixelpipes
         return result;
     }
 
-    PIXELPIPES_OPERATION_AUTO("mwerge_channels", merge);
+    PIXELPIPES_OPERATION_AUTO("merge_channels", merge);
 
     /**
      * @brief Calculates image moments.

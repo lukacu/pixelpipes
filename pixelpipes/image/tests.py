@@ -545,12 +545,12 @@ class Tests(unittest.TestCase):
     def test_image_image_ImageList(self):
         
         import os
-        from pixelpipes.image import ImageDirectory
+        from pixelpipes.resource.loading import ImageDirectory
 
         example_images = os.path.join(os.path.dirname(os.path.dirname(pixelpipes.__file__)), "examples", "images")
 
         with GraphBuilder() as graph:
-            l = ImageDirectory(path=example_images, grayscale=False)
+            l = ImageDirectory(path=example_images)
             outputs(GetElement(GetResource(l, 0), "image"))
 
         pipeline = Compiler().build(graph)

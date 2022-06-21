@@ -2,6 +2,8 @@
 *.dll
 *.so
 *.pyc
+*.dylib
+*.a
 .*
 ~*
 pp_*.py

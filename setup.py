@@ -17,18 +17,21 @@ platid = os.getenv("PYTHON_PLATFORM", platform.system()).lower()
 
 if platid == "linux":
     rpath = ["$ORIGIN"]
+    libext = ".so"
 elif platid == "darwin":
     rpath = ["@loader_path"]
+    libext = ".dylib"
+    
 else:
     rpath = []
+    libext = ".dll"
+
 
 # Override build command
-
-
 def lib_name(name):
     from distutils.ccompiler import new_compiler
     compiler = new_compiler()
-    return compiler.shared_lib_format % (name, compiler.shared_lib_extension)
+    return compiler.shared_lib_format % (name, libext)
 
 
 class BuildCommand(build.build):
@@ -59,6 +62,21 @@ class BuildExtCommand(build_ext.build_ext):
         if not self.rpath:
             self.rpath = rpath
         build_ext.build_ext.run(self)
+
+    def build_extensions(self):
+    
+        ct = getattr(self.compiler, 'compiler_type', None) #self.compiler.compiler_type
+        
+        if ct == "msvc":
+           for e in self.extensions:
+               e.extra_compile_args += ['/std:c++17']
+        elif ct == "unix":
+            for e in self.extensions:
+                e.extra_compile_args += ['-std=c++17', '-pthread']            
+        else:
+            print("Unknown compiler %s" % ct)
+          
+        build_ext.build_ext.build_extensions(self)
 
 
 class CMakeBuildCommand(Command):
@@ -102,6 +120,8 @@ class CMakeBuildCommand(Command):
                       "-DBUILD_TEST=OFF",
                       "-DCMAKE_BUILD_RPATH_USE_ORIGIN=ON"]
 
+        cmake_args += ["-DCMAKE_OSX_DEPLOYMENT_TARGET=12.00"]
+        cmake_args += ["-DBUILD_DEBUG=ON"]
         if not self.inplace:
             cmake_args += ['-DBUILD_INPLACE=OFF']
         else:
@@ -121,6 +141,8 @@ class CMakeBuildCommand(Command):
         subprocess.check_call(command, env=env)
         self.announce("Done", level=distutils.log.INFO)
 
+        print(build_dir)
+        print(glob.glob(os.path.join(build_dir, lib_name("pixelpipes*"))))
         if not self.inplace:
             # copy binaries generated with cmake to the package
             # TODO: probably include .lib file as well for the main lib on Windows
@@ -161,7 +183,6 @@ define_macros = []
 if "PIXELPIPES_DEBUG" in os.environ:
     define_macros.append(("PIXELPIPES_DEBUG", None))
 
-compiler_args = ['-std=c++17', '-pthread']
 
 include_dirs.append(os.path.join(root, "include"))
 #library_dirs.append(os.path.join(root, "pixelpipes"))  # inplace build
@@ -170,7 +191,6 @@ include_dirs.append(os.path.join(root, "include"))
 ext_core = Extension(
     'pixelpipes.pypixelpipes',
     ["src/python/wrapper.cpp", "src/python/array.cpp"],
-    extra_compile_args=['-std=c++17'],
     define_macros=define_macros,
     include_dirs=include_dirs,
     library_dirs=library_dirs,

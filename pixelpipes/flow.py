@@ -131,7 +131,7 @@ class Switch(Macro):
         distribition sampler as a source of the switch.
         """
 
-        from .numbers import UniformDistribution, Threshold
+        from .numbers import UniformDistribution
 
         resource_type = Resource()
 
@@ -156,7 +156,7 @@ class Switch(Macro):
                     threshold += weight
                     continue
 
-                comparison = Threshold(threshold=threshold, comparison="LOWER", source=random)
+                comparison = random < threshold
 
                 if is_resource:
                     tree = ConditionalResource(condition=comparison, true=tree, false=branch)

@@ -3,11 +3,12 @@ import os
 from enum import Enum, auto
 from typing import Optional
 
-from attributee import String, Boolean, Enumeration
+from attributee import String, Boolean, Enumeration, Callable
 
 from ..list import FileList
-from ..resource import ResourceListSource, VirtualField
+from . import ResourceListSource, VirtualField
 from .. import types
+from ..image import ReadImage, ReadImageAny
 
 class ImageReading(Enum):
     UNCHANGED = auto()
@@ -38,11 +39,11 @@ def _recursive_search(path):
 
 class ImageDirectory(ResourceListSource):
 
-    path = String()
-    grayscale = Boolean(default=False)
-    recursive = Boolean(default=False)
-    sorted = Boolean(default=True)
-    reading = Enumeration(ImageReading, default=ImageReading.COLOR)
+    path = String(description="Root path to search")
+    recursive = Boolean(default=False, description="Images are collected in subdirectories as well")
+    sorted = Boolean(default=True, description="Sort images by filename")
+    reading = Enumeration(ImageReading, default=ImageReading.COLOR, description="Reading type")
+    filter = Callable(default=None, description="Filtering function, recieves filename, tells if file should be included")
 
     def _load(self):
         if not self.recursive:
@@ -54,6 +55,8 @@ class ImageDirectory(ResourceListSource):
             files = sorted(files)
 
         files = [os.path.abspath(file) for file in files]
+        if self.filter is not None:
+            files = [file for file in files if self.filter(file)]
 
         return {
             "lists": {
@@ -70,6 +73,3 @@ class ImageDirectory(ResourceListSource):
             loader = lambda x: ReadImageAny(x)
 
         return dict(image=LoadImage(types.Image(), field="file", loader=loader), file=types.String())
-
-from .image import *
-from .augmentation import *

@@ -426,7 +426,7 @@ class Merge(Node):
     source3 = Input(types.Image(channels=1))
 
     def operation(self):
-        return "opencv:mwerge_channels",
+        return "opencv:merge_channels",
 
     def validate(self, **inputs):
         super().validate(**inputs)

@@ -131,29 +131,33 @@ py::array token_to_python(const pixelpipes::TokenReference &variable)
         return extract_tensor(variable);
     };
 
-    if (variable->is<List>()) {
-        
+    if (variable->is<List>())
+    {
+
         ListReference list = extract<ListReference>(variable);
 
-        if (!list->length()) {
+        if (!list->length())
+        {
             return py::array();
         }
 
         py::list planes(list->length());
 
-        for (size_t i = 0; i < list->length(); i++) {
+        for (size_t i = 0; i < list->length(); i++)
+        {
             py::array t = token_to_python(list->get(i));
 
             std::vector<ssize_t> shape(t.ndim() + 1);
             shape[0] = 1;
-            for (int i = 0; i < t.ndim(); i++) shape[i+1] = t.shape(i);
+            for (int i = 0; i < t.ndim(); i++)
+                shape[i + 1] = t.shape(i);
             t.resize(shape);
 
             planes[i] = t;
         }
 
         auto handle = py::handle(PyArray_Concatenate(planes.ptr(), 0));
-        //return py::array(handle, false);
+        // return py::array(handle, false);
 
         return py::reinterpret_steal<py::array>(handle);
     }
@@ -253,18 +257,18 @@ TokenReference python_to_token(py::object src)
     if ((bool)dnf)
         return dnf;
 
-    if (py::list::check_(src)) 
+    if (py::list::check_(src))
     {
         auto list = py::list(src);
 
         Sequence<TokenReference> converted(list.size());
 
-        for (size_t i = 0; i < list.size(); i++) {
+        for (size_t i = 0; i < list.size(); i++)
+        {
             converted[i] = python_to_token(list[i]);
         }
 
         return create<GenericList>(converted);
-
     }
 
     throw py::value_error("Unable to convert Python data");
@@ -336,27 +340,27 @@ PYBIND11_MODULE(pypixelpipes, m)
             m.add_object("PipelineError", py::handle(PyPipelineError));
         }
     */
-/*
-    static py::exception<PipelineException> PyPipelineError(m, "PipelineException", PyExc_RuntimeError);
-    py::register_exception_translator([](std::exception_ptr p)
-                                      {
-        try {
-            if (p) {
-                std::rethrow_exception(p);
-            }
-        } catch (PipelineException &e) {
-            py::tuple args(2);
-            args[0] = e.what();
-            args[1] = e.operation();
-            // TODO: also pass some hint about operation?
-            PyPipelineError(e.what());
-        } });*/
-/*
-    static py::exception<TypeException> PyVariableException(m, "VariableException", PyExc_RuntimeError);
-    static py::exception<ModuleException> PyModuleException(m, "ModuleException", PyExc_RuntimeError);
-    static py::exception<OperationException> PyOperationException(m, "OperationException", PyExc_RuntimeError);
-    static py::exception<SerializationException> PySerializationException(m, "SerializationException", PyExc_RuntimeError);
-*/
+    /*
+        static py::exception<PipelineException> PyPipelineError(m, "PipelineException", PyExc_RuntimeError);
+        py::register_exception_translator([](std::exception_ptr p)
+                                          {
+            try {
+                if (p) {
+                    std::rethrow_exception(p);
+                }
+            } catch (PipelineException &e) {
+                py::tuple args(2);
+                args[0] = e.what();
+                args[1] = e.operation();
+                // TODO: also pass some hint about operation?
+                PyPipelineError(e.what());
+            } });*/
+    /*
+        static py::exception<TypeException> PyVariableException(m, "VariableException", PyExc_RuntimeError);
+        static py::exception<ModuleException> PyModuleException(m, "ModuleException", PyExc_RuntimeError);
+        static py::exception<OperationException> PyOperationException(m, "OperationException", PyExc_RuntimeError);
+        static py::exception<SerializationException> PySerializationException(m, "SerializationException", PyExc_RuntimeError);
+    */
     py::register_exception<SerializationException>(m, "SerializationException");
     py::register_exception<OperationException>(m, "OperationException");
     py::register_exception<TypeException>(m, "TypeException");
@@ -367,7 +371,12 @@ PYBIND11_MODULE(pypixelpipes, m)
     py::class_<Pipeline>(m, "Pipeline")
         .def(py::init<>())
         .def("finalize", &Pipeline::finalize, "Finalize pipeline")
-        .def("labels", &Pipeline::get_labels, "Get output labels as a list")
+        .def(
+            "labels", [](Pipeline &p)
+            {
+                auto labels = p.get_labels();
+                return std::vector<std::string>(labels.begin(), labels.end()); },
+            "Get output labels as a list")
         .def(
             "append", [](Pipeline &p, std::string &name, py::list args, std::vector<int> inputs)
             { return _add_operation(p, name, args, inputs); },
@@ -392,16 +401,12 @@ PYBIND11_MODULE(pypixelpipes, m)
 
     m.def(
         "read_pipeline", [](std::string &name)
-        { 
-            return read_pipeline(name); 
-        },
+        { return read_pipeline(name); },
         py::arg("filename"));
 
     m.def(
         "write_pipeline", [](const Pipeline &pipeline, std::string &name, bool compress)
-        { 
-            return write_pipeline(pipeline, name, compress); 
-        },
+        { return write_pipeline(pipeline, name, compress); },
         py::arg("pipeline"), py::arg("filename"), py::arg("compress") = true);
 
     /*py::class_<PipelineCallback, PyPipelineCallback, std::shared_ptr<PipelineCallback>>(m, "PipelineCallback")

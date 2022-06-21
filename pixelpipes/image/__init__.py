@@ -8,5 +8,4 @@ InterpolationMode = LazyLoadEnum("interpolation")
 BorderStrategy = LazyLoadEnum("border")
 
 from .image import *
-from .loading import *
 from .augmentation import *
