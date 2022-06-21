@@ -1,8 +1,10 @@
+from pixelpipes import __version__
 import numpy
 import pybind11
 import sys
 import os
 import setuptools
+import platform
 import distutils.log
 import distutils.file_util as file_util
 from distutils.command import build
@@ -11,14 +13,23 @@ from distutils.cmd import Command
 from setuptools import Extension, setup
 from setuptools.command import build_py, build_ext
 
-platform = os.getenv("PYTHON_PLATFORM", sys.platform)
+platid = os.getenv("PYTHON_PLATFORM", platform.system()).lower()
+
+if platid == "linux":
+    rpath = ["$ORIGIN"]
+elif platid == "darwin":
+    rpath = ["@loader_path"]
+else:
+    rpath = []
 
 # Override build command
+
 
 def lib_name(name):
     from distutils.ccompiler import new_compiler
     compiler = new_compiler()
     return compiler.shared_lib_format % (name, compiler.shared_lib_extension)
+
 
 class BuildCommand(build.build):
 
@@ -40,8 +51,13 @@ class BuildExtCommand(build_ext.build_ext):
 
     def run(self):
 
+        target_dir = os.path.join(os.environ.get("BUILD_ROOT", os.path.dirname(
+            self.build_lib)), os.path.basename(self.build_lib), "pixelpipes")
+
+        self.library_dirs.append(target_dir)
+
         if not self.rpath:
-            self.rpath = ["$ORIGIN"]
+            self.rpath = rpath
         build_ext.build_ext.run(self)
 
 
@@ -55,7 +71,7 @@ class CMakeBuildCommand(Command):
     user_options = [
         ('build-lib=', 'd', "directory to \"build\" (copy) to"),
         ('inplace', 'i', "compile to source structure"),
-        ]
+    ]
 
     boolean_options = ['inplace']
 
@@ -76,21 +92,22 @@ class CMakeBuildCommand(Command):
             "BUILD_ROOT", os.path.dirname(self.build_lib))
         target_dir = os.path.join(os.environ.get("BUILD_ROOT", os.path.dirname(
             self.build_lib)), os.path.basename(self.build_lib), "pixelpipes")
+        
         self.mkpath(target_dir)
         self.mkpath(build_dir)
 
         env = dict(**os.environ)
 
-        cmake_args = ['-DBUILD_PYTHON=OFF',
-                    "-DBUILD_TEST=OFF",
-                   '-DCMAKE_BUILD_RPATH_USE_ORIGIN=ON']
+        cmake_args = ["-DBUILD_PYTHON=OFF",
+                      "-DBUILD_TEST=OFF",
+                      "-DCMAKE_BUILD_RPATH_USE_ORIGIN=ON"]
 
         if not self.inplace:
             cmake_args += ['-DBUILD_INPLACE=OFF']
         else:
             cmake_args += ['-DBUILD_INPLACE=ON']
 
-        command = ['cmake', *cmake_args , root]
+        command = ['cmake', *cmake_args, root]
         self.announce(
             'Running command: %s' % str(command),
             level=distutils.log.INFO)
@@ -106,6 +123,7 @@ class CMakeBuildCommand(Command):
 
         if not self.inplace:
             # copy binaries generated with cmake to the package
+            # TODO: probably include .lib file as well for the main lib on Windows
             for file in glob.glob(os.path.join(build_dir, lib_name("pixelpipes*"))):
                 if os.path.isfile(file):
                     file_util.copy_file(file, os.path.join(
@@ -114,7 +132,7 @@ class CMakeBuildCommand(Command):
             # copy C++ headers to the
             header_dir = os.path.join(target_dir, "include", "pixelpipes")
             self.mkpath(header_dir)
-            for file in glob.glob(os.path.join(os.path.join(root, "include", "pixelpipes"), "*.hpp")):
+            for file in glob.glob(os.path.join(os.path.join(root, "include", "pixelpipes"), "**", "*.hpp"), recursive=True):
                 file_util.copy_file(file, os.path.join(
                     header_dir, os.path.basename(file)), update=True, verbose=True)
 
@@ -146,12 +164,8 @@ if "PIXELPIPES_DEBUG" in os.environ:
 compiler_args = ['-std=c++17', '-pthread']
 
 include_dirs.append(os.path.join(root, "include"))
-library_dirs.append(os.path.join(root, "pixelpipes"))  # inplace build
-library_dirs.append(os.path.join(root, "build", "Debug"))  # inplace build
-
-class SharedLibrary(Extension):
-    pass
-
+#library_dirs.append(os.path.join(root, "pixelpipes"))  # inplace build
+#library_dirs.append(os.path.join(root, "build"))  # custom build
 
 ext_core = Extension(
     'pixelpipes.pypixelpipes',
@@ -165,13 +179,9 @@ ext_core = Extension(
     language='c++'
 )
 
-# Sort input source files to ensure bit-for-bit reproducible builds
-# (https://github.com/pybind/python_example/pull/53)
 ext_modules = [
     ext_core
 ]
-
-from pixelpipes import __version__
 
 setup(
     name='pixelpipes',
