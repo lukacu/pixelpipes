@@ -1,12 +1,9 @@
+#include "common.hpp"
+
 #include <utility>
-
-#define OPERATION_NAMESPACE "image"
-
 #include <opencv2/imgproc.hpp>
 
 #include <pixelpipes/tensor.hpp>
-
-#include "common.hpp"
 
 namespace pixelpipes
 {

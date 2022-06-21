@@ -19,11 +19,11 @@ namespace pixelpipes
     PIXELPIPES_REGISTER_ENUM("interpolation", Interpolation);
     PIXELPIPES_REGISTER_ENUM("border", BorderStrategy);
     PIXELPIPES_REGISTER_ENUM("depth", ImageDepth);
-
+/*
 #ifndef CV_MAX_DIM
     const int CV_MAX_DIM = 32;
 #endif
-
+*/
     int ocv_border_type(BorderStrategy b, int *value)
     {
         switch (b)

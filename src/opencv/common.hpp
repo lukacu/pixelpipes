@@ -1,4 +1,9 @@
 
+#if defined(__clang__) && defined(__has_warning)
+# if __has_warning( "-Wc11-extensions" )
+#  pragma clang diagnostic ignored "-Wc11-extensions"
+# endif
+#endif
 
 #include <pixelpipes/operation.hpp>
 #include <pixelpipes/geometry.hpp>

@@ -1,9 +1,8 @@
+#include "common.hpp"
 
 #include <opencv2/imgproc.hpp>
 
 #include <pixelpipes/tensor.hpp>
-
-#include "common.hpp"
 
 /*
 FILTER AND BLURING OPERATIONS

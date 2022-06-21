@@ -132,6 +132,8 @@ IF (BUILD_INPLACE)
     set_target_properties(pixelpipes pypixelpipes pixelpipes_geometry pixelpipes_image
         PROPERTIES
         LIBRARY_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/pixelpipes"
+        LIBRARY_OUTPUT_DIRECTORY_DEBUG "${CMAKE_SOURCE_DIR}/pixelpipes"
+        LIBRARY_OUTPUT_DIRECTORY_RELEASE "${CMAKE_SOURCE_DIR}/pixelpipes"
         RUNTIME_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/pixelpipes"
     )
 ENDIF()

@@ -1,7 +1,7 @@
 
-#include <opencv2/imgproc.hpp>
-
 #include "common.hpp"
+
+#include <opencv2/imgproc.hpp>
 
 namespace pixelpipes
 {

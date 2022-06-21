@@ -26,108 +26,12 @@ using namespace pixelpipes;
 
 PYBIND11_DECLARE_HOLDER_TYPE(T, pixelpipes::Pointer<T>)
 
-// image.cpp
+// array.cpp
 TokenReference wrap_tensor(const py::object &src);
 py::object extract_tensor(const TokenReference &src);
 TokenReference wrap_tensor_list(const py::object &src);
-// py::object extract_tensor_list(TokenReference src);
-/*
-//const static int initialized = init_conversion();
-void register_python_wrappers(Module& m);
 
-class PIXELPIPES_INTERNAL PythonModuleImpl: public pixelpipes::PythonModule {
-public:
-
-    PythonModuleImpl() {};
-    ~PythonModuleImpl() {};
-
-    virtual py::object extract(const TokenReference &src) {
-
-        VERIFY((bool) src, "Undefined value");
-
-        TypeIdentifier type_id = src->type_id();
-
-        auto item = extractors.find(type_id);
-
-        if (item == extractors.end()) {
-           throw std::invalid_argument(std::string("No conversion available: ") + src->describe());
-        }
-
-        return item->second(src);
-    }
-
-    virtual TokenReference wrap(py::object src, TypeIdentifier type_hint = 0) {
-
-        if (!type_hint) {
-
-            for (auto wrapper : allwrappers) {
-
-                TokenReference v = wrapper(src);
-
-                if (v) return v;
-
-            }
-
-            throw std::invalid_argument("Illegal input argument, no compatible conversion");
-
-        } else {
-
-            auto item = wrappers.find(type_hint);
-
-            if (item == wrappers.end()) {
-                throw std::invalid_argument(Formatter() << "No conversion from Python available for type hint " << type_name(type_hint));
-            }
-
-            TokenReference variable = item->second(src);
-
-            if (!(bool) variable) {
-                throw std::invalid_argument(Formatter() << "Conversion from Python failed for type hint " << type_name(type_hint));
-            }
-
-            return variable;
-
-        }
-
-    }
-
-    virtual void register_wrapper(TypeIdentifier type_id, const PythonWrapper wrapper, bool implicit = true) {
-
-        auto item = wrappers.find(type_id);
-
-        if (item == wrappers.end()) {
-            DEBUGMSG("Adding Python wrapper %s (%ld)\n", type_name(type_id).c_str(), type_id);
-            wrappers.insert(std::pair<TypeIdentifier, const PythonWrapper>(type_id, wrapper));
-            if (implicit) allwrappers.push_back(wrapper);
-        }
-
-    }
-
-    virtual void register_extractor(TypeIdentifier type_id, const PythonExtractor extractor) {
-
-        auto item = extractors.find(type_id);
-
-        if (item == extractors.end()) {
-            DEBUGMSG("Adding Python extractor %s (%ld)\n", type_name(type_id).c_str(), type_id);
-            extractors.insert(std::pair<TypeIdentifier, const PythonExtractor>(type_id, extractor));
-        }
-
-
-    }
-
-
-    std::map<TypeIdentifier, PythonWrapper> wrappers;
-
-    std::vector<PythonWrapper> allwrappers;
-
-    std::map<TypeIdentifier, PythonExtractor> extractors;
-
-    std::map<std::string, PythonModule::EnumerationMap> enumerations;
-
-};
-
-static PythonModuleImpl registry;
-*/
-class PyPipelineCallback : public PipelineCallback
+/*class PyPipelineCallback : public PipelineCallback
 {
 public:
     using PipelineCallback::PipelineCallback;
@@ -149,7 +53,7 @@ public:
             error,
             e);
     }
-};
+};*/
 
 // Solution based on: https://www.pierov.org/2020/03/01/python-custom-exceptions-c-extensions/
 /*static PyObject *PipelineError_tp_str(PyObject *selfPtr)
@@ -203,21 +107,21 @@ py::array token_to_python(const pixelpipes::TokenReference &variable)
 
     if (variable->is<IntegerScalar>())
     {
-        py::array_t<int> a({1});
+        py::array_t<int> a(1);
         a.mutable_data(0)[0] = cast<IntegerScalar>(variable)->get();
         return a;
     }
 
     if (variable->is<FloatScalar>())
     {
-        py::array_t<float> a({1});
+        py::array_t<float> a(1);
         a.mutable_data(0)[0] = cast<FloatScalar>(variable)->get();
         return a;
     }
 
     if (variable->is<BooleanScalar>())
     {
-        py::array_t<int> a({1});
+        py::array_t<int> a(1);
         a.mutable_data(0)[0] = (int)cast<BooleanScalar>(variable)->get();
         return a;
     }
@@ -500,8 +404,8 @@ PYBIND11_MODULE(pypixelpipes, m)
         },
         py::arg("pipeline"), py::arg("filename"), py::arg("compress") = true);
 
-    py::class_<PipelineCallback, PyPipelineCallback, std::shared_ptr<PipelineCallback>>(m, "PipelineCallback")
-        .def(py::init());
+    /*py::class_<PipelineCallback, PyPipelineCallback, std::shared_ptr<PipelineCallback>>(m, "PipelineCallback")
+        .def(py::init());*/
 
     // py::class_<Operation, OperationReference >(m, "Operation");
 

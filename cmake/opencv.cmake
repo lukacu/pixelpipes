@@ -87,6 +87,8 @@ foreach(M IN ITEMS core imgproc imgcodecs calib3d features2d flann)
 endforeach()
 
 
+LIST(APPEND OPENCV_LIBS "-framework Accelerate")
+
 set_target_properties(opencv_core PROPERTIES
   INTERFACE_LINK_LIBRARIES "\$<LINK_ONLY:opencv_3dparty_zlib>;\$<LINK_ONLY:opencv_3dparty_ittnotify>"
 )

@@ -150,7 +150,7 @@ compiler_args = ['-std=c++17', '-pthread']
 
 include_dirs.append(os.path.join(root, "include"))
 library_dirs.append(os.path.join(root, "pixelpipes"))  # inplace build
-
+library_dirs.append(os.path.join(root, "build", "Debug"))  # inplace build
 
 class SharedLibrary(Extension):
     pass
@@ -158,7 +158,7 @@ class SharedLibrary(Extension):
 
 ext_core = Extension(
     'pixelpipes.pypixelpipes',
-    ["src/python/wrapper.cpp", "src/python/image.cpp"],
+    ["src/python/wrapper.cpp", "src/python/array.cpp"],
     extra_compile_args=['-std=c++17'],
     define_macros=define_macros,
     include_dirs=include_dirs,
