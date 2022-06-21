@@ -66,7 +66,7 @@ namespace pixelpipes
     protected:
         T value;
     };
-
+    
     template <typename T>
     T extract(const TokenReference& v)
     {

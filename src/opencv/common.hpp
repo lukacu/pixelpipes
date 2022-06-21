@@ -89,14 +89,46 @@ namespace pixelpipes
     }
 
     template <>
-    inline TokenReference wrap(const std::vector<cv::Point2f> v)
+    inline TokenReference wrap(const std::vector<cv::Point2f> &v)
     {
 
-        std::vector<Point2D> convert;
-        convert.reserve(v.size());
+        Sequence<Point2D> convert(v.size());
+       
+        size_t i = 0;
         for (auto p : v)
         {
-            convert.push_back(Point2D{p.x, p.y});
+            convert[i++] = (Point2D{p.x, p.y});
+        }
+
+        return wrap(convert);
+    }
+
+    // TODO: remove this, replace with better OperationWrapper handling
+    template <>
+    inline TokenReference wrap(std::vector<cv::Point2f> v)
+    {
+
+        Sequence<Point2D> convert(v.size());
+
+        size_t i = 0;
+        for (auto p : v)
+        {
+            convert[i++] = (Point2D{ p.x, p.y });
+        }
+
+        return wrap(convert);
+    }
+
+    template <>
+    inline TokenReference wrap(View<cv::Point2f> v)
+    {
+
+        Sequence<Point2D> convert(v.size());
+
+        size_t i = 0;
+        for (auto p : v)
+        {
+            convert[i++] = (Point2D{ p.x, p.y });
         }
 
         return wrap(convert);

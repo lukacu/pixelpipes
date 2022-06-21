@@ -432,11 +432,11 @@ namespace pixelpipes
         for (int i : inputs)
         {
             if (i >= (int)state->operations.size() || i < 0)
-                throw OperationException("Operation index out of bounds", operation, state->operations.size());
+                throw OperationException("Operation index out of bounds", operation, (int) state->operations.size());
 
             if ((state->operations[i].first->type()) == GetTypeIdentifier<Output>())
             {
-                throw OperationException("Cannot refer to output operation", operation, state->operations.size());
+                throw OperationException("Cannot refer to output operation", operation, (int) state->operations.size());
             }
         }
 

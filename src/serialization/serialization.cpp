@@ -392,11 +392,11 @@ namespace pixelpipes
 
             if (!origin.empty())
             {
-                relative.push_back(std::filesystem::relative(path, origin));
+                relative.push_back(std::filesystem::relative(path, origin).string());
             }
             else
             {
-                relative.push_back(path);
+                relative.push_back(path.string());
             }
         }
 
@@ -415,11 +415,11 @@ namespace pixelpipes
 
             if (path.is_relative())
             {
-                absolute.push_back((origin / path).lexically_normal());
+                absolute.push_back((origin / path).lexically_normal().string());
             }
             else
             {
-                absolute.push_back(path.lexically_normal());
+                absolute.push_back(path.lexically_normal().string());
             }
         }
 
@@ -511,7 +511,7 @@ namespace pixelpipes
 
             if (relocatable)
             {
-                origin = std::filesystem::current_path();
+                origin = std::filesystem::current_path().string();
             }
             else
             {
@@ -595,7 +595,7 @@ namespace pixelpipes
 
         std::fstream stream(drain, std::fstream::out);
 
-        std::string origin = (relocatable) ? std::filesystem::absolute(drain).parent_path() : "";
+        std::string origin = (relocatable) ? std::filesystem::absolute(drain).parent_path().string() : "";
 
         _write_stream(pipeline, stream, origin, compress, relocatable);
 
@@ -733,7 +733,7 @@ namespace pixelpipes
 
         std::fstream stream(drain, std::fstream::in);
 
-        std::string origin = std::filesystem::absolute(drain).parent_path();
+        std::string origin = std::filesystem::absolute(drain).parent_path().string();
 
         Pipeline pipeline;
 

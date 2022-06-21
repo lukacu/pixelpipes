@@ -126,9 +126,6 @@ library_dirs = []
 runtime_dirs = []
 
 include_dirs.append(pybind11.get_include())
-
-print(include_dirs)
-
 include_dirs.append(numpy.get_include())
 
 #from torch.utils import cpp_extension as torch_extension

@@ -6,7 +6,6 @@
 #include <string_view>
 #include <map>
 #include <any>
-#include <mutex>
 #include <thread>
 #include <exception>
 #include <random>
@@ -144,7 +143,7 @@ namespace pixelpipes
 
 
     // Size cannot be determined
-    constexpr size_t unknown = ~0;
+    constexpr size_t unknown = ~0L;
 
     struct PIXELPIPES_API Size
     {
@@ -373,7 +372,7 @@ namespace pixelpipes
     void PIXELPIPES_API register_enumeration(const std::string &name, EnumerationMap mapping);
 
     template <typename T>
-    void PIXELPIPES_API register_enumeration(const std::string &name)
+    inline void register_enumeration(const std::string &name)
     {
         auto pairs = details::enum_entries<T>();
         EnumerationMap mapping;

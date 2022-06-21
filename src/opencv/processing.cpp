@@ -241,7 +241,7 @@ cv::Mat solarize(const cv::Mat& image, float threshold) {
 
     VERIFY(image.channels() == 1, "Image has more than one channel");
 
-    float max = maximum_value(image);
+    float max = (float) maximum_value(image);
 
     cv::Mat result = image.clone();
 

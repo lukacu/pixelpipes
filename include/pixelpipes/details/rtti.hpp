@@ -84,6 +84,8 @@ namespace pixelpipes
                 return __PRETTY_FUNCTION__;
 #elif defined(__GNUC__)
                 return __PRETTY_FUNCTION__;
+#elif defined(_MSC_VER)
+				return __FUNCSIG__;
 #else
 #error "Unsupported compiler"
 #endif
@@ -98,6 +100,19 @@ namespace pixelpipes
             {
                 return WrappedTypeName<void>().length() - WrappedTypeNamePrefixLength() - TypeName<void>().length();
             }
+
+			template <bool... b> struct static_all_of;
+
+			//implementation: recurse, if the first argument is true
+			template <bool... tail>
+			struct static_all_of<true, tail...> : static_all_of<tail...> {};
+
+			//end recursion if first argument is false - 
+			template <bool... tail>
+			struct static_all_of<false, tail...> : std::false_type {};
+
+			// - or if no more arguments
+			template <> struct static_all_of<> : std::true_type {};
         }
 
         template <typename T>
@@ -120,16 +135,16 @@ namespace pixelpipes
          * Static typeinfo structure for registering types and accessing their information.
          */
         template <typename This, typename... Parents>
-        struct PIXELPIPES_API TypeInfo
+        struct TypeInfo
         {
             using T = std::remove_const_t<std::remove_reference_t<This>>;
 
             /// Ensure all passed parents are basses of this type.
-            static_assert((... && std::is_base_of<Parents, This>::value),
+			static_assert((std::is_base_of<Parents, This>::value && ...),
                           "One or more parents are not a base of this type.");
 
             /// Ensure all passed parent hierarchies have RTTI enabled.
-            static_assert((... && std::is_base_of<RTTI, Parents>::value),
+            static_assert((std::is_base_of<RTTI, Parents>::value && ...),
                           "One or more parent hierarchies is not based on top of pixelpipes::details::RTTI.");
 
             /**

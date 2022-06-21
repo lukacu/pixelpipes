@@ -247,6 +247,7 @@ namespace pixelpipes
     {
         using OperationType = OperationWrapper<Run, fn_run, unpack>;
         using ArgTypes = typename details::function_traits<Run>::inputs;
+        using OutputType = typename details::function_traits<Run>::output;
 
     public:
         OperationWrapper() = default;
@@ -256,7 +257,12 @@ namespace pixelpipes
         {
             if constexpr (unpack) {
                 auto converted = details::extract_args_tuple<OperationType, ArgTypes>::run(inputs.begin(), inputs.end());
-                return wrap(std::apply(std::function(fn_run), converted));
+                if constexpr (std::is_base_of_v<TokenReference, OutputType>)
+                    return wrap(std::apply(std::function(fn_run), converted));
+                else {
+                    auto result = std::apply(std::function(fn_run), converted);
+                    return wrap(result);
+                }
             } else {
                 return fn_run(inputs);
             }

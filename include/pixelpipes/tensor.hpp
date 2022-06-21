@@ -6,7 +6,6 @@
 #include <numeric>
 
 #include <pixelpipes/type.hpp>
-#include <pixelpipes/operation.hpp>
 #include <pixelpipes/buffer.hpp>
 
 namespace pixelpipes
@@ -564,7 +563,7 @@ namespace pixelpipes
     }
 
     template <typename T>
-    inline TokenReference wrap(const View<T> &v)
+    inline TokenReference wrap(View<T> v)
     {
         return create<Vector<T>>(v);
     }
@@ -582,10 +581,41 @@ namespace pixelpipes
         return wrap(copy);
     }
 
-    template <typename V>
-    inline TokenReference wrap(const std::vector<V> &v)
+    template <>
+    inline TokenReference wrap(const std::vector<int> &v)
     {
-        return wrap(make_span(v));
+        return wrap(make_view(v));
+    }
+
+    template <>
+    inline TokenReference wrap(const std::vector<float>& v)
+    {
+        return wrap(make_view(v));
+    }
+
+    template <>
+    inline TokenReference wrap(const std::vector<uchar>& v)
+    {
+        return wrap(make_view(v));
+    }
+
+    template <char>
+    inline TokenReference wrap(const std::vector<char>& v)
+    {
+        return wrap(make_view(v));
+    }
+
+    template <>
+    inline TokenReference wrap(const std::vector<short>& v)
+    {
+        return wrap(make_view(v));
+    }
+
+
+    template <>
+    inline TokenReference wrap(const std::vector<ushort>& v)
+    {
+        return wrap(make_view(v));
     }
 
     typedef Vector<float> FloatVector;

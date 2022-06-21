@@ -1,4 +1,6 @@
 
+CMAKE_POLICY(SET CMP0091 NEW)
+
 PROJECT(pixelpipes)
 CMAKE_MINIMUM_REQUIRED(VERSION 3.11 FATAL_ERROR)
 
@@ -19,11 +21,13 @@ option(BUILD_TOOL "Build CLI tool" ON)
 
 SET(CMAKE_EXTERNALS_DIR "${CMAKE_BINARY_DIR}/external/")
 
-if (MSVC)
-    add_compile_options(/W4 /WX /wd4251)
-else()
+if (CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+    add_compile_options(/W4 /WX /WL /wd4251 /permissive-)
+elseif (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
     add_compile_options(-Wall -Wextra -pedantic -Werror)
-    #set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -Wl,--no-undefined" )
+elseif (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+    add_compile_options(-Wall -Wextra -pedantic -Werror)
+    set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -Wl,--no-undefined" )
 endif()
 
 FIND_PACKAGE(Threads REQUIRED)

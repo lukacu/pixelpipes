@@ -10,15 +10,17 @@
 #include <memory>
 #include <cmath>
 
+#ifdef _WIN32
+#include <windows.h>
+#undef min
+#undef max
+#endif
+
 #include <pixelpipes/details/rtti.hpp>
 #include <pixelpipes/details/enum.hpp>
 #include <pixelpipes/details/utilities.hpp>
 #include <pixelpipes/details/api.hpp>
 #include <pixelpipes/details/pointer.hpp>
-
-#ifdef _WIN32
-#include <windows.h>
-#endif
 
 #ifdef PIXELPIPES_BUILD_CORE
 #define PIXELPIPES_API_TEMPLATE

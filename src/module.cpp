@@ -89,6 +89,8 @@ namespace pixelpipes
 
 #ifdef _MSC_VER
             candidate /= "pixelpipes_" + name + ".dll";
+#elif defined(__APPLE__)
+            candidate /= "libpixelpipes_" + name + ".dylib";
 #else
             candidate /= "libpixelpipes_" + name + ".so";
 #endif

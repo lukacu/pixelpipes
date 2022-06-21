@@ -278,6 +278,12 @@ namespace pixelpipes
     }
 
     template <>
+    inline TokenReference wrap(Sequence<Point2D> v)
+    {
+        return create<FloatMatrix>(v.size(), 2, make_view<float>((float*)v.data(), 2 * v.size()));
+    }
+
+    template <>
     inline Sequence<Point3D> extract(const TokenReference &v)
     {
         VERIFY((bool)v, "Uninitialized variable");

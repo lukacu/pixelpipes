@@ -1,5 +1,6 @@
-#include <pixelpipes/operation.hpp>
+
 #include <pixelpipes/geometry.hpp>
+#include <pixelpipes/operation.hpp>
 
 namespace pixelpipes
 {
@@ -60,9 +61,9 @@ namespace pixelpipes
 
     PIXELPIPES_OPERATION_AUTO("points2d_center", points2d_center);
 
-    std::vector<Point2D> points_from_rectangle(Rectangle r)
+    Sequence<Point2D> points_from_rectangle(Rectangle r)
     {
-        return std::vector<Point2D>({Point2D{r.left, r.top}, Point2D{r.right, r.top}, Point2D{r.right, r.bottom}, Point2D{r.left, r.bottom}});
+        return Sequence<Point2D>({Point2D{r.left, r.top}, Point2D{r.right, r.top}, Point2D{r.right, r.bottom}, Point2D{r.left, r.bottom}});
     }
 
     PIXELPIPES_OPERATION_AUTO("points_from_rectangle", points_from_rectangle);
@@ -79,13 +80,13 @@ namespace pixelpipes
 
         VERIFY(inputs.size() % 2 == 0, "Incorrect number of parameters, number should be even");
 
-        std::vector<Point2D> result;
+        Sequence<Point2D> result(inputs.size() / 2);
 
         for (size_t i = 0; i < inputs.size(); i += 2)
         {
             float x = extract<float>(inputs[i]);
             float y = extract<float>(inputs[i + 1]);
-            result.push_back(Point2D{x, y});
+            result[i / 2] = (Point2D{x, y});
         }
 
         return wrap(result);
@@ -114,10 +115,10 @@ namespace pixelpipes
 
     PIXELPIPES_OPERATION_AUTO("list_to_points", PointsFromList);
     */
-    std::vector<Point2D> random_points2d(int count, int seed)
+    Sequence<Point2D> random_points2d(int count, int seed)
     {
 
-        std::vector<Point2D> data(count);
+        Sequence<Point2D> data((size_t)count);
 
         RandomGenerator generator = create_generator(seed);
 
@@ -125,7 +126,7 @@ namespace pixelpipes
 
         for (int i = 0; i < count; i++)
         {
-            data.push_back(Point2D{distribution(generator), distribution(generator)});
+            data[i] = (Point2D{distribution(generator), distribution(generator)});
         }
 
         return data;
