@@ -322,8 +322,8 @@ PYBIND11_MODULE(pypixelpipes, m)
 {
 
     if (_import_array() < 0)
-    {
-        throw py::import_error("Unable to load NumPy");
+    { 
+        throw py::error_already_set();
     }
 
     m.doc() = "Python Wrapper for PixelPipes Engine";

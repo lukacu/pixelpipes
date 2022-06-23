@@ -15,24 +15,32 @@ from setuptools.command import build_py, build_ext
 
 platid = os.getenv("PYTHON_PLATFORM", platform.system()).lower()
 
+cmake_args = ["-DBUILD_PYTHON=OFF",
+                "-DBUILD_TEST=OFF",
+                "-DCMAKE_BUILD_RPATH_USE_ORIGIN=ON"]
+
 if platid == "linux":
     rpath = ["$ORIGIN"]
-    libext = ".so"
+    libext = [".so"]
 elif platid == "darwin":
     rpath = ["@loader_path"]
-    libext = ".dylib"
-    
+    libext = [".dylib"]
+    cmake_args += ["-DCMAKE_OSX_DEPLOYMENT_TARGET=12.00"]    
 else:
     rpath = []
-    libext = ".dll"
+    libext = [".dll", ".lib"]
 
 
 # Override build command
-def lib_name(name):
+def make_library_filter(name):
+    import fnmatch
     from distutils.ccompiler import new_compiler
     compiler = new_compiler()
-    return compiler.shared_lib_format % (name, libext)
-
+    filters = [compiler.shared_lib_format % (name, ext) for ext in libext]
+    def _cb(filename):
+        filename = os.path.split(filename)[1]
+        return any([fnmatch.fnmatch(filename, f) for f in filters])
+    return _cb
 
 class BuildCommand(build.build):
 
@@ -40,14 +48,12 @@ class BuildCommand(build.build):
         build.build.initialize_options(self)
         self.build_base = os.environ.get("BUILD_ROOT", "build")
 
-
 class BuildPyCommand(build_py.build_py):
     """Custom build command."""
 
     def run(self):
         self.run_command('build_lib')
         build_py.build_py.run(self)
-
 
 class BuildExtCommand(build_ext.build_ext):
     """Custom build command."""
@@ -116,18 +122,14 @@ class CMakeBuildCommand(Command):
 
         env = dict(**os.environ)
 
-        cmake_args = ["-DBUILD_PYTHON=OFF",
-                      "-DBUILD_TEST=OFF",
-                      "-DCMAKE_BUILD_RPATH_USE_ORIGIN=ON"]
+        cmake_command_args = list(cmake_args)
 
-        cmake_args += ["-DCMAKE_OSX_DEPLOYMENT_TARGET=12.00"]
-        cmake_args += ["-DBUILD_DEBUG=ON"]
         if not self.inplace:
-            cmake_args += ['-DBUILD_INPLACE=OFF']
+            cmake_command_args += ['-DBUILD_INPLACE=OFF']
         else:
-            cmake_args += ['-DBUILD_INPLACE=ON']
+            cmake_command_args += ['-DBUILD_INPLACE=ON']
 
-        command = ['cmake', *cmake_args, root]
+        command = ['cmake', *cmake_command_args, root]
         self.announce(
             'Running command: %s' % str(command),
             level=distutils.log.INFO)
@@ -139,14 +141,13 @@ class CMakeBuildCommand(Command):
             'Running command: %s' % str(command),
             level=distutils.log.INFO)
         subprocess.check_call(command, env=env)
-        self.announce("Done", level=distutils.log.INFO)
+        self.announce("Library compilation done", level=distutils.log.INFO)
 
-        print(build_dir)
-        print(glob.glob(os.path.join(build_dir, lib_name("pixelpipes*"))))
         if not self.inplace:
             # copy binaries generated with cmake to the package
-            # TODO: probably include .lib file as well for the main lib on Windows
-            for file in glob.glob(os.path.join(build_dir, lib_name("pixelpipes*"))):
+            filter = make_library_filter("pixelpipes*")
+            files = [os.path.join(build_dir, filename) for filename in os.listdir(build_dir) if filter(filename)]
+            for file in files:
                 if os.path.isfile(file):
                     file_util.copy_file(file, os.path.join(
                         target_dir, os.path.basename(file)), update=True, verbose=True)
@@ -214,9 +215,9 @@ setup(
     ext_modules=ext_modules,
     packages=setuptools.find_packages(include=["pixelpipes", "pixelpipes.*"]),
     include_package_data=True,
-    setup_requires=["pybind11>=2.5.0", "numpy>=1.19"],
+    setup_requires=["pybind11>=2.5.0", "numpy>=1.20"],
     install_requires=[
-        "numpy>=1.19",
+        "numpy>=1.20",
         "bidict>=0.21",
         "intbitset>=2.4",
         "attributee>=0.1.7"

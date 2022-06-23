@@ -112,10 +112,17 @@ class Pipeline(object):
         return self._pipeline.labels()
 
     def stats(self):
+        # TODO: remove this
         stats = self._pipeline.operation_time()
         for k, v in zip(self._operations, stats):
             print("%s: %.3f ms" % (k, v))
         
+    def __iter__(self):
+        index = 1
+        while True:
+            yield self._pipeline.run(index)
+            index += 1
+
 def write_pipeline(filename: str, pipeline: Pipeline, compress: Optional[bool] = True):
         from . import pypixelpipes
         pypixelpipes.write_pipeline(pipeline._pipeline, filename, compress)
