@@ -4,13 +4,73 @@ from collections.abc import Container
 import typing
 import numbers
 
-from ..graph import Graph, GraphBuilder, InferredReference, Macro, Node, NodeException, Reference, ValidationException, Constant, Copy, DebugOutput, Output
+from numpy import isin
+
+from ..graph import Graph, Graph, InferredReference, Macro, Node, NodeException, Operation, Reference, ValidationException, Constant, Copy, DebugOutput, Output
 from .. import Pipeline, PipelineOperation, types
 from ..numbers import Constant
-from .utilities import BranchSet, Counter, infer_type, toposort
-from . import CompilerException, Conditional, Variable
-from ..graph import OperationIndex, RandomSeed, SampleIndex
+from .utilities import BranchSet, toposort
+from . import CompilerException, Variable
+from ..graph import RandomSeed, SampleIndex
+from ..flow import Conditional
 
+def infer_type(node: typing.Union[Reference, str], graph: Graph = None, type_cache: typing.Mapping[str, types.Data] = None) -> types.Data:
+    """Computes output type for a given node by recursively computing types of its dependencies and
+    calling validate method of a node with the information about their computed output types.
+
+    Args:
+        node (typing.Union[Reference, typing.Type[Node]]): Reference of the node or raw value
+        graph (Graph): Mapping of all nodes in the graph
+        type_cache (typing.Mapping[str, types.Type], optional): Optional cache for already computed types.
+            Makes repetititve calls much faster. Defaults to None.
+
+    Raises:
+        ValidationException: Contains information about the error during node validation process.
+
+    Returns:
+        types.Type: Computed type for the given node.
+    """
+
+    if graph is None:
+        graph = Graph.default()
+
+    if isinstance(node, Node):
+        name = graph.reference(node)
+    elif isinstance(node, Reference):
+        name = node
+    else:
+        return None
+
+    if type_cache is not None and name in type_cache:
+        return type_cache[name]
+
+    if name not in graph:
+        raise ValidationException("Node reference {} not found".format(name))
+
+    node = graph[name]
+
+    if not hasattr(node, "validate"):
+        return None
+
+    input_types = {}
+    for k, i in zip(node.input_names(), node.input_values()):
+        typ = infer_type(i, graph, type_cache) 
+        if typ is None:
+            return None
+        input_types[k] = typ
+
+    output_type = node.validate(**input_types)
+
+    if type_cache is not None and output_type is not None:
+        type_cache[name] = output_type
+    return output_type
+
+
+def print_graph(graph: Graph):
+    print("========== START", len(graph), " nodes =========" )
+    for ref, _ in graph:
+        print(ref)
+    print("========== END", len(graph), " nodes =========" )
 
 class Compiler(object):
     """Compiler object contains utilities to validate a graph and compiles it to a pipeline
@@ -54,8 +114,6 @@ class Compiler(object):
         """
 
         if isinstance(graph, Graph):
-            nodes = graph.nodes
-        elif isinstance(graph, GraphBuilder):
             nodes = graph.nodes()
         elif isinstance(graph, typing.Mapping):
             nodes = graph
@@ -81,30 +139,27 @@ class Compiler(object):
                       for i in nodes[output].input_values()]
 
             for i, output_type in enumerate(inputs):
-                if self._fixedout and not output_type.fixed():
-                    raise ValidationException("Output {} not fixed for output node {}: {}".format(
-                        i, output, output_type), output)
                 if isinstance(output_type, types.Complex):
-                    raise ValidationException("Output {} is a complex type for output node {}: {}".format(
+                    raise ValidationException("Output {} is a non-primitive type for output node {}: {}".format(
                         i, output, output_type), output)
 
         return type_cache
 
-    def build(self, graph: typing.Union[Graph, typing.Mapping[str, Node]],
+    def build(self, graph: Graph,
                 variables: typing.Optional[typing.Mapping[str,
                                                           numbers.Number]] = None,
                 output: typing.Optional[typing.Union[Container, typing.Callable]] = None) -> Pipeline:
 
         return Pipeline(self.compile(graph, variables, output))
 
-    def compile(self, graph: typing.Union[Graph, typing.Mapping[str, Node]],
+    def compile(self, graph: Graph,
                 variables: typing.Optional[typing.Mapping[str,
                                                           numbers.Number]] = None,
                 output: typing.Optional[typing.Union[Container, typing.Callable]] = None) -> typing.Iterable[PipelineOperation]:
         """Compile a graph into a pipeline of native operations.
 
         Args:
-            graph (typing.Union[Graph, typing.Dict]): Graph representation
+            graph (Graph): Graph representation
 
         Raises:
             CompilerException: raised if graph is not valid
@@ -113,122 +168,123 @@ class Compiler(object):
             engine.Pipeline: resulting pipeline
         """
 
-        if GraphBuilder.default() is not None:
+        if Graph.default() is not None:
             raise CompilerException(
-                "Cannot compile within graph builder scope")
+                "Cannot compile within graph scope")
 
-        if isinstance(graph, Graph):
-            nodes = graph.nodes
-        elif isinstance(graph, GraphBuilder):
-            nodes = graph.nodes()
-        elif isinstance(graph, typing.Mapping):
-            nodes = graph
-        else:
+        if not isinstance(graph, Graph):
             raise CompilerException("Illegal graph specification")
 
         # Copy the nodes mapping structure
-        nodes = dict(**nodes)
+        graph = graph.copy()
 
-        self._debug("Compiling {} source nodes", len(nodes))
+        self._debug("Compiling {} source nodes", len(graph))
 
-        for name, node in nodes.items():
+        for name, node in graph:
             if isinstance(node, Variable):
                 if variables is not None and node.name in variables:
-                    nodes[name] = Constant(value=variables[node.name])
+                    value=variables[node.name]
                 else:
-                    nodes[name] = Constant(value=node.default)
+                    value = node.default
+                graph.replace(name, Constant(value=value, _auto=False))
 
-        inferred_types = self.validate(nodes)
-
-        builder = GraphBuilder()
-        constants = Counter()
+        inferred_types = {}
 
         def normalize_input(input_value):
             if not isinstance(input_value, Reference):
-                input_name = "constant%d" % constants()
-                input_type = Constant.resolve_type(input_value)
-                input_value = builder.add(
-                    Constant(value=input_value, _auto=False), input_name)
-                inferred_types[input_name] = input_type
+                input_value = Constant(value=input_value)
             elif input_value.name == "[random]":
-                input_name = "random%d" % constants()
-                input_type = types.Integer()
-                input_value = builder.add(RandomSeed(_auto=False), input_name)
-                inferred_types[input_name] = input_type
+                input_value = RandomSeed()
             elif input_value.name == "[sample]":
-                input_type = types.Integer()
-                if "__sample" not in inferred_types:
-                    input_value = builder.add(
-                        SampleIndex(_auto=False), "__sample")
-                    inferred_types["__sample"] = input_type
-                else:
-                    input_value = Reference("@__sample")
-            elif input_value.name == "[operation]":
-                input_name = "operation%d" % constants()
-                input_type = types.Integer()
-                input_value = builder.add(
-                    OperationIndex(_auto=False), input_name)
-                inferred_types[input_name] = input_type
+                input_value = SampleIndex()
             else:
-                input_type = inferred_types[input_value.name]
-            return input_value, input_type
+                return input_value, infer_type(input_value, graph, inferred_types)
+            return input_value, infer_type(input_value, None, inferred_types)
 
         def normalize_inputs(node):
             inputs = {}
-            for input_name, input_value in zip(node.input_names(), node.input_values()):
-                input_value, _ = normalize_input(input_value)
-                inputs[input_name] = input_value
-
-            return inputs
+            change = False
+            with graph.subgraph() as subgraph:
+                for input_name, input_value in zip(node.input_names(), node.input_values()):
+                    input_value, input_type = normalize_input(input_value)
+                    if input_type is None:
+                        return None, False
+                    if isinstance(input_value, Node):
+                        change = True
+                        input_value = subgraph.reference(input_value)
+                        self._debug("Generating new node {}", input_value)
+                    inputs[input_name] = InferredReference(input_value, input_type)
+                subgraph.commit()
+            return inputs, change
 
         def expand_macro(name, node):
-            inputs = {}
-            for input_name, input_value in zip(node.input_names(), node.input_values()):
-                input_value, input_type = normalize_input(input_value)
-                inputs[input_name] = InferredReference(input_value, input_type)
+            self._debug("Expanding macro {} ({})", name, node)
+
+            #print_graph(graph)
+
+            inputs, _ = normalize_inputs(node)
+            if inputs is None:
+                return False
 
             try:
-                subgraph = node.expand(inputs, Reference(name))
+                # Expand the macro subgraph
+                with graph.subgraph(prefix=Reference(name)) as macro_builder:
+                    output = node.expand(**inputs)
+                    subgraph = macro_builder.nodes()
 
             except Exception as ee:
+                if isinstance(ee, NodeException):
+                    ee.print_nodestack()
                 raise CompilerException(
-                    "Exception during macro {} expansion".format(name)) from ee
+                    "Exception during macro {} ({}) expansion".format(name, node)) from ee
 
-            # Special case where only a single node is returned
-            if isinstance(subgraph, Node):
-                subgraph = {name: subgraph}
-
-            self._debug("Expanding macro node {} to {} nodes",
+            self._debug("Expanded macro {} to {} nodes",
                         name, len(subgraph))
 
-            for subname, _ in subgraph.items():
-                infer_type(Reference(subname), subgraph, inferred_types)
+            output_reference = macro_builder.reference(output)
 
-            # TODO: verify that declared type is same as the one actually returned by generated subgraph
+            if Reference(name) in macro_builder:
+                if not name == output_reference.name:
+                    raise NodeException("Node naming convention violation for output node in macro {}.".format(name), node=name)
+
+            # delete original macro node, replace it with the subgraph
+            graph.remove(node)
 
             for subname, subnode in subgraph.items():
-                if subname != name and not subname.startswith(name + "."):
+                if subname == output_reference.name:
+                    subname = name
+                elif not subname.startswith(name.name + "."):
                     raise NodeException("Expanded node has illegal name {}, must start with {}.".format(
                         subname, name), node=name)
-                if isinstance(subnode, Macro):
-                    expand_macro(subname, subnode)
+                subnode._origin = node
+                graph.add(subnode, subname)
+            return True
+
+        while True:
+            expanded = True
+            changes = 0
+            node_pairs = list(iter(graph))
+            for name, node in node_pairs:
+                if isinstance(node, Macro):
+                    expanded = False
+                    if expand_macro(name, node):
+                        changes += 1
                 else:
-                    inputs = normalize_inputs(subnode)
-                    builder.add(subnode.duplicate(
-                        _origin=node, **inputs), subname)
+                    inputs, change = normalize_inputs(node)
+                    if change:
+                        graph.replace(name, node.duplicate(**inputs))
+                        changes += 1
+                    infer_type(name, graph, inferred_types)
+                    
+            if not expanded and changes == 0:
+                raise CompilerException("Unable to expand graph, probably due to some misbehaving nodes")
 
-        for name, node in nodes.items():
-            if isinstance(node, Macro):
-                expand_macro(name, node)
-            else:
-                inputs = normalize_inputs(node)
-                builder.add(node.duplicate(**inputs), name)
+            if expanded:
+                break
 
-        expanded = builder.nodes()
+        expanded = graph.nodes()
 
         self._debug("Expanded graph to {} nodes", len(expanded))
-
-        self.validate(expanded)
 
         output_nodes = []
 
@@ -265,7 +321,7 @@ class Compiler(object):
         if not output_nodes:
             raise CompilerException("No output selected or available")
 
-        builder = GraphBuilder()
+        builder = Graph()
 
         for name, node in expanded.items():
             if name not in aliases:
@@ -306,6 +362,8 @@ class Compiler(object):
         for output_node in output_nodes:
             for name in traverse(optimized, output_node):
                 node = optimized[name]
+                if not isinstance(node, Operation):
+                    raise ValidationException("Only atomic operations allowed, got {}".format(node), node=node)
                 if isinstance(node, Conditional):
                     # In case of a conditional node we can determine which nodes will be executed only
                     # in certain conditions and insert jumps into the pipeline to speed up execution.

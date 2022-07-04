@@ -40,53 +40,6 @@ items in the preceeding sets.
     if len(data) != 0:
         raise CompilerException('Cyclic dependency detected among nodes: {}'.format(', '.join(repr(x) for x in data.keys())))
 
-def infer_type(node: typing.Union[Reference, int, float, typing.Type[Node]], nodes: typing.Mapping[str, Node], type_cache: typing.Mapping[str, types.Type] = None) -> types.Type:
-    """Computes output type for a given node by recursively computing types of its dependencies and
-    calling validate method of a node with the information about their computed output types.
-
-    Args:
-        node (typing.Union[Reference, int, float, typing.Type[Node]]): Reference of the node or raw value
-        nodes (typing.Mapping[str, Node]): Mapping of all nodes in the graph
-        type_cache (typing.Mapping[str, types.Type], optional): Optional cache for already computed types.
-            Makes repetititve calls much faster. Defaults to None.
-
-    Raises:
-        ValidationException: Contains information about the error during node validation process.
-
-    Returns:
-        types.Type: Computed type for the given node.
-    """
-
-    if not isinstance(node, Reference):
-        if isinstance(node, int):
-            return types.Integer(node)
-        if isinstance(node, float):
-            return types.Float(node)
-        raise ValidationException("Illegal reference type: %s" % node)
-
-    name = node.name
-
-    if type_cache is not None and name in type_cache:
-        return type_cache[name]
-
-    if name not in nodes:
-        if name in ["[random]", "[sample]", "[operation]"]:
-            return types.Integer()
-        raise ValidationException("Node reference {} not found".format(node))
-
-    try:
-
-        input_types = {k: infer_type(i, nodes, type_cache) for k, i in zip(nodes[name].input_names(), nodes[name].input_values())}
-        output_type = nodes[name].validate(**input_types)
-
-        if type_cache is not None:
-            type_cache[name] = output_type
-        return output_type
-
-    except ValidationException as e:
-        raise ValidationException("Node {}: {}".format(name, str(e)), node=nodes[name])
-
-
 def merge(i, j):
     """ Combine two minterms. """
     if i[1] != j[1]:
@@ -122,16 +75,6 @@ def _insert_minterm(minterms, new):
 
     # Not merged, add to list
     return minterms + [new]
-
-class Counter(object):
-    """Object based counter, each time it is called it returns a value greater by 1"""
-
-    def __init__(self):
-        self._i = 0
-
-    def __call__(self) -> int:
-        self._i += 1
-        return self._i
 
 class BranchSet(object):
 

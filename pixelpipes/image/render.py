@@ -1,133 +1,67 @@
-from attributee import Boolean
 
-from ..graph import Input, Node, SeedInput
+from ..graph import Input, Operation, SeedInput
 from .. import types
-from ..geometry.types import Points
 
-class NormalNoise(Node):
-    """Normal noise
-
+class NormalNoise(Operation):
+    """
     Creates a single channel image with values sampled from gaussian distribution.
-
-    Inputs:
-        - width: noise image width
-        - height: noise image height
-        - mean: mean of gaussian distribution
-        - std: standard deviation of gaussian distribution
-
-    Category: image, noise
-    Tags: image, noise
     """
 
-    width = Input(types.Integer())
-    height = Input(types.Integer())
-    mean = Input(types.Float(), default=0)
-    std = Input(types.Float(), default=1)
+    width = Input(types.Integer(), description="Image width")
+    height = Input(types.Integer(), description="Image height")
+    mean = Input(types.Float(), default=0, description="Mean of distribution")
+    std = Input(types.Float(), default=1, description="Standard deviation of values")
     seed = SeedInput()
     
     def operation(self):
         return "opencv:normal_noise",
 
-    def validate(self, **inputs):
-        super().validate(**inputs)
+    def infer(self, **inputs):
+        return types.Image(depth="float", channels=1)
 
-        width = inputs["width"].value
-        height = inputs["height"].value
-
-        return types.Image(width, height, 1, 64, types.ImagePurpose.HEATMAP)
-
-class UniformNoise(Node):
-    """Uniform noise
-
+class UniformNoise(Operation):
+    """
     Creates a single channel image with values sampled from uniform distribution.
-
-    Inputs:
-        - width: noise image width
-        - height: noise image height
-        - min: minimum value of uniform distribution
-        - max: maximum value of uniform distribution
-        - seed: use this seed for random generator
-
-    Category: image, noise
-    Tags: image, noise
     """
 
-    width = Input(types.Integer())
-    height = Input(types.Integer())
-    min = Input(types.Float(), default=0)
-    max = Input(types.Float(), default=1)
+    width = Input(types.Integer(), description="Image width")
+    height = Input(types.Integer(), description="Image height")
+    min = Input(types.Float(), default=0, description="Minimum value")
+    max = Input(types.Float(), default=1, description="Maximum value")
     seed = SeedInput()
 
     def operation(self):
         return "opencv:uniform_noise",
 
-    def validate(self, **inputs):
-        super().validate(**inputs)
+    def infer(self, **inputs):
+        return types.Image(depth="float", channels=1)
 
-        width = inputs["width"].value
-        height = inputs["height"].value
-
-        return types.Image(width, height, 1, 64, types.ImagePurpose.HEATMAP)
-
-class LinearImage(Node):
+class LinearImage(Operation):
     """Generate an image with linearly progressing values from min to max.
-
-    Inputs:
-        - width: noise image width
-        - height: noise image height
-        - min: minimum value
-        - max: maximum value
-
-    Arguments:
-        - flip: flip progression (horizontal by default)
-
-    Category: image, noise
-    Tags: image, noise
     """
 
-    width = Input(types.Integer())
-    height = Input(types.Integer())
-    min = Input(types.Float())
-    max = Input(types.Float())
-    flip = Input(types.Boolean(), default=False)
+    width = Input(types.Integer(), description="Image width")
+    height = Input(types.Integer(), description="Image height")
+    min = Input(types.Float(), description="Minimum value")
+    max = Input(types.Float(), description="Maximum value")
+    flip = Input(types.Boolean(), default=False, description="Horizontal or vertical gradient")
 
     def operation(self):
         return "opencv:linear_image",
 
-    def validate(self, **inputs):
-        super().validate(**inputs)
+    def infer(self, **inputs):
+        return types.Image(depth="float", channels=1)
 
-        width = inputs["width"].value
-        height = inputs["height"].value
-
-        return types.Image(width, height, 1, 64, types.ImagePurpose.HEATMAP)
-
-class Polygon(Node):
+class Polygon(Operation):
     """Draw a polygon to a canvas of a given size
-
-    Inputs:
-        - source: list of points
-        - width: output width
-        - height: height
-
-    Category: image, other
-    Tags: image
-
-    Returns:
-        [type]: [description]
     """
 
-    source = Input(Points())
-    width = Input(types.Integer())
-    height = Input(types.Integer())
+    source = Input(types.Points(), description="List of points")
+    width = Input(types.Integer(), description="Image width")
+    height = Input(types.Integer(), description="Image height")
 
     def operation(self):
         return "opencv:polygon",
 
-    def validate(self, **inputs):
-        super().validate(**inputs)
-
-        width = inputs["width"].value
-        height = inputs["height"].value
-
-        return types.Image(width, height, 1, 8, types.ImagePurpose.MASK)
+    def infer(self, **inputs):
+        return types.Image(depth="uchar", channels=1)

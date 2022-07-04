@@ -5,16 +5,17 @@ import threading
 import numbers
 import traceback
 from enum import Enum, auto
+import unittest
+
 import numpy as np
 
 import bidict
 
 from attributee import Attributee, Attribute, AttributeException, Undefined, Any, Enumeration
-from attributee.containers import ReadonlyMapping
 from attributee.object import class_fullname
 from attributee.primitives import to_number, to_logical, to_string, String
 
-import pixelpipes.types as types
+from . import types
 
 from . import ContextFields
 
@@ -30,11 +31,11 @@ def wrap_pybind_enum(bindenum):
 
     return mapping
 
-class UnaryOperation(Enum):
+class NodeOperation(Enum):
 
     NEGATE = auto()
-
-class BinaryOperation(Enum):
+    INDEX = auto()
+    LENGTH = auto()
 
     ADD = auto()
     SUBTRACT = auto()
@@ -49,8 +50,6 @@ class BinaryOperation(Enum):
     LOWER_EQUAL = auto()
     GREATER = auto()
     GREATER_EQUAL = auto()
-
-Operation = typing.Union[UnaryOperation, BinaryOperation]
 
 class NodeException(Exception):
 
@@ -82,9 +81,9 @@ class ValidationException(NodeException):
 
 class Input(Attribute):
 
-    def __init__(self, reftype: types.Type, default: typing.Optional[typing.Union[str, float, int]] = None, description: typing.Optional[str] = ""):
+    def __init__(self, reftype: types.Data, default: typing.Optional[typing.Union[str, float, int]] = None, description: typing.Optional[str] = ""):
         self._type = reftype
-        assert isinstance(reftype, types.Type)
+        assert isinstance(reftype, types.Data)
         assert default is None or isinstance(default, (int, float, bool, str)) or Reference.parse(default) is not None, "Default should be a primitive type or a reference: %s" % default
         super().__init__(default = Undefined() if default is None else default, description=description)
 
@@ -92,8 +91,8 @@ class Input(Attribute):
         assert value is not None
 
         if isinstance(value, Node):
-            from pixelpipes.graph import GraphBuilder
-            builder = GraphBuilder.default()
+            from pixelpipes.graph import Graph
+            builder = Graph.default()
             if builder is not None:
                 return builder.reference(value)
             else:
@@ -106,8 +105,14 @@ class Input(Attribute):
         if ref is not None:
             return ref
 
-        if self._type.castable(types.Number()):
-            return to_number(value)
+        if self._type.castable(types.Token()):
+            assert isinstance(value, (bool, int, float, str))
+            return value
+
+#        if self._type.castable(types.Wildcard(mindim=0, maxdim=0)):
+           
+        if self._type.castable(types.String()):
+            return to_string(value)
 
         if self._type.castable(types.Float()):
             return to_number(value, conversion=float)
@@ -118,10 +123,7 @@ class Input(Attribute):
         if self._type.castable(types.Boolean()):
             return to_logical(value)
 
-        if self._type.castable(types.String()):
-            return to_string(value)
-
-        raise AttributeException("Illegal value: {}".format(value))
+        raise AttributeException("Illegal value: {}, expected {}".format(value, self._type))
 
     def dump(self, value):
         if isinstance(value, Reference):
@@ -150,8 +152,8 @@ class EnumerationInput(Input):
 
     def coerce(self, value, _):
         if isinstance(value, Node):
-            from pixelpipes.graph import GraphBuilder
-            builder = GraphBuilder.default()
+            from pixelpipes.graph import Graph
+            builder = Graph.default()
             if builder is not None:
                 return builder.reference(value)
             else:
@@ -179,99 +181,101 @@ class OperationProxy:
 
     def __add__(self, other):
         other = _ensure_node(other)
-        return _BinaryOperationWrapper(self, other, BinaryOperation.ADD)
+        return _BinaryOperationWrapper(self, other, operation=NodeOperation.ADD)
 
     def __radd__(self, other):
         other = _ensure_node(other)
-        return _BinaryOperationWrapper(other, self, BinaryOperation.ADD)
+        return _BinaryOperationWrapper(other, self, operation=NodeOperation.ADD)
 
     def __sub__(self, other):
         other = _ensure_node(other)
-        return _BinaryOperationWrapper(self, other, BinaryOperation.SUBTRACT)
+        return _BinaryOperationWrapper(self, other, operation=NodeOperation.SUBTRACT)
 
     def __rsub__(self, other):
         other = _ensure_node(other)
-        return _BinaryOperationWrapper(other, self, BinaryOperation.SUBTRACT)
+        return _BinaryOperationWrapper(other, self, operation=NodeOperation.SUBTRACT)
 
     def __mul__(self, other):
         other = _ensure_node(other)
-        return _BinaryOperationWrapper(self, other, BinaryOperation.MULIPLY)
+        return _BinaryOperationWrapper(self, other, operation=NodeOperation.MULIPLY)
 
     def __rmul__(self, other):
         other = _ensure_node(other)
-        return _BinaryOperationWrapper(other, self, BinaryOperation.MULIPLY)
+        return _BinaryOperationWrapper(other, self, operation=NodeOperation.MULIPLY)
 
     def __truediv__(self, other):
         other = _ensure_node(other)
-        return _BinaryOperationWrapper(self, other, BinaryOperation.DIVIDE)
+        return _BinaryOperationWrapper(self, other, operation=NodeOperation.DIVIDE)
 
     def __rtruediv__(self, other):
         other = _ensure_node(other)
-        return _BinaryOperationWrapper(other, self, BinaryOperation.DIVIDE)
+        return _BinaryOperationWrapper(other, self, operation=NodeOperation.DIVIDE)
 
     def __pow__(self, other):
         other = _ensure_node(other)
-        return _BinaryOperationWrapper(self, other, BinaryOperation.POWER)
+        return _BinaryOperationWrapper(self, other, operation=NodeOperation.POWER)
 
     def __rpow__(self, other):
         other = _ensure_node(other)
-        return _BinaryOperationWrapper(other, self, BinaryOperation.POWER)
+        return _BinaryOperationWrapper(other, self, operation=NodeOperation.POWER)
 
     def __mod__(self, other):
         other = _ensure_node(other)
-        return _BinaryOperationWrapper(self, other, BinaryOperation.MODULO)
+        return _BinaryOperationWrapper(self, other, operation=NodeOperation.MODULO)
 
     def __rmod__(self, other):
         other = _ensure_node(other)
-        return _BinaryOperationWrapper(other, self, BinaryOperation.MODULO)
+        return _BinaryOperationWrapper(other, self, operation=NodeOperation.MODULO)
 
     def __neg__(self):
-        return _UnaryOperationWrapper(self, UnaryOperation.NEGATE)
+        return _UnaryOperationWrapper(self, operation=NodeOperation.NEGATE)
 
     def __lt__(self, other):
         other = _ensure_node(other)
-        return _BinaryOperationWrapper(self, other, BinaryOperation.LOWER)
+        return _BinaryOperationWrapper(self, other, operation=NodeOperation.LOWER)
 
     def __le__(self, other):
         other = _ensure_node(other)
-        return _BinaryOperationWrapper(self, other, BinaryOperation.LOWER_EQUAL)
+        return _BinaryOperationWrapper(self, other, operation=NodeOperation.LOWER_EQUAL)
 
     def __gt__(self, other):
         other = _ensure_node(other)
-        return _BinaryOperationWrapper(self, other, BinaryOperation.GREATER)
+        return _BinaryOperationWrapper(self, other, operation=NodeOperation.GREATER)
 
     def __ge__(self, other):
         other = _ensure_node(other)
-        return _BinaryOperationWrapper(self, other, BinaryOperation.GREATER_EQUAL)
+        return _BinaryOperationWrapper(self, other, operation=NodeOperation.GREATER_EQUAL)
 
     def __eq__(self, other):
         other = _ensure_node(other)
-        return _BinaryOperationWrapper(self, other, BinaryOperation.EQUAL)
+        return _BinaryOperationWrapper(self, other, operation=NodeOperation.EQUAL)
 
     def __ne__(self, other):
         other = _ensure_node(other)
-        return _BinaryOperationWrapper(self, other, BinaryOperation.NOT_EQUAL)
+        return _BinaryOperationWrapper(self, other, operation=NodeOperation.NOT_EQUAL)
 
     def __getitem__(self, key):
-        return 
+        return _IndexOperationWrapper(self, key, operation=NodeOperation.INDEX)
+
+    def __len__(self):
+        return _UnaryOperationWrapper(self, operation=NodeOperation.INDEX)
 
     @staticmethod
-    def register_operation(operation: Operation, generator: typing.Callable,
-            output: typing.Union[types.Type, typing.Callable], *args: types.Type):
-        _operation_registry.setdefault(operation, []).append((args, output, generator))
+    def register_operation(operation: NodeOperation, generator: typing.Callable, *args: types.Data):
+        _operation_registry.setdefault(operation, []).append((args, generator))
 
     @staticmethod
-    def query_operation(operation: Operation, *qargs: types.Type):
+    def query_operation(operation: NodeOperation, *qargs: types.Data):
         generators = _operation_registry.get(operation, [])
 
-        for args, output, generator in generators:
+        for args, generator in generators:
             if len(args) != len(qargs):
                 continue
             if not all([a1.castable(a2) for a1, a2 in zip(args, qargs)]):
                 continue
-            return generator, output
+            return generator
 
-        return None, None
+        return None
 
 class Reference(object):
 
@@ -279,7 +283,7 @@ class Reference(object):
         if isinstance(ref, Reference):
             ref = ref.name
         if not (ref is not None and isinstance(ref, str) and ref != ""):
-            raise ValidationException("Reference is undefined")
+            raise ValidationException("Reference is undefined or illegal")
         self._ref = ref
 
     def __str__(self):
@@ -287,6 +291,9 @@ class Reference(object):
 
     def __repr__(self):
         return "<@" + self._ref + ">"
+
+    def __hash__(self):
+        return hash(self.name)
 
     @property
     def name(self):
@@ -298,7 +305,6 @@ class Reference(object):
             return Reference(value[1:])
         else:
             return None
-
 
     def __eq__(self, ref):
         if ref is None:
@@ -314,7 +320,7 @@ class InferredReference(Reference, OperationProxy):
 
     """
 
-    def __init__(self, ref: str, typ: types.Type):
+    def __init__(self, ref: str, typ: types.Data):
         if isinstance(ref, Reference):
             ref = ref.name
         super().__init__(ref)
@@ -324,28 +330,14 @@ class InferredReference(Reference, OperationProxy):
     def type(self):
         return self._typ
 
-    def __getitem__(self, i):
-        """Immitate tuple for backwards compatibility"""
-
-        if i == 0:
-            return self
-        if i == 1:
-            return self.type
-
-        if isinstance(self._typ, types.Complex) and isinstance(i, str):
-            return self._typ.access(i, self)
-        
-    def __neg__(self):
-        return _UnaryOperationWrapper(self, UnaryOperation.NEGATE)
-
 def hidden(node_class):
     node_class.node_hidden_base = node_class
     return node_class
 
 def _ensure_node(value):
-    from .graph import GraphBuilder
-    if not GraphBuilder.has_default():
-        raise ValueError("Unable to use node operation magic without a builder context")
+    from .graph import Graph
+    if not Graph.has_default():
+        raise ValueError("Unable to use node operation magic without a context graph")
 
     if isinstance(value, Reference):
         return value
@@ -359,6 +351,8 @@ def _ensure_node(value):
 
 @hidden
 class Node(Attributee, OperationProxy):
+    """Base class for all nodes in a computation graph.
+    """
 
     def __init__(self, *args, _name: str = None, _auto: bool = True, _origin: "Node" = None, **kwargs):
         #Node constructor, please do not overload it directly, override _init method to add custom 
@@ -370,11 +364,11 @@ class Node(Attributee, OperationProxy):
         
         super().__init__(*args, **kwargs)
 
-        self._cache = {}
+        self._inputs_cache = None
 
         if _auto:
-            from pixelpipes.graph import GraphBuilder
-            GraphBuilder.add_default(self, _name)
+            from pixelpipes.graph import Graph
+            Graph.add_default(self, _name)
 
         self._origin = _origin
         self._source = self._nodeframe()
@@ -392,20 +386,6 @@ class Node(Attributee, OperationProxy):
             return getattr(cls, "node_name")
         else:
             return cls.__name__
-
-    @classmethod
-    def description(cls):
-        if hasattr(cls, "node_descritption"):
-            return getattr(cls, "node_descritption")
-        else:
-            return ""
-
-    @classmethod
-    def category(cls):
-        if hasattr(cls, "node_category"):
-            return getattr(cls, "node_category")
-        else:
-            return ""
 
     @classmethod
     def hidden(cls):
@@ -442,10 +422,10 @@ class Node(Attributee, OperationProxy):
             if not input_name in inputs:
                 raise ValidationException("Input '{}' not available".format(input_name), node=self)
             if not input_type.castable(inputs[input_name]):
-                raise ValidationException("Input '{}' not of correct type for type {}: {} to {}".format(input_name,
-                    class_fullname(self), input_type, inputs[input_name]), node=self)
+                raise ValidationException("{}: input '{}' cannot convert {} to {}".format(
+                    class_fullname(self), input_name, inputs[input_name], input_type), node=self)
 
-        return self._output()
+        return self.infer(**inputs)
 
     def input_types(self):
         return [i for _, i in self.get_inputs()]
@@ -456,20 +436,17 @@ class Node(Attributee, OperationProxy):
     def input_names(self):
         return [name for name, _ in self.get_inputs()]
 
-    def _output(self) -> types.Type:
-        return types.Any()
+    def infer(self, **inputs) -> types.Data:
+        raise types.TypeException("Type inferrence must be implemented: {}".format(class_fullname(self)))
 
     def get_inputs(self):
-        if "inputs" in self._cache:
-            return self._cache["inputs"]
-
+        if self._inputs_cache is not None:
+            return self._inputs_cache
         references = []
         for name, attr in self.attributes().items():
             if isinstance(attr, Input):
                 references.append((name, attr.reftype()))
-
-        self._cache["inputs"] = references
-
+        self._inputs_cache = references
         return references
 
     @property
@@ -479,133 +456,115 @@ class Node(Attributee, OperationProxy):
         """
         return self._origin
 
-    def operation(self) -> typing.Tuple:
-        raise NodeException("Node not converable to operation", node=self)
-
     def __hash__(self):
         return id(self)
 
+@hidden
+class Operation(Node):
+    """Base class of all atomic nodes that generate pipeline operations
+    """
 
+    def operation(self) -> typing.Tuple:
+        """Generates a operation construction data that is passed to the library
+
+        Returns:
+            typing.Tuple: A tuple of library arguments, the first one being the name of the operation and the rest its construction
+            arguments.
+        """
+        raise NodeException("Node not converable to operation", node=self)
 
 @hidden
 class Macro(Node):
 
-    def expand(self, inputs, parent: str):
+    def expand(self, **inputs):
         raise NotImplementedError()
 
-@hidden
-class _UnaryOperationWrapper(Macro):
+    def infer(self, **inputs):
+        return None
 
-    a = Input(types.Any())
-    operation = Enumeration(UnaryOperation)
+@hidden
+class _OperationWrapper(Macro):
+
+    operation = Enumeration(NodeOperation)
 
     def _nodeframe(self):
         return traceback.extract_stack()[-4]
 
-    def _init(self):
-        self._generator = None
+@hidden
+class _UnaryOperationWrapper(_OperationWrapper):
 
-    def validate(self, **inputs):
-        generator, output = Node.query_operation(self.operation, inputs["a"])
+    a = Input(types.Anything())
 
+    def expand(self, a):
+        generator = Node.query_operation(self.operation, a.type)
         if generator is None:
-            raise ValidationException("Cannot resolve operation {} for {}".format(self.operation, inputs["a"]), node=self)
-
-        self._generator = generator
-
-        if isinstance(output, typing.Callable):
-            return output(inputs["a"])
-
-        return output
-
-    def expand(self, inputs, parent: str):
-        from pixelpipes.graph import GraphBuilder
-
-        with GraphBuilder(prefix=parent) as builder:
-            output = self._generator(inputs["a"])
-
-            builder.rename(output, parent)
-
-            return builder.nodes()
+            raise ValidationException("Cannot resolve operation {} for {}".format(self.operation, a.type), node=self)
+        return generator(a)
 
 @hidden
-class _BinaryOperationWrapper(Macro):
+class _BinaryOperationWrapper(_OperationWrapper):
 
-    a = Input(types.Any())
-    b = Input(types.Any())
-    operation = Enumeration(BinaryOperation)
+    a = Input(types.Anything())
+    b = Input(types.Anything())
 
     def _nodeframe(self):
         return traceback.extract_stack()[-4]
 
-    def _init(self):
-        self._generator = None
-
-    def validate(self, **inputs):
-        generator, output = Node.query_operation(self.operation, inputs["a"], inputs["b"])
+    def expand(self, a, b):
+        generator = Node.query_operation(self.operation, a.type, b.type)
 
         if generator is None:
-            raise ValidationException("Cannot resolve operation {} for {}, {}".format(self.operation.name, inputs["a"], inputs["b"]), node=self)
+            raise ValidationException("Cannot resolve operation {} for {}, {}".format(self.operation.name, a.type, b.type), node=self)
 
-        self._generator = generator
-
-        if isinstance(output, typing.Callable):
-            return output(inputs["a"], inputs["b"])
-
-        return output
-
-    def expand(self, inputs, parent: str):
-        from pixelpipes.graph import GraphBuilder
-
-        with GraphBuilder(prefix=parent) as builder:
-            output = self._generator(inputs["a"], inputs["b"])
-
-            builder.rename(output, parent)
-
-            return builder.nodes()
+        return generator(a, b)
 
 @hidden
-class _IndexOperationWrapper(Macro):
+class _IndexOperationWrapper(_OperationWrapper):
+    """This is a specialized wrapper for object indexing operations that does internal
+    """
 
-    a = Input(types.Any())
-    index = String()
-
-    def _nodeframe(self):
-        return traceback.extract_stack()[-4]
+    container = Input(types.Anything())
+    index = Input(types.Anything())
 
     def _init(self):
-        self._generator = None
+        # Store raw index after initialization so that we can use it later for operations that do not
+        # support dynamic indexing (e.g. resources)
+        self._rawindex = self.index
 
-    def validate(self, **inputs):
-        generator, output = Node.query_operation(self.operation, inputs["a"])
-
+    def expand(self, container, index):
+        generator = Node.query_operation(self.operation, container.type, index.type)
         if generator is None:
-            raise ValidationException("Cannot resolve operation {} for {}".format(self.operation, inputs["a"]), node=self)
+            raise ValidationException("Cannot resolve operation {} for {}, {}".format(self.operation.name, container.type, index.type), node=self)
+        
+        if isinstance(self._rawindex, (Node, Reference)):
+            return generator(container, index)
+        else:
+            return generator(container, self._rawindex)
 
-        self._generator = generator
-
-        if isinstance(output, typing.Callable):
-            return output(inputs["a"])
-
-        return output
-
-    def expand(self, inputs, parent: str):
-        from pixelpipes.graph import GraphBuilder
-
-        with GraphBuilder(prefix=parent) as builder:
-            output = self._generator(inputs["a"][0])
-
-            builder.rename(output, parent)
-
-            return builder.nodes()
-
-
-class GraphBuilder(object):
+class Graph(object):
 
     def __init__(self, prefix: typing.Optional[typing.Union[str, Reference]] = ""):
+        from .utilities import Counter
+
         self._nodes = bidict.bidict()
-        self._count = 0
+        self._count = Counter()
         self._prefix = prefix if isinstance(prefix, str) else prefix.name
+        self._parent = None
+
+    def subgraph(self, prefix: typing.Optional[typing.Union[str, Reference]] = "") -> "Graph":
+        graph = Graph(prefix)
+        graph._parent = self
+        return graph
+
+    def commit(self):
+        if self._parent is None:
+            raise NodeException("No parent graph to commit to")
+        self._parent += self
+
+    def copy(self):
+        graph = Graph()
+        graph += self
+        return graph
 
     @staticmethod
     def has_default():
@@ -614,7 +573,7 @@ class GraphBuilder(object):
             return len(builders) > 0
             
     @staticmethod
-    def default():
+    def default() -> "Graph":
         with _CONTEXT_LOCK:
             builders = getattr(_CONTEXT, "builders", [])
             if len(builders) > 0:
@@ -656,192 +615,176 @@ class GraphBuilder(object):
             return Reference(self._nodes.inverse[node])
 
         if name is None:
-            name = "node%d" % self._count
-            if self._prefix != "":
-                name = "." + name
-            self._count += 1
-
-        if name.startswith("."):
-            name = self._prefix + name
-
-        if name in self._nodes:
-            raise NodeException("Name already exists: {}".format(name), node=name)
+            while True:
+                name = "node%d" % self._count()
+                if self._prefix != "":
+                    name = self._prefix + "." + name
+                if name in self._nodes or (self._parent is not None and name in self._parent._nodes):
+                    continue
+                break
+        else:
+            if name.startswith("."):
+                if name == ".":
+                    name = self._prefix
+                else:
+                    name = self._prefix + name
+            if name in self._nodes or self._parent and node in self._parent._nodes:
+                raise NodeException("Name already exists: {}".format(name), node=node)
 
         self._nodes[name] = node
         return Reference(name)
 
+    def remove(self, node: typing.Union[Node, Reference]):
+        if isinstance(node, Node):
+            node = self._nodes.inverse[node]
+        if node is None or node not in self._nodes:
+            return
+        del self._nodes[node]
+
+    def replace(self, oldnode: typing.Union[Node, Reference], newnode: Node):
+        if isinstance(oldnode, Node):
+            name = self.reference(oldnode)
+        else:
+            name = oldnode
+        self.remove(oldnode)
+        self.add(newnode, name)
+
     def reference(self, node: Node):
+        assert isinstance(node, Node)
         name = self._nodes.inverse[node]
         return Reference(name)
 
     def nodes(self):
         return dict(**self._nodes)
 
-    def graph(self):
-        return Graph(nodes=self._nodes)
+    def __iter__(self):
+        for k, v in self._nodes.items():
+            yield Reference(k), v
+
+    def __getitem__(self, ref: Reference):
+        return self._nodes[ref.name]
 
     def pipeline(self, fixedout=False, variables = None, output=None):
         from pixelpipes.compiler import Compiler
         
         return Compiler(fixedout=fixedout).build(self, variables=variables, output=output)
 
-    def rename(self, node: Node, newname: str):
-        if not node in self._nodes.inverse:
-            return
-
-        if isinstance(newname, Reference):
-            newname = newname.name
-
-        if newname.startswith("."):
-            newname = self._prefix + newname
-
-        if newname in self._nodes:
-            raise NodeException("Name already exists: {}".format(newname), node=node)
-
-        oldname = self._nodes.inverse[node]
-
-        del self._nodes[oldname]
-
-        self._nodes[newname] = node
-        return Reference(newname)
-
-    def __contains__(self, node: Node):
-        return node in self._nodes.inverse
+    def __contains__(self, node: typing.Union[Node, Reference]):
+        if isinstance(node, Reference):
+            return node.name in self._nodes
+        if isinstance(node, Node):
+            return node in self._nodes.inverse
+        return False
 
     def __add__(self, element):
         if isinstance(element, Node):
             self.add(element)
-        elif isinstance(element, GraphBuilder) and element != self:
+        elif isinstance(element, Graph) and element != self:
             for name, node in element.nodes().items():
                 self.add(node, name)
         else:
             raise RuntimeError("Illegal value")
         return self
 
-class Graph:
+    def __len__(self):
+        return len(self._nodes)
 
-    def __init__(self, nodes, name=None) -> None:
-        super().__init__()
-        self._name = name
-        self._nodes = ReadonlyMapping(nodes)
+def _list_type(source):
+    if all(isinstance(x, bool) for x in source):
+        return types.Boolean()
+    if all(isinstance(x, (int, bool)) for x in source):
+        return types.Integer()
+    if all(isinstance(x, (bool, int, float)) for x in source):
+        return types.Float()
+    else:
+        typ = types.Wildcard()
+        for x in source:
+            typ = typ.common(Constant.resolve_type(x))
+        return typ
 
-    @property
-    def name(self):
-        return self._name
-
-    @property
-    def nodes(self):
-        return self._nodes
-
-    def validate(self):
-        from .compiler import infer_type
-
-        type_cache = {}
-
-        for k in self.nodes.keys():
-            infer_type(Reference(k), self.nodes, type_cache)
-
-        return type_cache
-
-
-class Constant(Node):
-    """ Constant 
-
-    """
-
-    node_name = "Constant"
-    node_description = "Outputs a constant number"
-    node_category = "numeric"
+class Constant(Operation):
+    """ Generates a constant in the pipeline """
 
     value = Any()
 
     def operation(self):
-        return "_constant", self.value
+        return "constant", self.value
 
-    def _output(self) -> types.Type:
+    def infer(self) -> types.Data:
         return Constant.resolve_type(self.value)
 
     @staticmethod
-    def resolve_type(value) -> types.Type:
-        if isinstance(value, int):
+    def resolve_type(value) -> types.Data:
+
+        if isinstance(value, bool):
+            return types.Boolean()
+        elif isinstance(value, int):
             return types.Integer()
         elif isinstance(value, float):
             return types.Float()
         elif isinstance(value, str):
-            return types.String()
-        elif isinstance(value, bool):
-            return types.Boolean()
+            return types.List("char", len(value))
         elif isinstance(value, np.ndarray):
-            return types.Image()
+            return types.Token(value.dtype, *value.shape)
         elif isinstance(value, list):
-            return types.List()
+            return _list_type(value).push(length=len(value))
+        raise types.TypeException("Unsupported constant value: {}".format(value))
 
     def key(self):
-        if isinstance(self.value, int):
+        if isinstance(self.value, bool):
+            return ("bool", hash(self.value))
+        elif isinstance(self.value, int):
             return ("int", hash(self.value))
         elif isinstance(self.value, float):
             return ("float", hash(self.value))
         elif isinstance(self.value, str):
             return ("str", hash(self.value))
-        elif isinstance(self.value, bool):
-            return ("bool", hash(self.value))
         return None
 
-class SampleIndex(Node):
+class SampleIndex(Operation):
     """Returns current sample index.
     """
 
-    def _output(self):
+    def infer(self):
         return types.Integer()
 
     def operation(self):
-        return "_context", ContextFields["SampleIndex"]
+        return "context", ContextFields["SampleIndex"]
 
-class RandomSeed(Node):
+class RandomSeed(Operation):
     """Returns a pseudo-random number, useful for initializing random operations. The seed
     itself is sampled from a generator that is initialized the same for a specific position
     in the stream.
     """
 
-    def _output(self):
+    def infer(self):
         return types.Integer()
 
-    def operation(self):
-        return "_context", ContextFields["RandomSeed"]
+    def operation(Operation):
+        return "context", ContextFields["RandomSeed"]
 
-class OperationIndex(Node):
-    """Returns the index of current operation (itself) in the pipeline.
-    """
+class DebugOutput(Operation):
 
-    def _output(self):
-        return types.Integer()
-
-    def operation(self):
-        return "_context", ContextFields["OperationIndex"]
-
-class DebugOutput(Node):
-
-    source = Input(types.Primitive())
+    source = Input(types.Wildcard())
     prefix = String(default="")
 
-    def validate(self, **inputs):
-        super().validate(**inputs)
-        return inputs["source"]
+    def infer(self, source):
+        return source
 
     def operation(self):
-        return "_debug", self.prefix
+        return "debug", self.prefix
  
-class Output(Node):
+class Output(Operation):
 
-    output = Input(types.Primitive())
+    output = Input(types.Wildcard())
 
     label = String(default="default")
 
-    def _output(self) -> types.Type:
-        return None
+    def infer(self, output) -> types.Data:
+        return output
 
     def operation(self):
-        return "_output", self.label
+        return "output", self.label
 
 def outputs(*inputs, label="default"):
     for i in inputs:
@@ -850,12 +793,85 @@ def outputs(*inputs, label="default"):
 @hidden
 class Copy(Node):
 
-    source = Input(types.Primitive())
+    source = Input(types.Wildcard())
 
-    def validate(self, **inputs):
-        super().validate(**inputs)
-        return inputs["source"]
+    def infer(self, source):
+        return source
 
-    def operation(self):
-        raise NodeException("Copy node should be removed during compilation", node=self)
+def compare_serialized(graph):
+    import os
+    import tempfile
+    import numpy.testing as npt
+    from .compiler import Compiler
+    from . import write_pipeline, read_pipeline
 
+    compiler = Compiler()
+
+    pipeline1 = compiler.build(graph)
+
+    tmpfd, tmpname = tempfile.mkstemp()
+
+    os.close(tmpfd)
+
+    write_pipeline(tmpname, pipeline1)
+    pipeline2 = read_pipeline(tmpname)
+
+    for i in range(1, 100):
+        a = pipeline1.run(i)
+        b = pipeline2.run(i)
+        assert len(a) == len(b), "Output does not match"
+        for x, y in zip(a, b):
+            npt.assert_equal(a[0], b[0])
+
+    os.remove(tmpname)
+
+class Tests(unittest.TestCase):    
+
+    def test_serialization(self):
+        from .numbers import SampleUnform
+        from .flow import Conditional
+        from .compiler import Compiler
+
+        with Graph() as graph:
+            a = SampleUnform(0, 30)
+            b = Constant(value=3)
+            c = b + 1
+            d = Conditional(a, c, a > 15)
+            e = Constant([1, 2, 3, 4])
+            outputs(a, c, d, e)
+
+        compare_serialized(graph)
+        
+    def test_file_location(self):
+        from .list import FileList
+        from .compiler import Compiler
+        from . import write_pipeline, read_pipeline
+        import os
+
+        files = ["a.txt", "b.txt", "c.txt"]
+
+        import tempfile
+
+        tmpfd, tmpname = tempfile.mkstemp()
+
+        os.close(tmpfd)
+
+        with Graph() as graph:
+            a = FileList(files)
+            outputs(a[0])
+
+        write_pipeline(tmpname, Compiler().build(graph))
+        pipeline = read_pipeline(tmpname)
+        self.assertEqual(str(pipeline.run(1)[0]), os.path.abspath(files[0]))
+
+    def test_output_filter(self):
+        from .compiler import Compiler
+
+        with Graph() as graph:
+            Output(1, label="a")
+            Output(2, label="b")
+            Output(3, label="c")
+
+        pipeline = Compiler().build(graph, output=["a", "b"])
+
+        self.assertEqual(len(pipeline.run(1)), 2)

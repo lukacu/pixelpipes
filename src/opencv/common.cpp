@@ -19,11 +19,11 @@ namespace pixelpipes
     PIXELPIPES_REGISTER_ENUM("interpolation", Interpolation);
     PIXELPIPES_REGISTER_ENUM("border", BorderStrategy);
     PIXELPIPES_REGISTER_ENUM("depth", ImageDepth);
-/*
-#ifndef CV_MAX_DIM
-    const int CV_MAX_DIM = 32;
-#endif
-*/
+    /*
+    #ifndef CV_MAX_DIM
+        const int CV_MAX_DIM = 32;
+    #endif
+    */
     int ocv_border_type(BorderStrategy b, int *value)
     {
         switch (b)
@@ -58,6 +58,9 @@ namespace pixelpipes
             return CharIdentifier;
         }
         case CV_16U:
+        {
+            return UShortIdentifier;
+        }
         case CV_16S:
         {
             return ShortIdentifier;
@@ -89,9 +92,13 @@ namespace pixelpipes
         {
             return CV_32S;
         }
-        case ShortIdentifier:
+        case UShortIdentifier:
         {
             return CV_16U;
+        }
+        case ShortIdentifier:
+        {
+            return CV_16S;
         }
         case FloatIdentifier:
         {
@@ -103,6 +110,58 @@ namespace pixelpipes
         }
         }
     }
+
+    void MatImage::describe(std::ostream &os) const 
+    {
+
+        std::string element("Unknown"); 
+
+        int depth = CV_MAT_DEPTH(_mat.type());
+
+        switch (depth)
+        {
+        case CV_8U:
+        {
+            element = "unsigned char";
+            break;
+        }
+        case CV_8S:
+        {
+            element = "char";
+            break;
+        }
+        case CV_16U:
+        {
+            element = "ushort";
+            break;
+        }
+        case CV_16S:
+        {
+            element = "short";
+            break;
+        }
+        case CV_32S:
+        {
+            element = "int";
+            break;
+        }
+        case CV_32F:
+        {
+            element = "float";
+            break;
+        }
+        }
+
+        Shape s = shape();
+
+        os << "[Tensor of " << element << " " << (size_t)s[0];
+        for (size_t i = 1; i < s.dimensions(); i++)
+        {
+            os << " x " << (size_t)s[i];
+        }
+        os << " - OpenCV]";
+    }
+
 
     cv::Mat MatImage::copy(const TensorReference &tensor)
     {
@@ -194,6 +253,7 @@ namespace pixelpipes
             _strides = {_mat.step[0], _mat.step[1], type_size(_element)};
             _shape = {(size_t)_mat.rows, (size_t)_mat.cols, (size_t)data.channels()};
         }
+
     }
 
     Shape MatImage::shape() const
@@ -208,7 +268,7 @@ namespace pixelpipes
 
     size_t MatImage::size() const
     {
-        return _mat.total() * type_size(shape().element());
+        return _mat.total() * _mat.elemSize();
     }
 
     TokenReference MatImage::get(size_t i) const
@@ -228,6 +288,8 @@ namespace pixelpipes
             return create<CharScalar>(_mat.at<uchar>((const int *)i.data()));
         case ShortIdentifier:
             return create<ShortScalar>(_mat.at<short>((const int *)i.data()));
+        case UShortIdentifier:
+            return create<UShortScalar>(_mat.at<ushort>((const int *)i.data()));
         case IntegerIdentifier:
             return create<IntegerScalar>(_mat.at<int>((const int *)i.data()));
         case FloatIdentifier:
@@ -239,12 +301,12 @@ namespace pixelpipes
 
     ReadonlySliceIterator MatImage::read_slices() const
     {
-        return ReadonlySliceIterator(const_data(), type_size(_element));
+        return ReadonlySliceIterator(const_data(), _shape, _strides, cell_size());
     }
 
     WriteableSliceIterator MatImage::write_slices()
     {
-        return WriteableSliceIterator(data(), type_size(_element));
+        return WriteableSliceIterator(data(), _shape, _strides, cell_size());
     }
 
     const uchar *MatImage::const_data() const
@@ -259,7 +321,12 @@ namespace pixelpipes
 
     size_t MatImage::cell_size() const
     {
-        return 1;
+        return _mat.elemSize1();
+    }
+
+    TypeIdentifier MatImage::cell_type() const
+    {
+        return _element;
     }
 
     SizeSequence MatImage::strides() const
@@ -324,12 +391,20 @@ namespace pixelpipes
         switch (depth)
         {
         case ImageDepth::Byte:
+            dtype = CV_8S;
+            maxout = std::numeric_limits<char>::max();
+            break;
+        case ImageDepth::UByte:
             dtype = CV_8U;
-            maxout = 255;
+            maxout = std::numeric_limits<uchar>::max();
             break;
         case ImageDepth::Short:
             dtype = CV_16S;
-            maxout = 255 * 255;
+            maxout = std::numeric_limits<short>::max();
+            break;
+        case ImageDepth::UShort:
+            dtype = CV_16U;
+            maxout = std::numeric_limits<ushort>::max();
             break;
         case ImageDepth::Integer:
             dtype = CV_32S;
@@ -376,7 +451,7 @@ namespace pixelpipes
     {
 
         VERIFY(image.channels() == 1, "Image has more than one channel");
-        VERIFY(image.depth() == CV_8U || image.depth() == CV_16S, "Only integer bit types supported");
+        VERIFY(image.depth() == CV_8U || image.depth() == CV_8S || image.depth() == CV_16S || image.depth() == CV_16U || image.depth() == CV_32S, "Only integer bit types supported");
 
         cv::Mat result = (image == value);
         return result;

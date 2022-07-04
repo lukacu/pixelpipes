@@ -1,691 +1,315 @@
 
-import os
-from pathlib import Path
-
 import typing
-import json
-import hashlib
 
-from attributee import String
-from attributee.containers import Map
-from attributee.object import class_fullname
+from attributee import String, Unclaimed, Collector
 
+from ..types import Integer, Token, Data, Anything, Wildcard
+from ..graph import InferredReference, NodeOperation, Node, Macro, Input, Reference, Copy, ValidationException, hidden
+from ..types import TypeException
 
-from pixelpipes.utilities import PersistentDict
+IMAGE_FIELD = "image"
+MASK_FIELD = "mask"
+POINTS_FIELD = "points"
 
-from ..types import Type
-from ..graph import DebugOutput, GraphBuilder, SeedInput, ValidationException, hidden, Macro, Input, Reference, Constant, Copy
-from pixelpipes.types import List, Complex, Integer, TypeException
-import pixelpipes.types as types
-from ..list import ListElement, ListLength, ListPermutation, ListRemap, RepeatElement, SublistSelect, ConstantList
-from ..numbers import Add, Round, UniformDistribution
+class InputCollector(Unclaimed):
 
-if "PIXELPIPES_CACHE" in os.environ:
-    _RESOURCE_CACHE = PersistentDict(os.environ.get("PIXELPIPES_CACHE"))
-else:
-    _RESOURCE_CACHE = dict()
+    def __init__(self, field, description=""):
+        super().__init__(description=description)
+        self._field = field
 
-def make_hash(o):
-    """
-    makes a hash out of anything that contains only list,dict and hashable types including string and numeric types
-    """
-
-    sha1 = hashlib.sha1()
-
-    sha1.update(json.dumps(o, sort_keys=True).encode("utf-8"))
-
-    return sha1.hexdigest()
+    def filter(self, object, **kwargs):
+        attributes = object.attributes()
+        claimed = set()
+        for aname, afield in attributes.items():
+            if isinstance(afield, Collector) and not isinstance(afield, Unclaimed):
+                claimed.update(afield.filter(object, **kwargs).keys())
+            elif aname in kwargs:
+                claimed.add(aname)
+        return {k: self._field.coerce(v, None) for k, v in kwargs.items() if k not in claimed}
 
 class ResourceField:
+    def __init__(self, typ: Data, purpose: typing.Optional[str] = None):
+        self._type = typ
+        self._purpose = purpose
 
-    def __init__(self, typ: types.Type):
-        self._typ = typ
+    def access(self, parent: "InferredReference"):
+        return None
+
+    def reference(self, parent: "InferredReference"):
+        return None
 
     @property
-    def type(self) -> types.Type:
-        return self._typ
+    def type(self):
+        return self._type
 
-class VirtualField(ResourceField):
+    @property
+    def purpose(self):
+        return self._purpose
 
-    def __init__(self, typ: types.Type):
-        super().__init__(typ)
+def real_field(field):
+    return field.reference(Reference("test")) is not None
 
-    def generate(self, parent, resource):
-        raise NotImplementedError()
-
-class Resource(Complex):
-    """A resource is a complex type composed from different fields.
+class Resource(Data):
+    """Support for virtual resource types. Resource is essentially a flat structure key-value type that simplifies handling
+    several inputs in parallel. Their purpose is to structure dataflow at the graph level but get dissolved once the graph is compiled.
     """
 
-    def __init__(self, fields: typing.Mapping[str, types.Type] = None):
-        elements = {}
-        if fields is not None:
-            for k, t in fields.items():
-                if k in elements:
-                    raise TypeException("Field name {} already used".format(k))
-                assert not isinstance(t, VirtualField)
-                elements[k] = t
-        super().__init__(elements)
-        self._fields = fields
+    def __init__(self, **fields: typing.Optional[typing.Dict[str, ResourceField]]):
+        """Creates a new resource type by defining all its fields.
 
-    def fields(self) -> typing.Mapping[str, types.Type]:
-        return self._fields
+        Args:
+            fields (typing.Optional[typing.Dict[str, TensorType]], optional): Type structure. Defaults to None.
 
-    def field(self, name) -> typing.Union[types.Type, VirtualField]:
-        return self._fields[name]
-
-    def has(self, name):
-        return name in self._fields
-
-    def type(self, field: str) -> types.Type:
-        if field not in self._fields:
-            raise ValueError("Field does not exist")
-        return self._fields[field]
-
-    def common(self, typ: "Type") -> "Type":
-        if isinstance(typ, Resource):
-            return Resource({k: v.common(typ[k]) for k, v in self.fields().items() if typ.has(k)})
+        Raises:
+            TypeException: [description]
+        """
+        if len(fields) > 0:
+            for x in fields.values():
+                if not isinstance(x, ResourceField):
+                    raise TypeException("Must be a resouce field: {}".format(x))
         else:
-            return super().common(typ)
-
-class ResourceList(Complex):
-
-    def __init__(self, fields: typing.Mapping[str, typing.Union[types.Type, VirtualField]] = None,
-            size: typing.Optional[int] = None, meta=None):
-        elements = {} if meta is None else dict(**meta)
-        if fields is not None:
-            for k, t in fields.items():
-                if k in elements:
-                    raise TypeException("Name {} already used".format(k))
-                if isinstance(t, VirtualField):
-                    continue
-                elements[k] = List(t, size)
-        super().__init__(elements)
+            fields = None
         self._fields = fields
-        self._size = size
 
-    def castable(self, typ: "Type") -> bool:
-        if not isinstance(typ, ResourceList):
+    def castable(self, typ: "Data") -> bool:
+        """Checks if one resource type can be cast to another, this means that the parameter
+        type has all the fields of this type and that all field types can be casted to their
+        corresponding field types.
+
+        Args:
+            typ (Type): Type to test for compatibility
+
+        Returns:
+            bool: True if type is compatible
+        """
+        if not isinstance(typ, Resource):
             return False
 
-        return super().castable(typ)
+        if self._fields is None:
+            return True
 
-    @property
-    def size(self):
-        return self._size
+        for k, _ in self._fields.items():
+            if not k in typ:
+                return False
 
-    def element(self):
-        return Resource({k : (f if not isinstance(f, VirtualField) else f.type) for k, f in self.fields().items()})
+        return True
 
-    def type(self, field: str) -> types.Type:
-        if field not in self._fields:
-            raise ValueError("Field does not exist")
-        if isinstance(self._fields[field], VirtualField):
-            return self._fields[field].type
-        return self._fields[field]
-
-    def fields(self) -> typing.Mapping[str, typing.Union[types.Type, VirtualField]]:
-        return self._fields
-
-    def field(self, name) -> typing.Union[types.Type, VirtualField]:
-        return self._fields[name]
-
-    def meta(self) -> typing.Mapping[str, typing.Union[types.Type, VirtualField]]:
-        return {k: v for k, v in self.elements.items() if k not in self._fields}
-
-    def virtual(self, field: str) -> bool:
-        return field in self._fields and isinstance(self._fields[field], VirtualField)
-
-    def has(self, name):
-        return name in self._fields
-
-    def common(self, typ: "Type") -> "Type":
-        if isinstance(typ, ResourceList):
-            fields = {k: v.common(typ.field(k)) for k, v in self.fields().items() if typ.has(k)}
-            size = self.size if self.size == typ.size else None
-            return ResourceList(fields, size=size)
+    def common(self, typ: "Data") -> "Data":
+        if isinstance(typ, Resource):
+            # TODO: more checks
+            fields = {k: v for k, v in self._fields.items() if k in typ}
+            return Resource(**fields)
         else:
-            return super().common(typ)
+            return Anything()
 
-class SegmentedResourceList(ResourceList):
+    def __contains__(self, key):
+        if self._fields is None:
+            return False
+        return key in self._fields
 
-    def __init__(self, segments=None, fields=None):
-        meta = {}
-        if segments is None:
-            size = None
-            meta = dict(_begin=List(Integer(), None), _end=List(Integer(), None), _length=List(Integer(), None))
-        else:
-            size = sum(segments)
-            meta = dict(_begin=List(Integer(), len(segments)), \
-                _end=List(Integer(), len(segments)), _length=List(Integer(), len(segments)))
-        super().__init__(fields=fields, size=size, meta=meta)
-        self._segments = segments
+    def __getitem__(self, key):
+        if self._fields is None:
+            raise KeyError("Field {} does not exist in the resource".format(key))
+        return self._fields[key]
 
-    def segment(self, index):
-        if self._segments is None:
-            return None
-        return self._segments[index]
-
-    def total(self):
-        if self._segments is None:
-            return None
-        return len(self._segments)
-
-    def common(self, typ: "Type") -> "Type":
-        if isinstance(typ, SegmentedResourceList):
-            fields = {k: v.common(typ.field(k)) for k, v in self.fields().items() if typ.has(k)}
-            return SegmentedResourceList(fields=fields)
-        else:
-            return super().common(typ)
-
-@hidden
-class ResourceListSource(Macro):
-
-    def _init(self):
-        self._cache_id = class_fullname(self) + "@" + make_hash(self.dump())
-
-    def _output(self):
-        return ResourceList(self.fields(), self.size)
-
-    @property
-    def size(self):
-        data = self._get_data()
-        return data["size"]
-
-    def expand(self, inputs, parent: "Reference"):
-        data = self._get_data()
-        with GraphBuilder(prefix=parent) as builder:
-            for field, typ in self.fields().items():
-                if isinstance(typ, VirtualField):
-                    continue
-                if field not in data["lists"]:
-                    raise ValueError("Real field not backed up by a list")
-                constructor = data["lists"][field][0]
-                args = data["lists"][field][1:]
-                constructor(*args, _name="." + field)
-            return builder.nodes()
-
-    def _get_data(self):
-        if not self._cache_id in _RESOURCE_CACHE:
-            data = self._load()
-            _RESOURCE_CACHE[self._cache_id] = data
-            return data
-        return _RESOURCE_CACHE[self._cache_id]
+    def __iter__(self):
+        for k, v in self._fields.items():
+            yield (k, v)
 
     def fields(self):
-        raise NotImplementedError()
+        return dict(**self._fields)
 
-    def _load(self):
-        raise NotImplementedError()
-
-@hidden
-class SegmentedResourceListSource(ResourceListSource):
-
-    def segments(self):
-        data = self._get_data()
-        return data["segments"]
-
-    def _output(self):
-        return SegmentedResourceList(segments=self.segments(), fields=self.fields())
-
-    def expand(self, inputs, parent: "Reference"):
-        graph = super().expand(inputs, parent)
-
-        with GraphBuilder(prefix=parent) as builder:
-
-            segments = self.segments()
-            beginnings = [0]
-            endings = [segments[0]-1]
-            for l in segments[1:]:
-                beginnings.append(endings[-1]+1)
-                endings.append(endings[-1]+l)
-
-            ConstantList(beginnings, _name="._begin")
-            ConstantList(endings, _name="._end")
-            ConstantList(segments, _name="._length")
-
-        graph.update(builder.nodes())
-        return graph
-
-    def fields(self):
-        raise NotImplementedError()
-
-    def _load(self):
-        raise NotImplementedError()
-
-class GetResourceListLength(Macro):
-
-    resources = Input(ResourceList())
-
-    def validate(self, **inputs):
-        super().validate(**inputs)
-        return types.Integer(value=inputs["resources"].size)
-
-    def expand(self, inputs, parent: "Reference"):
-
-        resources_type = inputs["resources"].type
-
-        with GraphBuilder(prefix=parent) as builder:
-
-            if resources_type.size is not None:
-                Constant(value=resources_type.size, _name=parent)
-            else:
-                real_fields = [n for n in resources_type.fields() if not resources_type.virtual(n)]
-                field = real_fields[0]
-                length = ListLength(parent=resources_type.access(field, inputs["resources"]))
-                Add(a=length, b=int(-1), _name=parent)
-
-            return builder.nodes()
-
-class GetResource(Macro):
-    
-    resources = Input(ResourceList())
-    index = Input(Integer())
-
-    def validate(self, **inputs):
-        super().validate(**inputs)
+    def access(self, field: str, parent: "Reference"):
+        if not field in self:
+            raise TypeException("Field {} not found in resource".format(field))
         
-        return inputs["resources"].element()
+        aa = self._fields[field].access(parent)
+        print(aa)
+        return aa
 
-    def expand(self, inputs, parent: "Reference"):
+    def typehint(self, field: str):
+        return Token()
 
-        with GraphBuilder(prefix=parent) as builder:
+    def __str__(self):
+        return "Resource (" + ", ".join(self._fields.keys()) + ")"
 
-            resources_type = inputs["resources"].type
 
-            resource_type = resources_type.element()
+class TokenField(ResourceField):
 
-            for field, typ in resources_type.fields().items():
-                if resources_type.virtual(field):
-                    Copy(source=typ.generate(parent, resource_type), _name="." + field)
-                else:
-                    ListElement(parent=resources_type.access(field, inputs["resources"]), index=self.index, _name="." + field)
+    def __init__(self, field: str):
+        self._field = field
 
-            return builder.nodes()
+    def access(self, parent: "InferredReference"):
+        if not isinstance(parent.type, Resource) and not self._field in parent.type:
+            raise ValidationException("Not a resource or nonexistent field")
+        return Reference(parent.name + "." + self._field)
 
-class RepeatResource(Macro):
-    """Repeat resource
+    def reference(self, parent: "InferredReference"):
+        return Reference(parent.name + "." + self._field)
 
-    Returns a list of resources where an input resource is repeated a number of times
+class ConditionalField(ResourceField):
 
-    Inputs:
-     - resource (Resource)
-     - length (Integer)
+    def __init__(self, true_field: ResourceField, false_field: ResourceField, condition: Reference):
+        self._condition = condition
+        self._true_field = true_field
+        self._false_field = false_field
 
-    Category: resources, sampling
-    """
+    def access(self, parent: "InferredReference"):
+        from pixelpipes.flow import Conditional
 
-    resource = Input(Resource())
-    length = Input(Integer())
+        return Conditional(self._true_field.access(parent), self._false_field.access(parent), self._condition)
 
-    def validate(self, **inputs):
-        super().validate(**inputs)
-        return ResourceList(inputs["resource"].fields(), inputs["length"].value)
+@hidden
+class ResourceProxy(Node):
 
-    def expand(self, inputs, parent: "Reference"):
+    inputs = InputCollector(Input(Wildcard()), description="A map of inputs that are provide data to resource")
 
-        with GraphBuilder(prefix=parent) as builder:
-
-            resource_type = inputs["resource"].type
-
-            for field, _ in resource_type.fields().items():
-                field_source = resource_type.access(field,  inputs["resource"])
-                RepeatElement(source=field_source, length=inputs["length"], _name="." + field)
-
-            return builder.nodes()
-
-class GetLastResource(Macro):
-    
-    resources = Input(ResourceList())
-
-    def validate(self, **inputs):
-        super().validate(**inputs)
-
-        return inputs["resources"].element()
-
-    def expand(self, inputs, parent: "Reference"):
-
-        resources_type = inputs["resources"].type
-
-        with GraphBuilder(prefix=parent) as builder:
-
-            if resources_type.size is not None:
-                last = resources_type.size - 1
-            else:
-                length = GetResourceListLength(inputs["resources"])
-                last = Add(a=length, b=int(-1))
-
-            resource_type = resources_type.element()
-
-            for field, typ in resources_type.fields().items():
-                if resources_type.virtual(field):
-                    Copy(source=typ.generate(parent, resource_type), _name="." + field)
-                else:
-                    ListElement(parent=resources_type.access(field, inputs["resources"]), index=last, _name="." + field)
-
-            return builder.nodes()
-
-class GetRandomResource(Macro):
-    """Random resource
-
-    Select a random resource from an input list of resources
-
-    Inputs:
-     - resources: Resource list that is sampled for elements
-
-    Category: resources, sampling
-    """
-
-    resources = Input(ResourceList())
-    seed = SeedInput()
-
-    def validate(self, **inputs):
-        super().validate(**inputs)
-
-        return inputs["resources"].element()
-
-    def expand(self, inputs, parent: "Reference"):
-
-        resources_type = inputs["resources"].type
-
-        with GraphBuilder(prefix=parent) as builder:
-
-            if resources_type.size is not None:
-                generator = UniformDistribution(min=0, max=resources_type.size-1, seed=self.seed)
-            else:
-                length = GetResourceListLength(inputs["resources"])
-                generator = UniformDistribution(min=0, max=length-1, seed=self.seed)
-
-            index = Round(generator)
-            
-            resource_type = resources_type.element()
-
-            for field, typ in resources_type.fields().items():
-                if resources_type.virtual(field):
-                    Copy(source=typ.generate(parent, resource_type), _name="." + field)
-                else:
-                    ListElement(parent=resources_type.access(field, inputs["resources"]), index=index, _name="." + field)
-
-            return builder.nodes()
-
-class PermuteResources(Macro):
-    """Permute resource list
-
-    Randomly permutes the resource list
-
-    Inputs:
-     - resources: Resource list that is sampled for elements
-
-    Category: resources, sampling
-    """
-
-    resources = Input(ResourceList())
-
-    def validate(self, **inputs):
-        super().validate(**inputs)
-
-        return inputs["resources"]
-
-    def expand(self, inputs, parent: "Reference"):
-
-        resources_type = inputs["resources"].type
-
-        with GraphBuilder(prefix=parent) as builder:
-
-            if resources_type.size is not None:
-                indices = ListPermutation(resources_type.size-1)
-            else:
-                length = GetResourceListLength(inputs["resources"])
-                indices = ListPermutation(min=0, max=length-1)
-
-            for field, _ in resources_type.fields().items():
-                if not resources_type.virtual(field):
-                    ListRemap(field, indices, _name="." + field)
-
-            return builder.nodes()
-            
-class ExtractField(Macro):
-    """Extract field from resource
-
-    This macro exposes only selected field of an input resource as an output,
-    enabling processing of that data.
-
-    Inputs:
-     - resource: Input resource
-     - field: Name of the resource field
-
-    Category: resource
-    """
-
-    resource = Input(Resource())
-    field = String()
-
-    def validate(self, **inputs):
-        super().validate(**inputs)
-
-        if not self.field in inputs["resource"].fields():
-            raise ValueError("Field {} not in resource".format(self.field))
-
-        return inputs["resource"].type(self.field)
-
-    def expand(self, inputs, parent: "Reference"):
-
-        with GraphBuilder(prefix=parent) as builder:
-
-            resource_type = inputs["resource"].type
-            Copy(source=resource_type.access(self.field, inputs["resource"]), _name=parent)
-
-            return builder.nodes()
-
-class GetResourceInterval(Macro):
-    
-    resources = Input(ResourceList())
-    begin = Input(Integer())
-    end = Input(Integer())
-
-    def validate(self, **inputs):
-        super().validate(**inputs)
-
-        size = None
-        if inputs["begin"].constant() and inputs["end"].constant():
-            size = inputs["end"].value - inputs["begin"].value
-            assert size >= 0
-
-        return ResourceList(fields=inputs["resources"].fields(), size=size)
-
-    def expand(self, inputs, parent: "Reference"):
-
-        resources_type = inputs["resources"].type
-
-        with GraphBuilder(prefix=parent) as builder:
-
-            for field in resources_type.fields():
-                if resources_type.virtual(field):
-                    continue
-
-                SublistSelect(parent=resources_type.access(field, inputs["resources"]), \
-                    begin=inputs["begin"], end=inputs["end"], _name="." + field)
-
-            return builder.nodes()
-
-class GetResourceSegment(Macro):
-    
-    resources = Input(SegmentedResourceList())
-    index = Input(Integer())
-
-    def validate(self, **inputs):
-        super().validate(**inputs)
-
-        size = None
-        if inputs["index"].constant():
-            size = inputs["resources"].segment(inputs["index"].value)
-
-        return ResourceList(fields=inputs["resources"].fields(), size=size)
-
-    def expand(self, inputs, parent: "Reference"):
-
-        resources_type = inputs["resources"].type
-
-        with GraphBuilder(prefix=parent) as builder:
-
-            begin_reference = ListElement(parent=resources_type.access("_begin", inputs["resources"]), index=self.index)
-            end_reference = ListElement(parent=resources_type.access("_end", inputs["resources"]), index=self.index)
-
-            for field in resources_type.fields():
-                if resources_type.virtual(field):
-                    continue
-                SublistSelect(parent=resources_type.access(field, inputs["resources"]), begin=begin_reference, end=end_reference, _name="." + field)
-
-            return builder.nodes()
-
-class GetRandomResourceSegment(Macro):
-    
-    resources = Input(SegmentedResourceList())
-    seed = SeedInput()
-
-    def validate(self, **inputs):
-        super().validate(**inputs)
-
-        return ResourceList(fields=inputs["resources"].fields(), size=None)
-
-    def expand(self, inputs, parent: "Reference"):
-
-        resources_type = inputs["resources"].type
-
-        with GraphBuilder(prefix=parent) as builder:
-
-
-            if resources_type.total() is not None:
-                generator = UniformDistribution(min=0, max=resources_type.total()-1, seed=self.seed)
-            else:
-                field = next(resources_type.fields())
-                total = ListLength(parent=resources_type.access("_begin", inputs["resources"]))
-                last = Add(a=total, b=int(-1))
-                generator = UniformDistribution(min=0, max=last, seed=self.seed)
-
-            index = Round(generator)
-
-            begin_reference = ListElement(parent=resources_type.access("_begin", inputs["resources"]), index=index)
-            end_reference = ListElement(parent=resources_type.access("_end", inputs["resources"]), index=index)
-
-            for field in resources_type.fields():
-                if resources_type.virtual(field):
-                    continue
-                SublistSelect(parent=resources_type.access(field, inputs["resources"]), begin=begin_reference, end=end_reference, _name="." + field)
-            
-            return builder.nodes()
-
-class PermuteResourceSegments(Macro):
-    
-    resources = Input(SegmentedResourceList())
-
-    def validate(self, **inputs):
-        super().validate(**inputs)
-        return inputs["resources"]
-
-    def expand(self, inputs, parent: "Reference"):
-
-        resources_type = inputs["resources"].type
-
-        with GraphBuilder(prefix=parent) as builder:
-
-            if resources_type.total() is not None:
-                indices = ListPermutation(resources_type.total()-1)
-            else:
-                field = next(resources_type.fields())
-                total = ListLength(parent=resources_type.access("_begin", inputs["resources"]))
-                last = Add(a=total, b=int(-1))
-                indices = ListPermutation(max=last)
-
-            ListRemap(resources_type.access("_begin", inputs["resources"]), indices, _name="._begin")
-            ListRemap(resources_type.access("_end", inputs["resources"]), indices, _name="._end")
-            ListRemap(resources_type.access("_length", inputs["resources"]), indices, _name="._length")
-
-            for field in resources_type.fields():
-                if resources_type.virtual(field):
-                    continue
-                Copy(field, _name="." + field)
-            
-            return builder.nodes()
-
-
-
-class MakeResource(Macro):
-    """Generate a resource
-
-    Macro that generates a resource from given inputs
-
-    Inputs:
-     - fields: a map of inputs that are inserted into the expression
-
-    Category: resource, macro
-    """
-
-    fields = Map(Input(types.Primitive()))
+    def __init__(self, *args, _fields=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        if _fields is None:
+            _fields = {}
+        self._fields = _fields
+        for key in self.inputs.keys():
+            if key not in self._fields:
+                self._fields[key] = TokenField(key)
 
     def input_values(self):
-        return [self.fields[name] for name, _ in self.get_inputs()]
+        return [self.inputs[name] for name, _ in self.get_inputs()]
 
     def get_inputs(self):
-        return [(k, types.Primitive()) for k in self.fields.keys()]
+        return [(k, Wildcard()) for k in self.inputs.keys()]
 
-    def duplicate(self, _origin=None, **inputs):
-        config = self.dump()
-        for k, v in inputs.items():
-            assert k in config["fields"]
-            config["fields"][k] = v
-        return self.__class__(_origin=_origin, **config)
+    def infer(self, **inputs):
+        #for name, ref in inputs.items():
+        #    if name in self._fields
 
-    def validate(self, **inputs):
-        super().validate(**inputs)
-        return Resource(inputs)
 
-    def expand(self, inputs, parent: "Reference"):
-        
-        with GraphBuilder(prefix=parent) as builder:
+        return Resource(**self._fields)
 
-            for name, _ in self.fields.items():
-                Copy(source=inputs[name], _name="." + name)
-
-            return builder.nodes()
-        
-
-class AppendField(Macro):
-    """Append a field to a resource
-
-    Macro that generates a resource from an input resource and another field
-
-    Inputs:
-     - source: a map of inputs that are inserted into the expression
-
-    Category: resource, macro
+class MakeResource(Macro):
+    """Macro that generates a resource from given inputs
     """
 
+    inputs = InputCollector(Input(Wildcard()), description="A map of inputs that are inserted into the expression")
+
+    def __init__(self, *args, **kwargs):
+
+        super().__init__(*args, **kwargs)
+
+    def input_values(self):
+        return [self.inputs[name] for name, _ in self.get_inputs()]
+
+    def get_inputs(self):
+        return [(k, Wildcard()) for k in self.inputs.keys()]
+
+    def expand(self, **inputs):
+  
+        forward = {}
+        fields = {}
+        
+        # Only copy real fields
+        for name, reference in inputs.items():
+            fields[name] = TokenField(name)
+            forward[name] = reference
+            Copy(source=reference, _name="." + name)
+        return ResourceProxy(_fields=fields, **forward)
+
+class AppendField(Macro):
+    """Produce a resource from an input resource and another field. Essentially just node renaming."""
+
+    source = Input(Resource(), description="Original resource")
+    name = String(description="Name of new field")
+    value = Input(Wildcard(), description="Value for new field")
+
+    def expand(self, source, value):
+        
+        resource_type = source.type
+
+        forward = {}
+        fields = resource_type.fields()
+        
+        # Only copy real fields
+        for name, field in resource_type:
+            reference = field.reference(source)
+            if reference is not None:
+                forward[name] = reference
+                Copy(source=reference, _name="." + name)
+            
+        Copy(value, _name="." + self.name)
+        forward[self.name] = value
+        fields[self.name] = TokenField(self.name)
+
+        return ResourceProxy(_fields=fields, **forward)
+
+class ConditionalResource(Macro):
+    """Node that executes conditional selection, output of branch "true" will be selected if
+    the "condition" is not zero, otherwise output of branch "false" will be selected.
+    """
+
+    true = Input(Resource(), description="Use this data if condition is true")
+    false = Input(Resource(), description="Use this data if condition is false")
+    condition = Input(Integer(), description="Condition to test")
+
+    def expand(self, true, false, condition):
+
+        from pixelpipes.flow import Conditional
+
+        true_type = true.type
+        false_type = false.type
+
+        common_type = true_type.common(false_type)
+
+        forward = {}
+        fields = common_type.fields()
+
+        for name, field in common_type:
+            if real_field(true_type[name]) and real_field(false_type[name]):
+                true_ref = true_type[name].access(true)
+                false_ref = false_type[name].access(false)
+                forward[name] = Conditional(true=true_ref, false=false_ref, condition=condition, _name="." + name)
+            else:
+
+                fields[name] = ConditionalField(true_type[name], false_type[name], condition)
+
+        return ResourceProxy(_fields=fields, **forward)
+
+@hidden
+class CopyResource(Macro):
+
     source = Input(Resource())
-    name = String()
-    value = Input(types.Primitive())
 
-    def validate(self, **inputs):
-        super().validate(**inputs)
+    def expand(self, source):
 
-        fields = dict(**inputs["source"].fields())
-        if self.name in fields:
-            raise ValidationException("Field already exists, cannot override")
+        resource_type = source.type
 
-        fields[self.name] = inputs["value"]
-
-        return Resource(fields)
-
-    def expand(self, inputs, parent: "Reference"):
+        forward = {}
+        fields = resource_type.fields()
         
-        with GraphBuilder(prefix=parent) as builder:
+        # Only copy real fields
+        for name, field in resource_type:
+            reference = field.reference(source)
+            if reference is not None:
+                forward[name] = reference
+                Copy(source=reference, _name="." + name)
+    
+        return ResourceProxy(_name=".", _fields=fields, **forward)
 
-            resource_type = inputs["source"].type
 
-            for field, typ in resource_type.fields().items():
-                Copy(source=resource_type.access(field, inputs["source"]), _name="." + field)
-                
-            Copy(source=inputs["value"], _name="." + self.name)
+class GetField(Macro):
+    """This macro exposes only selected field of an input structure as an output, enabling processing of that data.
+    """
 
-            return builder.nodes()
-        
+    source = Input(Resource(), description="Input resource")
+    element = String(description="Name of the structure field")
+
+    def expand(self, source):
+        from .list import is_resource_list
+
+        if is_resource_list(source.type) and not real_field(source.type[self.field]):
+            raise TypeException("Fields can only be accessed on a single resource, not a list")
+
+        return Copy(source=source.type[self.element].access(source))
+
+from .. import types
+
+Node.register_operation(NodeOperation.INDEX, GetField, Resource(), types.String())

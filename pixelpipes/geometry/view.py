@@ -1,108 +1,67 @@
 
 from attributee import List
 
-from .types import BoundingBox, View
 from .. import types
-from ..graph import Node, Macro, Input, Reference
-from ..graph import GraphBuilder
+from ..graph import Operation, Macro, Input, Graph, outputs
 
-class TranslateView(Node):
-    """Translate View
-    
-    Create a translation view.
+class TranslateView(Operation):
+    """Create a 2D translation matrix."""
 
-    Inputs:
-        - x: X direction translation
-        - y: y direction translation
+    x = Input(types.Float(), default=0, description="X direction translation")
+    y = Input(types.Float(), default=0, description="Y direction translation")
 
-    Category: View
-    """
-
-    x = Input(types.Float(), default=0)
-    y = Input(types.Float(), default=0)
-
-    def _output(self) -> types.Type:
-        return View()
+    def infer(self, **inputs) -> types.Data:
+        return types.View()
 
     def operation(self):
         return "opencv:translate_view2d",
 
-class RotateView(Node):
-    """Rotate View
-    
-    Create a rotation view.
+class RotateView(Operation):
+    """Create a 2D rotation matrix."""
 
-    Inputs:
-        - angle: Rotation angle
+    angle = Input(types.Float(), default=0, description="Rotation angle in radians")
 
-    Category: View
-    """
-
-    angle = Input(types.Float(), default=0)
-
-    def _output(self) -> types.Type:
-        return View()
+    def infer(self, angle) -> types.Data:
+        return types.View()
 
     def operation(self):
         return "opencv:rotate_view2d",
 
-class ScaleView(Node):
-    """Scale View
-    
-    Create a scale view.
-
-    Inputs:
-        - x: X direction scaling
-        - y: y direction scaling
-
-    Category: View
+class ScaleView(Operation):
+    """Create a 2D scale matrix.
     """
 
-    x = Input(types.Float(), default=1)
-    y = Input(types.Float(), default=1)
+    x = Input(types.Float(), default=1, description="X direction scaling")
+    y = Input(types.Float(), default=1, description="Y direction scaling")
 
-    def _output(self) -> types.Type:
-        return View()
+    def infer(self, x, y) -> types.Data:
+        return types.View()
 
     def operation(self):
         return "opencv:scale_view2d",
 
-class IdentityView(Node):
-    """Identity View
-    
-    Create an identity view.
+class IdentityView(Operation):
+    """ Create a 2D identity matrix."""
 
-    Category: View
-    """
-
-    def _output(self) -> types.Type:
-        return View()
+    def infer(self) -> types.Data:
+        return types.View()
 
     def operation(self):
         return "opencv:identity",
 
-class Chain(Node):
-    """Chain views
+class Chain(Operation):
+    """Multiply a series of views"""
 
-    Multiply a series of views
+    inputs = List(Input(types.View()), description="A list of views to multiply")
 
-    Inputs:
-        - inputs: A list of views
-
-    Category: view, geometry
-
-    """
-
-    inputs = List(Input(View()))
-
-    def _output(self):
-        return View()     
+    def infer(self, **inputs):
+        return types.View()     
 
     def input_values(self):
         return [self.inputs[int(name)] for name, _ in self.get_inputs()]
 
     def get_inputs(self):
-        return [(str(k), View()) for k, _ in enumerate(self.inputs)]
+        return [(str(k), types.View()) for k, _ in enumerate(self.inputs)]
 
     def _merge_config(self, config, update):
         for k, v in update.items():
@@ -115,79 +74,44 @@ class Chain(Node):
         return "opencv:chain_view2d",
 
 class AffineView(Macro):
-    """Affine View
+    """Create an affine transformation view."""
+
+    x = Input(types.Float(), default=0, description="X translation")
+    y = Input(types.Float(), default=0, description="Y translation")
+    angle = Input(types.Float(), default=0, description="Rotation angle in radians")
+    sx = Input(types.Float(), default=1, description="X scaling")
+    sy = Input(types.Float(), default=1, description="Y scaling")
+
+    def expand(self, x, y, angle, sx, sy):
     
-    Create an affine transformation view.
-
-    Inputs:
-        - x: X direction scaling
-        - y: y direction scaling
-        - angle: Rotation angle
-        - sx: X skew?
-        - sy: Y skew?
-
-    Category: View
-    """
-
-    x = Input(types.Float(), default=0)
-    y = Input(types.Float(), default=0)
-    angle = Input(types.Float(), default=0)
-    sx = Input(types.Float(), default=1)
-    sy = Input(types.Float(), default=1)
-
-    def _output(self) -> types.Type:
-        return View()
-
-    def expand(self, inputs, parent: Reference):
+        translate = TranslateView(x, y)
+        rotate = RotateView(angle)
+        scale = ScaleView(x=sx, y=sy)
         
-        with GraphBuilder(prefix=parent) as builder:
+        return Chain(inputs=[translate, rotate, scale])
 
-            translate = TranslateView(x=inputs["x"], y=inputs["y"])
-            rotate = RotateView(angle=inputs["angle"])
-            scale = ScaleView(x=inputs["sx"], y=inputs["sy"])
-            
-            Chain(inputs=[translate, rotate, scale], _name=parent)
+class CenterView(Operation):
+    """Create a view that centers to a bounding box."""
 
-            return builder.nodes()
+    source = Input(types.Rectangle(), description="A bounding box type")
 
-class CenterView(Node):
-    """Center View
-    
-    Create a view that centers to a bounding box.
-
-    Inputs:
-        - source: A bounding box type
-
-    Category: View
-    """
-
-    source = Input(BoundingBox())
-
-    def _output(self) -> types.Type:
-        return View()
+    def _output(self) -> types.Data:
+        return types.View()
 
     def operation(self):
         return "center_view",
 
-class FocusView(Node):
-    """Focus View
-    
-    Create a view that centers to a bounding box and scales so that bounding box maintains relative scale.
+class FocusView(Operation):
+    """Create a view that centers to a bounding box and scales so that bounding box maintains relative scale."""
 
-    Inputs:
-        - source: A bounding box type
-        - scale: Scaling factor
+    source = Input(types.Rectangle(), description="A bounding box type")
+    scale = Input(types.Float(), description="Scaling factor")
 
-    Category: View
-    """
-
-    source = Input(BoundingBox())
-    scale = Input(types.Float())
-
-    def _output(self) -> types.Type:
-        return View()
+    def infer(self, source, scale) -> types.Data:
+        return types.View()
 
     def operation(self):
         return "focus_view",
 
 # TODO: register arithmetic operations
+

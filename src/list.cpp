@@ -104,7 +104,7 @@ namespace pixelpipes
 
             VERIFY(list->length() % row == 0, "");
 
-            _shape =  list->shape().pop().push(row).push(length());
+            _shape = list->shape().pop().push(row).push(length());
         }
 
         ~Table() = default;
@@ -249,7 +249,7 @@ namespace pixelpipes
     public:
         ConstantList(const TokenReference &value, size_t length) : _value(value.reborrow()), _length(length)
         {
-            VERIFY((bool) _value, "Undefined value");
+            VERIFY((bool)_value, "Undefined value");
 
             _shape = _value->shape().push(length);
         }
@@ -470,19 +470,40 @@ namespace pixelpipes
     PIXELPIPES_OPERATION_AUTO("list_length", list_length);
 
     template <typename Op, typename F, typename R>
-    TokenReference list_elementwise_binary(const Sequence<F>& a, const Sequence<F>& b)
+    TokenReference list_elementwise_binary(const Sequence<F> &a, const Sequence<F> &b)
     {
         Op operation;
 
         if (a.size() != b.size())
-            throw TypeException("List length mismatch");
+        {
+            if (a.size() == 1)
+            {
+                Sequence<R> result(b.size());
+                for (size_t i = 0; i < b.size(); i++)
+                    result[i] = (operation(a[0], b[i]));
+                return wrap(result);
+            }
+            else if (b.size() == 1)
+            {
+                Sequence<R> result(a.size());
+                for (size_t i = 0; i < a.size(); i++)
+                    result[i] = (operation(a[i], b[0]));
+                return wrap(result);
+            }
+            else
+            {
+                throw TypeException("List length mismatch");
+            }
+        }
+        else
+        {
+            Sequence<R> result(a.size());
 
-        Sequence<R> result(a.size());
+            for (size_t i = 0; i < a.size(); i++)
+                result[i] = (operation(a[i], b[i]));
 
-        for (size_t i = 0; i < a.size(); i++)
-            result[i] = (operation(a[i], b[i]));
-
-        return wrap(result);
+            return wrap(result);
+        }
     }
 
 #define list_sum list_elementwise_binary<std::plus<float>, float, float>
@@ -517,8 +538,8 @@ namespace pixelpipes
 
 #define list_compare_less_equal list_elementwise_binary<std::less_equal<float>, float, bool>
     PIXELPIPES_OPERATION_AUTO("list_compare_less_equal", list_compare_less_equal);
-
-    TokenReference list_logical_and(const Sequence<bool>& a, const Sequence<bool>& b)
+/*
+    TokenReference list_logical_and(const Sequence<bool> &a, const Sequence<bool> &b)
     {
         if (a.size() != b.size())
             throw TypeException("List length mismatch");
@@ -530,11 +551,12 @@ namespace pixelpipes
         }
 
         return wrap(result);
-    }
+    }*/
 
+#define list_logical_and list_elementwise_binary<std::logical_and<bool>, bool, bool>
     PIXELPIPES_OPERATION_AUTO("list_logical_and", list_logical_and);
 
-    TokenReference list_logical_or(const Sequence<bool>& a, const Sequence<bool>& b)
+    TokenReference list_logical_or(const Sequence<bool> &a, const Sequence<bool> &b)
     {
         if (a.size() != b.size())
             throw TypeException("List length mismatch");
@@ -550,7 +572,7 @@ namespace pixelpipes
 
     PIXELPIPES_OPERATION_AUTO("list_logical_or", list_logical_or);
 
-    TokenReference list_logical_not(const Sequence<bool>& a)
+    TokenReference list_logical_not(const Sequence<bool> &a)
     {
         Sequence<bool> result(a.size());
         for (size_t i = 0; i < a.size(); i++)

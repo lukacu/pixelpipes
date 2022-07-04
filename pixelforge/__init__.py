@@ -7,7 +7,7 @@ from attributee import List, Number, Integer, Boolean, String, Enumeration, Attr
 from NodeGraphQt import QtCore, QtWidgets
 from NodeGraphQt import NodeGraph, setup_context_menu
 
-from pixelpipes.graph import GraphBuilder, NodeException
+from pixelpipes.graph import Graph, NodeException
 from pixelpipes.utilities import find_nodes
 import pixelpipes.resource
 
@@ -86,7 +86,7 @@ class Window(QtWidgets.QMainWindow):
 
     def generate(self):
 
-        builder = GraphBuilder()
+        builder = Graph()
 
         for gnode in self._graph.all_nodes():
             node = gnode.generate()

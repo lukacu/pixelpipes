@@ -11,16 +11,16 @@
 namespace pixelpipes
 {
 
-    inline SizeSequence generate_strides(const Sizes& shape, size_t element) {
+    inline SizeSequence generate_strides(const Sizes &shape, size_t element)
+    {
 
-            size_t* strides = new size_t[shape.size()];
-            strides[shape.size() - 1] = element;
-            for (size_t i = shape.size() - 1; i > 0; i--)
-            {
-                strides[i - 1] = strides[i] * shape[i];
-            }
-            return SizeSequence::claim(strides, shape.size());
-
+        size_t *strides = new size_t[shape.size()];
+        strides[shape.size() - 1] = element;
+        for (size_t i = shape.size() - 1; i > 0; i--)
+        {
+            strides[i - 1] = strides[i] * shape[i];
+        }
+        return SizeSequence::claim(strides, shape.size());
     }
 
     class PIXELPIPES_API Tensor : public List, public Buffer
@@ -29,7 +29,7 @@ namespace pixelpipes
     public:
         virtual ~Tensor() = default;
 
-        virtual void describe(std::ostream &os) const override;
+        virtual void describe(std::ostream &os) const override = 0;
 
         virtual Shape shape() const override = 0;
 
@@ -38,6 +38,8 @@ namespace pixelpipes
         virtual size_t size() const override = 0;
 
         virtual size_t cell_size() const = 0;
+
+        virtual TypeIdentifier cell_type() const = 0;
 
         virtual TokenReference get(size_t i) const override = 0;
 
@@ -55,6 +57,64 @@ namespace pixelpipes
     };
 
     typedef Pointer<Tensor> TensorReference;
+
+
+
+        class PIXELPIPES_API TensorView : public Tensor
+        {
+            PIXELPIPES_RTTI(TensorView, Tensor)
+        public:
+            TensorView(const TensorReference& source, size_t offset, const Sizes &shape, const Sizes &strides);
+
+            virtual ~TensorView() = default;
+
+            virtual Shape shape() const override;
+
+            virtual size_t length() const override;
+
+            virtual void describe(std::ostream &os) const override;
+
+            virtual size_t size() const override;
+
+            virtual size_t cell_size() const override;
+
+            virtual TypeIdentifier cell_type() const override;
+
+            virtual TokenReference get(const Sizes &index) const override;
+
+            virtual TokenReference get(size_t i) const override;
+
+            virtual ReadonlySliceIterator read_slices() const override;
+
+            virtual WriteableSliceIterator write_slices() override;
+
+            virtual const uchar *const_data() const override;
+
+            virtual SizeSequence strides() const override;
+
+            virtual uchar *data() override;
+
+        protected:
+            inline size_t get_offset(const Sizes &index) const
+            {
+                VERIFY(index.size() == _shape.size(), "Rank mismatch");
+                size_t position = _offset;
+                for (size_t i = 0; i < index.size() - 1; i++)
+                {
+                    position = position * _shape[i + 1] + index[i];
+                }
+                position *= _data->cell_size();
+
+                return position;
+            }
+
+            TensorReference _data;
+            size_t _offset;
+            SizeSequence _shape;
+            SizeSequence _strides;
+        };
+
+
 
     template <typename T>
     class PIXELPIPES_API Vector;
@@ -127,8 +187,16 @@ namespace pixelpipes
 
         virtual void describe(std::ostream &os) const override
         {
-            os << "[Tensor]";
+            Shape s = shape();
+
+            os << "[Tensor of " << details::TypeName<T>() << " " << (size_t)s[0];
+            for (size_t i = 1; i < s.dimensions(); i++)
+            {
+                os << " x " << (size_t)s[i];
+            }
+            os << "]";
         }
+
 
         virtual size_t size() const override
         {
@@ -138,6 +206,11 @@ namespace pixelpipes
         virtual size_t cell_size() const override
         {
             return sizeof(T);
+        }
+
+        virtual TypeIdentifier cell_type() const override
+        {
+            return GetTypeIdentifier<T>();
         }
 
         virtual TokenReference get(const Sizes &index) const override
@@ -179,7 +252,7 @@ namespace pixelpipes
                     return create<ArrayTensor<T, N - 1>>(shape, data);
                 }
             }
-        } 
+        }
 
         virtual ReadonlySliceIterator read_slices() const override
         {
@@ -198,7 +271,7 @@ namespace pixelpipes
 
         virtual SizeSequence strides() const override
         {
-            return _strides;
+            return SizeSequence(_strides);
         }
 
         virtual uchar *data() override
@@ -225,146 +298,6 @@ namespace pixelpipes
         SizeSequence _shape;
         SizeSequence _strides;
     };
-    /*
-        template <typename T, size_t N>
-        class PIXELPIPES_API TensorView : public Tensor
-        {
-            PIXELPIPES_RTTI(TensorView<T, N>, Tensor)
-        public:
-            TensorView(const TensorReference& source, size_t offset, const Sizes &shape, const Sizes &strides) : _data(data)
-            {
-
-                static_assert(std::is_fundamental_v<T>, "Not a primitive type");
-                static_assert(N > 0, "At least one dimension required");
-
-                VERIFY(shape.size() == N, "Number of dimensions does not match");
-
-                size_t s = std::accumulate(shape.begin(), shape.end(), 1, std::multiplies<size_t>()) * sizeof(T);
-
-                VERIFY(data.size() == s, "Data length does not match its shape");
-
-                _shape = shape;
-
-                std::array<size_t, N> strides;
-                std::array<size_t, N> index;
-
-                for (size_t i = 0; i < N; i++)
-                {
-                    index.fill(0);
-                    index[i] = 1;
-                    strides[i] = get_offset(make_span(index));
-                }
-                _strides = SizeSequence(strides);
-            }
-
-            virtual ~TensorView() = default;
-
-            virtual Shape shape() const
-            {
-                return Shape(GetTypeIdentifier<T>(), _shape);
-            }
-
-            virtual size_t length() const
-            {
-                return _shape[0];
-            }
-
-            virtual void describe(std::ostream &os) const
-            {
-                os << "[Tensor view]";
-            }
-
-            virtual size_t size() const
-            {
-                return _data.size();
-            }
-
-            virtual TokenReference get(const Sizes &index) const
-            {
-                size_t o = get_offset(index);
-                return create<ScalarToken<T>>(_data.at<T>(o));
-            }
-
-            virtual TokenReference get(size_t i) const
-            {
-
-                if constexpr (N == 1)
-                {
-                    return create<ScalarToken<T>>(_data.at<T>(i * sizeof(T)));
-                }
-                else
-                {
-
-                    std::array<size_t, N> index;
-                    index.fill(0);
-                    index[0] = i;
-                    size_t o1 = get_offset(make_span(index));
-                    index[0] = i + 1;
-                    size_t o2 = get_offset(make_span(index));
-
-                    auto data = Span<T>(reinterpret_cast<const T *>(std::data(_data) + o1), (o2 - o1) / sizeof(T));
-
-                    if constexpr (N == 2)
-                    {
-                        return create<Vector<T>>(data);
-                    }
-                    else if constexpr (N == 3)
-                    {
-                        return create<Matrix<T>>(_shape[1], _shape[2], data);
-                    }
-                    else
-                    {
-                        auto shape = make_span(_shape, (size_t)1);
-                        return create<ArrayTensor<T, N - 1>>(shape, data);
-                    }
-                }
-            }
-
-            virtual ReadonlySliceIterator read_slices() const
-            {
-                return ReadonlySliceIterator(_data->const_data(), size());
-            }
-
-            virtual WriteableSliceIterator write_slices()
-            {
-                return WriteableSliceIterator(_data->data(), size());
-            }
-
-            virtual const uchar *const_data() const
-            {
-                return _data->const_data();
-            }
-
-            virtual SizeSequence strides() const
-            {
-                return _strides;
-            }
-
-            virtual uchar *data()
-            {
-                return _data->data();
-            }
-
-        protected:
-            inline size_t get_offset(const Sizes &index) const
-            {
-                VERIFY(index.size() == _shape.size(), "Rank mismatch");
-                size_t position = _offset;
-                for (size_t i = 0; i < index.size() - 1; i++)
-                {
-                    position = position * _shape[i + 1] + index[i];
-                }
-                position *= sizeof(T);
-
-                return position;
-            }
-
-            TensorReference _data;
-            size_t _offset;
-            SizeSequence _shape;
-            SizeSequence _strides;
-        };
-    */
 
     template <typename T>
     class PIXELPIPES_API Vector : public ArrayTensor<T, 1>
@@ -386,7 +319,7 @@ namespace pixelpipes
         }
 
         using ArrayTensor<T, 1>::get;
-        
+
         const Span<T> get() const { return Span<T>((T *)this->_data.data(), this->_data.size() / sizeof(T)); }
     };
 
@@ -453,13 +386,6 @@ namespace pixelpipes
         {
             return Sequence<int>({extract<int>(v)});
         }
-
-        if (shape.dimensions() != 1 ||
-            shape.element() != GetTypeIdentifier<int>())
-        {
-            throw TypeException(
-                "Unexpected token type: expected list of integers, got " + v->describe());
-        }
         if (v->is<Vector<int>>())
         {
             return v->cast<Vector<int>>()->get();
@@ -494,13 +420,6 @@ namespace pixelpipes
         if (shape.is_scalar())
         {
             return Sequence<float>({extract<float>(v)});
-        }
-
-        if (shape.dimensions() != 1 ||
-            shape.element() != GetTypeIdentifier<float>())
-        {
-            throw TypeException(
-                "Unexpected token type: expected list of floats, got " + v->describe());
         }
         if (v->is<Vector<float>>())
         {
@@ -588,32 +507,31 @@ namespace pixelpipes
     }
 
     template <>
-    inline TokenReference wrap(const std::vector<float>& v)
+    inline TokenReference wrap(const std::vector<float> &v)
     {
         return wrap(make_view(v));
     }
 
     template <>
-    inline TokenReference wrap(const std::vector<uchar>& v)
+    inline TokenReference wrap(const std::vector<uchar> &v)
     {
         return wrap(make_view(v));
     }
 
     template <char>
-    inline TokenReference wrap(const std::vector<char>& v)
+    inline TokenReference wrap(const std::vector<char> &v)
     {
         return wrap(make_view(v));
     }
 
     template <>
-    inline TokenReference wrap(const std::vector<short>& v)
+    inline TokenReference wrap(const std::vector<short> &v)
     {
         return wrap(make_view(v));
     }
 
-
     template <>
-    inline TokenReference wrap(const std::vector<ushort>& v)
+    inline TokenReference wrap(const std::vector<ushort> &v)
     {
         return wrap(make_view(v));
     }
@@ -626,7 +544,6 @@ namespace pixelpipes
     typedef Matrix<int> IntegerMatrix;
     typedef Matrix<bool> BooleanMatrix;
 
-
     typedef Pointer<Tensor> TensorReference;
 
     template <>
@@ -636,46 +553,6 @@ namespace pixelpipes
         VERIFY(v->is<Tensor>(), "Not a tensor");
 
         return cast<Tensor>(v);
-    }
-
-    class PIXELPIPES_API TensorList : public List
-    {
-    public:
-        TensorList(const View<TensorReference> &tensors);
-
-        ~TensorList();
-
-        virtual Shape shape() const;
-
-        virtual size_t length() const;
-
-        virtual TokenReference get(size_t index) const;
-
-        TensorList(const TensorList &);
-        TensorList(TensorList &&);
-        TensorList &operator=(const TensorList &);
-        TensorList &operator=(TensorList &&);
-
-    private:
-        Sequence<TensorReference> _data;
-        Shape _shape;
-    };
-
-    typedef Pointer<TensorList> TensorListReference;
-
-    template <>
-    inline TensorListReference extract(const TokenReference &v)
-    {
-        VERIFY((bool)v, "Uninitialized variable");
-        VERIFY(v->is<TensorList>(), "Not an image type");
-
-        return cast<TensorList>(v);
-    }
-
-    template <>
-    inline TokenReference wrap(const Sequence<TensorReference> &v)
-    {
-        return create<TensorList>(v);
     }
 
 }

@@ -238,7 +238,7 @@ namespace pixelpipes
             return extract<Sequence<float>>(v).convert<Point2D>();
         }
 
-        if (shape.dimensions() == 2)
+        if (shape.dimensions() == 2 && shape[1] == 2)
         {
             TensorReference tensor = extract<TensorReference>(v);
             Sequence<Point2D> points(tensor->length());

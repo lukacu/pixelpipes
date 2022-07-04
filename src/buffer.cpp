@@ -75,7 +75,7 @@ namespace pixelpipes
 
     void String::describe(std::ostream &os) const
     {
-        os << "[String token " << value << "]";
+        os << "[String: '" << value << "']";
     }
 
     StringList::StringList()

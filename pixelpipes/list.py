@@ -1,34 +1,13 @@
-from attributee.primitives import Boolean, String
+
+from attributee.primitives import String
 from attributee import List, Primitive
 
 from . import types
-from .graph import Node, Input, SeedInput, ValidationException, hidden, Macro, GraphBuilder, Reference
-from .numbers import Round, UniformDistribution
+from .graph import Constant, Operation, Input, SeedInput, ValidationException, hidden, Macro, Node, NodeOperation
+from .numbers import Round, SampleUnform
 
-class ConstantList(Node):
-    """Constant List
-
-    Inputs:
-        - source: List type
-
-    Category: list
-    """
-
-    source = List(Primitive())
-
-    def _init(self):
-        if all(isinstance(x, int) for x in self.source):
-            self._type = types.Integer()
-        elif all(isinstance(x, (int, float)) for x in self.source):
-            self._type = types.Float()
-        else:
-            raise types.TypeException("Unsupported element")
-
-    def _output(self):
-        return types.List(self._type, len(self.source))
-
-    def operation(self):
-        return "_constant", list(self.source)
+def Wildlist(element=None):
+    return types.Wildcard(element=element, mindim=1)
 
 class ConstantTable(Macro):
     """Constant Table
@@ -57,115 +36,65 @@ class ConstantTable(Macro):
 
         self._row = rows[0]
 
-    def _output(self):
-        return types.List(types.List(self._type, self._row), len(self.source))
-
-    def expand(self, _, parent: "Reference"):
-
-        with GraphBuilder(prefix=parent) as builder:
-            data = ConstantList([item for sublist in self.source for item in sublist])
-            ListAsTable(data, row=self._row, _name=parent)
-
-            return builder.nodes()
+    def expand(self):
+        data = Constant([item for sublist in self.source for item in sublist])
+        return ListAsTable(data, row=self._row)
 
 
-class FileList(Node):
+class FileList(Operation):
     """ String list of file patchs. Use this operation to inject file dependencies into the 
     pipeline.
     """
 
     list = List(String())
 
-    def _output(self):
-        # TODO: fix this, depth should not be hardcoded
-        return types.List(types.String(), length=len(self.list))
+    def infer(self):
+        return types.Token("char", len(self.list), None)
 
     def operation(self):
         return "file_list", list(self.list)
 
-class SublistSelect(Node):
 
-    parent = Input(types.List(types.Primitive()))
-    begin = Input(types.Integer())
-    end = Input(types.Integer())
-
-    def validate(self, **inputs):
-        super().validate(**inputs)
-
-        if inputs["begin"].value is not None and inputs["end"].value is not None:
-            return types.List(inputs["parent"].element, inputs["end"].value - inputs["begin"].value)
-
-        return types.List(inputs["parent"].element)
-
-    def operation(self):
-        return "list_sublist",
-
-
-class SublistSelect(Node):
-    """Sublist
-
+class SublistSelect(Operation):
+    """
     Selects a range from the source list as a new list.
-
-    Inputs:
-     - parent: Source list
-     - begin: Start of sublist
-     - end: End of sublist
-
-    Category: list
     """
 
-    parent = Input(types.List(types.Primitive()))
-    begin = Input(types.Integer())
-    end = Input(types.Integer())
+    parent = Input(Wildlist(), description="Source list")
+    begin = Input(types.Integer(), description="Start index")
+    end = Input(types.Integer(), description="End index")
 
-    def validate(self, **inputs):
-        super().validate(**inputs)
-
-        if inputs["begin"].value is not None and inputs["end"].value is not None:
-            return types.List(inputs["parent"].element, inputs["end"].value - inputs["begin"].value)
-
-        return types.List(inputs["parent"].element)
+    def infer(self, parent, begin, end):
+        return types.List(parent.element)
 
     def operation(self):
         return "list_sublist",
 
-class ListAsTable(Node):
-    """ListAsTable
 
-    View list as table
-
-    Inputs:
-     - parent: Source list
-     - row: Row length
-
-    Category: list
+class ListAsTable(Operation):
+    """Transform list to table
     """
 
-    parent = Input(types.List())
-    row = Input(types.Integer())
+    parent = Input(types.List(), description="Source list")
+    row = Input(types.Integer(),
+                description="Row size, total length of list must be its multiple")
 
-    def validate(self, **inputs):
-        super().validate(**inputs)
-
-        length = None
-
-        if inputs["row"].value is not None and inputs["parent"].length is not None:
-            length = inputs["parent"].length / inputs["row"].value
-
-        return types.List(types.List(inputs["parent"].element, inputs["row"].value), length)
+    def infer(self, parent, row):
+        return types.List(parent.element)
 
     def operation(self):
         return "list_table",
 
-class ListConcatenate(Node):
 
-    inputs = List(Input(types.List(types.Primitive())))
+class ListConcatenate(Operation):
+
+    inputs = List(Input(Wildlist()), description="Two or more input lists")
 
     def input_values(self):
         return [self.inputs[int(name)] for name, _ in self.get_inputs()]
 
     def get_inputs(self):
-        return [(str(k), types.Number()) for k, _ in enumerate(self.inputs)]
+        return [(str(k), Wildlist()) for k, _ in enumerate(self.inputs)]
 
     def duplicate(self, _origin=None, **inputs):
         config = self.dump()
@@ -175,9 +104,7 @@ class ListConcatenate(Node):
             config["inputs"][i] = v
         return self.__class__(_origin=_origin, **config)
 
-    def validate(self, **inputs):
-        super().validate(**inputs)
-
+    def infer(self, **inputs):
         length = 0
         common = inputs["0"].type
 
@@ -189,55 +116,36 @@ class ListConcatenate(Node):
             else:
                 length += l.length
 
-        if isinstance(common, types.Any):
-            raise ValidationException("Incompatible sublists")
+        if isinstance(common, types.Anything):
+            raise ValidationException("Incompatible elements")
 
-        return types.List(common, length)
+        return common.push(length)
 
     def operation(self):
         return "list_concatenate",
 
-class FilterSelect(Node):
-    """List filter
 
-    Select an interval from a given list.
-
-    Inputs:
-        - parent: A list type
-        - being: Sublist starting index
-        - end: Sublist last index
-
-    Category: list
+class FilterSelect(Operation):
+    """Generate a sublist based on values from a filter list
     """
 
-    parent = Input(types.List(types.Primitive()))
-    filter = Input(types.List(types.Integer()))
+    parent = Input(Wildlist())
+    filter = Input(types.IntegerList())
 
-    def validate(self, **inputs):
-        super().validate(**inputs)
-
-        if inputs["filter"].length is not None:
-            return types.List(inputs["parent"].element, inputs["filter"].length)
-
-        return types.List(inputs["parent"].element)
+    def infer(self, parent, filter):
+        return parent
 
     def operation(self):
         return "list_filter",
 
-class ListRemap(Node):
-    """List remap
-    
+
+class ListRemap(Operation):
+    """
     Maps elements from source list to a result list using indices from indices list.
-
-    Inputs:
-        - source: A list type
-        - indicies: A list of integers
-
-    Category: list
     """
 
-    source = Input(types.List(types.Primitive()))
-    indices = Input(types.List(types.Integer()))
+    source = Input(Wildlist())
+    indices = Input(types.IntegerList())
 
     def validate(self, **inputs):
         super().validate(**inputs)
@@ -246,18 +154,10 @@ class ListRemap(Node):
     def operation(self):
         return "list_remap",
 
-class ListRange(Node):
-    """List range
 
+class ListRange(Operation):
+    """
     Generates a list of numbers from start to end of a given length
-
-    Inputs:
-        - start: Starting number
-        - end: Ending number
-        - length: List length
-        - round: Boolean
-
-    Category: list
     """
 
     start = Input(types.Float())
@@ -265,118 +165,85 @@ class ListRange(Node):
     length = Input(types.Integer())
     round = Input(types.Boolean(), default=False)
 
-    def validate(self, **inputs):
-        super().validate(**inputs)
-        return types.List(types.Float(), inputs["length"].value)
+    def validate(self, start, end, length, round):
+        return types.FloatList()
 
     def operation(self):
         return "list_range",
 
 
-class ListPermute(Node):
-    """List permute
-
+class ListPermute(Operation):
+    """
     Randomly permutes an input list
-
-    Category: list
     """
 
-    source = Input(types.List(types.Primitive()))
+    source = Input(Wildlist(), description="Input list")
     seed = SeedInput()
 
-    def validate(self, **inputs):
-        super().validate(**inputs)
-        return types.List(inputs["source"].element, inputs["source"].length)
+    def infer(self, source, seed):
+        return source
 
     def operation(self):
         return "list_permute",
 
-class ListPermutation(Node):
-    """List permutation
 
-    Generates a list of numbers from 0 to length in random order.
-
-    Category: list
-    """
+class ListPermutation(Operation):
+    """Generates a list of numbers from 0 to length in random order."""
 
     length = Input(types.Integer())
     seed = SeedInput()
 
-    def validate(self, **inputs):
-        super().validate(**inputs)
-        return types.List(types.Integer(), inputs["length"].value)
+    def infer(self, length):
+        return types.List("int")
 
     def operation(self):
         return "list_permutation",
 
-class ListElement(Node):
-    """Retrieve element
 
+class ListElement(Operation):
+    """
     Returns an element from a list for a given index
-
-    Inputs:
-        - parent: Source list
-        - index: Position of the element
-
-    Category: list
     """
 
-    parent = Input(types.List())
+    parent = Input(Wildlist())
     index = Input(types.Integer())
 
-    def validate(self, **inputs):
-        super().validate(**inputs)
-
-        index = inputs["index"].value
-
-        if index is not None:
-            return inputs["parent"][index]
-
-        return inputs["parent"].element
+    def infer(self, parent, index):
+        return parent.pop()
 
     def operation(self):
         return "list_element",
 
-class ListLength(Node):
-    """List Length
+Node.register_operation(NodeOperation.INDEX, ListElement, Wildlist(), types.Integer())
 
+class ListLength(Operation):
+    """
     Returns a list length
-
-    Inputs:
-        - parent: Source list
-
-    Category: list
     """
 
-    parent = Input(types.List())
+    parent = Input(Wildlist())
 
-    def validate(self, **inputs):
-        super().validate(**inputs)
-
-        return types.Integer(inputs["parent"].length)
+    def infer(self, parent):
+        return types.Integer()
 
     def operation(self):
         return "list_length",
 
-class ListBuild(Node):
-    """Build list
+Node.register_operation(NodeOperation.LENGTH, ListLength, Wildlist())
 
+class ListBuild(Operation):
+    """
     Builds list from inputs. All inputs should be of the same type as the first input, it determines
     the type of a list.
-
-    Inputs:
-        - inputs: Inputs to put in a list
-
-    Category: list
     """
 
-    inputs = List(Input(types.Number()))
+    inputs = List(Input(types.Wildcard()))
 
     def input_values(self):
         return [self.inputs[int(name)] for name, _ in self.get_inputs()]
 
     def get_inputs(self):
-        return [(str(k), types.Number()) for k, _ in enumerate(self.inputs)]
+        return [(str(k), types.Wildcard()) for k, _ in enumerate(self.inputs)]
 
     def duplicate(self, _origin=None, **inputs):
         config = self.dump()
@@ -386,129 +253,195 @@ class ListBuild(Node):
             config["inputs"][i] = v
         return self.__class__(_origin=_origin, **config)
 
-    def validate(self, **inputs):
-        super().validate(**inputs)
-        return types.List(inputs["0"], len(inputs))
+    def infer(self, **inputs):
+        common = types.Anything()
+        for _, v in inputs.items():
+            common = common.common(v)
+        return common.push()
 
     def operation(self):
         return "list_build",
 
-class RepeatElement(Node):
+
+class RepeatElement(Operation):
     """Repeat list element a number of times
-
-    Inputs:
-        - source: Element to replicate
-        - length: how many times to repeat
-
-    Output: List
-
-    Category: list
     """
 
-    source = Input(types.Primitive())
-    length = Input(types.Integer())
+    source = Input(types.Wildcard(), description="Element to repeat")
+    length = Input(types.Integer(), description="Number of repetitions")
 
-    def validate(self, **inputs):
-        super().validate(**inputs)
-
-        return types.List(inputs["source"], inputs["length"].value)
+    def infer(self, source, length):
+        return source.push()
 
     def operation(self):
         return "list_repeat",
 
 
-class RandomListElement(Macro):
+class RandomElement(Macro):
 
-    source = Input(types.List(types.Primitive()))
+    source = Input(Wildlist())
     seed = SeedInput()
 
-    def validate(self, **inputs):
-        super().validate(**inputs)
+    def expand(self, source, seed):
+        generator = SampleUnform(0, ListLength(source)-1, seed=seed)
+        index = Round(generator)
+        return ListElement(source, index)
 
-        return inputs["source"].element
-
-    def expand(self, inputs, parent: "Reference"):
-
-        with GraphBuilder(prefix=parent) as builder:
-
-            length = inputs["source"].type.length
-            generator = UniformDistribution(min=0, max=length-1, seed=inputs["seed"])
-            index = Round(generator)
-            ListElement(parent=inputs["source"], index=index, _name=parent)
-
-            return builder.nodes()
 
 @hidden
-class _ListCompare(Node):
+class _ListArithmetic(Operation):
 
-    a = Input(types.List(types.Number()))
-    b = Input(types.List(types.Number()))
+    a = Input(types.List("float"))
+    b = Input(types.List("float"))
 
-    def validate(self, **inputs):
-        super().validate(**inputs)
-        return types.List(types.Integer(), inputs["a"].length)
+    def infer(self, **inputs):
+        return types.FloatList()
 
     def operation(self):
         raise NotImplementedError()
+
+
+class ListSum(_ListArithmetic):
+
+    def operation(self):
+        return "list_sum",
+
+
+class ListMinus(_ListArithmetic):
+
+    def operation(self):
+        return "list_minus",
+
+
+class ListMultiply(_ListArithmetic):
+
+    def operation(self):
+        return "list_multiply",
+
+
+class ListDivide(_ListArithmetic):
+
+    def operation(self):
+        return "list_divide",
+
+
+class ListModulo(_ListArithmetic):
+
+    a = Input(types.List("int"))
+    b = Input(types.List("int"))
+
+    def infer(self, **inputs):
+        return types.IntegerList()
+
+    def operation(self):
+        return "list_modulus",
+
+
+Node.register_operation(NodeOperation.ADD, ListSum,
+                        types.FloatList(), types.FloatList())
+Node.register_operation(NodeOperation.SUBTRACT, ListMinus,
+                        types.FloatList(), types.FloatList())
+Node.register_operation(NodeOperation.MULIPLY, ListMultiply,
+                        types.FloatList(), types.FloatList())
+Node.register_operation(NodeOperation.DIVIDE, ListDivide,
+                        types.FloatList(), types.FloatList())
+Node.register_operation(NodeOperation.MODULO, ListModulo,
+                        types.FloatList(), types.FloatList())
+
+
+@hidden
+class _ListCompare(Operation):
+
+    a = Input(types.FloatList())
+    b = Input(types.FloatList())
+
+    def infer(self, **inputs):
+        return types.BooleanList()
+
+    def operation(self):
+        raise NotImplementedError()
+
 
 class ListCompareEqual(_ListCompare):
 
     def operation(self):
         return "list_compare_equal",
 
+
 class ListCompareNotEqual(_ListCompare):
 
     def operation(self):
         return "list_compare_not_equal",
+
 
 class ListCompareLower(_ListCompare):
 
     def operation(self):
         return "list_compare_less",
 
+
 class ListCompareLowerEqual(_ListCompare):
 
     def operation(self):
         return "list_compare_less_equal",
+
 
 class ListCompareGreater(_ListCompare):
 
     def operation(self):
         return "list_compare_greater",
 
+
 class ListCompareGreaterEqual(_ListCompare):
 
     def operation(self):
-        return "list_compare_grater_equal",
+        return "list_compare_greater_equal",
 
-class _ListLogical(Node):
+Node.register_operation(NodeOperation.EQUAL, ListCompareEqual,
+                        types.FloatList(), types.FloatList())
+Node.register_operation(NodeOperation.NOT_EQUAL, ListCompareNotEqual,
+                        types.FloatList(), types.FloatList())
+Node.register_operation(NodeOperation.LOWER, ListCompareLower,
+                        types.FloatList(), types.FloatList())
+Node.register_operation(NodeOperation.LOWER_EQUAL, ListCompareLowerEqual,
+                        types.FloatList(), types.FloatList())
+Node.register_operation(NodeOperation.GREATER, ListCompareGreater,
+                        types.FloatList(), types.FloatList())
+Node.register_operation(NodeOperation.GREATER_EQUAL, ListCompareGreaterEqual,
+                        types.FloatList(), types.FloatList())
 
-    a = Input(types.List(types.Number()))
 
-    def validate(self, **inputs):
-        super().validate(**inputs)
-        return types.List(types.Integer(), inputs["a"].length)
+class _ListLogical(Operation):
+
+    a = Input(types.BooleanList())
+
+    def infer(self, **inputs):
+        return types.BooleanList()
 
     def operation(self):
         raise NotImplementedError()
+
 
 class ListLogicalNot(_ListLogical):
 
     def operation(self):
         return "list_logical_not",
 
+
 class ListLogicalAnd(_ListLogical):
 
-    b = Input(types.List(types.Number()))
+    b = Input(types.BooleanList())
 
     def operation(self):
         return "list_logical_and",
 
+
 class ListLogicalOr(_ListLogical):
 
-    b = Input(types.List(types.Number()))
+    b = Input(types.BooleanList())
 
     def operation(self):
         return "list_logical_or",
 
 # TODO: register artithmetic operations
+

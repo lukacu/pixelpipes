@@ -1,7 +1,8 @@
+import unittest
 
 from attributee import String, Map
 
-from .graph import Macro, Input, Reference, GraphBuilder, Copy
+from .graph import Macro, Input, Reference, Graph, Copy
 from . import types, numbers
 
 # Based on: https://gist.github.com/elias94/c03a170ae2e208d4a75f7f371a48be33
@@ -177,10 +178,7 @@ class Expression(Macro):
     """
 
     source = String()
-    variables = Map(Input(types.Number()))
-
-    def _output(self) -> types.Type:
-        return types.Float()
+    variables = Map(Input(types.Float()))
 
     def input_values(self):
         return [self.variables[name] for name, _ in self.get_inputs()]
@@ -195,17 +193,15 @@ class Expression(Macro):
             config["variables"][k] = v
         return self.__class__(_origin=_origin, **config)
 
-    def expand(self, inputs, parent: "Reference"):
+    def expand(self, **inputs):
         parser = _Parser()
         tokens = self._tokenize(list(self.source))
         if not tokens:
             # not parse if empty
             return None
         tree = parser.parse(tokens)
-        with GraphBuilder(prefix=parent) as builder:
-            Copy(source=tree.expand(inputs), _name=parent)
-            return builder.nodes()
-        
+        return tree.expand(inputs)
+
     def _tokenize(self, chars):
         tokens = []
         pos = 0
@@ -241,22 +237,17 @@ class Expression(Macro):
             pos += 1
         return tokens
 
-def _test_expression():
+class Tests(unittest.TestCase):    
 
-    from pixelpipes import GraphBuilder, Output, Constant
-    from pixelpipes.compiler import Compiler
+    def test_expression(self):
 
-    builder = GraphBuilder()
-    n1 = builder.add(Constant(value=1))
-    n2 = builder.add(Constant(value=15))
-    n3 = builder.add(Expression(source="x * y + 2", variables=dict(x=n1, y=n2)))
+        with Graph() as graph:
+            n1 = Constant(value=5)
+            n2 = Constant(value=15)
+            n3 = Expression(source="((x ^ 2 - y) * 2) / 5 + 2", variables=dict(x=n1, y=n2))
+            Output(n3)
 
-    builder.add(Output(outputs=[n3]))
-    compiler = Compiler(debug=True)
-    graph = builder.build()
-    pipeline = compiler.compile(graph)
+        pipeline = Compiler().build(graph)
+        output = pipeline.run(1)
 
-    print(pipeline.run(1))
-
-if __name__ == "__main__":
-    _test_expression()
+        self.assertEqual(output[0], 6)

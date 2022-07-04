@@ -208,8 +208,30 @@ namespace pixelpipes
             return data == (size_t)other;
         }
 
-        bool operator==(int v) const;
-        bool operator==(size_t v) const;
+        inline bool operator==(int v) const
+        {
+            return (data != unknown) && data == (size_t)v;
+        }
+
+        inline bool operator!=(const Size &other) const {
+            return other.data != data;
+
+        }
+
+        inline bool operator==(size_t v) const
+        {
+            return (data != unknown) && data == v;
+        }
+
+        inline bool operator!=(int v) const
+        {
+            return data != (size_t)v;
+        }
+
+        inline bool operator!=(size_t v) const
+        {
+            return data != v;
+        }
 
         operator bool() const;
 

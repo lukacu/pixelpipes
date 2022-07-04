@@ -183,7 +183,7 @@ namespace pixelpipes
         std::string label;
     };
 
-    PIXELPIPES_OPERATION_CLASS("_output", Output, std::string);
+    PIXELPIPES_OPERATION_CLASS("output", Output, std::string);
 
     class Jump : public Operation
     {
@@ -216,7 +216,7 @@ namespace pixelpipes
         int offset;
     };
 
-    PIXELPIPES_OPERATION_CLASS("_jump", Jump, int);
+    PIXELPIPES_OPERATION_CLASS("jump", Jump, int);
 
     class Constant : public Operation
     {
@@ -242,7 +242,7 @@ namespace pixelpipes
         TokenReference value;
     };
 
-    PIXELPIPES_OPERATION_CLASS("_constant", Constant, TokenReference);
+    PIXELPIPES_OPERATION_CLASS("constant", Constant, TokenReference);
 
     class ConditionalJump : public Jump
     {
@@ -365,13 +365,13 @@ namespace pixelpipes
         std::string prefix;
     };
 
-    PIXELPIPES_OPERATION_CLASS("_context", ContextQuery, ContextData);
+    PIXELPIPES_OPERATION_CLASS("context", ContextQuery, ContextData);
 
-    PIXELPIPES_OPERATION_CLASS("_cjump", ConditionalJump, DNF, int);
+    PIXELPIPES_OPERATION_CLASS("cjump", ConditionalJump, DNF, int);
 
-    PIXELPIPES_OPERATION_CLASS("_condition", Conditional, DNF);
+    PIXELPIPES_OPERATION_CLASS("condition", Conditional, DNF);
 
-    PIXELPIPES_OPERATION_CLASS("_debug", DebugOutput, std::string);
+    PIXELPIPES_OPERATION_CLASS("debug", DebugOutput, std::string);
 
     struct Pipeline::State
     {

@@ -141,15 +141,6 @@ namespace pixelpipes
 		return data == other.data;
 	}
 
-	bool Size::operator==(int v) const
-	{
-		return data == (size_t)v;
-	}
-
-	bool Size::operator==(size_t v) const
-	{
-		return data == v;
-	}
 
 	Size::operator bool() const
 	{

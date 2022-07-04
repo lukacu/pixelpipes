@@ -29,25 +29,25 @@ public:
     {
         _element = AnyType;
 
-        if (py::isinstance<py::array_t<uint8_t>>(data))
+        if (py::isinstance<py::array_t<int8_t>>(data))
         {
             _element = CharIdentifier;
             _bytes = sizeof(uchar);
         }
-        else if (py::isinstance<py::array_t<int8_t>>(data))
+        else if (py::isinstance<py::array_t<uint8_t>>(data))
         {
             _element = CharIdentifier;
             _bytes = sizeof(uchar);
         }
         else if (py::isinstance<py::array_t<uint16_t>>(data))
         {
-            _element = ShortIdentifier;
+            _element = UShortIdentifier;
             _bytes = sizeof(ushort);
         }
         else if (py::isinstance<py::array_t<int16_t>>(data))
         {
             _element = ShortIdentifier;
-            _bytes = sizeof(ushort);
+            _bytes = sizeof(short);
         }
         else if (py::isinstance<py::array_t<int32_t>>(data))
         {
@@ -145,6 +145,11 @@ public:
         return _bytes;
     }
 
+    virtual TypeIdentifier cell_type() const
+    {
+        return _element;
+    }
+
 private:
     py::array _array;
     TypeIdentifier _element;
@@ -168,8 +173,10 @@ TokenReference wrap_tensor(const py::object& src)
         Shape srcshape = src->shape();
 
         if (srcshape.element() == CharIdentifier) {
-            dst = create_tensor<uchar>(src->shape());
+            dst = create_tensor<char>(src->shape());
         } else if (srcshape.element() == ShortIdentifier) {
+            dst = create_tensor<short>(src->shape());
+        } else if (srcshape.element() == UShortIdentifier) {
             dst = create_tensor<ushort>(src->shape());
         } else if (srcshape.element() == FloatIdentifier) {
             dst = create_tensor<float>(src->shape());
@@ -197,7 +204,7 @@ py::object extract_tensor(const TokenReference& src)
 {
 
     if (!src || !src->is<Tensor>())
-        return py::none();
+        throw py::value_error(Formatter() << "Not a tensor:"  << src);
 
     TensorReference tensor = extract<TensorReference>(src);
 
@@ -236,16 +243,25 @@ py::object extract_tensor(const TokenReference& src)
     }
     if (shape.element() == ShortIdentifier)
     {
+        return py::array(std::move(pydimensions), std::move(pystrides), (int16_t *)tensor->data(), capsule);
+    }
+    if (shape.element() == UShortIdentifier)
+    {
         return py::array(std::move(pydimensions), std::move(pystrides), (uint16_t *)tensor->data(), capsule);
     }
     if (shape.element() == FloatIdentifier)
     {
         return py::array(std::move(pydimensions), std::move(pystrides), (float *)tensor->data(), capsule);
     }
+    if (shape.element() == BooleanIdentifier)
+    {
+        return py::array(std::move(pydimensions), std::move(pystrides), (bool *)tensor->data(), capsule);
+    }
 
-    return py::none();
+
+    throw py::value_error(Formatter() << "Unable to convert token to NumPy array:"  << src);
 }
-
+/*
 TokenReference wrap_tensor_list(const py::object& src)
 {
     if (py::list::check_(src))
@@ -273,3 +289,4 @@ TokenReference wrap_tensor_list(const py::object& src)
     }
     return empty<List>();
 }
+*/

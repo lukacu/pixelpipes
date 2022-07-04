@@ -24,9 +24,11 @@ namespace pixelpipes
         if (s.element() == IntegerIdentifier) {
                 depth = sizeof(int);
         } else if (s.element() == CharIdentifier) {
-                depth = sizeof(char);
+                depth = sizeof(uchar);
         } else if (s.element() == ShortIdentifier) {
                 depth = sizeof(short);
+        } else if (s.element() == UShortIdentifier) {
+                depth = sizeof(ushort);
         } else if (s.element() == FloatIdentifier) {
                 depth = sizeof(float);
         } else {

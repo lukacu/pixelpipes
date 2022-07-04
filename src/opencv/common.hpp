@@ -1,8 +1,8 @@
 
 #if defined(__clang__) && defined(__has_warning)
-# if __has_warning( "-Wc11-extensions" )
-#  pragma clang diagnostic ignored "-Wc11-extensions"
-# endif
+#if __has_warning("-Wc11-extensions")
+#pragma clang diagnostic ignored "-Wc11-extensions"
+#endif
 #endif
 
 #include <pixelpipes/operation.hpp>
@@ -44,7 +44,9 @@ namespace pixelpipes
     enum class ImageDepth
     {
         Byte,
+        UByte,
         Short,
+        UShort,
         Integer,
         Float
     };
@@ -85,7 +87,7 @@ namespace pixelpipes
     inline cv::Rect extract(const TokenReference &v)
     {
         auto r = extract<Rectangle>(v);
-        return cv::Rect((int) r.left, (int) r.top, (int) (r.right - r.left), (int) (r.bottom -  r.top));
+        return cv::Rect((int)r.left, (int)r.top, (int)(r.right - r.left), (int)(r.bottom - r.top));
     }
 
     template <>
@@ -93,7 +95,7 @@ namespace pixelpipes
     {
 
         Sequence<Point2D> convert(v.size());
-       
+
         size_t i = 0;
         for (auto p : v)
         {
@@ -113,7 +115,7 @@ namespace pixelpipes
         size_t i = 0;
         for (auto p : v)
         {
-            convert[i++] = (Point2D{ p.x, p.y });
+            convert[i++] = (Point2D{p.x, p.y});
         }
 
         return wrap(convert);
@@ -128,7 +130,7 @@ namespace pixelpipes
         size_t i = 0;
         for (auto p : v)
         {
-            convert[i++] = (Point2D{ p.x, p.y });
+            convert[i++] = (Point2D{p.x, p.y});
         }
 
         return wrap(convert);
@@ -158,6 +160,8 @@ namespace pixelpipes
 
         virtual ~MatImage() = default;
 
+        virtual void describe(std::ostream &os) const override;
+
         virtual Shape shape() const;
 
         virtual size_t length() const;
@@ -181,6 +185,8 @@ namespace pixelpipes
         virtual cv::Mat get() const;
 
         virtual size_t cell_size() const;
+
+        virtual TypeIdentifier cell_type() const;
 
         static cv::Mat copy(const TensorReference &tensor);
 

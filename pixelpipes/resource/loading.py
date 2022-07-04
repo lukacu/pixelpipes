@@ -5,52 +5,59 @@ from typing import Optional
 
 from attributee import String, Boolean, Enumeration, Callable
 
-from ..list import FileList
-from . import ResourceListSource, VirtualField
+from . import ResourceField
+from .list import ResourceListSource, FileList
 from .. import types
 from ..image import ReadImage, ReadImageAny
 
-class ImageReading(Enum):
+
+class ColorConversion(Enum):
     UNCHANGED = auto()
     COLOR = auto()
     GRAYSCALE = auto()
 
-class LoadImage(VirtualField):
 
-    def __init__(self, typ: types.Type, field: str, loader: Optional[bool] = None):
-        super().__init__(typ)
+class LoadImage(ResourceField):
+
+    def __init__(self, field: str, loader: Optional[bool] = None):
+        super().__init__(types.Image())
         self._loader = loader
         self._field = field
 
-    def generate(self, parent, resource):
+    def access(self, parent):
         if self._loader:
-            return self._loader(resource.access(self._field, parent))
-        return ReadImage(resource.access(self._field, parent))
+            return self._loader(parent.type[self._field].access(parent))
+        return ReadImage(parent.type[self._field].access(parent))
 
 
 _EXTENSIONS = [".jpg", ".jpeg", ".png", ".tif", ".tiff"]
+
 
 def _recursive_search(path):
     for root, _, files in os.walk(path):
         for basename in files:
             if os.path.splitext(basename)[1].lower() in _EXTENSIONS:
                 filename = os.path.join(root, basename)
-                yield filename   
+                yield filename
 
 class ImageDirectory(ResourceListSource):
 
     path = String(description="Root path to search")
-    recursive = Boolean(default=False, description="Images are collected in subdirectories as well")
+    recursive = Boolean(
+        default=False, description="Images are collected in subdirectories as well")
     sorted = Boolean(default=True, description="Sort images by filename")
-    reading = Enumeration(ImageReading, default=ImageReading.COLOR, description="Reading type")
-    filter = Callable(default=None, description="Filtering function, recieves filename, tells if file should be included")
+    conversion = Enumeration(
+        ColorConversion, default=ColorConversion.COLOR, description="Color conversion options")
+    filter = Callable(
+        default=None, description="Filtering function, recieves filename, tells if file should be included")
 
-    def _load(self):
+    def load(self):
         if not self.recursive:
-            files = [os.path.join(self.path, fi) for fi in os.listdir(self.path) if os.path.splitext(fi)[1].lower() in _EXTENSIONS]
+            files = [os.path.join(self.path, fi) for fi in os.listdir(
+                self.path) if os.path.splitext(fi)[1].lower() in _EXTENSIONS]
         else:
             files = list(_recursive_search(self.path))
-        
+
         if self.sorted:
             files = sorted(files)
 
@@ -58,18 +65,16 @@ class ImageDirectory(ResourceListSource):
         if self.filter is not None:
             files = [file for file in files if self.filter(file)]
 
+        if self.conversion == ColorConversion.COLOR:
+            def loader(x): return ReadImage(x, grayscale=False)
+        elif self.conversion == ColorConversion.GRAYSCALE:
+            def loader(x): return ReadImage(x, grayscale=True)
+        elif self.conversion == ColorConversion.UNCHANGED:
+            def loader(x): return ReadImageAny(x)
+
+        image = LoadImage(field="file", loader=loader)
+
         return {
-            "lists": {
-                "file": (FileList, files)}, 
-                "size": len(files)
-            }
-
-    def fields(self):
-        if self.reading == ImageReading.COLOR:
-            loader = lambda x: ReadImage(x, grayscale=False)
-        elif self.reading == ImageReading.GRAYSCALE:
-            loader = lambda x: ReadImage(x, grayscale=True)
-        elif self.reading == ImageReading.UNCHANGED:
-            loader = lambda x: ReadImageAny(x)
-
-        return dict(image=LoadImage(types.Image(), field="file", loader=loader), file=types.String())
+            "file": FileList(files),
+            "image": image
+        }

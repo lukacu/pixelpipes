@@ -112,16 +112,18 @@ namespace pixelpipes
 #define TokenIdentifier GetTypeIdentifier<TokenReference>()
 
 #define IntegerIdentifier GetTypeIdentifier<int>()
-#define ShortIdentifier GetTypeIdentifier<ushort>()
+#define ShortIdentifier GetTypeIdentifier<short>()
 #define FloatIdentifier GetTypeIdentifier<float>()
 #define BooleanIdentifier GetTypeIdentifier<bool>()
-#define CharIdentifier GetTypeIdentifier<uchar>()
+#define CharIdentifier GetTypeIdentifier<char>()
+#define UShortIdentifier GetTypeIdentifier<ushort>()
 
     typedef ScalarToken<int> IntegerScalar;
     typedef ScalarToken<float> FloatScalar;
     typedef ScalarToken<bool> BooleanScalar;
-    typedef ScalarToken<uchar> CharScalar;
-    typedef ScalarToken<ushort> ShortScalar;
+    typedef ScalarToken<char> CharScalar;
+    typedef ScalarToken<short> ShortScalar;
+    typedef ScalarToken<ushort> UShortScalar;
 
 #define _IS_SCALAR_TOKEN(TOKEN, INNER) (((TOKEN)->is<ContainerToken<INNER>>()))
 
@@ -149,6 +151,9 @@ namespace pixelpipes
 
         if (_IS_SCALAR_TOKEN(v, short))
             return v->cast<ContainerToken<short>>()->get();
+
+        if (_IS_SCALAR_TOKEN(v, ushort))
+            return v->cast<ContainerToken<ushort>>()->get();
 
         if (_IS_SCALAR_TOKEN(v, bool))
             return v->cast<ContainerToken<bool>>()->get() ? 1 : 0;
@@ -178,10 +183,31 @@ namespace pixelpipes
     }
 
     template <>
+    inline ushort extract(const TokenReference& v)
+    {
+        VERIFY((bool)v, "Uninitialized token");
+
+        if (_IS_SCALAR_TOKEN(v, ushort))
+            return v->cast<ContainerToken<ushort>>()->get();
+
+        if (_IS_SCALAR_TOKEN(v, bool))
+            return v->cast<ContainerToken<bool>>()->get() ? 1 : 0;
+
+        throw TypeException("Unexpected token type: expected ushort, got " + v->describe());
+    }
+
+    template <>
     inline TokenReference wrap(const short v)
     {
         return create<ShortScalar>(v);
     }
+
+    template <>
+    inline TokenReference wrap(const ushort v)
+    {
+        return create<UShortScalar>(v);
+    }
+
 
     template <>
     inline bool extract(const TokenReference& v)
@@ -236,6 +262,9 @@ namespace pixelpipes
 
         if (_IS_SCALAR_TOKEN(v, short))
             return (float)v->cast<ContainerToken<short>>()->get();
+
+        if (_IS_SCALAR_TOKEN(v, ushort))
+            return (float)v->cast<ContainerToken<ushort>>()->get();
 
         if (_IS_SCALAR_TOKEN(v, bool))
             return (float)v->cast<ContainerToken<bool>>()->get();

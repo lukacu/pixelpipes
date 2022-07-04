@@ -1,106 +1,68 @@
 
-from ..graph import EnumerationInput, GraphBuilder, Input, Macro, Node, Reference
+from ..graph import EnumerationInput, Input, Macro, Operation
 from .. import types
 from ..image import BorderStrategy
 from  .geometry import Transpose
 
-class GaussianKernel(Node):
+class GaussianKernel(Operation):
     """Generate a Gaussian kernel
-
-    Inputs:
-        - size: size of the kernel, should be an odd integer
-
-    Category: image, filters
-    Tags: image, filter
     """
 
-    size = Input(types.Integer())
+    size = Input(types.Integer(), description="Size of the kernel, should be an odd integer")
 
     def operation(self):
         return "opencv:gaussian_kernel",
 
-    def validate(self, **inputs):
-        super().validate(**inputs)
-        s = inputs["size"]
-        return types.Image(s.value, 1, 1, 32)
+    def infer(self, size):
+        return types.Image(depth="float")
 
-class UniformKernel(Node):
+class UniformKernel(Operation):
     """Generate a uniform kernel
 
     Inputs:
-        - size: size of the kernel, should be an odd integer
+        - size: 
 
     Category: image, filters
     Tags: image, filter
     """
 
-    size = Input(types.Integer())
+    size = Input(types.Integer(), description="Size of the kernel, should be an odd integer")
 
     def operation(self):
         return "opencv:uniform_kernel",
 
-    def validate(self, **inputs):
-        super().validate(**inputs)
-        s = inputs["size"]
-        return types.Image(s.value, 1, 1, 32)
+    def infer(self, size):
+        return types.Image(depth="float")
 
-class MedianBlur(Node):
-    """Median Blur
+class MedianBlur(Operation):
+    """Blurs an image using a median filter."""
 
-    Blurs an image using a median filter.
-
-    Inputs:
-        - source: source image
-        - size: size of the median window
-
-    Category: image, filters
-    Tags: image, blur
-    """
-
-    source = Input(types.Image())
-    size = Input(types.Integer())
+    source = Input(types.Image(), description="Input image")
+    size = Input(types.Integer(), description="Size of the median window")
     
     def operation(self):
         return "opencv:median_blur",
 
-    def validate(self, **inputs):
-        super().validate(**inputs)
+    def infer(self, source, size):
+        return types.Image(depth = source.element)
 
-        source = inputs["source"]
-
-        return types.Image(source.width, source.height, source.channels, source.depth)
-
-class BilateralFilter(Node):
-    """Bilateral filter
-
-    Applies the bilateral filter to an image.
-
-    Inputs:
-        - source: source image
-        - diameter: diameter of pixel neighborhood
-        - sigma_color: filter sigma in the color space
-        - sigma_space: filter sigma in the coordinate space
-
-    Category: image, filters
-    Tags: image, filter
+class BilateralFilter(Operation):
+    """Applies the bilateral filter to an image.
     """
 
-    source = Input(types.Image())
-    diameter = Input(types.Integer())
-    sigma_color = Input(types.Float())
-    sigma_space = Input(types.Float())
+    source = Input(types.Image(), description="Input image")
+    diameter = Input(types.Integer(), description="Diameter of pixel neighborhood")
+    sigma_color = Input(types.Float(), description="Filter sigma in the color space")
+    sigma_space = Input(types.Float(), description="Filter sigma in the coordinate space")
     
     def operation(self):
         return "opencv:bilateral_filter",
 
-    def validate(self, **inputs):
-        super().validate(**inputs)
-
+    def infer(self, **inputs):
         source = inputs["source"]
+        return types.Image(depth = source.element)
 
-        return types.Image(source.width, source.height, source.channels, source.depth)
-
-class LinearFilter(Node):
+class LinearFilter(Operation):
     """Linear filter
 
     Convolves an image with a custom kernel.
@@ -113,86 +75,46 @@ class LinearFilter(Node):
     Tags: image, filter
     """
 
-    source = Input(types.Image())
-    kernel = Input(types.Image(channels=1, depth=32))
-    border = EnumerationInput(BorderStrategy, default="Reflect")
+    source = Input(types.Image(), description="Input image")
+    kernel = Input(types.Image(channels=1, depth="float"), description="Filter matrix")
+    border = EnumerationInput(BorderStrategy, default="Reflect", description="Border handling strategy")
 
     def operation(self):
         return "opencv:linear_filter", 
 
-    def validate(self, **inputs):
-        super().validate(**inputs)
-
-        source = inputs["source"]
-
-        return types.Image(source.width, source.height, source.channels, source.depth)
+    def infer(self,source, kernel, border):
+        return types.Image(depth = source.element)
 
 class GaussianFilter(Macro):
-    """Gaussian blur filter
-
-    Blurs an image using a gaussian filter.
-
-    Inputs:
-        - source: source image
-        - size_x: gaussian kernel size X
-        - size_y: gaussian kernel size Y
-
-    Category: image, filters
-    Tags: image, blur
+    """
+    Blurs an image using a gaussian filter. Filtering is performed with two separate 1D filters.
     """
 
-    source = Input(types.Image())
-    size_x = Input(types.Integer())
-    size_y = Input(types.Integer())
-    border = EnumerationInput(BorderStrategy, default="Reflect")
+    source = Input(types.Image(), description="Input image")
+    size_x = Input(types.Integer(), description="Filter size in X dimension")
+    size_y = Input(types.Integer(), description="Filter size in Y dimension")
+    border = EnumerationInput(BorderStrategy, default="Reflect", description="Border strategy")
 
-    def validate(self, **inputs):
-        super().validate(**inputs)
+    def expand(self, source, size_x, size_y, border):
+        kernel_x = GaussianKernel(size_x)
+        kernel_y = Transpose(GaussianKernel(size_y))
+        tmp = LinearFilter(source, kernel_x, border=border)
+        return LinearFilter(tmp, kernel_y, border=border)
 
-        source = inputs["source"]
-
-        return types.Image(source.width, source.height, source.channels, source.depth)
-
-    def validate(self, **inputs):
-        super().validate(**inputs)
-        return inputs["source"]
-
-    def expand(self, inputs, parent: Reference):
-        with GraphBuilder(prefix=parent) as builder:
-            kernel_x = GaussianKernel(inputs["size_x"])
-            kernel_y = Transpose(GaussianKernel(inputs["size_y"]))
-            tmp = LinearFilter(inputs["source"], kernel_x, border=self.border)
-            LinearFilter(tmp, kernel_y, border=self.border, _name=parent)
-            return builder.nodes()
 
 class AverageFilter(Macro):
-    """Average blur filter
-
-    Convolving an image with a normalized box filter.
-
-    Inputs:
-        - source: source image
-        - size_x: size of the box filter
-        - size_y: size of the box filter
-        - border: border handling
-
-    Category: image, filters
-    Tags: image, blur
+    """
+    Convolving an image with a normalized box filter. Filtering is performed with two separate 1D filters.
     """
 
-    source = Input(types.Image())
-    size_x = Input(types.Integer())
-    size_y = Input(types.Integer())
-    border = EnumerationInput(BorderStrategy, default="Reflect")
+    source = Input(types.Image(), description="Input image")
+    size_x = Input(types.Integer(), description="Filter size in X dimension")
+    size_y = Input(types.Integer(), description="Filter size in Y dimension")
+    border = EnumerationInput(BorderStrategy, default="Reflect", description="Border strategy")
 
-    def validate(self, **inputs):
-        super().validate(**inputs)
-        return inputs["source"]
+    def expand(self, source, size_x, size_y, border):
 
-    def expand(self, inputs, parent: Reference):
-        with GraphBuilder(prefix=parent) as builder:
-            kernel_x = UniformKernel(inputs["size_x"])
-            kernel_y = Transpose(UniformKernel(inputs["size_y"]))
-            tmp = LinearFilter(inputs["source"], kernel_x, border=self.border)
-            LinearFilter(tmp, kernel_y, border=self.border, _name=parent)
-            return builder.nodes()
+        kernel_x = UniformKernel(size_x)
+        kernel_y = Transpose(UniformKernel(size_y))
+        tmp = LinearFilter(source, kernel_x, border=border)
+        return LinearFilter(tmp, kernel_y, border=border)

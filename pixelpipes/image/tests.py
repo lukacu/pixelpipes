@@ -1,42 +1,33 @@
 
 import unittest
 import numpy as np
-from pixelpipes.list import ListElement
 
-from pixelpipes.resource import GetResource
-
-from ..graph import GraphBuilder, Constant, outputs
+from ..graph import Graph, Constant, outputs
 from ..compiler import Compiler
-from ..complex import GetElement
 from . import Channel, Equals, Grayscale, Invert, Merge, Threshold, Moments, GetImageProperties, ConvertDepth
-from .arithemtic import ImageAdd, ImageMultiply, ImageSubtract
 from .processing import ImageBlend, ImageCoarseDropout, ImageCut, ImageDropout, ImageSolarize
 from .geometry import Flip, MaskBoundingBox, Resize, Rotate90, Scale, ImageCrop
 from .augmentation import ImageBrightness, ImageNoise, ImagePiecewiseAffine
 from .filter import AverageFilter, BilateralFilter, GaussianFilter, LinearFilter, MedianBlur
 from .render import LinearImage, NormalNoise, UniformNoise
 from ..geometry.rectangle import MakeRectangle
-import pixelpipes
 
+test_image = np.random.randint(0, 254, (256,256), dtype=np.uint8)
+test_image_rgb = np.random.randint(0, 255, (256,256,3), dtype=np.uint8)
 
-class Tests(unittest.TestCase):
+def clamp_uint8(image):
+    return np.clip(image, 0, 255).astype(np.uint8)
 
-    test_image = np.random.randint(0, 254, (256,256), dtype=np.uint8)
-    test_image_rgb = np.random.randint(0, 255, (256,256,3), dtype=np.uint8)
-
-
-    """
-    arithmetic.py
-    """
+class TestsArithmetic(unittest.TestCase):
 
     def test_image_constant(self):
 
-        img1 = self.test_image_rgb.astype(np.uint8)
-        img2 = self.test_image_rgb.astype(np.uint16)
-        img3 = self.test_image_rgb.astype(np.float32)
-        img4 = self.test_image_rgb.astype(np.int32)
+        img1 = test_image_rgb.astype(np.uint8)
+        img2 = test_image_rgb.astype(np.uint16)
+        img3 = test_image_rgb.astype(np.float32)
+        img4 = test_image_rgb.astype(np.int32)
 
-        with GraphBuilder() as graph:
+        with Graph() as graph:
             n1 = Constant(img1)
             n2 = Constant(img2)
             n3 = Constant(img3)
@@ -53,121 +44,33 @@ class Tests(unittest.TestCase):
 
     def test_serialization(self):
 
-        from pixelpipes.tests import compare_serialized
+        from pixelpipes.graph import compare_serialized
 
-        img1 = self.test_image_rgb.astype(np.uint8)
-        img2 = self.test_image_rgb.astype(np.uint16)
-        img3 = self.test_image_rgb.astype(np.float32)
-        img4 = self.test_image_rgb.astype(np.int32)
+        img1 = test_image_rgb.astype(np.uint8)
+        img2 = test_image_rgb.astype(np.uint16)
+        img3 = test_image_rgb.astype(np.float32)
+        img4 = test_image_rgb.astype(np.int32)
 
-        with GraphBuilder() as graph:
+        with Graph() as graph:
             n1 = Constant(img1)
             n2 = Constant(img2)
             n3 = Constant(img3)
             n4 = Constant(img4)
             l = Constant([img1, img2, img3])
-            outputs(n1, n2, n3, n4, ListElement(l, 1))
+            outputs(n1, n2, n3, n4, l[1])
 
         compare_serialized(graph)
 
-    def test_image_arithmetic_ImageAdd(self):
+class TestsAugmentation(unittest.TestCase):
 
-
-        with GraphBuilder() as graph:
-            n0 = Constant(self.test_image)
-            n1 = Constant(value=0)
-            n2 = Constant(value=1)       
-            o0 = ImageAdd(source1=n0, source2=n0)       
-            o1 = ImageAdd(source1=n0, source2=n1)
-            o2 = ImageAdd(source1=n1, source2=n0)
-            o3 = ImageAdd(source1=n0, source2=n2)
-            o4 = ImageAdd(source1=n2, source2=n0)     
-            outputs(o0, o1, o2, o3, o4)
-
-        pipeline = Compiler().build(graph)
-        output = pipeline.run(1)
-
-        temp = self.test_image.astype(dtype=np.uint16, copy=True)
-        temp = temp + temp
-        temp[temp>255] = 255
-        temp = temp.astype(dtype=np.uint8, copy=False)
-        np.testing.assert_array_equal(output[0], temp)
-        np.testing.assert_array_equal(output[1], self.test_image)
-        np.testing.assert_array_equal(output[2], self.test_image)
-        np.testing.assert_array_equal(output[3], self.test_image + 1)
-        np.testing.assert_array_equal(output[4], self.test_image + 1)
-
-    def test_image_arithmetic_ImageSubtract(self):
-
-        test_image0 = np.random.randint(1, 255, (256,256), dtype=np.uint8)
-        test_image1 = np.random.randn(256,256).astype(dtype=np.float32)
-
-        with GraphBuilder() as graph:
-            n0 = Constant(test_image0)
-            n1 = Constant(test_image1)
-            c1 = Constant(1)    
-            o0 = ImageSubtract(n0, n0)       
-            o1 = ImageSubtract(n0, c1)
-            o2 = ImageSubtract(c1, n0)  
-            o3 = ImageSubtract(n1, n1)       
-            o4 = ImageSubtract(n1, c1)
-            o5 = ImageSubtract(c1, n1)  
-            outputs(o0, o1, o2, o3, o4, o5)
-
-        pipeline = Compiler().build(graph)
-        output = pipeline.run(1)
-
-        np.testing.assert_array_equal(output[0], np.zeros((256,256), dtype=np.uint8))
-        np.testing.assert_array_equal(output[1], np.clip((test_image0.astype(np.float32) - 1), 0, 255).astype(np.uint8))
-        np.testing.assert_array_equal(output[2], np.clip((1 - test_image0.astype(np.float32)), 0, 255).astype(np.uint8))
-
-        np.testing.assert_array_equal(output[3], np.zeros((256,256), dtype=np.float32))
-        np.testing.assert_array_equal(output[4], (test_image1.astype(np.float32) - 1))
-        np.testing.assert_array_equal(output[5], 1 - test_image1.astype(np.float32))
-
-    def test_image_arithmetic_ImageMultiply(self):
-
-        test_image = np.random.randint(1, 255, (256,256), dtype=np.uint8)
-
-        with GraphBuilder() as graph:
-            n0 = Constant(test_image)
-            n1 = Constant(0)
-            n2 = Constant(1)
-            n3 = Constant(255)    
-            o0 = ImageMultiply(n0, n0)
-            o1 = ImageMultiply(n0, n1)
-            o2 = ImageMultiply(n1, n0)
-            o3 = ImageMultiply(n0, n2)
-            o4 = ImageMultiply(n2, n0)
-            o5 = ImageMultiply(n0, n3)
-            o6 = ImageMultiply(n3, n0)
-            outputs(o0, o1, o2, o3, o4, o5, o6)
-
-        pipeline = Compiler().build(graph)
-        output = pipeline.run(1)
-
-        np.testing.assert_array_equal(output[1], test_image * 0)
-        np.testing.assert_array_equal(output[2], test_image * 0)
-        np.testing.assert_array_equal(output[3], test_image)
-        np.testing.assert_array_equal(output[4], test_image)
-        np.testing.assert_array_equal(output[5], np.ones((256,256), dtype=np.uint8) * 255)
-        np.testing.assert_array_equal(output[6], np.ones((256,256), dtype=np.uint8) * 255)
-
-    """
-    augmentation.py
-    """
-
-    def test_image_augmentation_ImageNoise(self):
+    def test_image_noise(self):
 
         test_image = np.random.randint(0, 255, (256,256), dtype=np.uint8)
 
-        with GraphBuilder() as graph:
+        with Graph() as graph:
             n0 = Constant(test_image)
-            n1 = Constant(value=0.0)
-            n2 = Constant(value=0.25)
-            o0 = ImageNoise(source=n0, amount=n1)
-            o1 = ImageNoise(source=n0, amount=n2)
-            outputs(o0, o1)
+            n1 = ImageNoise(n0, 0.25)
+            outputs(n0, n1)
 
         pipeline = Compiler().build(graph)
         output = pipeline.run(1)
@@ -175,16 +78,14 @@ class Tests(unittest.TestCase):
         np.testing.assert_array_equal(output[0], test_image)
         assert not np.array_equal(output[1], test_image)
 
-    def test_image_augmentation_ImageBrightness(self):
+    def test_image_brightness(self):
 
         test_image = np.random.randint(0, 254, (256,256), dtype=np.uint8)
 
-        with GraphBuilder() as graph:
+        with Graph() as graph:
             n0 = Constant(test_image)
-            n1 = Constant(value=0)
-            n2 = Constant(value=1)
-            o0 = ImageBrightness(source=n0, amount=n1)
-            o1 = ImageBrightness(source=n0, amount=n2)
+            o0 = ImageBrightness(n0, 0)
+            o1 = ImageBrightness(n0, 1)
             outputs(o0, o1)
 
         pipeline = Compiler().build(graph)
@@ -192,14 +93,14 @@ class Tests(unittest.TestCase):
 
         self.assertIsInstance(output[0], np.ndarray)
         self.assertIsInstance(output[1], np.ndarray)
-        np.testing.assert_array_equal(output[0], test_image)
-        np.testing.assert_array_equal(output[1], test_image + 1)
+        np.testing.assert_array_equal(output[0], clamp_uint8(test_image))
+        np.testing.assert_array_equal(output[1], clamp_uint8(test_image + 1))
 
-    def test_image_augmentation_ImagePiecewiseAffine(self):
+    def test_image_piecewise_affine(self):
 
         test_image = np.random.randint(0, 255, (256,256), dtype=np.uint8)
 
-        with GraphBuilder() as graph:
+        with Graph() as graph:
             n0 = Constant(test_image)
             o0 = ImagePiecewiseAffine(n0, 1.5, 4)
             outputs(o0)
@@ -210,31 +111,13 @@ class Tests(unittest.TestCase):
         self.assertIsInstance(output[0], np.ndarray)
         assert not np.array_equal(output[0], test_image)
 
-    """
-    filter.py
-    """
+class TestsFiltering(unittest.TestCase):
 
-    """
-    def test_image_filter_GaussianFunction(self):
-
-        # TODO FIX Operation missing
-
-        with GraphBuilder() as graph:
-            o1 = GaussianFunction(size_x=256, size_y=256, mean_x=0.5, mean_y=0.5, sigma_x=1.0, sigma_y=1.0)
-            outputs(o1)
-
-        pipeline = Compiler().build(graph)
-        output = pipeline.run(1)
-
-        self.assertEqual(output[0].shape[0], 256)   
-        self.assertEqual(output[0].shape[1], 256)   
-    """
-
-    def test_image_filter_GaussianFilter(self):
+    def test_gaussian_filter(self):
 
         test_image = np.random.randint(0, 255, (256,256), dtype=np.uint8)
 
-        with GraphBuilder() as graph:
+        with Graph() as graph:
             n0 = Constant(test_image)
             o0 = GaussianFilter(source=n0, size_x=3, size_y=3)
             o1 = GaussianFilter(source=n0, size_x=5, size_y=5)
@@ -250,11 +133,11 @@ class Tests(unittest.TestCase):
         assert not np.array_equal(output[2], test_image)
         assert not np.array_equal(output[3], test_image)
 
-    def test_image_filter_MedianBlur(self):
+    def test_median_blur(self):
 
         test_image = np.random.randint(0, 255, (256,256), dtype=np.uint8)
 
-        with GraphBuilder() as graph:
+        with Graph() as graph:
             n0 = Constant(test_image)
             o0 = MedianBlur(source=n0, size=3)
             o1 = MedianBlur(source=n0, size=5)
@@ -270,11 +153,11 @@ class Tests(unittest.TestCase):
         assert not np.array_equal(output[2], test_image)
         assert not np.array_equal(output[3], test_image)
 
-    def test_image_filter_AverageFilter(self):
+    def test_average_filter(self):
 
         test_image = np.random.randint(0, 255, (256,256), dtype=np.uint8)
 
-        with GraphBuilder() as graph:
+        with Graph() as graph:
             n0 = Constant(test_image)
             o0 = AverageFilter(n0, 3, 1)
             o1 = AverageFilter(n0, 5, 5)
@@ -290,11 +173,11 @@ class Tests(unittest.TestCase):
         assert not np.array_equal(output[2], test_image)
         assert not np.array_equal(output[3], test_image)
 
-    def test_image_filter_BilateralFilter(self):
+    def test_bilateral_filter(self):
 
         test_image = np.random.randint(0, 255, (256,256), dtype=np.uint8)
 
-        with GraphBuilder() as graph:
+        with Graph() as graph:
             n0 = Constant(test_image)
             o0 = BilateralFilter(source=n0, diameter=3, sigma_color=1.0, sigma_space=2.0)
             o1 = BilateralFilter(source=n0, diameter=5, sigma_color=2.0, sigma_space=1.0)
@@ -310,7 +193,7 @@ class Tests(unittest.TestCase):
         assert not np.array_equal(output[2], test_image)
         assert not np.array_equal(output[3], test_image)
 
-    def test_image_filter_LinearFilter(self):
+    def test_linear_filter(self):
 
         test_image = np.random.randint(0, 255, (256,256), dtype=np.uint8)
         test_kernel_0 = np.ones((1,1), dtype=np.uint8)
@@ -318,7 +201,7 @@ class Tests(unittest.TestCase):
         test_kernel_2 = np.ones((5,5), dtype=np.uint8)
         test_kernel_3 = np.ones((6,6), dtype=np.uint8)
 
-        with GraphBuilder() as graph:
+        with Graph() as graph:
             n0 = Constant(test_image)
             n1 = Constant(test_kernel_0)
             n2 = Constant(test_kernel_1)
@@ -338,15 +221,13 @@ class Tests(unittest.TestCase):
         assert not np.array_equal(output[2], test_image)
         assert not np.array_equal(output[3], test_image)
 
-    """
-    geometry.py
-    """
+class TestsGeometry(unittest.TestCase):
 
-    def test_image_geometry_Scale(self):
+    def test_image_scale(self):
 
         test_image = np.random.randint(0, 255, (256,256), dtype=np.uint8)
 
-        with GraphBuilder() as graph:
+        with Graph() as graph:
             n0 = Constant(test_image)
             o0 = Scale(source=n0, scale=0.25)
             o1 = Scale(source=n0, scale=0.5)
@@ -365,11 +246,11 @@ class Tests(unittest.TestCase):
         self.assertEqual(output[3].shape[0], 512)   
         self.assertEqual(output[4].shape[0], 1024)   
 
-    def test_image_geometry_Rotate(self):
+    def test_image_rotate(self):
 
         test_image = np.random.randint(0, 255, (256,256), dtype=np.uint8)
 
-        with GraphBuilder() as graph:
+        with Graph() as graph:
             n0 = Constant(test_image)
             r_0_0 = Rotate90(source=n0, clockwise=-1)
             r_0_1 = Rotate90(source=r_0_0, clockwise=-1)
@@ -400,11 +281,11 @@ class Tests(unittest.TestCase):
         np.testing.assert_array_equal(output[4], test_image)
         np.testing.assert_array_equal(output[5], test_image)
 
-    def test_image_geometry_Flip(self):
+    def test_image_flip(self):
 
         test_image = np.random.randint(0, 255, (256,256), dtype=np.uint8)
 
-        with GraphBuilder() as graph:
+        with Graph() as graph:
             n0 = Constant(test_image)
             f0 = Flip(n0, True, True)
             o0 = Flip(f0, True, True)
@@ -421,11 +302,11 @@ class Tests(unittest.TestCase):
         np.testing.assert_array_equal(output[1], test_image)
         np.testing.assert_array_equal(output[2], test_image)
 
-    def test_image_geometry_Resize(self):
+    def test_image_resize(self):
 
         test_image = np.random.randint(0, 255, (256,256), dtype=np.uint8)
 
-        with GraphBuilder() as graph:
+        with Graph() as graph:
             n0 = Constant(test_image)
             o0 = Resize(source=n0, width=256, height=256)
             o1 = Resize(source=n0, width=128, height=128)
@@ -446,13 +327,13 @@ class Tests(unittest.TestCase):
         self.assertEqual(output[3].shape[0], 256)  
         self.assertEqual(output[3].shape[1], 128)  
 
-    def test_image_geometry_MaskBoundingBox(self):
+    def test_image_mask_bounds(self):
 
         test_image_0 = np.random.randint(0, 255, (64,64), dtype=np.uint8)
         test_image_1 = np.random.randint(0, 255, (128,128), dtype=np.uint8)
         test_image_2 = np.random.randint(0, 255, (256,256), dtype=np.uint8)
 
-        with GraphBuilder() as graph:
+        with Graph() as graph:
             n0 = Constant(test_image_0)
             n1 = Constant(test_image_1)
             n2 = Constant(test_image_2)
@@ -471,18 +352,18 @@ class Tests(unittest.TestCase):
         np.testing.assert_array_equal(output[2], output[3])
         np.testing.assert_array_equal(output[4], output[5])
 
-    def test_image_geometry_ImageCrop(self):
+    def test_image_crop(self):
 
         test_image = np.random.randint(0, 255, (256,256), dtype=np.uint8)
 
-        with GraphBuilder() as graph:
+        with Graph() as graph:
             n0 = Constant(test_image)
             n1 = MakeRectangle(x1=0, x2=256, y1=0, y2=256)
             n2 = MakeRectangle(x1=64, x2=192, y1=64, y2=192)
             n3 = MakeRectangle(x1=65, x2=193, y1=65, y2=193)
-            o0 = ImageCrop(n0, bbox=n1)
-            o1 = ImageCrop(n0, bbox=n2)
-            o2 = ImageCrop(n0, bbox=n3)
+            o0 = ImageCrop(n0, n1)
+            o1 = ImageCrop(n0, n2)
+            o2 = ImageCrop(n0, n3)
             outputs(o0, o1, o2)
 
         pipeline = Compiler().build(graph)
@@ -497,18 +378,16 @@ class Tests(unittest.TestCase):
     # TODO ViewImage
     # TODO ImageRemap
 
-    """
-    image.py
-    """
+class TestsImage(unittest.TestCase):
 
-    def test_image_image_ConstantImage(self):
+    def test_constants(self):
 
         test_image_gray_0 = np.random.randint(0, 255, (256,256), dtype=np.uint8)
         test_image_gray_1 = np.random.random_sample((256,256)).astype(dtype=np.float32)
         test_image_rgb_0 = np.random.randint(0, 255, (256,256,3), dtype=np.uint8)
         test_image_rgb_1 = np.random.random_sample((256,256,3)).astype(dtype=np.float32)
 
-        with GraphBuilder() as graph:
+        with Graph() as graph:
             o0 = Constant(test_image_gray_0)
             o1 = Constant(test_image_gray_1)
             o2 = Constant(test_image_rgb_0)
@@ -523,8 +402,7 @@ class Tests(unittest.TestCase):
         np.testing.assert_array_equal(output[2], test_image_rgb_0)
         np.testing.assert_array_equal(output[3], test_image_rgb_1)
 
-    def test_image_image_ConstantImageList(self):
-
+    def test_constat_list(self):
         from ..list import ListElement
 
         test_image_list = [
@@ -532,7 +410,7 @@ class Tests(unittest.TestCase):
             np.random.randint(0, 255, (256,256), dtype=np.uint8)
         ]
 
-        with GraphBuilder() as graph:
+        with Graph() as graph:
             o0 = Constant(test_image_list)
             outputs(ListElement(o0, 0), ListElement(o0, 1))
 
@@ -542,33 +420,17 @@ class Tests(unittest.TestCase):
         np.testing.assert_array_equal(output[0], test_image_list[0])
         np.testing.assert_array_equal(output[1], test_image_list[1])
 
-    def test_image_image_ImageList(self):
-        
-        import os
-        from pixelpipes.resource.loading import ImageDirectory
-
-        example_images = os.path.join(os.path.dirname(os.path.dirname(pixelpipes.__file__)), "examples", "images")
-
-        with GraphBuilder() as graph:
-            l = ImageDirectory(path=example_images)
-            outputs(GetElement(GetResource(l, 0), "image"))
-
-        pipeline = Compiler().build(graph)
-        output = pipeline.run(1)
-
-        self.assertIsInstance(output[0], np.ndarray)
-
-    def test_image_image_GetImageProperties(self):
+    def test_image_properties(self):
         
         test_image = np.random.randint(0, 255, (256,256), dtype=np.uint8)
 
-        with GraphBuilder() as graph:
+        with Graph() as graph:
             n0 = Constant(test_image)
             n1 = GetImageProperties(n0)
-            o0 = GetElement(n1, element="width")
-            o1 = GetElement(n1, element="height")
-            o2 = GetElement(n1, element="channels")
-            o3 = GetElement(n1, element="depth")
+            o0 = n1["width"]
+            o1 = n1["height"]
+            o2 = n1["channels"]
+            o3 = n1["depth"]
             outputs(o0, o1, o2, o3)
 
         pipeline = Compiler().build(graph)
@@ -579,13 +441,13 @@ class Tests(unittest.TestCase):
         self.assertEqual(output[2], 1)
         self.assertEqual(output[3], 8)
 
-    def test_image_image_ConvertDepth(self):
+    def test_image_depth(self):
 
         test_image = np.random.randint(0, 255, (256,256), dtype=np.uint8)
 
-        with GraphBuilder() as graph:
+        with Graph() as graph:
             n0 = Constant(test_image)
-            o0 = ConvertDepth(n0, depth="Byte")
+            o0 = ConvertDepth(n0, depth="UByte")
             o1 = ConvertDepth(n0, depth="Short")
             o2 = ConvertDepth(n0, depth="Float")
             o3 = ConvertDepth(n0, depth="Integer")
@@ -595,11 +457,11 @@ class Tests(unittest.TestCase):
         output = pipeline.run(1)
 
         self.assertIs(output[0].dtype, np.dtype('uint8'))
-        self.assertIs(output[1].dtype, np.dtype('uint16'))
+        self.assertIs(output[1].dtype, np.dtype('int16'))
         self.assertIs(output[2].dtype, np.dtype('float32'))
         self.assertIs(output[3].dtype, np.dtype('int32'))
 
-    def test_image_image_Grayscale(self):
+    def test_grayscale(self):
   
         test_image_gray = np.random.randint(1, 254, (256,256), dtype=np.uint8)
         test_image_rgb = np.ndarray((256,256,3), dtype=np.uint8)
@@ -607,7 +469,7 @@ class Tests(unittest.TestCase):
         test_image_rgb[:,:,1] = test_image_gray 
         test_image_rgb[:,:,2] = test_image_gray + 1
 
-        with GraphBuilder() as graph:
+        with Graph() as graph:
             n0 = Constant(test_image_rgb)
             o0 = Grayscale(n0)
             outputs(o0)
@@ -617,11 +479,11 @@ class Tests(unittest.TestCase):
 
         np.testing.assert_array_equal(output[0], test_image_gray)
 
-    def test_image_image_Threshold(self):
+    def test_image_threshold(self):
 
         test_image = np.random.randint(0, 255, (256,256), dtype=np.uint8)
 
-        with GraphBuilder() as graph:
+        with Graph() as graph:
             n0 = Constant(test_image)
             o0 = Threshold(n0, threshold=200)
             o1 = Threshold(n0, threshold=100)
@@ -639,11 +501,11 @@ class Tests(unittest.TestCase):
         np.testing.assert_array_equal(output[0], temp_0)
         np.testing.assert_array_equal(output[1], temp_1)
 
-    def test_image_image_Invert(self):
+    def test_image_invert(self):
 
         test_image = np.random.randint(0, 255, (256,256), dtype=np.uint8)
 
-        with GraphBuilder() as graph:
+        with Graph() as graph:
             n0 = Constant(test_image)
             o0 = Invert(n0)
             outputs(o0)
@@ -653,11 +515,11 @@ class Tests(unittest.TestCase):
 
         np.testing.assert_array_equal(output[0], 255 - test_image)
 
-    def test_image_image_Equals(self):
+    def test_image_equals(self):
 
         test_image = np.random.randint(0, 255, (256,256), dtype=np.uint8)
 
-        with GraphBuilder() as graph:
+        with Graph() as graph:
             n0 = Constant(test_image)
             o0 = Equals(n0, value=128)
             outputs(o0)
@@ -670,11 +532,11 @@ class Tests(unittest.TestCase):
         temp[temp==128] = 255
         np.testing.assert_array_equal(output[0], temp)
 
-    def test_image_image_Channel(self):
+    def test_image_channel(self):
 
         test_image = np.random.randint(0, 255, (256,256,3), dtype=np.uint8)
 
-        with GraphBuilder() as graph:
+        with Graph() as graph:
             n0 = Constant(test_image)
             o0 = Channel(n0, index=0)
             o1 = Channel(n0, index=1)
@@ -688,11 +550,11 @@ class Tests(unittest.TestCase):
         np.testing.assert_array_equal(output[1], test_image[..., 1])
         np.testing.assert_array_equal(output[2], test_image[..., 2])
 
-    def test_image_image_Merge(self):
+    def test_image_merge(self):
 
         test_image = np.random.randint(0, 255, (4,4,3), dtype=np.uint8)
 
-        with GraphBuilder() as graph:
+        with Graph() as graph:
             n0 = Constant(test_image[..., 0])
             n1 = Constant(test_image[..., 1])
             n2 = Constant(test_image[..., 2])
@@ -706,12 +568,12 @@ class Tests(unittest.TestCase):
         np.testing.assert_array_equal(output[0], test_image)
 
 
-    def test_image_image_Moments(self):
+    def test_image_moments(self):
 
         m_int = np.random.randint(0, 255, (10,10), dtype=np.uint8)
         m_bin = np.random.randint(0, 1, (10,10), dtype=np.uint8)
 
-        with GraphBuilder() as graph:
+        with Graph() as graph:
             n0 = Constant(m_int)
             n1 = Constant(m_bin)
             o0 = Moments(n0, binary=False)
@@ -733,16 +595,14 @@ class Tests(unittest.TestCase):
         np.testing.assert_array_equal(output[0], moments_int)
         np.testing.assert_array_equal(output[1], moments_bin)
 
-    """
-    processing.py
-    """
+class TestsProcessing(unittest.TestCase):
 
-    def test_image_processing_ImageBlend(self):
+    def test_image_blend(self):
 
         test_image_0 = np.random.randint(0, 255, (256,256), dtype=np.uint8)
         test_image_1 = np.random.randint(0, 255, (256,256), dtype=np.uint8)
 
-        with GraphBuilder() as graph:
+        with Graph() as graph:
             n0 = Constant(test_image_0)
             n1 = Constant(test_image_1)
             o0 = ImageBlend(n0, n0, alpha=0.25)
@@ -758,11 +618,11 @@ class Tests(unittest.TestCase):
         np.testing.assert_array_equal(output[1], blend.round().astype(np.uint8))
         np.testing.assert_array_equal(output[2], test_image_0)
 
-    def test_image_processing_ImageDropout(self):
+    def test_dropout(self):
 
         test_image = np.random.randint(0, 255, (256,256), dtype=np.uint8)
 
-        with GraphBuilder() as graph:
+        with Graph() as graph:
             n0 = Constant(test_image)
             o0 = ImageDropout(source=n0, probability=0.5)
             outputs(o0)
@@ -772,13 +632,13 @@ class Tests(unittest.TestCase):
 
         assert not np.array_equal(output[0], test_image)
 
-    def test_image_processing_ImageCoarseDropout(self):
+    def test_coarse_dropout(self):
 
         test_image = np.random.randint(0, 255, (256,256), dtype=np.uint8)
 
-        with GraphBuilder() as graph:
+        with Graph() as graph:
             n0 = Constant(test_image)
-            o0 = ImageCoarseDropout(source=n0, probability=0.5, size_percent=0.5)
+            o0 = ImageCoarseDropout(source=n0, probability=0.5, size=0.5)
             outputs(o0)
 
         pipeline = Compiler().build(graph)
@@ -786,16 +646,16 @@ class Tests(unittest.TestCase):
 
         assert not np.array_equal(output[0], test_image)
 
-    def test_image_processing_ImageCut(self):
+    def test_cut(self):
 
         test_image = np.random.randint(0, 255, (256,256), dtype=np.uint8)
 
-        with GraphBuilder() as graph:
+        with Graph() as graph:
             n0 = Constant(test_image)
             n1 = MakeRectangle(x1=0, x2=64, y1=0, y2=64)
             n2 = MaskBoundingBox(source=n0)
-            o0 = ImageCut(n0, bbox=n1)
-            o1 = ImageCut(n0, bbox=n2)
+            o0 = ImageCut(n0, n1)
+            o1 = ImageCut(n0, n2)
             outputs(o0, o1)
 
         pipeline = Compiler().build(graph)
@@ -806,11 +666,11 @@ class Tests(unittest.TestCase):
         test_image[:, :] = 0
         np.testing.assert_array_equal(output[1], test_image)
 
-    def test_image_processing_ImageSolarize(self):
+    def test_solarize(self):
 
         test_image = np.random.randint(0, 255, (256,256), dtype=np.uint8)
 
-        with GraphBuilder() as graph:
+        with Graph() as graph:
             n0 = Constant(test_image)
             o0 = ImageSolarize(source=n0, threshold=-1)
             o1 = ImageSolarize(source=n0, threshold=255)
@@ -823,13 +683,11 @@ class Tests(unittest.TestCase):
         np.testing.assert_array_equal(output[0], max_val - test_image + 1)
         np.testing.assert_array_equal(output[1], test_image)
 
-    """
-    render.py
-    """
+class TestsRender(unittest.TestCase):
 
-    def test_image_render_NormalNoise(self):
+    def test_normal_noise(self):
 
-        with GraphBuilder() as graph:
+        with Graph() as graph:
             o0 = NormalNoise(width=10, height=10, mean=0.5, std=0.05)  
             outputs(o0)
 
@@ -839,9 +697,9 @@ class Tests(unittest.TestCase):
         self.assertIsInstance(output[0], np.ndarray)
         self.assertEqual(output[0].shape, (10, 10))
 
-    def test_image_render_UniformNoise(self):
+    def test_uniform_noise(self):
 
-        with GraphBuilder() as graph:
+        with Graph() as graph:
             o0 = UniformNoise(width=10, height=10, min=0.0, max=1.0)
             outputs(o0)
 
@@ -851,9 +709,9 @@ class Tests(unittest.TestCase):
         self.assertIsInstance(output[0], np.ndarray)
         self.assertEqual(output[0].shape, (10, 10))
 
-    def test_image_render_LinearImage(self):
+    def test_linear_image(self):
 
-        with GraphBuilder() as graph:
+        with Graph() as graph:
             h = LinearImage(100, 50, 1, 50, flip=False)
             v = LinearImage(100, 50, 1, 50, flip=True)
             outputs(h, v)

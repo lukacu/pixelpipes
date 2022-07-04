@@ -29,7 +29,7 @@ PYBIND11_DECLARE_HOLDER_TYPE(T, pixelpipes::Pointer<T>)
 // array.cpp
 TokenReference wrap_tensor(const py::object &src);
 py::object extract_tensor(const TokenReference &src);
-TokenReference wrap_tensor_list(const py::object &src);
+//TokenReference wrap_tensor_list(const py::object &src);
 
 /*class PyPipelineCallback : public PipelineCallback
 {
@@ -162,7 +162,7 @@ py::array token_to_python(const pixelpipes::TokenReference &variable)
         return py::reinterpret_steal<py::array>(handle);
     }
 
-    return py::none();
+    throw py::value_error(Formatter() << "Unable to convert token to Python:"  << variable);
 }
 
 TokenReference wrap_dnf_clause(py::object src)
@@ -192,18 +192,51 @@ TokenReference wrap_dnf_clause(py::object src)
     return empty();
 }
 
-#define _CONVERT_VECTOR(src, elem)                                    \
-    try                                                               \
-    {                                                                 \
-        auto list = Sequence<elem>(py::cast<std::vector<elem>>(src)); \
-        return create<Vector<elem>>(make_span(list));                 \
-    }                                                                 \
-    catch (...)                                                       \
-    {                                                                 \
+template <typename T, typename C>
+TokenReference _python_list_convert_strict(const py::list &list)
+{
+
+    if (list.size() == 0)
+    {
+        return empty();
+    }
+
+    if (!C::check_(list[0]))
+    {
+        return empty();
+    }
+
+    auto clist = Sequence<T>(list.size());
+
+    for (size_t i = 0; i < list.size(); i++)
+    {
+        if (!C::check_(list[i]))
+            return empty();
+
+        clist[i] = py::cast<T>(list[i]);
+    }
+
+    return wrap(clist);
+}
+
+#define _CONVERT_VECTOR(src, elem)                                     \
+    try                                                                \
+    {                                                                  \
+        auto list = Sequence<elem>(py::cast < std::vector<elem>>(src)); \
+                                                                       \
+        return create<Vector<elem>>(make_span(list));                  \
+    }                                                                  \
+    catch (...)                                                        \
+    {                                                                  \
     }
 
 TokenReference python_to_token(py::object src)
 {
+    if (py::bool_::check_(src))
+    {
+        py::bool_ value(src);
+        return create<BooleanScalar>(value);
+    }
 
     if (py::int_::check_(src))
     {
@@ -223,19 +256,17 @@ TokenReference python_to_token(py::object src)
         return create<String>(str);
     }
 
-    if (py::bool_::check_(src))
-    {
-        py::bool_ value(src);
-        return create<BooleanScalar>(value);
-    }
-
     if (py::list::check_(src))
     {
+        auto pylist = py::list(src);
+        TokenReference r = _python_list_convert_strict<bool, py::bool_>(pylist);
+        if (r) {
+            return r;
+        }
 
+        _CONVERT_VECTOR(src, char);
         _CONVERT_VECTOR(src, int);
         _CONVERT_VECTOR(src, float);
-        _CONVERT_VECTOR(src, bool);
-        _CONVERT_VECTOR(src, char);
 
         try
         {
@@ -274,23 +305,6 @@ TokenReference python_to_token(py::object src)
     throw py::value_error("Unable to convert Python data");
 }
 
-/*
-template <typename T>
-TokenReference wrap_table(py::object src) {
-
-    if (py::list::check_(src)) {
-        try {
-
-            auto data = py::cast<std::vector<std::vector<T>>>(src);
-            return std::make_shared<Table<T>>(data);
-
-        } catch(...) {}
-    }
-
-    return empty<Table<T>>();
-
-}*/
-
 template <typename T>
 int _add_operation(T &pipeline, std::string &name, py::list args, std::vector<int> inputs)
 {
@@ -322,7 +336,7 @@ PYBIND11_MODULE(pypixelpipes, m)
 {
 
     if (_import_array() < 0)
-    { 
+    {
         throw py::error_already_set();
     }
 
@@ -391,11 +405,11 @@ PYBIND11_MODULE(pypixelpipes, m)
                     result = p.run(index);
                 }
 
-                std::vector<py::object> transformed;
-                for (auto element = result.begin(); element != result.end(); element++) {
-                        transformed.push_back(token_to_python(*element));
+                py::tuple transformed(result.size());
+                size_t i = 0;
+                for (auto element = result.begin(); element != result.end(); element++, i++) {
+                        transformed[i] = (token_to_python(*element));
                 }
-
                 return transformed; },
             "Run pipeline", py::arg("index"));
 

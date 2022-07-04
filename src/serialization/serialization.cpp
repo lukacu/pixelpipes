@@ -262,11 +262,13 @@ namespace pixelpipes
             case IntegerIdentifier:
                 return create<IntegerScalar>(read_t<int>(source));
             case CharIdentifier:
-                return create<CharScalar>(read_t<char>(source));
-            case FloatIdentifier:
-                return create<FloatScalar>(read_t<float>(source));
+                return create<CharScalar>(read_t<uchar>(source));
             case ShortIdentifier:
                 return create<ShortScalar>(read_t<short>(source));
+            case UShortIdentifier:
+                return create<ShortScalar>(read_t<ushort>(source));
+            case FloatIdentifier:
+                return create<FloatScalar>(read_t<float>(source));
             case BooleanIdentifier:
                 return create<BooleanScalar>(read_t<bool>(source));
             }
@@ -333,6 +335,11 @@ namespace pixelpipes
                 else if (shape.element() == ShortIdentifier)
                 {
                     write_t(drain, extract<short>(token));
+                    return;
+                }
+                else if (shape.element() == UShortIdentifier)
+                {
+                    write_t(drain, extract<ushort>(token));
                     return;
                 }
                 else if (shape.element() == BooleanIdentifier)

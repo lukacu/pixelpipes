@@ -1,87 +1,91 @@
 
+import unittest
 
+import numpy as np
 
 from .points import PointsBounds, PointsCenter, PointsFromRectangle
-from ..graph import GraphBuilder, Copy, Node, Input, Macro
+from ..graph import Operation, Input, Macro, Graph, outputs
 from ..list import ListElement
 
 from .. import types
-from .types import Rectangle
 
-class MakeRectangle(Node): 
-    """Make Rectangle
-    
+class MakeRectangle(Operation): 
+    """
     Creates a bounding box from four values.
-    
-    Category: Rectangle
     """
 
-    x1 = Input(types.Integer())
-    y1 = Input(types.Integer())
-    x2 = Input(types.Integer())
-    y2 = Input(types.Integer())
+    x1 = Input(types.Integer(), description="Left")
+    y1 = Input(types.Integer(), description="Top")
+    x2 = Input(types.Integer(), description="Right")
+    y2 = Input(types.Integer(), description="Bottom")
 
     def operation(self):
         return "make_rectangle",
 
-    def _output(self):
-        return Rectangle()
+    def infer(self, **inputs):
+        return types.Rectangle()
 
 class ResizeRectangle(Macro):
-    """Resize Rectangle
-    
+    """
     Scales existing rectangle by a factor.
-
-    Inputs:
-        - source: A rectangle type
-        - factor: Scaling factor
-
-    Category: Rectangle
     """
 
-    source = Input(Rectangle())
+    source = Input(types.Rectangle())
     factor = Input(types.Float())
 
-    def _output(self) -> types.Type:
-        return Rectangle()
-
-    def expand(self, inputs, parent: str):
-        
-        with GraphBuilder(prefix=parent) as builder:
-            points = PointsFromRectangle(inputs["source"])
-            center = PointsCenter(points)
-
-            points = ((points - center) * inputs["factor"]) + center
-
-            PointsBounds(points, _name=parent)
-
-        return builder.nodes()
+    def expand(self, source, factor):
+        points = PointsFromRectangle(source)
+        center = PointsCenter(points)
+        points = ((points - center) * factor) + center
+        return PointsBounds(points)
 
 class RectangleArea(Macro):
-    """Rectangle Area
-    
+    """
     Calculates and area under rectangle.
-
-    Inputs:
-        - source: A rectangle type
-
-    Category: Rectangle
     """
 
-    source = Input(Rectangle())
+    source = Input(types.Rectangle())
 
-    def _output(self) -> types.Type:
-        return types.Float()
+    def expand(self, source):
+        x1 = ListElement(source, 0)
+        y1 = ListElement(source, 1)
+        x2 = ListElement(source, 2)
+        y2 = ListElement(source, 3)
+        return ((x2 - x1) * (y2 - y1))
 
-    def expand(self, inputs, parent: str):
-        
-        with GraphBuilder(prefix=parent) as builder:
-            x1 = ListElement(inputs["source"], 0)
-            y1 = ListElement(inputs["source"], 1)
-            x2 = ListElement(inputs["source"], 2)
-            y2 = ListElement(inputs["source"], 3)
+class Tests(unittest.TestCase):    
 
-            
-            Copy((x2 - x1) * (y2 - y1), _name = parent )
+    def test_make_rectangle(self):
+        from ..compiler import Compiler
 
-        return builder.nodes()
+        with Graph() as graph:
+            outputs(MakeRectangle(0, 0, 10, 10))
+
+        pipeline = Compiler().build(graph)
+        output = pipeline.run(1)
+
+        np.testing.assert_equal(output[0], np.array([0, 0, 10, 10]))    
+
+    def test_rectangle_resize(self):
+        from ..compiler import Compiler
+
+        with Graph() as graph:
+            r = MakeRectangle(0, 10, 10, 20)
+            outputs(ResizeRectangle(r, 2))
+
+        pipeline = Compiler(debug=True).build(graph)
+        output = pipeline.run(1)
+
+        np.testing.assert_equal(output[0], np.array([-5, 5, 15, 25]))
+
+    def test_rectangle_area(self):
+        from ..compiler import Compiler
+
+        with Graph() as graph:
+            r = MakeRectangle(0, 10, 10, 20)
+            outputs(RectangleArea(r))
+
+        pipeline = Compiler().build(graph)
+        output = pipeline.run(1)
+
+        np.testing.assert_equal(output[0], 100)

@@ -1,157 +1,86 @@
 
-from ..graph import Input, Node, SeedInput
+from ..graph import Input, SeedInput, Operation
 from .. import types
-from ..geometry.types import BoundingBox
 
-class ImageBlend(Node):
+class ImageBlend(Operation):
     """Image blend
 
     Blends two images with weight defined by alpha.
-
-    Inputs:
-        - source1: source image 1
-        - source2: source image 2
-        - alpha: alpha value between 0 and 1
-
-    Category: image, blend
-    Tags: image
     """
 
-    source1 = Input(types.Image())
-    source2 = Input(types.Image())
-    alpha = Input(types.Float())
+    a = Input(types.Image(), description="Image A")
+    b = Input(types.Image(), description="Image B")
+    alpha = Input(types.Float(), description="Alpha value between 0 and 1")
 
     def operation(self):
         return "opencv:blend",
 
-    def validate(self, **inputs):
-        super().validate(**inputs)
-
-        source1 = inputs["source1"]
-
-        return types.Image(source1.width, source1.height, source1.channels, source1.depth)
+    def infer(self, a, b, alpha):
+        return types.Image(a[1], a[0], a[2], a.element)
 
 
-class ImageNormalize(Node):
+class ImageNormalize(Operation):
+    """Normalizes values between a range determined by the type of image elements, for integer types this is
+    min-max, for float it is 0 and 1.
+    """
 
-    source = Input(types.Image())
+    source = Input(types.Image(), description="Input image")
 
     def operation(self):
         return "opencv:normalize",
 
-    def validate(self, **inputs):
-        super().validate(**inputs)
+    def infer(self, source):
+        return types.Image(source[1], source[0], source[2], source.element)
 
-        source = inputs["source"]
+class ImageDropout(Operation):
+    """Sets image pixels to zero with probability p."""
 
-        return types.Image(source.width, source.height, source.channels, source.depth)
-
-class ImageDropout(Node):
-    """Image dropout
-
-    Sets image pixels to zero with probability p.
-
-    Inputs:
-        - source: source image
-        - probability: probability between 0 and 1
-
-    Category: image, other
-    Tags: image
-    """
-
-    source = Input(types.Image())
-    probability = Input(types.Float())
+    source = Input(types.Image(), description="Input image")
+    probability = Input(types.Float(), description="Dropout probability between 0 and 1")
     seed = SeedInput()
 
     def operation(self):
         return "opencv:dropout",
 
-    def validate(self, **inputs):
-        super().validate(**inputs)
+    def infer(self, source, probability, seed):
+        return types.Image(source[1], source[0], source[2], source.element)
 
-        source = inputs["source"]
-
-        return types.Image(source.width, source.height, source.channels, source.depth)
-
-class ImageCoarseDropout(Node):
-    """Image coarse dropout
-
-    Divides an image into patches and cuts them with probability p.
-
-    Inputs:
-        - source: source image
-        - probability: probability between 0 and 1
-        - size_percent: patch size of p percent of image size
-
-    Category: image, other
-    Tags: image
+class ImageCoarseDropout(Operation):
+    """Divides an image into patches and cuts them with probability p.
     """
 
-    source = Input(types.Image())
-    probability = Input(types.Float())
-    size_percent = Input(types.Float())
+    source = Input(types.Image(), description="Source image")
+    probability = Input(types.Float(), description="Dropput probability between 0 and 1")
+    size = Input(types.Float(), description="Patch size of p percent of image size")
     seed = SeedInput()
 
     def operation(self):
         return "opencv:coarse_dropout",
 
-    def validate(self, **inputs):
-        super().validate(**inputs)
+    def infer(self, source, probability, size, seed):
+        return types.Image(source[1], source[0], source[2], source.element)
 
-        source = inputs["source"]
-
-        return types.Image(source.width, source.height, source.channels, source.depth)
-
-
-
-class ImageCut(Node):
-    """Image cut
-
-    Cut a patch of an image defined by a bounding box.
-
-    Inputs:
-        - source: source image
-        - bbox: bounding box
-
-    Category: image, other
-    Tags: image
+class ImageCut(Operation):
+    """Sets a given rectangular region in an image to zero.
     """
 
-    source = Input(types.Image())
-    bbox = Input(BoundingBox())
+    source = Input(types.Image(), description="Input image")
+    region = Input(types.Rectangle(), description="Region rectangle")
 
     def operation(self):
         return "opencv:cut",
 
-    def validate(self, **inputs):
-        super().validate(**inputs)
+    def infer(self, source, region):
+        return types.Image(source[1], source[0], source[2], source.element)
 
-        source = inputs["source"]
+class ImageSolarize(Operation):
+    """Invert all values above a threshold in images."""
 
-        return types.Image(source.width, source.height, source.channels, source.depth)
-
-class ImageSolarize(Node):
-    """Image solarize
-
-    Invert all values above a threshold in images.
-
-    Inputs:
-        - source: source image
-        - threshold: threshold value
-
-    Category: image, other
-    Tags: image
-    """
-
-    source = Input(types.Image(channels=1))
-    threshold = Input(types.Float())
+    source = Input(types.Image(channels=1), description="Source image")
+    threshold = Input(types.Float(), description="Threshold value")
 
     def operation(self):
         return "opencv:solarize",
 
-    def validate(self, **inputs):
-        super().validate(**inputs)
-
-        source = inputs["source"]
-
-        return types.Image(source.width, source.height, source.channels, source.depth)
+    def infer(self, source, threshold):
+        return types.Image(source[1], source[0], source[2], source.element)

@@ -1,6 +1,5 @@
 import typing
 import numbers
-from pixelpipes.graph import Graph
 
 import torch
 import numpy as np

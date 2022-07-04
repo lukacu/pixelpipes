@@ -7,6 +7,16 @@ import numpy as np
 from pixelpipes import Pipeline
 from pixelpipes.graph import Node, NodeException, Output, Reference
 
+class Counter(object):
+    """Object based counter, each time it is called it returns a value greater by 1"""
+
+    def __init__(self):
+        self._i = 0
+
+    def __call__(self) -> int:
+        self._i += 1
+        return self._i
+
 class PersistentDict:
     """ A dictionary interface to a folder, with memory caching.
     """
@@ -155,9 +165,9 @@ def _generate_outputs(out):
 
 def graph(constructor):
 
-    from pixelpipes.graph import GraphBuilder
+    from pixelpipes.graph import Graph
     def wrapper(*args, **kwargs):
-        with GraphBuilder() as builder:
+        with Graph() as builder:
             _generate_outputs(constructor(*args, **kwargs))
         return builder.graph()
 
@@ -166,11 +176,11 @@ def graph(constructor):
 def pipeline(variables=None, fixedout=False, debug=False):
     
     from pixelpipes.compiler import Compiler
-    from pixelpipes.graph import GraphBuilder
+    from pixelpipes.graph import Graph
 
     def inner(constructor):
         def wrapper(*args, **kwargs):
-            with GraphBuilder() as builder:
+            with Graph() as builder:
                 _generate_outputs(constructor(*args, **kwargs))
             return Compiler(fixedout=fixedout, debug=debug).build(builder, variables=variables)
 

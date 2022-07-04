@@ -1,136 +1,87 @@
-from attributee import List, Number, Enumeration
 
-from . import ComparisonOperations, types
-from .graph import Node, Input, NodeException, SeedInput, hidden, BinaryOperation, UnaryOperation, Constant
+from attributee import Boolean
 
-class UniformDistribution(Node):
-    """Uniform distribution
+from . import types
+from .graph import Macro, Operation, Node, Input, SeedInput, hidden, NodeOperation, Constant
 
-    Samples values between min and max.
+class SampleUnform(Operation):
+    """Samples random value between min and max value."""
 
-    Inputs:
-        - min: Minimun value
-        - max: Maximum value
-
-    Category: numeric
-    """
-
-    min = Input(types.Float())
-    max = Input(types.Float())
+    min = Input(types.Float(), description="Minimun value")
+    max = Input(types.Float(), description="Maximum value")
     seed = SeedInput()
 
-    def _output(self) -> types.Type:
+    def infer(self, min, max, seed) -> types.Data:
         return types.Float()
 
     def operation(self):
         return "random_uniform",
 
-class NormalDistribution(Node):
-    """Normal distribution
-
-    Samples values between from normal distribution.
-
-    Inputs:
-        - mean: Mean value of normal distribution
-        - sigma: Standard deviation
-
-    Category: numeric
+class SampleNormal(Operation):
+    """Samples values between from normal distribution.
     """
 
-    mean = Input(types.Float(), default=0)
-    sigma = Input(types.Float(), default=1)
+    mean = Input(types.Float(), default=0, description="Mean value of normal distribution")
+    sigma = Input(types.Float(), default=1, description="Standard deviation")
     seed = SeedInput()
 
-    def _output(self) -> types.Type:
+    def infer(self, mean, sigma, seed) -> types.Data:
         return types.Float()
 
     def operation(self):
         return "random_normal",
 
-class Round(Node):
-    """Round
-
-    Round number to closest integer and convert to integer type.
-
-    Inputs:
-        - source: Number to be rounded
-
-    Category: numeric
+class RandomBoolean(Macro):
+    """Samples a boolean value with equal probability
     """
 
-    source = Input(types.Float())
+    seed = SeedInput()
 
-    def validate(self, **inputs):
-        super().validate(**inputs)
+    def expand(self, seed):
+        return SampleUnform(0, 1, seed) >= 0.5
 
-        if inputs["source"].value is not None:
-            return types.Integer(round(inputs["source"].value))
-        else:
-            return types.Integer()
+class Round(Operation):
+    """Round number to closest integer and convert to integer type."""
+
+    source = Input(types.Float(), description="Number to be rounded")
+
+    def infer(self, source):
+        return types.Integer()
 
     def operation(self):
         return "numbers_round",
 
-class Floor(Node):
-    """Floor
+class Floor(Operation):
+    """Floor number and convert to integer."""
 
-    Floor number and convert to integer.
+    source = Input(types.Float(), description="Number to be rounded")
 
-    Inputs:
-        - source: Number on which floor operation is performed
-
-    Category: numeric
-    """
-
-    source = Input(types.Float())
-
-    def validate(self, **inputs):
-        super().validate(**inputs)
-
-        if inputs["source"].value is not None:
-            return types.Integer(round(inputs["source"].value))
-        else:
-            return types.Integer()
+    def infer(self, source):
+        return types.Integer()
 
     def operation(self):
         return "numbers_floor",
 
-class Ceil(Node):
-    """Ceil
-
-    Ceil number and convert to integer.
-
-    Inputs:
-        - source: Number on which ceil operation is performed
-
-    Category: numeric
+class Ceil(Operation):
+    """Ceil number and convert to integer.
     """
 
-    source = Input(types.Float())
+    source = Input(types.Float(), description="Number on which ceil operation is performed")
 
-    def validate(self, **inputs):
-        super().validate(**inputs)
-
-        if inputs["source"].value is not None:
-            return types.Integer(round(inputs["source"].value))
-        else:
-            return types.Integer()
+    def infer(self, source):
+        return types.Integer()
 
     def operation(self):
         return "numbers_ceil",
 
 @hidden
-class _BinaryOperator(Node):
+class _BinaryOperator(Operation):
 
-    a = Input(types.Number())
-    b = Input(types.Number())
+    a = Input(types.Float(), description="First operand")
+    b = Input(types.Float(), description="Second operand")
 
-    def validate(self, **inputs):
-        super().validate(**inputs)
-
-        integer = isinstance(inputs["a"], types.Integer) and isinstance(inputs["b"], types.Integer)
-
-        return types.Integer() if integer else types.Float()
+    def infer(self, a, b):
+        return a.common(b)
 
 class Add(_BinaryOperator):
 
@@ -169,13 +120,8 @@ class Modulo(_BinaryOperator):
 @hidden
 class _ComparisonOperation(_BinaryOperator):
 
-    def validate(self, **inputs):
-        inferred = super().validate(**inputs)
-        if inferred.value is not None:
-            return types.Integer(inferred.value != 0)
-
-        return types.Integer()
-
+    def infer(self, **inputs):
+        return types.Boolean()        
 
 class Greater(_ComparisonOperation):
 
@@ -217,40 +163,93 @@ class Minimum(_BinaryOperator):
     def operation(self):
         return "numbers_min", 
 
-def _numeric_unary_generator(proto, a):
-    refa, typa = tuple(a)
-    if types.Number().castable(typa):
-        return proto(refa)
+Node.register_operation(NodeOperation.ADD, Add, types.Float(), types.Float())
+Node.register_operation(NodeOperation.SUBTRACT, Subtract, types.Float(), types.Float())
+Node.register_operation(NodeOperation.MULIPLY, Multiply, types.Float(), types.Float())
+Node.register_operation(NodeOperation.DIVIDE, Divide, types.Float(), types.Float())
+Node.register_operation(NodeOperation.POWER, Power, types.Float(), types.Float())
+Node.register_operation(NodeOperation.MODULO, Modulo, types.Float(), types.Float())
 
-def _numeric_binary_generator(proto, a, b):
-    refa, typa = tuple(a)
-    refb, typb = tuple(b)
-    if types.Number().castable(typa) and types.Number().castable(typb):
-        return proto(refa, refb)
+Node.register_operation(NodeOperation.NEGATE, lambda x: Multiply(x, Constant(-1)), types.Float())
 
-def _infer_type(t1, t2 = None):
-    if t2 is None:
-        return t1
+Node.register_operation(NodeOperation.GREATER, Greater, types.Float(), types.Float())
+Node.register_operation(NodeOperation.GREATER_EQUAL, GreaterEqual, types.Float(), types.Float())
+Node.register_operation(NodeOperation.LOWER, Lower, types.Float(), types.Float())
+Node.register_operation(NodeOperation.LOWER_EQUAL, LowerEqual, types.Float(), types.Float())
+Node.register_operation(NodeOperation.EQUAL, Equal, types.Float(), types.Float())
+Node.register_operation(NodeOperation.NOT_EQUAL, NotEqual, types.Float(), types.Float())
 
-    integer = isinstance(t1, types.Integer) and isinstance(t2, types.Integer)
+def _register_tensor_operation(operation, generator):
+    Node.register_operation(operation, generator, types.Wildcard(mindim=1), types.Wildcard(mindim=1))
+    Node.register_operation(operation, generator, types.Wildcard(mindim=1), types.Float())
+    Node.register_operation(operation, generator, types.Float(), types.Wildcard(mindim=1))
 
-    return types.Integer() if integer else types.Float()
+class TensorAdd(Operation):
 
-Node.register_operation(BinaryOperation.ADD, Add, _infer_type, types.Number(), types.Number())
-Node.register_operation(BinaryOperation.SUBTRACT, Subtract, _infer_type, types.Number(), types.Number())
-Node.register_operation(BinaryOperation.MULIPLY, Multiply, _infer_type, types.Number(), types.Number())
-Node.register_operation(BinaryOperation.DIVIDE, Divide, _infer_type, types.Number(), types.Number())
-Node.register_operation(BinaryOperation.POWER, Power, _infer_type, types.Number(), types.Number())
-Node.register_operation(BinaryOperation.MODULO, Modulo, _infer_type, types.Number(), types.Number())
+    a = Input(types.Wildcard(), description="First operand")
+    b = Input(types.Wildcard(), description="Second operand")
+    saturated = Boolean(default=False, description="Saturate cast")
 
-Node.register_operation(UnaryOperation.NEGATE, lambda x: Multiply(x, Constant(-1)), _infer_type, types.Number())
+    def operation(self):
+        if self.saturated:
+            return "tensor_add_saturate",
+        return "tensor_add",
 
-def _infer_logical(a, b):
-    return types.Integer()
+    def infer(self, a, b):
+        return a
 
-Node.register_operation(BinaryOperation.GREATER, Greater, _infer_logical, types.Number(), types.Number())
-Node.register_operation(BinaryOperation.GREATER_EQUAL, GreaterEqual, _infer_logical, types.Number(), types.Number())
-Node.register_operation(BinaryOperation.LOWER, Lower, _infer_logical, types.Number(), types.Number())
-Node.register_operation(BinaryOperation.LOWER_EQUAL, LowerEqual, _infer_logical, types.Number(), types.Number())
-Node.register_operation(BinaryOperation.EQUAL, Equal, _infer_logical, types.Number(), types.Number())
-Node.register_operation(BinaryOperation.NOT_EQUAL, NotEqual, _infer_logical, types.Number(), types.Number())
+_register_tensor_operation(NodeOperation.ADD, TensorAdd)
+
+class TensorSubtract(Operation):
+    """Subtracts two images with same size and number of channels or an image and a number.
+    """
+
+    a = Input(types.Wildcard(), description="First operand")
+    b = Input(types.Wildcard(), description="Second operand")
+    saturated = Boolean(default=False, description="Saturate cast")
+
+    def operation(self):
+        if self.saturated:
+            return "tensor_subtract_saturate",
+        return "tensor_subtract",
+
+    def infer(self, a, b):
+        return a
+
+_register_tensor_operation(NodeOperation.SUBTRACT, TensorSubtract)
+
+class TensorMultiply(Operation):
+    """Multiplies image with another image or scalar (per-element multiplication).
+    """
+
+    a = Input(types.Wildcard(), description="First operand")
+    b = Input(types.Wildcard(), description="Second operand")
+    saturated = Boolean(default=False, description="Saturate cast")
+
+    def operation(self):
+        if self.saturated:
+            return "tensor_multiply_saturate",
+        return "tensor_multiply",
+
+    def infer(self, a, b):
+        return a
+
+_register_tensor_operation(NodeOperation.MULIPLY, TensorMultiply)
+
+class TensorDivide(Operation):
+    """Divides image with another image or scalar (per-element multiplication).
+    """
+
+    a = Input(types.Wildcard(), description="First operand")
+    b = Input(types.Wildcard(), description="Second operand")
+    saturated = Boolean(default=False, description="Saturate cast")
+
+    def operation(self):
+        if self.saturated:
+            return "tensor_divide_saturate",
+        return "tensor_divide",
+
+    def infer(self, a, b):
+        return a
+
+_register_tensor_operation(NodeOperation.DIVIDE, TensorMultiply)

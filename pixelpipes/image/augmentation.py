@@ -1,105 +1,53 @@
 
 from attributee.primitives import Integer
-from pixelpipes.image.geometry import ImageRemap, Resize
-from ..graph import Macro, Input, Reference, SeedInput, types
-from ..graph import GraphBuilder
-from ..numbers import Add
 
-from ..complex import GetElement
+from .geometry import ImageRemap, Resize
+from ..numbers import Round, TensorAdd
+from ..graph import Macro, Input, SeedInput, types
 from . import GetImageProperties, ConvertDepth
-from .arithemtic import ImageAdd
 from .render import LinearImage, NormalNoise, UniformNoise
+
 
 class ImageNoise(Macro):
     """Apply gaussian noise to an image
-
-    Inputs:
-        - source: Input image
-        - amount: Amount of noise
-
-    Category: image, augmentation, noise
     """
     
-    source = Input(types.Image(depth=8))
-    amount = Input(types.Float())
+    source = Input(types.Image(depth="uchar"), description="Input image")
+    amount = Input(types.Float(), description="Amount of noise")
     seed = SeedInput()
 
-    def validate(self, **inputs):
-        super().validate(**inputs)
-        return inputs["source"]
-
-    def expand(self, inputs, parent: Reference):
-
-        with GraphBuilder(prefix=parent) as builder:
-            properties = GetImageProperties(source=inputs["source"])
-            width = GetElement(properties, element="width")
-            height = GetElement(properties, element="height")
-
-            noise = NormalNoise(width=width, height=height, mean=0, std=inputs["amount"], seed=inputs["seed"])
-
-            ConvertDepth(ConvertDepth(inputs["source"], "Float") + noise, depth="Byte", _name=parent)
-
-            return builder.nodes()
+    def expand(self, source, amount, seed):
+        properties = GetImageProperties(source)
+        noise = NormalNoise(width=properties["width"], height=properties["height"], mean=0, std=amount, seed=seed)
+        return ConvertDepth(ConvertDepth(source, "Float") + noise, depth="Byte")
 
 
 class ImageBrightness(Macro):
     """Change image brightness
-
-    Inputs:
-        - source: Input image
-        - amount: Amount of noise
-
-    Category: image, augmentation
     """
     
     source = Input(types.Image(depth=8))
     amount = Input(types.Float())
 
-    def validate(self, **inputs):
-        super().validate(**inputs)
-        return inputs["source"]
-
-    def expand(self, inputs, parent: Reference):
-
-        with GraphBuilder(prefix=parent) as builder:
-            ImageAdd(inputs["source"], inputs["amount"], _name=parent)
-
-            return builder.nodes()
-
+    def expand(self, source, amount):
+        return TensorAdd(source, Round(amount), saturated=True)
 
 class ImagePiecewiseAffine(Macro):
     """Piecewise affine transformation of image. This augmentation creates a grid of random perturbations and
     interpolates this transformation over the entire image.
-
-    Inputs:
-        - source: Input image
-        - amount: Amount of petrubations
-
-    Arguments:
-        - subdivision: Number of points
-
-    Category: image, augmentation
     """
     
-    source = Input(types.Image())
-    amount = Input(types.Float())
-    subdivision = Integer(val_min=2, default=4)
+    source = Input(types.Image(), description="Input image")
+    amount = Input(types.Float(), description="Maximum amount of perturbation in pixels")
+    subdivision = Integer(val_min=2, default=4, description="Perturbation lattice subdivision")
     seed = SeedInput()
 
-    def validate(self, **inputs):
-        super().validate(**inputs)
-        return inputs["source"]
+    def expand(self, source, amount, seed):
+        properties = GetImageProperties(source)
+        width = properties["width"]
+        height = properties["height"]
 
-    def expand(self, inputs, parent: Reference):
+        x = ConvertDepth(Resize(UniformNoise(self.subdivision, self.subdivision, -amount, amount, seed=seed), width, height, interpolation="Linear") + LinearImage(width, height, 0, width, flip=False), "Float")
+        y = ConvertDepth(Resize(UniformNoise(self.subdivision, self.subdivision, -amount, amount, seed=seed + 1), width, height, interpolation="Linear") + LinearImage(width, height, 0, height, flip=True), "Float")
+        return ImageRemap(source, x, y, interpolation="Linear", border="Reflect")
 
-        with GraphBuilder(prefix=parent) as builder:
-            properties = GetImageProperties(inputs["source"])
-            width = GetElement(properties, element="width")
-            height = GetElement(properties, element="height")
-
-            x = ConvertDepth(Resize(UniformNoise(self.subdivision, self.subdivision, -inputs["amount"], inputs["amount"], seed=inputs["seed"]), width, height, interpolation="Linear") + LinearImage(width, height, 0, width, flip=False), "Float")
-            y = ConvertDepth(Resize(UniformNoise(self.subdivision, self.subdivision, -inputs["amount"], inputs["amount"], seed=Add(inputs["seed"], 1)), width, height, interpolation="Linear") + LinearImage(width, height, 0, height, flip=True), "Float")
-
-            ImageRemap(inputs["source"], x, y, interpolation="Linear", border="Reflect", _name=parent)
-
-            return builder.nodes()
