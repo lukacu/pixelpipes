@@ -22,7 +22,7 @@ class TestPoints(unittest.TestCase):
         pipeline = Compiler().build(graph)
         output = pipeline.run(1)
 
-        np.testing.assert_equal(output[0], np.array([1, 1]))
+        np.testing.assert_equal(output[0], np.array([[1, 1]]))
         np.testing.assert_equal(output[1], gt)
 
     def test_arithmetic(self):

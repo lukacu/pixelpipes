@@ -91,7 +91,6 @@ target_compile_definitions(pixelpipes PRIVATE PIXELPIPES_BUILD_CORE)
 ADD_LIBRARY(pixelpipes_opencv SHARED 
     src/opencv/common.cpp
     src/opencv/view.cpp
-    src/opencv/arithmetic.cpp
     src/opencv/filter.cpp
     src/opencv/geometry.cpp
     src/opencv/processing.cpp

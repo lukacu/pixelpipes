@@ -256,6 +256,8 @@ namespace pixelpipes
     typedef Span<size_t> SizeSpan;
     typedef View<size_t> Sizes;
 
+    #define SHAPE_RANK_MAX 6
+
     class PIXELPIPES_API Shape
     {
     public:
@@ -278,7 +280,9 @@ namespace pixelpipes
 
         value_type operator[](size_t index) const;
 
-        size_t dimensions() const;
+        size_t rank() const;
+
+        size_t size() const;
 
         bool is_fixed() const;
 

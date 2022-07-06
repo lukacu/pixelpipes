@@ -28,16 +28,15 @@ namespace pixelpipes
 
     }
 
-    const uchar* FlatBuffer::const_data() const
+    ByteView FlatBuffer::const_data() const
     {
-        return _data.data();
+        return ByteView(_data.data(), _data.size());
     }
 
 
-    uchar* FlatBuffer::data()
+    ByteSpan FlatBuffer::data()
     {
-        // TODO: hackish, but works
-        return (uchar*) _data.data();
+        return ByteSpan(_data);
     }
 
     size_t FlatBuffer::size() const
@@ -47,12 +46,12 @@ namespace pixelpipes
 
     ReadonlySliceIterator FlatBuffer::read_slices() const
     {
-        return ReadonlySliceIterator(const_data(), size());
+        return ReadonlySliceIterator(const_data());
     }
 
     WriteableSliceIterator FlatBuffer::write_slices()
     {
-        return WriteableSliceIterator(data(), size());
+        return WriteableSliceIterator(data());
     }
 
     String::String(std::string value) : value(value)

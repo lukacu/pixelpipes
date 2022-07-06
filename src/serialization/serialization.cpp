@@ -132,7 +132,7 @@ namespace pixelpipes
 
         write_t(drain, type_to_char(s.element()));
 
-        write_t(drain, (unsigned char)s.dimensions());
+        write_t(drain, (unsigned char)s.rank());
         for (auto x : s)
         {
             write_t(drain, (size_t)x);
@@ -177,44 +177,11 @@ namespace pixelpipes
 
         size_t c = std::accumulate(s.begin(), s.end(), 1, std::multiplies<size_t>()) * type_size(s.element());
 
-        TensorReference tensor;
-
-        if (s.element() == GetTypeIdentifier<int>())
-        {
-            tensor = create_tensor<int>(s);
-        }
-        else if (s.element() == GetTypeIdentifier<float>())
-        {
-            tensor = create_tensor<float>(s);
-        }
-        else if (s.element() == GetTypeIdentifier<char>())
-        {
-            tensor = create_tensor<char>(s);
-        }
-        else if (s.element() == GetTypeIdentifier<uchar>())
-        {
-            tensor = create_tensor<uchar>(s);
-        }
-        else if (s.element() == GetTypeIdentifier<bool>())
-        {
-            tensor = create_tensor<bool>(s);
-        }
-        else if (s.element() == GetTypeIdentifier<short>())
-        {
-            tensor = create_tensor<short>(s);
-        }
-        else if (s.element() == GetTypeIdentifier<ushort>())
-        {
-            tensor = create_tensor<ushort>(s);
-        }
-        else
-        {
-            throw SerializationException("Unsupported tensor format");
-        }
+        TensorReference tensor = create_tensor(s);
 
         VERIFY(tensor->size() == c, "Tensor read error");
 
-        source.read((char *)tensor->data(), c);
+        source.read((char *)tensor->data().data(), c);
 
         return tensor;
     }

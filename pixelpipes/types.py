@@ -118,17 +118,17 @@ class Token(Data):
     def element(self):
         return self._element
 
-    def dimension(self, i):
+    def __getitem__(self, i):
         if i < len(self._shape):
             return self._shape[i]
         else:
             return 1
 
-    def __getitem__(self, i):
-        return self.dimension(i)
+    def __iter__(self):
+        return iter(self._shape)
 
     @property
-    def dimensions(self):
+    def rank(self):
         return len(self._shape)
 
     def castable(self, typ: "Data") -> bool:
@@ -138,11 +138,11 @@ class Token(Data):
             # Test if element castable
             if cast_element(b.element, a.element) is None and b.element is not None:
                 return False
-            if b.dimensions > a.dimensions:
+            if b.rank > a.rank:
                 return False
-            for d in range(a.dimensions):
-                da = a.dimension(d)
-                db = b.dimension(d)
+            for d in range(a.rank):
+                da = a[d]
+                db = b[d]
                 if da is not None and db is not None and da != db:
                     return False
             return True
@@ -153,9 +153,9 @@ class Token(Data):
             a = self
             b = typ.squeeze()
             shape = []
-            for d in range(a.dimensions):
-                da = a.dimension(d)
-                db = b.dimension(d)
+            for d in range(a.rank):
+                da = a[d]
+                db = b[d]
                 shape.append(da if da == db else None)
             return Token(cast_element(b.element, a.element), *shape)
         return Anything()
@@ -177,7 +177,7 @@ class Token(Data):
 
     def squeeze(self):
 
-        if self.dimensions == 0:
+        if self.rank == 0:
             return self
 
         nonzero = [i for i, e in enumerate(self._shape) if e != 1]
@@ -199,9 +199,9 @@ class Wildcard(Token):
         if isinstance(typ, Token):
             if cast_element(typ.element, self.element) is None and typ.element is not None:
                 return False
-            if self._mindim is not None and typ.dimensions < self._mindim:
+            if self._mindim is not None and typ.rank < self._mindim:
                 return False
-            if self._maxdim is not None and typ.dimensions > self._maxdim:
+            if self._maxdim is not None and typ.rank > self._maxdim:
                 return False
             return True
         return False

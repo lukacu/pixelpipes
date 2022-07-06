@@ -21,15 +21,15 @@ class TypesTests(unittest.TestCase):
 
     def test_modifiers(self):
 
-        self.assertEqual(Integer().push(1).dimensions, 1)
+        self.assertEqual(Integer().push(1).rank, 1)
         self.assertEqual(Integer().push(1)[1], 1)
-        self.assertEqual(IntegerList().pop().dimensions, 0)
-        self.assertEqual(IntegerList().push().dimensions, 2)
+        self.assertEqual(IntegerList().pop().rank, 0)
+        self.assertEqual(IntegerList().push().rank, 2)
 
-        self.assertEqual(Token(None, 5, 5).squeeze().dimensions, 2)
-        self.assertEqual(Token(None, 5, 1, 1).squeeze().dimensions, 1)
-        self.assertEqual(Token(None, 1, 1, 1).squeeze().dimensions, 0)
-        self.assertEqual(Token(None, 5, 1, 1, 5, 1).squeeze().dimensions, 4)
+        self.assertEqual(Token(None, 5, 5).squeeze().rank, 2)
+        self.assertEqual(Token(None, 5, 1, 1).squeeze().rank, 1)
+        self.assertEqual(Token(None, 1, 1, 1).squeeze().rank, 0)
+        self.assertEqual(Token(None, 5, 1, 1, 5, 1).squeeze().rank, 4)
 
     def test_casting_list(self):
 
@@ -141,9 +141,10 @@ class ListTests(unittest.TestCase):
 
         with Graph() as graph:
             n1 = Constant([1, 1, 1])
-            n2 = Constant([2, 2, 2])
+            n2 = Constant([2.0, 2.0, 2.0])
+            n3 = Constant([4, 6, 8])
 
-            outputs(n1 + n2, n1 + 5, 1.5 - n2, n1, n2)
+            outputs(n2 + n1, n1 + 5, 1.5 - n2, n1 - n2, n1 * n2, n3 / n2)
 
         pipeline = Compiler.build_graph(graph)
         sample = pipeline.run(1)
@@ -151,6 +152,10 @@ class ListTests(unittest.TestCase):
         np.testing.assert_array_equal(sample[0], [3, 3, 3])
         np.testing.assert_array_equal(sample[1], [6, 6, 6])
         np.testing.assert_array_equal(sample[2], [-0.5, -0.5, -0.5])
+        np.testing.assert_array_equal(sample[3], [-1, -1, -1])
+        np.testing.assert_array_equal(sample[4], [2, 2, 2])
+        np.testing.assert_array_equal(sample[5], [2, 3, 4])
+
 
     def test_list_comparison(self):
 

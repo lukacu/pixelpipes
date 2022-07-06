@@ -227,6 +227,7 @@ class Compiler(object):
                 return False
 
             try:
+                node.validate(**{k: v.type for k, v in inputs.items()})
                 # Expand the macro subgraph
                 with graph.subgraph(prefix=Reference(name)) as macro_builder:
                     output = node.expand(**inputs)

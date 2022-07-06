@@ -19,7 +19,7 @@ class ImageNoise(Macro):
     def expand(self, source, amount, seed):
         properties = GetImageProperties(source)
         noise = NormalNoise(width=properties["width"], height=properties["height"], mean=0, std=amount, seed=seed)
-        return ConvertDepth(ConvertDepth(source, "Float") + noise, depth="Byte")
+        return ConvertDepth(TensorAdd(ConvertDepth(source, "Float"), noise, saturate=True), depth="Char")
 
 
 class ImageBrightness(Macro):
@@ -30,7 +30,7 @@ class ImageBrightness(Macro):
     amount = Input(types.Float())
 
     def expand(self, source, amount):
-        return TensorAdd(source, Round(amount), saturated=True)
+        return TensorAdd(source, Round(amount), saturate=True)
 
 class ImagePiecewiseAffine(Macro):
     """Piecewise affine transformation of image. This augmentation creates a grid of random perturbations and

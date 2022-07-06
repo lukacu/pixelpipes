@@ -155,7 +155,7 @@ namespace pixelpipes
         Shape s = shape();
 
         os << "[Tensor of " << element << " " << (size_t)s[0];
-        for (size_t i = 1; i < s.dimensions(); i++)
+        for (size_t i = 1; i < s.rank(); i++)
         {
             os << " x " << (size_t)s[i];
         }
@@ -170,7 +170,7 @@ namespace pixelpipes
 
         int type = encode_ocvtype(shape.element());
 
-        VERIFY(shape.dimensions() == 2 || shape.dimensions() == 3, "Only rank 2 or rank 3 tensors accepted");
+        VERIFY(shape.rank() == 2 || shape.rank() == 3, "Only rank 2 or rank 3 tensors accepted");
 
         int ndims = shape[2] == 1 ? 2 : 3;
 
@@ -198,7 +198,7 @@ namespace pixelpipes
 
         int type = encode_ocvtype(shape.element());
 
-        VERIFY(shape.dimensions() == 2 || shape.dimensions() == 3, "Only rank 2 or rank 3 tensors accepted");
+        VERIFY(shape.rank() == 2 || shape.rank() == 3, "Only rank 2 or rank 3 tensors accepted");
 
         auto strides = tensor->strides();
 
@@ -230,7 +230,7 @@ namespace pixelpipes
             type |= CV_MAKETYPE(0, size[2]);
         }
 
-        cv::Mat mat(ndims, size, type, (void *)tensor->data(), step);
+        cv::Mat mat(ndims, size, type, (void *)tensor->data().data(), step);
 
         return mat;
     }
@@ -309,14 +309,14 @@ namespace pixelpipes
         return WriteableSliceIterator(data(), _shape, _strides, cell_size());
     }
 
-    const uchar *MatImage::const_data() const
+    ByteView MatImage::const_data() const
     {
-        return _mat.data;
+        return ByteView(_mat.data, size());
     }
 
-    uchar *MatImage::data()
+    ByteSpan MatImage::data()
     {
-        return _mat.data;
+        return ByteSpan(_mat.data, size());
     }
 
     size_t MatImage::cell_size() const
@@ -390,11 +390,7 @@ namespace pixelpipes
 
         switch (depth)
         {
-        case ImageDepth::Byte:
-            dtype = CV_8S;
-            maxout = std::numeric_limits<char>::max();
-            break;
-        case ImageDepth::UByte:
+        case ImageDepth::Char:
             dtype = CV_8U;
             maxout = std::numeric_limits<uchar>::max();
             break;

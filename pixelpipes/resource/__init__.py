@@ -54,11 +54,11 @@ class Resource(Data):
     several inputs in parallel. Their purpose is to structure dataflow at the graph level but get dissolved once the graph is compiled.
     """
 
-    def __init__(self, **fields: typing.Optional[typing.Dict[str, ResourceField]]):
+    def __init__(self, **fields: typing.Dict[str, ResourceField]):
         """Creates a new resource type by defining all its fields.
 
         Args:
-            fields (typing.Optional[typing.Dict[str, TensorType]], optional): Type structure. Defaults to None.
+            fields (typing.Dict[str, TensorType]): Type structure.
 
         Raises:
             TypeException: [description]
@@ -67,8 +67,6 @@ class Resource(Data):
             for x in fields.values():
                 if not isinstance(x, ResourceField):
                     raise TypeException("Must be a resouce field: {}".format(x))
-        else:
-            fields = None
         self._fields = fields
 
     def castable(self, typ: "Data") -> bool:
@@ -96,7 +94,6 @@ class Resource(Data):
 
     def common(self, typ: "Data") -> "Data":
         if isinstance(typ, Resource):
-            # TODO: more checks
             fields = {k: v for k, v in self._fields.items() if k in typ}
             return Resource(**fields)
         else:
@@ -124,7 +121,6 @@ class Resource(Data):
             raise TypeException("Field {} not found in resource".format(field))
         
         aa = self._fields[field].access(parent)
-        print(aa)
         return aa
 
     def typehint(self, field: str):
@@ -145,6 +141,16 @@ class TokenField(ResourceField):
         return Reference(parent.name + "." + self._field)
 
     def reference(self, parent: "InferredReference"):
+        return Reference(parent.name + "." + self._field)
+
+class AliasField(ResourceField):
+
+    def __init__(self, field: str):
+        self._field = field
+
+    def access(self, parent: "InferredReference"):
+        if not isinstance(parent.type, Resource) and not self._field in parent.type:
+            raise ValidationException("Not a resource or nonexistent field")
         return Reference(parent.name + "." + self._field)
 
 class ConditionalField(ResourceField):
@@ -260,7 +266,7 @@ class ConditionalResource(Macro):
         common_type = true_type.common(false_type)
 
         forward = {}
-        fields = common_type.fields()
+        fields = {}
 
         for name, field in common_type:
             if real_field(true_type[name]) and real_field(false_type[name]):
@@ -268,8 +274,21 @@ class ConditionalResource(Macro):
                 false_ref = false_type[name].access(false)
                 forward[name] = Conditional(true=true_ref, false=false_ref, condition=condition, _name="." + name)
             else:
+                if real_field(true_type[name]):
+                    hidden = "__cond_true_" + condition.name + "_" + true.name
+                    forward[hidden] = Copy(true, _name = "." + hidden)
+                    true_field = AliasField(hidden)
+                else:
+                    true_field = true_type[name]
 
-                fields[name] = ConditionalField(true_type[name], false_type[name], condition)
+                if real_field(false_type[name]):
+                    hidden = "__cond_false_" + condition.name + "_" + false.name
+                    forward[hidden] = Copy(false, _name = "." + hidden)
+                    false_field = AliasField(hidden)
+                else:
+                    false_field = false_type[name]
+
+                fields[name] = ConditionalField(true_field, false_field, condition)
 
         return ResourceProxy(_fields=fields, **forward)
 

@@ -14,7 +14,13 @@ namespace pixelpipes
     typedef Span<uchar> ByteSpan;
     typedef View<uchar> ByteView;
 
-    template <typename T, typename C>
+    template<typename T>
+    inline ByteSpan bytes(T& data) 
+    {
+        return ByteSpan(reinterpret_cast<uchar*>(&data), sizeof(T)); 
+    }
+
+    template <typename C>
     class PIXELPIPES_API SliceIterator
     {
     public:
@@ -22,19 +28,17 @@ namespace pixelpipes
         using value_type = C;
         using difference_type = size_t;
         using pointer = C *;
-        using reference = C& ;
-        using slice_type = T;
-        using slice_pointer = T *;
+        using reference = C &;
 
-        SliceIterator() : SliceIterator(nullptr, 0){};
-        SliceIterator(slice_pointer data, size_t length) : SliceIterator(data, make_view(Sequence<size_t>({length})), make_view(Sequence<size_t>({1})), 1)
+        SliceIterator() : SliceIterator(value_type()){};
+        SliceIterator(value_type data) : SliceIterator(data, make_view(Sequence<size_t>({data.size()})), make_view(Sequence<size_t>({1})), 1)
         {
         }
 
-        SliceIterator(slice_pointer data, const Sizes &shape, const Sizes &strides, size_t element) : _data(data)
+        SliceIterator(value_type data, const Sizes &shape, const Sizes &strides, size_t element) : _data(data)
         {
             VERIFY(strides.size() == shape.size(), "Size mismatch");
-            
+
             size_t stride = element;
             size_t i;
             _length = stride;
@@ -61,7 +65,7 @@ namespace pixelpipes
             }
 
             _position = SizeSequence::repeat(_strides.size(), 0);
-            _current = value_type{_data, _length};
+            _current = value_type{std::data(_data), _length};
         }
 
         inline SliceIterator &operator++()
@@ -83,7 +87,7 @@ namespace pixelpipes
         inline void increment()
         {
 
-            if (_data == nullptr || _position[0] > _shape[0])
+            if (std::data(_data) == nullptr || _position[0] > _shape[0])
                 return;
 
             for (int i = _position.size(); i > 0; i--)
@@ -101,7 +105,7 @@ namespace pixelpipes
                 size_t offset = 0;
                 for (size_t i = 0; i < _position.size(); i++)
                     offset += _strides[i] * _position[i];
-                _current = value_type{_data + offset, _length};
+                _current = value_type{std::data(_data) + offset, _length};
             }
             else
             {
@@ -110,15 +114,15 @@ namespace pixelpipes
         }
 
         value_type _current;
-        slice_pointer _data;
+        value_type _data;
         size_t _length;
         SizeSequence _strides;
         SizeSequence _shape;
         SizeSequence _position;
     };
 
-    typedef SliceIterator<const uchar, View<uchar>> ReadonlySliceIterator;
-    typedef SliceIterator<uchar, Span<uchar>> WriteableSliceIterator;
+    typedef SliceIterator<View<uchar>> ReadonlySliceIterator;
+    typedef SliceIterator<Span<uchar>> WriteableSliceIterator;
 
     class PIXELPIPES_API Buffer : public virtual Token
     {
@@ -134,9 +138,9 @@ namespace pixelpipes
 
         virtual WriteableSliceIterator write_slices() = 0;
 
-        virtual const uchar *const_data() const = 0;
+        virtual ByteView const_data() const = 0;
 
-        virtual uchar *data() = 0;
+        virtual ByteSpan data() = 0;
     };
 
     typedef Pointer<Buffer> BufferReference;
@@ -159,9 +163,9 @@ namespace pixelpipes
 
         virtual WriteableSliceIterator write_slices() override;
 
-        virtual const uchar *const_data() const override;
+        virtual ByteView const_data() const override;
 
-        virtual uchar *data() override;
+        virtual ByteSpan data() override;
 
     private:
         ByteSequence _data;
@@ -214,7 +218,7 @@ namespace pixelpipes
 
             Shape shape = v->shape();
 
-            if (shape.dimensions() != 1 || shape.element() != CharIdentifier)
+            if (shape.rank() != 1 || shape.element() != CharIdentifier)
             {
                 throw TypeException("Unexpected token type: expected list of chars, got " + v->describe());
             }
@@ -318,7 +322,7 @@ namespace pixelpipes
 
         if constexpr (std::is_base_of_v<ByteView, A>)
         {
-            sit = ReadonlySliceIterator(source.data(), source.size());
+            sit = ReadonlySliceIterator(source);
             ssize = source.size();
         }
         else
@@ -329,7 +333,7 @@ namespace pixelpipes
 
         if constexpr (std::is_base_of_v<ByteSpan, B>)
         {
-            dit = WriteableSliceIterator(destination.data(), destination.size());
+            dit = WriteableSliceIterator(destination);
             dsize = destination.size();
         }
         else

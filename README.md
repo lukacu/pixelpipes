@@ -50,4 +50,4 @@ ReadTheDocs: TODO
 
 ## Acknowledgements
 
-The development of this package was supported by Sloveninan national research agency projects Z2-1866, J2-316 and 
+The development of this package was supported by Sloveninan research agency (ARRS) projects Z2-1866, J2-316 and J7-2596.

@@ -184,19 +184,33 @@ def _register_tensor_operation(operation, generator):
     Node.register_operation(operation, generator, types.Wildcard(mindim=1), types.Float())
     Node.register_operation(operation, generator, types.Float(), types.Wildcard(mindim=1))
 
+def _tensor_piecewise_infer(a: types.Token, b: types.Token):
+    a = a.squeeze()
+    b = b.squeeze()
+
+    #for i in range(max(a.rank, b.rank)):
+    #    if a[i] is not None and b[i] is not None and a[i] != b[i]:
+    #        raise types.TypeException("Size mismatch")
+
+    #if a.element is not None and b.element is not None and a.element != b.element:
+    #    raise types.TypeException("Element mismatch, {} and {}  ".format(a.element, b.element))
+
+
+    return a.common(b)
+
 class TensorAdd(Operation):
 
     a = Input(types.Wildcard(), description="First operand")
     b = Input(types.Wildcard(), description="Second operand")
-    saturated = Boolean(default=False, description="Saturate cast")
+    saturate = Boolean(default=False, description="Saturate cast")
 
     def operation(self):
-        if self.saturated:
+        if self.saturate:
             return "tensor_add_saturate",
         return "tensor_add",
 
     def infer(self, a, b):
-        return a
+        return _tensor_piecewise_infer(a, b)
 
 _register_tensor_operation(NodeOperation.ADD, TensorAdd)
 
@@ -206,15 +220,15 @@ class TensorSubtract(Operation):
 
     a = Input(types.Wildcard(), description="First operand")
     b = Input(types.Wildcard(), description="Second operand")
-    saturated = Boolean(default=False, description="Saturate cast")
+    saturate = Boolean(default=False, description="Saturate cast")
 
     def operation(self):
-        if self.saturated:
+        if self.saturate:
             return "tensor_subtract_saturate",
         return "tensor_subtract",
 
     def infer(self, a, b):
-        return a
+        return _tensor_piecewise_infer(a, b)
 
 _register_tensor_operation(NodeOperation.SUBTRACT, TensorSubtract)
 
@@ -224,15 +238,15 @@ class TensorMultiply(Operation):
 
     a = Input(types.Wildcard(), description="First operand")
     b = Input(types.Wildcard(), description="Second operand")
-    saturated = Boolean(default=False, description="Saturate cast")
+    saturate = Boolean(default=False, description="Saturate cast")
 
     def operation(self):
-        if self.saturated:
+        if self.saturate:
             return "tensor_multiply_saturate",
         return "tensor_multiply",
 
     def infer(self, a, b):
-        return a
+        return _tensor_piecewise_infer(a, b)
 
 _register_tensor_operation(NodeOperation.MULIPLY, TensorMultiply)
 
@@ -242,14 +256,14 @@ class TensorDivide(Operation):
 
     a = Input(types.Wildcard(), description="First operand")
     b = Input(types.Wildcard(), description="Second operand")
-    saturated = Boolean(default=False, description="Saturate cast")
+    saturate = Boolean(default=False, description="Saturate cast")
 
     def operation(self):
-        if self.saturated:
+        if self.saturate:
             return "tensor_divide_saturate",
         return "tensor_divide",
 
     def infer(self, a, b):
-        return a
+        return _tensor_piecewise_infer(a, b)
 
-_register_tensor_operation(NodeOperation.DIVIDE, TensorMultiply)
+_register_tensor_operation(NodeOperation.DIVIDE, TensorDivide)

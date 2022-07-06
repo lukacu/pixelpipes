@@ -105,7 +105,7 @@ class TestList(unittest.TestCase):
         with Graph() as graph:
             r1 = TestResourceList(length=10)
             r2 = TestResourceList(length=5)
-            resources = ConditionalResource(SampleIndex() % 2, r1, r2)
+            resources = ConditionalResource(r1, r2, SampleIndex() % 2)
             outputs(resources[0]["a"])
 
         pipeline = Compiler().build(graph)

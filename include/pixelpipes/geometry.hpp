@@ -114,10 +114,23 @@ namespace pixelpipes
             return Point2D{value, value};
         }
 
-        if (shape.dimensions() == 1 && shape[0] == 2)
-        {
-            Sequence<float> value = extract<Sequence<float>>(v);
-            return Point2D{value[0], value[1]};
+        if (shape.size() == 2) {
+
+            if (v->is<Tensor>()) {
+                TensorReference tensor = extract<TensorReference>(v);
+                Point2D point;
+                auto view = bytes(point);
+                copy_buffer(tensor, view);
+                return point;
+
+            }
+
+            if (shape.rank() == 1 && shape[0] == 2)
+            {
+                Sequence<float> value = extract<Sequence<float>>(v);
+                return Point2D{value[0], value[1]};
+            }
+
         }
 
         throw TypeException("Unable to convert to Point2D");
@@ -126,7 +139,14 @@ namespace pixelpipes
     template <>
     inline TokenReference wrap(const Point2D v)
     {
-        return create<FloatVector>(make_view(std::vector<float>{v.x, v.y}));
+        TensorReference t = create<Matrix<float>>(1, 2);
+
+        Span<float> data = t->data().reinterpret<float>();
+
+        data[0] = v.x;
+        data[1] = v.y;
+
+        return t;
     }
 
     template <>
@@ -136,7 +156,7 @@ namespace pixelpipes
 
         Shape shape = v->shape();
 
-        if (shape.dimensions() == 1 && shape[0] == 4)
+        if (shape.rank() == 1 && shape[0] == 4)
         {
             Sequence<float> value = extract<Sequence<float>>(v);
             return Rectangle{value[0], value[1], value[2], value[3]};
@@ -164,11 +184,25 @@ namespace pixelpipes
             return Point3D{value, value, value};
         }
 
-        if (shape.dimensions() == 1 && shape[0] == 3)
-        {
-            Sequence<float> value = extract<Sequence<float>>(v);
-            return Point3D{value[0], value[1], value[2]};
+        if (shape.size() == 3) {
+
+            if (v->is<Tensor>()) {
+                TensorReference tensor = extract<TensorReference>(v);
+                Point3D point;
+                auto view = bytes(point);
+                copy_buffer(tensor, view);
+                return point;
+
+            }
+
+            if (shape.rank() == 1 && shape[0] == 3)
+            {
+                Sequence<float> value = extract<Sequence<float>>(v);
+                return Point3D{value[0], value[1], value[2]};
+            }
+
         }
+
 
         throw TypeException("Unable to convert to Point3D");
     }
@@ -176,7 +210,15 @@ namespace pixelpipes
     template <>
     inline TokenReference wrap(const Point3D v)
     {
-        return create<FloatVector>(make_view(std::vector<float>{v.x, v.y, v.z}));
+        TensorReference t = create<Matrix<float>>(1, 3);
+
+        Span<float> data = t->data().reinterpret<float>();
+
+        data[0] = v.x;
+        data[1] = v.y;
+        data[2] = v.z;
+
+        return t;
     }
 
     template <>
@@ -186,7 +228,7 @@ namespace pixelpipes
 
         Shape shape = v->shape();
 
-        if (shape.dimensions() == 1 && shape[0] == 9)
+        if (shape.rank() == 1 && shape[0] == 9)
         {
             auto value = extract<Sequence<float>>(v);
             return View2D{value[0], value[1], value[2], value[3], value[4], value[5], value[6], value[7], value[8]};
@@ -208,7 +250,7 @@ namespace pixelpipes
 
         Shape shape = v->shape();
 
-        if (shape.dimensions() == 1 && shape[0] == 16)
+        if (shape.rank() == 1 && shape[0] == 16)
         {
             auto value = extract<Sequence<float>>(v);
             return View3D{value[0], value[1], value[2], value[3],
@@ -233,12 +275,12 @@ namespace pixelpipes
 
         Shape shape = v->shape();
 
-        if (shape.dimensions() == 1 && (shape[0] % 2 == 0))
+        if (shape.rank() == 1 && (shape[0] % 2 == 0))
         {
             return extract<Sequence<float>>(v).convert<Point2D>();
         }
 
-        if (shape.dimensions() == 2 && shape[1] == 2)
+        if (shape.rank() == 2 && shape[1] == 2)
         {
             TensorReference tensor = extract<TensorReference>(v);
             Sequence<Point2D> points(tensor->length());
@@ -290,12 +332,12 @@ namespace pixelpipes
 
         Shape shape = v->shape();
 
-        if (shape.dimensions() == 1 && (shape[0] % 3 == 0))
+        if (shape.rank() == 1 && (shape[0] % 3 == 0))
         {
             return extract<Sequence<float>>(v).convert<Point3D>();
         }
 
-        if (shape.dimensions() == 3)
+        if (shape.rank() == 3)
         {
             TensorReference tensor = extract<TensorReference>(v);
             Sequence<Point3D> points(tensor->length());
@@ -331,7 +373,7 @@ namespace pixelpipes
     inline bool is_numeric_list(const ListReference &v)
     {
         Shape s = v->shape();
-        return (s.element() == IntegerIdentifier || s.element() == FloatIdentifier) && (s.dimensions() == 1);
+        return (s.element() == IntegerIdentifier || s.element() == FloatIdentifier) && (s.rank() == 1);
     }
 
     inline bool is_rectangle(const ListReference &v)

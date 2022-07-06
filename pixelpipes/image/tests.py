@@ -80,7 +80,7 @@ class TestsAugmentation(unittest.TestCase):
 
     def test_image_brightness(self):
 
-        test_image = np.random.randint(0, 254, (256,256), dtype=np.uint8)
+        test_image = np.random.randint(0, 255, (10,10), dtype=np.uint8)
 
         with Graph() as graph:
             n0 = Constant(test_image)
@@ -447,7 +447,7 @@ class TestsImage(unittest.TestCase):
 
         with Graph() as graph:
             n0 = Constant(test_image)
-            o0 = ConvertDepth(n0, depth="UByte")
+            o0 = ConvertDepth(n0, depth="Char")
             o1 = ConvertDepth(n0, depth="Short")
             o2 = ConvertDepth(n0, depth="Float")
             o3 = ConvertDepth(n0, depth="Integer")

@@ -5,17 +5,15 @@ import unittest
 import numpy as np
 
 from ..compiler import Compiler
-from ..graph import GraphBuilder, Output, Constant, outputs
-from ..list import ConstantList
+from ..graph import Graph, Constant, outputs
 from . import PipelineDataLoader
 
 class TestSinks(unittest.TestCase):
 
     def test_sink_PipelineDataLoader(self):
         
-        with GraphBuilder() as builder:
-            outputs(Constant(1), ConstantList([10, 20, 30]))
-        graph = builder.graph()
+        with Graph() as graph:
+            outputs(Constant(1), Constant([10, 20, 30]))
 
         batch_size = 10
 

@@ -117,22 +117,22 @@ public:
 
     virtual ReadonlySliceIterator read_slices() const
     {
-        return ReadonlySliceIterator((uint8_t *)_array.data(), _shape, _strides, _bytes);
+        return ReadonlySliceIterator(ByteView((uint8_t *)_array.data(), _array.nbytes()), _shape, _strides, _bytes);
     }
 
     virtual WriteableSliceIterator write_slices()
     {
-        return WriteableSliceIterator((uint8_t *)_array.data(), _shape, _strides, _bytes);
+        return WriteableSliceIterator(ByteSpan((uint8_t *)_array.data(), _array.nbytes()), _shape, _strides, _bytes);
     }
 
-    virtual const uchar *const_data() const
+    virtual ByteView const_data() const
     {
-        return (const uchar *) _array.data();
+        return ByteView((const uchar *) _array.data(), _array.nbytes());
     }
 
-    virtual uchar *data() 
+    virtual ByteSpan data() 
     {
-        return (uchar *) _array.mutable_data();
+        return ByteSpan((uint8_t *)_array.data(), _array.nbytes());
     }
 
     virtual SizeSequence strides() const 
@@ -168,23 +168,8 @@ TokenReference wrap_tensor(const py::object& src)
     try
     {
         TensorReference src = create<NumpyArray>(a);
-        TensorReference dst;
-        
         Shape srcshape = src->shape();
-
-        if (srcshape.element() == CharIdentifier) {
-            dst = create_tensor<char>(src->shape());
-        } else if (srcshape.element() == ShortIdentifier) {
-            dst = create_tensor<short>(src->shape());
-        } else if (srcshape.element() == UShortIdentifier) {
-            dst = create_tensor<ushort>(src->shape());
-        } else if (srcshape.element() == FloatIdentifier) {
-            dst = create_tensor<float>(src->shape());
-        } else if (srcshape.element() == IntegerIdentifier) {
-            dst = create_tensor<int>(src->shape());
-        } else {
-            throw TypeException("Unable to wrap tensor to Numpy array");
-        }
+        TensorReference dst = create_tensor(srcshape);
         
         copy_buffer(src, dst);
 
@@ -219,10 +204,10 @@ py::object extract_tensor(const TokenReference& src)
     Shape shape = tensor->shape();
     SizeSequence strides = tensor->strides();
 
-    pydimensions.resize(shape.dimensions());
-    pystrides.resize(shape.dimensions());
+    pydimensions.resize(shape.rank());
+    pystrides.resize(shape.rank());
 
-    for (size_t i = 0; i < shape.dimensions(); i++) {
+    for (size_t i = 0; i < shape.rank(); i++) {
         pydimensions[i] = static_cast<ssize_t>((size_t)shape[i]);
         pystrides[i] = static_cast<ssize_t>(strides[i]);
     }
@@ -235,27 +220,27 @@ py::object extract_tensor(const TokenReference& src)
 
     if (shape.element() == CharIdentifier)
     {
-        return py::array(std::move(pydimensions), std::move(pystrides), (uint8_t *)tensor->data(), capsule);
+        return py::array(std::move(pydimensions), std::move(pystrides), (uint8_t *)tensor->data().data(), capsule);
     }
     if (shape.element() == IntegerIdentifier)
     {
-        return py::array(std::move(pydimensions), std::move(pystrides), (int32_t *)tensor->data(), capsule);
+        return py::array(std::move(pydimensions), std::move(pystrides), (int32_t *)tensor->data().data(), capsule);
     }
     if (shape.element() == ShortIdentifier)
     {
-        return py::array(std::move(pydimensions), std::move(pystrides), (int16_t *)tensor->data(), capsule);
+        return py::array(std::move(pydimensions), std::move(pystrides), (int16_t *)tensor->data().data(), capsule);
     }
     if (shape.element() == UShortIdentifier)
     {
-        return py::array(std::move(pydimensions), std::move(pystrides), (uint16_t *)tensor->data(), capsule);
+        return py::array(std::move(pydimensions), std::move(pystrides), (uint16_t *)tensor->data().data(), capsule);
     }
     if (shape.element() == FloatIdentifier)
     {
-        return py::array(std::move(pydimensions), std::move(pystrides), (float *)tensor->data(), capsule);
+        return py::array(std::move(pydimensions), std::move(pystrides), (float *)tensor->data().data(), capsule);
     }
     if (shape.element() == BooleanIdentifier)
     {
-        return py::array(std::move(pydimensions), std::move(pystrides), (bool *)tensor->data(), capsule);
+        return py::array(std::move(pydimensions), std::move(pystrides), (bool *)tensor->data().data(), capsule);
     }
 
 

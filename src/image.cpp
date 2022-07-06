@@ -17,7 +17,7 @@ namespace pixelpipes
     {
         Shape s = tensor->shape();
 
-        VERIFY(s.dimensions() <= 3, "Image has rank 3 or less");
+        VERIFY(s.rank() <= 3, "Image has rank 3 or less");
 
         size_t depth = 0;
 

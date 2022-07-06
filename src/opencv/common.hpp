@@ -43,8 +43,7 @@ namespace pixelpipes
 
     enum class ImageDepth
     {
-        Byte,
-        UByte,
+        Char,
         Short,
         UShort,
         Integer,
@@ -176,9 +175,9 @@ namespace pixelpipes
 
         virtual WriteableSliceIterator write_slices();
 
-        virtual const uchar *const_data() const;
+        virtual ByteView const_data() const;
 
-        virtual uchar *data();
+        virtual ByteSpan data();
 
         virtual SizeSequence strides() const;
 

@@ -189,9 +189,20 @@ namespace pixelpipes
 		return _shape.at(index);
 	}
 
-	size_t Shape::dimensions() const
+	size_t Shape::rank() const
 	{
 		return _shape.size();
+	}
+
+	size_t Shape::size() const
+	{
+		size_t s = 1;
+
+		for (size_t i = 0; i < _shape.size(); i++) {
+			s *= (size_t)_shape[i];
+		}
+
+		return s;
 	}
 
 	bool Shape::is_fixed() const
@@ -235,7 +246,7 @@ namespace pixelpipes
 
 		TypeIdentifier e = (other.element() == element()) ? element() : AnyType;
 
-		size_t _d = MAX(dimensions(), other.dimensions());
+		size_t _d = MAX(rank(), other.rank());
 
 		_s.reserve(_d);
 
@@ -252,10 +263,10 @@ namespace pixelpipes
 		if (element() != other.element())
 			return false;
 
-		if (dimensions() != other.dimensions())
+		if (rank() != other.rank())
 			return false;
 
-		for (size_t i = 0; i < dimensions(); i++)
+		for (size_t i = 0; i < rank(); i++)
 		{
 			if ((size_t) this->operator[](i) != (size_t) other[i])
 				return false;

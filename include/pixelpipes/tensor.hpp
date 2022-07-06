@@ -49,72 +49,109 @@ namespace pixelpipes
 
         virtual WriteableSliceIterator write_slices() override = 0;
 
-        virtual const uchar *const_data() const override = 0;
+        virtual ByteView const_data() const override = 0;
 
-        virtual uchar *data() override = 0;
+        virtual ByteSpan data() override = 0;
 
         virtual SizeSequence strides() const = 0;
     };
 
     typedef Pointer<Tensor> TensorReference;
 
+    class PIXELPIPES_API TensorView : public Tensor
+    {
+        PIXELPIPES_RTTI(TensorView, Tensor)
+    public:
 
-
-        class PIXELPIPES_API TensorView : public Tensor
+        template <typename T>
+        TensorView(const ByteSequence &&data, const Sizes &shape) : TensorView(data, 0, shape, generate_strides(shape, sizeof(T)))
         {
-            PIXELPIPES_RTTI(TensorView, Tensor)
-        public:
-            TensorView(const TensorReference& source, size_t offset, const Sizes &shape, const Sizes &strides);
+        }
 
-            virtual ~TensorView() = default;
+        template <typename T>
+        TensorView(const ByteSequence &&data, size_t offset, const Sizes &shape, const Sizes &strides)
+        {
 
-            virtual Shape shape() const override;
+            static_assert(std::is_fundamental_v<T>, "Not a primitive type");
 
-            virtual size_t length() const override;
+            VERIFY(shape.size() == strides.size(), "Size mismatch");
 
-            virtual void describe(std::ostream &os) const override;
+            _shape = SizeSequence(shape);
+            _strides = SizeSequence(strides);
+            _offset = offset;
 
-            virtual size_t size() const override;
+            _cell_size = sizeof(T);
+            _cell_type = GetTypeIdentifier<T>();
 
-            virtual size_t cell_size() const override;
+            _size = std::accumulate(shape.begin(), shape.end(), 1, std::multiplies<size_t>()) * _cell_size;
 
-            virtual TypeIdentifier cell_type() const override;
+            _data = ByteSpan(data.data() + offset, data.size() - offset);
 
-            virtual TokenReference get(const Sizes &index) const override;
+            _owner = new ByteSequence(std::move(data));
+            _cleanup = ([](void *v) -> void
+                        { delete static_cast<ByteSequence *>(v); });
+        }
 
-            virtual TokenReference get(size_t i) const override;
+        TensorView(const TensorReference &source, const Sizes &shape);
 
-            virtual ReadonlySliceIterator read_slices() const override;
+        TensorView(const TensorReference &source, size_t offset, const Sizes &shape, const Sizes &strides);
 
-            virtual WriteableSliceIterator write_slices() override;
+        virtual ~TensorView();
 
-            virtual const uchar *const_data() const override;
+        virtual Shape shape() const override;
 
-            virtual SizeSequence strides() const override;
+        virtual size_t length() const override;
 
-            virtual uchar *data() override;
+        virtual void describe(std::ostream &os) const override;
 
-        protected:
-            inline size_t get_offset(const Sizes &index) const
+        virtual size_t size() const override;
+
+        virtual size_t cell_size() const override;
+
+        virtual TypeIdentifier cell_type() const override;
+
+        virtual TokenReference get(const Sizes &index) const override;
+
+        virtual TokenReference get(size_t i) const override;
+
+        virtual ReadonlySliceIterator read_slices() const override;
+
+        virtual WriteableSliceIterator write_slices() override;
+
+        virtual ByteView const_data() const override;
+
+        virtual SizeSequence strides() const override;
+
+        virtual ByteSpan data() override;
+
+    protected:
+        typedef void (*owner_cleanup)(void *);
+
+        inline size_t get_offset(const Sizes &index) const
+        {
+            VERIFY(index.size() == _shape.size(), "Rank mismatch");
+            size_t position = _offset;
+            for (size_t i = 0; i < index.size() - 1; i++)
             {
-                VERIFY(index.size() == _shape.size(), "Rank mismatch");
-                size_t position = _offset;
-                for (size_t i = 0; i < index.size() - 1; i++)
-                {
-                    position = position * _shape[i + 1] + index[i];
-                }
-                position *= _data->cell_size();
-
-                return position;
+                position = position * _shape[i + 1] + index[i];
             }
+            position *= cell_size();
 
-            TensorReference _data;
-            size_t _offset;
-            SizeSequence _shape;
-            SizeSequence _strides;
-        };
+            return position;
+        }
 
+        ByteSpan _data;
+        size_t _offset;
+        size_t _size;
+        SizeSequence _shape;
+        SizeSequence _strides;
 
+        TypeIdentifier _cell_type;
+        size_t _cell_size;
+
+        void *_owner = nullptr;
+        owner_cleanup _cleanup = nullptr;
+    };
 
     template <typename T>
     class PIXELPIPES_API Vector;
@@ -190,13 +227,12 @@ namespace pixelpipes
             Shape s = shape();
 
             os << "[Tensor of " << details::TypeName<T>() << " " << (size_t)s[0];
-            for (size_t i = 1; i < s.dimensions(); i++)
+            for (size_t i = 1; i < s.rank(); i++)
             {
                 os << " x " << (size_t)s[i];
             }
             os << "]";
         }
-
 
         virtual size_t size() const override
         {
@@ -264,9 +300,9 @@ namespace pixelpipes
             return WriteableSliceIterator(data(), _shape, _strides, sizeof(T));
         }
 
-        virtual const uchar *const_data() const override
+        virtual ByteView const_data() const override
         {
-            return _data.data();
+            return _data;
         }
 
         virtual SizeSequence strides() const override
@@ -274,10 +310,9 @@ namespace pixelpipes
             return SizeSequence(_strides);
         }
 
-        virtual uchar *data() override
+        virtual ByteSpan data() override
         {
-            // TODO: hackish
-            return (uchar *)_data.data();
+            return ByteSpan(_data);
         }
 
     protected:
@@ -344,36 +379,40 @@ namespace pixelpipes
     };
 
     template <typename T>
-    inline TensorReference create_tensor(Shape s)
+    inline TensorReference create_tensor(const Sizes& s)
     {
 
-        if (s.dimensions() == 1)
+        if (s.size() == 1)
         {
             return create<Vector<T>>(s[0]);
         }
-        else if (s.dimensions() == 2)
+        else if (s.size() == 2)
         {
             return create<Matrix<T>>(s[0], s[1]);
         }
-        else if (s.dimensions() == 3)
+        else if (s.size() == 3)
         {
-            return create<ArrayTensor<T, 3>>(SizeSequence(std::vector<size_t>(s.begin(), s.end())));
+            return create<ArrayTensor<T, 3>>(s);
         }
-        else if (s.dimensions() == 4)
+        else if (s.size() == 4)
         {
-            return create<ArrayTensor<T, 4>>(SizeSequence(std::vector<size_t>(s.begin(), s.end())));
+            return create<ArrayTensor<T, 4>>(s);
         }
-        if (s.dimensions() == 5)
+        if (s.size() == 5)
         {
-            return create<ArrayTensor<T, 5>>(SizeSequence(std::vector<size_t>(s.begin(), s.end())));
+            return create<ArrayTensor<T, 5>>(s);
         }
-        if (s.dimensions() == 6)
+        if (s.size() == 6)
         {
-            return create<ArrayTensor<T, 6>>(SizeSequence(std::vector<size_t>(s.begin(), s.end())));
+            return create<ArrayTensor<T, 6>>(s);
         }
 
-        throw TypeException((Formatter() << "Unsupported tensor rank: " << s.dimensions()).str());
+        throw TypeException((Formatter() << "Unsupported tensor rank: " << s.size()).str());
     }
+
+    TensorReference PIXELPIPES_API create_tensor(TypeIdentifier element, Sizes sizes);
+
+    TensorReference PIXELPIPES_API create_tensor(Shape s);
 
     template <>
     inline Sequence<int> extract(const TokenReference &v)
@@ -457,7 +496,7 @@ namespace pixelpipes
             return Sequence<bool>({extract<bool>(v)});
         }
 
-        if (shape.dimensions() != 1 ||
+        if (shape.rank() != 1 ||
             shape.element() != GetTypeIdentifier<bool>())
         {
             throw TypeException(
