@@ -69,7 +69,7 @@ class NumbersTests(unittest.TestCase):
             n2 = Constant(value=3)
             outputs(n1+n2, n1-n2, n1*n2, n1/n2, n1**n2, n1 % n2, -n1)
 
-        pipeline = Compiler().build(graph)
+        pipeline = Compiler(debug=True).build(graph)
         output = pipeline.run(1)
 
         self.assertEqual(output[0], 9)

@@ -75,7 +75,8 @@ class BuildExtCommand(build_ext.build_ext):
         
         if ct == "msvc":
            for e in self.extensions:
-               e.extra_compile_args += ['/std:c++17']
+                # TODO: figure out how to link with correct runtime
+               e.extra_compile_args += ['/std:c++17', '/MDd']
         elif ct == "unix":
             for e in self.extensions:
                 e.extra_compile_args += ['-std=c++17', '-pthread']            
@@ -197,6 +198,7 @@ ext_core = Extension(
     library_dirs=library_dirs,
     runtime_library_dirs=runtime_dirs,
     libraries=list(libraries),
+
     language='c++'
 )
 

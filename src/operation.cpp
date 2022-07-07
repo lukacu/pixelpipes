@@ -55,7 +55,7 @@ namespace pixelpipes
     }
 
     template <size_t N>
-    inline std::tuple_element_t<N, Factory> get_operation_data(const std::string &key)
+    inline std::tuple_element_t<N, Factory> get_operation_data(const std::string key)
     {
 
         auto val = _registry().find(key);
@@ -66,13 +66,13 @@ namespace pixelpipes
         return std::get<N>(val->second);
     }
 
-    bool is_operation_registered(const std::string &key)
+    bool is_operation_registered(const std::string key)
     {
 
         return _registry().end() != _registry().find(key);
     }
 
-    OperationReference make_operation(const std::string &key, const TokenList &inputs)
+    OperationReference make_operation(const std::string key, const TokenList &inputs)
     {
 
         if (!is_operation_registered(key))
@@ -85,9 +85,8 @@ namespace pixelpipes
         return op;
     }
 
-    OperationDescription describe_operation(const std::string &key)
+    OperationDescription describe_operation(const std::string key)
     {
-
         if (!is_operation_registered(key))
         {
             throw ModuleException(Formatter() << "Name not found: " << key); // TODO: RegistryException
@@ -96,7 +95,7 @@ namespace pixelpipes
         return get_operation_data<2>(key)();
     }
 
-    ModuleReference operation_source(const std::string &key)
+    ModuleReference operation_source(const std::string key)
     {
         if (!is_operation_registered(key))
         {
@@ -111,7 +110,7 @@ namespace pixelpipes
         return std::get<3>(val->second).reborrow();
     }
 
-    void register_operation(const std::string &key, OperationConstructor constructor, OperationDescriber describer)
+    void register_operation(const std::string key, OperationConstructor constructor, OperationDescriber describer)
     {
 
         ModuleReference context = Module::context();
@@ -129,12 +128,12 @@ namespace pixelpipes
         DEBUGMSG("Registering operation: %s \n", global_key.c_str());
     }
 
-    OperationReference create_operation(const std::string &key, const std::initializer_list<TokenReference> &inputs)
+    OperationReference create_operation(const std::string key, const std::initializer_list<TokenReference> &inputs)
     {
         return make_operation(key, Sequence<TokenReference>(inputs));
     }
 
-    OperationReference create_operation(const std::string &key, const TokenList &inputs)
+    OperationReference create_operation(const std::string key, const TokenList &inputs)
     {
         return make_operation(key, inputs);
     }

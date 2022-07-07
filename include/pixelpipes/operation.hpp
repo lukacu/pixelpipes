@@ -306,26 +306,26 @@ namespace pixelpipes
     typedef Function<OperationReference(TokenList)> OperationConstructor;
     typedef Function<OperationDescription()> OperationDescriber;
 
-    OperationReference PIXELPIPES_API make_operation(const std::string &key, const TokenList& inputs);
-    void PIXELPIPES_API register_operation(const std::string &key, OperationConstructor constructor, OperationDescriber describer);
-    bool PIXELPIPES_API is_operation_registered(const std::string &key);
+    OperationReference PIXELPIPES_API make_operation(const std::string key, const TokenList& inputs);
+    void PIXELPIPES_API register_operation(const std::string key, OperationConstructor constructor, OperationDescriber describer);
+    bool PIXELPIPES_API is_operation_registered(const std::string key);
 
     template <typename OperationClass = Operation, typename... Args>
-    void register_operation(const std::string &key)
+    void register_operation(const std::string key)
     {
         register_operation(key, OperationFactory<OperationClass, Args...>::new_instance, OperationFactory<OperationClass, Args...>::describe);
     }
 
     template <typename... Args>
-    OperationReference make_operation(const std::string &key, Args &&...args)
+    OperationReference make_operation(const std::string key, Args &&...args)
     {
         return make_operation(key, TokenList({args...}));
     }
 
-    OperationDescription PIXELPIPES_API describe_operation(const std::string &key);
-    ModuleReference PIXELPIPES_API operation_source(const std::string &key);
-    OperationReference PIXELPIPES_API create_operation(const std::string &key, const TokenList& inputs);
-    OperationReference PIXELPIPES_API create_operation(const std::string &key, const std::initializer_list<TokenReference>& inputs);
+    OperationDescription PIXELPIPES_API describe_operation(const std::string key);
+    ModuleReference PIXELPIPES_API operation_source(const std::string key);
+    OperationReference PIXELPIPES_API create_operation(const std::string key, const TokenList& inputs);
+    OperationReference PIXELPIPES_API create_operation(const std::string key, const std::initializer_list<TokenReference>& inputs);
     std::string PIXELPIPES_API operation_name(const OperationReference&);
 
     template <typename Run, Run fn_run>

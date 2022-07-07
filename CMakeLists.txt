@@ -139,6 +139,11 @@ IF (BUILD_INPLACE)
         LIBRARY_OUTPUT_DIRECTORY_DEBUG "${CMAKE_SOURCE_DIR}/pixelpipes"
         LIBRARY_OUTPUT_DIRECTORY_RELEASE "${CMAKE_SOURCE_DIR}/pixelpipes"
         RUNTIME_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/pixelpipes"
+        RUNTIME_OUTPUT_DIRECTORY_DEBUG "${CMAKE_SOURCE_DIR}/pixelpipes"
+        RUNTIME_OUTPUT_DIRECTORY_RELEASE "${CMAKE_SOURCE_DIR}/pixelpipes"
+        ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/pixelpipes"
+        ARCHIVE_OUTPUT_DIRECTORY_DEBUG "${CMAKE_SOURCE_DIR}/pixelpipes"
+        ARCHIVE_OUTPUT_DIRECTORY_RELEASE "${CMAKE_SOURCE_DIR}/pixelpipes"
     )
 ELSE()
     set_target_properties(${BINARY_TARGETS}
@@ -154,6 +159,10 @@ ELSE()
         ARCHIVE_OUTPUT_DIRECTORY_RELEASE "${CMAKE_BINARY_DIR}"
     )
 ENDIF()
+
+if(MSVC)
+    target_link_options(pixelpipes PUBLIC /DEBUG)
+endif()
 
 IF (BUILD_TOOL)
     ADD_EXECUTABLE(pixelpipes_cli src/tool/main.cpp)

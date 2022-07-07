@@ -288,7 +288,7 @@ inline void verify(bool condition, std::string reason = std::string("Assertion f
     };
 
     template <typename T, typename D = std::default_delete<T>>
-    class PIXELPIPES_API Implementation
+    class Implementation
     {
     protected:
         //[[no_unique_address]]
@@ -375,7 +375,7 @@ inline void verify(bool condition, std::string reason = std::string("Assertion f
     };
 
     template <typename T>
-    class PIXELPIPES_API View
+    class View
     {
     public:
         using value_type = T;
@@ -494,7 +494,7 @@ inline void verify(bool condition, std::string reason = std::string("Assertion f
 
 
     template <typename T>
-    class PIXELPIPES_API Span : public View<T>
+    class Span : public View<T>
     {
     public:
         using value_type = T;
@@ -673,7 +673,7 @@ inline void verify(bool condition, std::string reason = std::string("Assertion f
     }
 
     template <typename T>
-    class PIXELPIPES_API Sequence : public Span<T>
+    class Sequence : public Span<T>
     {
 
     public:
