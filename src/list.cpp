@@ -506,18 +506,6 @@ namespace pixelpipes
         }
     }
 
-#define list_sum list_elementwise_binary<std::plus<float>, float, float>
-    PIXELPIPES_OPERATION_AUTO("list_sum", list_sum);
-
-#define list_minus list_elementwise_binary<std::minus<float>, float, float>
-    PIXELPIPES_OPERATION_AUTO("list_minus", list_minus);
-
-#define list_multiply list_elementwise_binary<std::multiplies<float>, float, float>
-    PIXELPIPES_OPERATION_AUTO("list_multiply", list_multiply);
-
-#define list_divide list_elementwise_binary<std::divides<float>, float, float>
-    PIXELPIPES_OPERATION_AUTO("list_divide", list_divide);
-
 #define list_modulus list_elementwise_binary<std::modulus<int>, int, int>
     PIXELPIPES_OPERATION_AUTO("list_modulus", list_modulus);
 

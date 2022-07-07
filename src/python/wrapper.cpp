@@ -1,5 +1,7 @@
 
+#ifdef _WIN32
 #pragma warning(disable: 4251)
+#endif
 
 #include <fstream>
 

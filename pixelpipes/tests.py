@@ -55,10 +55,14 @@ class GraphTests(unittest.TestCase):
 
     def test_constants(self):
 
-        c1 = Constant(value=6)
-        c2 = Constant(value=0.5)
-        c1 = Constant(value=6)
+        with Graph() as graph:
+            c1 = Constant(value=6)
+            c2 = Constant(value=0.5)
+            c3 = Constant(value=6)
+            outputs(c1, c2, c3)
 
+        pipeline = Compiler().build(graph)
+        output = pipeline.run(1)
 
 class NumbersTests(unittest.TestCase):
 
@@ -69,7 +73,7 @@ class NumbersTests(unittest.TestCase):
             n2 = Constant(value=3)
             outputs(n1+n2, n1-n2, n1*n2, n1/n2, n1**n2, n1 % n2, -n1)
 
-        pipeline = Compiler(debug=True).build(graph)
+        pipeline = Compiler().build(graph)
         output = pipeline.run(1)
 
         self.assertEqual(output[0], 9)

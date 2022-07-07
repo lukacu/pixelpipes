@@ -301,30 +301,6 @@ class _ListArithmetic(Operation):
         raise NotImplementedError()
 
 
-class ListSum(_ListArithmetic):
-
-    def operation(self):
-        return "list_sum",
-
-
-class ListMinus(_ListArithmetic):
-
-    def operation(self):
-        return "list_minus",
-
-
-class ListMultiply(_ListArithmetic):
-
-    def operation(self):
-        return "list_multiply",
-
-
-class ListDivide(_ListArithmetic):
-
-    def operation(self):
-        return "list_divide",
-
-
 class ListModulo(_ListArithmetic):
 
     a = Input(types.List("int"))
@@ -337,14 +313,6 @@ class ListModulo(_ListArithmetic):
         return "list_modulus",
 
 
-Node.register_operation(NodeOperation.ADD, ListSum,
-                        types.FloatList(), types.FloatList())
-Node.register_operation(NodeOperation.SUBTRACT, ListMinus,
-                        types.FloatList(), types.FloatList())
-Node.register_operation(NodeOperation.MULIPLY, ListMultiply,
-                        types.FloatList(), types.FloatList())
-Node.register_operation(NodeOperation.DIVIDE, ListDivide,
-                        types.FloatList(), types.FloatList())
 Node.register_operation(NodeOperation.MODULO, ListModulo,
                         types.FloatList(), types.FloatList())
 

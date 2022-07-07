@@ -589,9 +589,26 @@ namespace pixelpipes
     inline TensorReference extract(const TokenReference &v)
     {
         VERIFY((bool)v, "Uninitialized token");
-        VERIFY(v->is<Tensor>(), "Not a tensor");
 
-        return cast<Tensor>(v);
+        if (v->is<Tensor>()) {
+            return cast<Tensor>(v);
+        }
+
+        if (v->is<List>()) {
+            Shape s = v->shape();
+
+            if (!s.is_fixed())
+                throw TypeException("Cannot convert to tensorr");
+
+            if (s.element() == CharIdentifier || s.element() == ShortIdentifier || s.element() == UShortIdentifier || s.element() == IntegerIdentifier || s.element() == FloatIdentifier) {
+
+                // TODO: convert
+            } else {
+                throw TypeException("Cannot convert to tensorr");
+            }
+        }
+
+        throw TypeException("Not a tensor");
     }
 
 }

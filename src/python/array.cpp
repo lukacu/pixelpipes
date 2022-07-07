@@ -1,5 +1,7 @@
 
+#ifdef _WIN32
 #pragma warning(disable: 4251)
+#endif
 
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
