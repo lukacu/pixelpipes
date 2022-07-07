@@ -137,7 +137,11 @@ namespace pixelpipes
 
         if (!handle)
         {
+		#ifdef _MSC_VER
+			DEBUGMSG("Cannot load module \n");
+		#else
             DEBUGMSG("Cannot load module: %s \n", dlerror());
+		#endif
             return false;
         }
 
@@ -174,7 +178,11 @@ namespace pixelpipes
 
         if (!sym)
         {
+		#ifdef _MSC_VER
+			DEBUGMSG("Cannot find symbol %s \n", name.c_str());
+		#else
             DEBUGMSG("Cannot find symbol %s: %s \n", name.c_str(), dlerror());
+		#endif
         }
 
         return sym;

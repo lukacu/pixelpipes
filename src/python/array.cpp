@@ -1,4 +1,6 @@
 
+#pragma warning(disable: 4251)
+
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
 #include <pybind11/functional.h>
@@ -20,9 +22,9 @@ using namespace pixelpipes;
 
 typedef Function<void()> DescructorCallback;
 
-#define HIDDEN __attribute__((visibility("hidden")))
+//#define HIDDEN __attribute__((visibility("hidden")))
 
-class HIDDEN NumpyArray : public Tensor
+class PIXELPIPES_INTERNAL NumpyArray : public Tensor
 {
 public:
     NumpyArray(const py::array& data) : _array(data)

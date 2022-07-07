@@ -85,7 +85,7 @@ namespace pixelpipes
 
             _size = std::accumulate(shape.begin(), shape.end(), 1, std::multiplies<size_t>()) * _cell_size;
 
-            _data = ByteSpan(data.data() + offset, data.size() - offset);
+            _data = ByteSpan((uchar *) data.data() + offset, data.size() - offset);
 
             _owner = new ByteSequence(std::move(data));
             _cleanup = ([](void *v) -> void
