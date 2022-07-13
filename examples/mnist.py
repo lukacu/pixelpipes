@@ -35,19 +35,20 @@ def mnist(images_file, labels_file):
 
     return RandomElement(i, seed=s), RandomElement(l, seed=s)
 
-# Download original train or test files from http://yann.lecun.com/exdb/mnist/
-# unzip them and point the paths below to the final files
+if __name__ == "__main__":
 
-root = os.path.dirname(__file__)
-images_file = os.path.join(root, "train-images.idx3-ubyte")
-labels_file = os.path.join(root, "train-labels.idx1-ubyte")
+    # Download original train or test files from http://yann.lecun.com/exdb/mnist/
+    # unzip them and point the paths below to the final files
 
-p = mnist(images_file, labels_file)
+    root = os.path.dirname(__file__)
+    images_file = os.path.join(root, "train-images.idx3-ubyte")
+    labels_file = os.path.join(root, "train-labels.idx1-ubyte")
 
-for i in count(1):
-    image, label = p.run(i)
-    print(label)
-    cv2.imshow("Patch", image)
-    if cv2.waitKey() != 32:
-        break
+    stream = mnist(images_file, labels_file)
+
+    for image, label in stream:
+        print(label)
+        cv2.imshow("Patch", image)
+        if cv2.waitKey() != 32:
+            break
 
