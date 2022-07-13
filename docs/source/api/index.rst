@@ -2,27 +2,26 @@
 API documentation
 =================
 
-This documentation 
+This is meant to be a reference documentation for the infividual blocks of code in the project. It is organized in three parts. First is a list
+of 
+
+.. toctree::
+   :maxdepth: 1
+
+   nodes 
+   cpp_token
+   cpp_operation
+   cpp_pipeline
 
 
 Python API
 ----------
 
-.. toctree::
-   :maxdepth: 4
-
-   python_nodes
-   python_compiler
-   python_sink
-   python_image
-   python_geometry
-   python_resource
-
 C++ API
 ----------
 
 .. toctree::
-   :maxdepth: 4
+   :maxdepth: 1
 
    cpp_types
    cpp_token

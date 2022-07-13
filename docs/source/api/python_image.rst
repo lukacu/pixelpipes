@@ -9,14 +9,6 @@ Submodules
    :undoc-members:
    :show-inheritance:
 
-Arithmetic
-----------------------------------
-
-.. automodule:: pixelpipes.image.arithemtic
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
 Augmentation
 ------------------------------------
 
