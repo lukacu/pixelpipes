@@ -1,7 +1,6 @@
 from pixelpipes import __version__
 import numpy
 import pybind11
-import sys
 import os
 import setuptools
 import platform
@@ -30,12 +29,21 @@ else:
     rpath = []
     libext = [".dll", ".lib"]
 
+def using_clang():
+    from distutils.ccompiler import new_compiler
+    from distutils.sysconfig import customize_compiler
+    from subprocess import getoutput
+    compiler = new_compiler()
+    customize_compiler(compiler)
+    compiler_ver = getoutput("{0} -v".format(compiler.compiler[0]))
+    return 'clang' in compiler_ver
 
 # Override build command
 def make_library_filter(name):
     import fnmatch
     from distutils.ccompiler import new_compiler
-    compiler = new_compiler()
+    from distutils.sysconfig import customize_compiler
+    compiler = customize_compiler(new_compiler())
     filters = [compiler.shared_lib_format % (name, ext) for ext in libext]
     def _cb(filename):
         filename = os.path.split(filename)[1]

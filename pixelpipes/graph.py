@@ -742,7 +742,8 @@ class Constant(Operation):
         return None
 
 class SampleIndex(Operation):
-    """Returns current sample index.
+    """Returns current sample index. This information can be used instead of random seed
+    to initialize random generators where sequential consistentcy is required.
     """
 
     def infer(self):
@@ -752,9 +753,9 @@ class SampleIndex(Operation):
         return "context", ContextFields["SampleIndex"]
 
 class RandomSeed(Operation):
-    """Returns a pseudo-random number, useful for initializing random operations. The seed
-    itself is sampled from a generator that is initialized the same for a specific position
-    in the stream.
+    """Returns a pseudo-random number, useful for initializing pseudo-random operations. The seed
+    itself is sampled from a pseudo-random generator that produces the same sequence of seeds for
+    a specific position in the data sequence. This is the corner-stone of repeatability of the pipeline. 
     """
 
     def infer(self):
@@ -763,10 +764,17 @@ class RandomSeed(Operation):
     def operation(Operation):
         return "context", ContextFields["RandomSeed"]
 
-class DebugOutput(Operation):
+class Debug(Operation):
+    """Debug operation enables low-level terminal output of the content that is provided to it. 
+    The token content will usually not be printed entierly, only its shape, the value will only be displayed
+    for simple scalar types as well as strings.
+    
+    Note that tese nodes will be passed to the pipeline only if the compiler is configered with debug flag,
+    otherwise they will be stripped from the graph. 
+    """
 
-    source = Input(types.Wildcard())
-    prefix = String(default="")
+    source = Input(types.Wildcard(), description="Result of which node to print")
+    prefix = String(default="", description="String that is prepended to the output")
 
     def infer(self, source):
         return source
@@ -775,10 +783,14 @@ class DebugOutput(Operation):
         return "debug", self.prefix
  
 class Output(Operation):
+    """Output node that accepts a single input, enables outputting tokens from the final pipeline. Tokens
+    are returned as a tuple, their order is determined by the order of adding output nodes to the graph. Additionally
+    you may also label outputs with non-unique lables that can be used to resolve outputs.
+    """
 
-    output = Input(types.Wildcard())
+    output = Input(types.Wildcard(), description="Output token")
 
-    label = String(default="default")
+    label = String(default="default", description="Nonunique label of the output")
 
     def infer(self, output) -> types.Data:
         return output
@@ -798,80 +810,3 @@ class Copy(Node):
     def infer(self, source):
         return source
 
-def compare_serialized(graph):
-    import os
-    import tempfile
-    import numpy.testing as npt
-    from .compiler import Compiler
-    from . import write_pipeline, read_pipeline
-
-    compiler = Compiler()
-
-    pipeline1 = compiler.build(graph)
-
-    tmpfd, tmpname = tempfile.mkstemp()
-
-    os.close(tmpfd)
-
-    write_pipeline(tmpname, pipeline1)
-    pipeline2 = read_pipeline(tmpname)
-
-    for i in range(1, 100):
-        a = pipeline1.run(i)
-        b = pipeline2.run(i)
-        assert len(a) == len(b), "Output does not match"
-        for x, y in zip(a, b):
-            npt.assert_equal(a[0], b[0])
-
-    os.remove(tmpname)
-
-class Tests(unittest.TestCase):    
-
-    def test_serialization(self):
-        from .numbers import SampleUnform
-        from .flow import Conditional
-        from .compiler import Compiler
-
-        with Graph() as graph:
-            a = SampleUnform(0, 30)
-            b = Constant(value=3)
-            c = b + 1
-            d = Conditional(a, c, a > 15)
-            e = Constant([1, 2, 3, 4])
-            outputs(a, c, d, e)
-
-        compare_serialized(graph)
-        
-    def test_file_location(self):
-        from .list import FileList
-        from .compiler import Compiler
-        from . import write_pipeline, read_pipeline
-        import os
-
-        files = ["a.txt", "b.txt", "c.txt"]
-
-        import tempfile
-
-        tmpfd, tmpname = tempfile.mkstemp()
-
-        os.close(tmpfd)
-
-        with Graph() as graph:
-            a = FileList(files)
-            outputs(a[0])
-
-        write_pipeline(tmpname, Compiler().build(graph))
-        pipeline = read_pipeline(tmpname)
-        self.assertEqual(str(pipeline.run(1)[0]), os.path.abspath(files[0]))
-
-    def test_output_filter(self):
-        from .compiler import Compiler
-
-        with Graph() as graph:
-            Output(1, label="a")
-            Output(2, label="b")
-            Output(3, label="c")
-
-        pipeline = Compiler().build(graph, output=["a", "b"])
-
-        self.assertEqual(len(pipeline.run(1)), 2)

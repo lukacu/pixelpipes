@@ -1,4 +1,4 @@
-from pixelpipes.graph import GraphBuilder
+from pixelpipes.graph import Graph
 from pixelpipes.compiler import Compiler
 from pixelpipes.graph import Output
 from pixelpipes.numbers import UniformDistribution
@@ -18,7 +18,7 @@ def compile_graph():
 
         return Switch(inputs=inputs, weights=weights)
 
-    with GraphBuilder() as builder:
+    with Graph() as builder:
  
         Output(outputs=[layer(4)])
 

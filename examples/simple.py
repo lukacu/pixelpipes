@@ -1,13 +1,13 @@
 from itertools import count
 
 from pixelpipes.graph import Constant
-from pixelpipes.list import RandomElement
+from pixelpipes.list import GetRandom
 from pixelpipes.utilities import pipeline
 
 @pipeline()
 def simple():
     a = Constant([1, 2, 3, 7, 8, 9, 4, 5, 6])
-    return RandomElement(a)
+    return GetRandom(a)
 
 p = simple()
 

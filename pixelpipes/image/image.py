@@ -4,7 +4,7 @@ from pixelpipes.graph import Input, Macro, hidden
 
 from attributee import Boolean
 
-from ..list import ListElement
+from ..list import GetElement
 from .. import types
 
 from . import ImageDepth
@@ -50,10 +50,10 @@ class GetImageProperties(Macro):
         properties = _GetImageProperties(source=source)
 
         fields = {
-            "width" : ListElement(parent=properties, index=0, _name=".width"),
-            "height": ListElement(parent=properties, index=1, _name=".height"),
-            "channels": ListElement(parent=properties, index=2, _name=".channels"),
-            "depth": ListElement(parent=properties, index=3, _name=".depth")
+            "width" : GetElement(parent=properties, index=0, _name=".width"),
+            "height": GetElement(parent=properties, index=1, _name=".height"),
+            "channels": GetElement(parent=properties, index=2, _name=".channels"),
+            "depth": GetElement(parent=properties, index=3, _name=".depth")
         }
 
         return ResourceProxy(**fields)

@@ -4,7 +4,7 @@ from collections.abc import Container
 import typing
 import numbers
 
-from ..graph import Graph, Graph, InferredReference, Macro, Node, NodeException, Operation, Reference, ValidationException, Constant, Copy, DebugOutput, Output
+from ..graph import Graph, Graph, InferredReference, Macro, Node, NodeException, Operation, Reference, ValidationException, Constant, Copy, Debug, Output
 from .. import Pipeline, PipelineOperation, types
 from ..numbers import Constant
 from .utilities import BranchSet, toposort
@@ -306,7 +306,7 @@ class Compiler(object):
             elif isinstance(node, Copy):
                 aliases[aliases.get(name, name)] = aliases.get(
                     node.source.name, node.source.name)
-            elif isinstance(node, DebugOutput) and not self._debug_enabled:
+            elif isinstance(node, Debug) and not self._debug_enabled:
                 aliases[aliases.get(name, name)] = aliases.get(
                     node.source.name, node.source.name)
             elif isinstance(node, Constant):

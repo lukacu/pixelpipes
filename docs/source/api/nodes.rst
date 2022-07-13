@@ -51,22 +51,6 @@ Geometery
 Image manipulation
 ------------------
 
-.. autonodes:: pixelpipes.geometry
-   :members:
-
-.. autonodes:: pixelpipes.geometry.points
-   :members:
-
-.. autonodes:: pixelpipes.geometry.view
-   :members:
-
-.. autonodes:: pixelpipes.geometry.rectangle
-   :members:
-
-
-Resources
----------
-
 .. autonodes:: pixelpipes.image
    :members:
 
@@ -74,4 +58,20 @@ Resources
    :members:
 
 .. autonodes:: pixelpipes.image.filter
+   :members:
+
+
+Resources
+---------
+
+.. autonodes:: pixelpipes.resource
+   :members:
+
+.. autonodes:: pixelpipes.resource.list
+   :members:
+
+.. autonodes:: pixelpipes.resource.loading
+   :members:
+
+.. autonodes:: pixelpipes.resource.patch
    :members:

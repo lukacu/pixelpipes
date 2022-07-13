@@ -2,7 +2,10 @@ Building your first graph
 =========================
 
 A graph can be constructed by leveraging Python concepts like context and operator overloading (it can also be created manually by adding every node to a graph, but 
-this is a much less readable approach). Lets start by extending the initial example of sampling numbers from a list. We can insert a list of lists
+this is a much less readable approach). Lets start by extending the initial example of sampling numbers from a list. We can insert a list of lists, sample one of them
+then sample two elements from it and sum them together.
+
+
 
 
 .. note::

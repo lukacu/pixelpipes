@@ -6,7 +6,7 @@ import cv2
 import numpy as np
 
 from pixelpipes.graph import RandomSeed, Constant
-from pixelpipes.list import RandomElement
+from pixelpipes.list import GetRandom
 from pixelpipes.utilities import pipeline
 
 @pipeline()
@@ -33,7 +33,7 @@ def mnist(images_file, labels_file):
     i = Constant(images)
     s = RandomSeed() # Both label and image should be sampled the same way, we are binding the same random seed
 
-    return RandomElement(i, seed=s), RandomElement(l, seed=s)
+    return GetRandom(i, seed=s), GetRandom(l, seed=s)
 
 if __name__ == "__main__":
 

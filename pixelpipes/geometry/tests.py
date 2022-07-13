@@ -44,7 +44,7 @@ class TestPoints(unittest.TestCase):
 
     def test_serialization(self):
 
-        from ..graph import compare_serialized
+        from ..tests import compare_serialized
 
         gt = np.array([[1, 1], [2, 2], [1, 1]])
         with Graph() as graph:

@@ -9,7 +9,7 @@ from .numbers import Round, SampleUnform
 def Wildlist(element=None):
     return types.Wildcard(element=element, mindim=1)
 
-class ConstantTable(Macro):
+class Table(Macro):
     """Constant Table
 
     Inputs:
@@ -86,7 +86,7 @@ class ListAsTable(Operation):
         return "list_table",
 
 
-class ListConcatenate(Operation):
+class Concatenate(Operation):
 
     inputs = List(Input(Wildlist()), description="Two or more input lists")
 
@@ -139,7 +139,7 @@ class FilterSelect(Operation):
         return "list_filter",
 
 
-class ListRemap(Operation):
+class Remap(Operation):
     """
     Maps elements from source list to a result list using indices from indices list.
     """
@@ -155,7 +155,7 @@ class ListRemap(Operation):
         return "list_remap",
 
 
-class ListRange(Operation):
+class Range(Operation):
     """
     Generates a list of numbers from start to end of a given length
     """
@@ -172,7 +172,7 @@ class ListRange(Operation):
         return "list_range",
 
 
-class ListPermute(Operation):
+class Permute(Operation):
     """
     Randomly permutes an input list
     """
@@ -187,7 +187,7 @@ class ListPermute(Operation):
         return "list_permute",
 
 
-class ListPermutation(Operation):
+class Permutation(Operation):
     """Generates a list of numbers from 0 to length in random order."""
 
     length = Input(types.Integer())
@@ -200,7 +200,7 @@ class ListPermutation(Operation):
         return "list_permutation",
 
 
-class ListElement(Operation):
+class GetElement(Operation):
     """
     Returns an element from a list for a given index
     """
@@ -214,9 +214,9 @@ class ListElement(Operation):
     def operation(self):
         return "list_element",
 
-Node.register_operation(NodeOperation.INDEX, ListElement, Wildlist(), types.Integer())
+Node.register_operation(NodeOperation.INDEX, GetElement, Wildlist(), types.Integer())
 
-class ListLength(Operation):
+class Length(Operation):
     """
     Returns a list length
     """
@@ -229,9 +229,9 @@ class ListLength(Operation):
     def operation(self):
         return "list_length",
 
-Node.register_operation(NodeOperation.LENGTH, ListLength, Wildlist())
+Node.register_operation(NodeOperation.LENGTH, Length, Wildlist())
 
-class ListBuild(Operation):
+class MakeList(Operation):
     """
     Builds list from inputs. All inputs should be of the same type as the first input, it determines
     the type of a list.
@@ -263,7 +263,7 @@ class ListBuild(Operation):
         return "list_build",
 
 
-class RepeatElement(Operation):
+class Repeat(Operation):
     """Repeat list element a number of times
     """
 
@@ -277,15 +277,15 @@ class RepeatElement(Operation):
         return "list_repeat",
 
 
-class RandomElement(Macro):
+class GetRandom(Macro):
 
     source = Input(Wildlist())
     seed = SeedInput()
 
     def expand(self, source, seed):
-        generator = SampleUnform(0, ListLength(source)-1, seed=seed)
+        generator = SampleUnform(0, Length(source)-1, seed=seed)
         index = Round(generator)
-        return ListElement(source, index)
+        return GetElement(source, index)
 
 
 @hidden
@@ -301,7 +301,7 @@ class _ListArithmetic(Operation):
         raise NotImplementedError()
 
 
-class ListModulo(_ListArithmetic):
+class Modulo(_ListArithmetic):
 
     a = Input(types.List("int"))
     b = Input(types.List("int"))
@@ -313,9 +313,8 @@ class ListModulo(_ListArithmetic):
         return "list_modulus",
 
 
-Node.register_operation(NodeOperation.MODULO, ListModulo,
+Node.register_operation(NodeOperation.MODULO, Modulo,
                         types.FloatList(), types.FloatList())
-
 
 @hidden
 class _ListCompare(Operation):
@@ -330,52 +329,52 @@ class _ListCompare(Operation):
         raise NotImplementedError()
 
 
-class ListCompareEqual(_ListCompare):
+class CompareEqual(_ListCompare):
 
     def operation(self):
         return "list_compare_equal",
 
 
-class ListCompareNotEqual(_ListCompare):
+class CompareNotEqual(_ListCompare):
 
     def operation(self):
         return "list_compare_not_equal",
 
 
-class ListCompareLower(_ListCompare):
+class CompareLower(_ListCompare):
 
     def operation(self):
         return "list_compare_less",
 
 
-class ListCompareLowerEqual(_ListCompare):
+class CompareLowerEqual(_ListCompare):
 
     def operation(self):
         return "list_compare_less_equal",
 
 
-class ListCompareGreater(_ListCompare):
+class CompareGreater(_ListCompare):
 
     def operation(self):
         return "list_compare_greater",
 
 
-class ListCompareGreaterEqual(_ListCompare):
+class CompareGreaterEqual(_ListCompare):
 
     def operation(self):
         return "list_compare_greater_equal",
 
-Node.register_operation(NodeOperation.EQUAL, ListCompareEqual,
+Node.register_operation(NodeOperation.EQUAL, CompareEqual,
                         types.FloatList(), types.FloatList())
-Node.register_operation(NodeOperation.NOT_EQUAL, ListCompareNotEqual,
+Node.register_operation(NodeOperation.NOT_EQUAL, CompareNotEqual,
                         types.FloatList(), types.FloatList())
-Node.register_operation(NodeOperation.LOWER, ListCompareLower,
+Node.register_operation(NodeOperation.LOWER, CompareLower,
                         types.FloatList(), types.FloatList())
-Node.register_operation(NodeOperation.LOWER_EQUAL, ListCompareLowerEqual,
+Node.register_operation(NodeOperation.LOWER_EQUAL, CompareLowerEqual,
                         types.FloatList(), types.FloatList())
-Node.register_operation(NodeOperation.GREATER, ListCompareGreater,
+Node.register_operation(NodeOperation.GREATER, CompareGreater,
                         types.FloatList(), types.FloatList())
-Node.register_operation(NodeOperation.GREATER_EQUAL, ListCompareGreaterEqual,
+Node.register_operation(NodeOperation.GREATER_EQUAL, CompareGreaterEqual,
                         types.FloatList(), types.FloatList())
 
 
@@ -390,13 +389,13 @@ class _ListLogical(Operation):
         raise NotImplementedError()
 
 
-class ListLogicalNot(_ListLogical):
+class LogicalNot(_ListLogical):
 
     def operation(self):
         return "list_logical_not",
 
 
-class ListLogicalAnd(_ListLogical):
+class LogicalAnd(_ListLogical):
 
     b = Input(types.BooleanList())
 
@@ -404,7 +403,7 @@ class ListLogicalAnd(_ListLogical):
         return "list_logical_and",
 
 
-class ListLogicalOr(_ListLogical):
+class LogicalOr(_ListLogical):
 
     b = Input(types.BooleanList())
 

@@ -16,33 +16,42 @@ namespace pixelpipes
     {
     public:
         SerializationException(std::string reason);
-        SerializationException(const SerializationException& e) = default;
-
+        SerializationException(const SerializationException &e) = default;
     };
 
     class PIXELPIPES_API Serializer
     {
     public:
-
-        virtual void write(const TokenReference&, std::ostream &) = 0;
+        virtual void write(const TokenReference &, std::ostream &) = 0;
 
         virtual TokenReference read(std::istream &) = 0;
-
     };
 
-    typedef void (* TokenWriter) (const TokenReference&, std::ostream &);
+    typedef void (*TokenWriter)(const TokenReference &, std::ostream &);
 
-    typedef TokenReference (* TokenReader)(std::istream &);
+    typedef TokenReference (*TokenReader)(std::istream &);
 
     void PIXELPIPES_API type_register_serializer(TypeIdentifier i, std::string_view name, TokenReader reader, TokenWriter writer);
 
 #define PIXELPIPES_REGISTER_SERIALIZER(T, UID, READER, WRITER) static AddModuleInitializer CONCAT(__type_io_init_, __COUNTER__)([]() { type_register_serializer(T, UID, READER, WRITER); })
 
-    void PIXELPIPES_API write_pipeline(const Pipeline& pipeline, std::ostream &drain, bool compress = true, bool relocatable = true);
-    void PIXELPIPES_API write_pipeline(const Pipeline& pipeline, const std::string &drain, bool compress = true, bool relocatable = true);
+    void PIXELPIPES_API write_pipeline(const Pipeline &pipeline, std::ostream &drain, bool compress = true, bool relocatable = true);
+    void PIXELPIPES_API write_pipeline(const Pipeline &pipeline, const std::string &drain, bool compress = true, bool relocatable = true);
 
     Pipeline PIXELPIPES_API read_pipeline(std::istream &source);
     Pipeline PIXELPIPES_API read_pipeline(const std::string &source);
+
+    inline void check_error(std::ios &stream)
+    {
+        if (stream.eof())
+        {
+            throw SerializationException("End of file");
+        }
+        if (stream.fail() || stream.bad())
+        {
+            throw SerializationException("IO failure");
+        }
+    }
 
     template <typename T>
     T read_t(std::istream &source)
@@ -99,7 +108,7 @@ namespace pixelpipes
     }
 
     template <typename T>
-    inline void write_sequence(std::ostream &drain, const Span<T>& list)
+    inline void write_sequence(std::ostream &drain, const Span<T> &list)
     {
         write_t(drain, list.size());
         for (size_t i = 0; i < list.size(); i++)

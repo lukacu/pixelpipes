@@ -77,7 +77,7 @@ namespace pixelpipes
 
         if (!is_operation_registered(key))
         {
-            throw ModuleException(Formatter() << "Name not found: " << key); // TODO: RegistryException
+            throw ModuleException(Formatter() << "Name not found '" << key << "'"); // TODO: RegistryException
         }
 
         auto op = get_operation_data<1>(key)(inputs);
@@ -89,7 +89,7 @@ namespace pixelpipes
     {
         if (!is_operation_registered(key))
         {
-            throw ModuleException(Formatter() << "Name not found: " << key); // TODO: RegistryException
+            throw ModuleException(Formatter() << "Name not found '" << key << "'"); // TODO: RegistryException
         }
 
         return get_operation_data<2>(key)();
@@ -99,7 +99,7 @@ namespace pixelpipes
     {
         if (!is_operation_registered(key))
         {
-            throw ModuleException(Formatter() << "Name not found: " << key); // TODO: RegistryException
+            throw ModuleException(Formatter() << "Name not found '" << key << "'"); // TODO: RegistryException
         }
 
         auto val = _registry().find(key);

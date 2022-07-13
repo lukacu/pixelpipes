@@ -8,7 +8,7 @@ import time
 import numpy as np
 import cv2 as cv
 
-from pixelpipes.graph import GraphBuilder
+from pixelpipes.graph import Graph
 from pixelpipes.compiler import Compiler, Conditional
 from pixelpipes.core import Output
 from pixelpipes.core.numbers import NormalDistribution, UniformDistribution
@@ -38,7 +38,7 @@ def prepare_dataset():
 
 def compile_graph(dataset_dir):
 
-    with GraphBuilder() as builder:
+    with Graph() as builder:
  
         images = ImageDirectory(dataset_dir)
 

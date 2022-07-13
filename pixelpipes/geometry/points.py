@@ -5,7 +5,7 @@ from attributee import List
 from ..graph import NodeOperation, Input, Macro, Operation, ValidationException, Node
 
 from .. import types
-from ..list import ListBuild
+from ..list import MakeList
 from ..types import Point, Points, Rectangle, View
 
 PointsBroadcastType = types.Union(types.Float(), Point(), Points())
@@ -163,7 +163,7 @@ class MakeRectangle(Macro):
     bottom = Input(types.Float(), description="Bottom value")
 
     def expand(self, left, top, right, bottom):
-        return ListBuild([left, top, right, bottom])
+        return MakeList([left, top, right, bottom])
 
 class PointsFromRectangle(Operation):
     """Convert bounding box to a list of points

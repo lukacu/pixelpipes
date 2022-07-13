@@ -5,7 +5,7 @@ import numpy as np
 
 from .points import PointsBounds, PointsCenter, PointsFromRectangle
 from ..graph import Operation, Input, Macro, Graph, outputs
-from ..list import ListElement
+from ..list import GetElement
 
 from .. import types
 
@@ -47,10 +47,10 @@ class RectangleArea(Macro):
     source = Input(types.Rectangle())
 
     def expand(self, source):
-        x1 = ListElement(source, 0)
-        y1 = ListElement(source, 1)
-        x2 = ListElement(source, 2)
-        y2 = ListElement(source, 3)
+        x1 = GetElement(source, 0)
+        y1 = GetElement(source, 1)
+        x2 = GetElement(source, 2)
+        y2 = GetElement(source, 3)
         return ((x2 - x1) * (y2 - y1))
 
 class Tests(unittest.TestCase):    

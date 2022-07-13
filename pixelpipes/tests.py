@@ -2,11 +2,38 @@ import unittest
 import numpy as np
 
 from .flow import Conditional
-from .list import ConstantTable, ListLogicalAnd, ListLogicalNot, ListLogicalOr, ListRange
+from .list import Table, LogicalAnd, LogicalNot, LogicalOr, Range
 from .numbers import Floor, Round, SampleUnform
 from .types import Integer, Char, Float, IntegerList, FloatList, Token, Boolean
 from .compiler import Compiler
-from .graph import Constant, DebugOutput, Graph, SampleIndex, outputs
+from .graph import Constant, Debug, Graph, SampleIndex, outputs
+
+def compare_serialized(graph, samples=100):
+    import os
+    import tempfile
+    import numpy.testing as npt
+    from .compiler import Compiler
+    from . import write_pipeline, read_pipeline
+
+    compiler = Compiler()
+
+    pipeline1 = compiler.build(graph)
+
+    tmpfd, tmpname = tempfile.mkstemp()
+
+    os.close(tmpfd)
+
+    write_pipeline(tmpname, pipeline1)
+    pipeline2 = read_pipeline(tmpname)
+
+    for i in range(1, samples):
+        a = pipeline1.run(i)
+        b = pipeline2.run(i)
+        assert len(a) == len(b), "Output does not match"
+        for x, y in zip(a, b):
+            npt.assert_equal(x, y)
+
+    os.remove(tmpname)
 
 class TypesTests(unittest.TestCase):
 
@@ -64,6 +91,64 @@ class GraphTests(unittest.TestCase):
         pipeline = Compiler().build(graph)
         output = pipeline.run(1)
 
+    def test_serialization(self):
+        from .numbers import SampleUnform
+        from .flow import Conditional
+        from .compiler import Compiler
+
+        with Graph() as graph:
+            a = SampleUnform(0, 30)
+            b = Constant(value=3)
+            c = b + 1
+            d = Conditional(a, c, a > 15)
+            e = Constant([1, 2, 3, 4])
+            outputs(a, c, d, e)
+
+        compare_serialized(graph)
+        
+    def test_debug(self):
+
+        with Graph() as graph:
+            c = Constant(value=6)
+            outputs(Debug(c))
+
+        compare_serialized(graph)
+
+    def test_file_location(self):
+        from .list import FileList
+        from .compiler import Compiler
+        from . import write_pipeline, read_pipeline
+        import os
+
+        files = ["a.txt", "b.txt", "c.txt"]
+
+        import tempfile
+
+        tmpfd, tmpname = tempfile.mkstemp()
+
+        os.close(tmpfd)
+
+        with Graph() as graph:
+            a = FileList(files)
+            outputs(a[0])
+
+        write_pipeline(tmpname, Compiler().build(graph))
+        pipeline = read_pipeline(tmpname)
+        self.assertEqual(str(pipeline.run(1)[0]), os.path.abspath(files[0]))
+
+    def test_output_filter(self):
+        from .compiler import Compiler
+        from .graph import Output
+
+        with Graph() as graph:
+            Output(1, label="a")
+            Output(2, label="b")
+            Output(3, label="c")
+
+        pipeline = Compiler().build(graph, output=["a", "b"])
+
+        self.assertEqual(len(pipeline.run(1)), 2)
+
 class NumbersTests(unittest.TestCase):
 
     def test_arithmetic(self):
@@ -118,8 +203,8 @@ class ListTests(unittest.TestCase):
     def test_list_range(self):
 
         with Graph() as graph:
-            r1 = ListRange(0, 10, 10, True)
-            r2 = ListRange(0, 5, 10, False)
+            r1 = Range(0, 10, 10, True)
+            r2 = Range(0, 5, 10, False)
             outputs(r1, r2)
 
         pipeline = Compiler.build_graph(graph)
@@ -133,7 +218,7 @@ class ListTests(unittest.TestCase):
     def test_list_table(self):
 
         with Graph() as graph:
-            n = ConstantTable([[0, 1, 2], [3, 4, 5]])
+            n = Table([[0, 1, 2], [3, 4, 5]])
             outputs(n[0])
 
         pipeline = Compiler.build_graph(graph)
@@ -181,8 +266,8 @@ class ListTests(unittest.TestCase):
             n1 = Constant([True, False, True])
             n2 = Constant([False, True, True])
 
-            outputs(ListLogicalAnd(n1, n2), ListLogicalOr(
-                n1, n2), ListLogicalNot(n2))
+            outputs(LogicalAnd(n1, n2), LogicalOr(
+                n1, n2), LogicalNot(n2))
 
         pipeline = Compiler.build_graph(graph)
         sample = pipeline.run(1)
@@ -315,7 +400,7 @@ class TestTensor(unittest.TestCase):
             n0 = Constant(test0)
             n1 = Constant(test1)
             c1 = Constant(1)    
-            o0 = DebugOutput(n0 - n0)
+            o0 = Debug(n0 - n0)
             o1 = n0 - c1
             o2 = c1 - n0
             o3 = n1 - n1

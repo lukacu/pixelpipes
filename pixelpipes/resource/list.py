@@ -7,7 +7,7 @@ import numpy as np
 
 from attributee.object import class_fullname
 
-from ..list import ListElement, ListPermutation, ListRemap, RepeatElement, SublistSelect
+from ..list import GetElement, Permutation, Remap, Repeat, SublistSelect
 from ..numbers import Round, SampleUnform
 from ..types import Data, Integer, TypeException
 from ..graph import Constant, Macro, Input, Node, NodeOperation, Copy, SeedInput, ValidationException, hidden
@@ -174,7 +174,7 @@ class GetResource(Macro):
                 continue
 
             if real_field(field):
-                forward[name] = ListElement(resources_type[name].access(resources), index, _name="." + name)
+                forward[name] = GetElement(resources_type[name].access(resources), index, _name="." + name)
             else:
                 fields[name] = field
 
@@ -203,7 +203,7 @@ class RepeatResource(Macro):
                 fields[name] = field
             else:
                 field_source = resource_type[name].access(resource)
-                forward[name] = RepeatElement(field_source, length, _name="." + name)
+                forward[name] = Repeat(field_source, length, _name="." + name)
 
         forward["__list_length"] = Constant(self.length)
 
@@ -244,7 +244,7 @@ class PermuteResources(Macro):
         resources_type = resources.type
 
         length = GetResourceListLength(resources)
-        indices = ListPermutation(min=0, max=length-1)
+        indices = Permutation(min=0, max=length-1)
 
         forward = {}
         fields = {}
@@ -256,7 +256,7 @@ class PermuteResources(Macro):
             if not real_field(field):
                 fields[name] = field
             else:
-                forward[name] = ListRemap(field.access(resources), indices, _name="." + name)
+                forward[name] = Remap(field.access(resources), indices, _name="." + name)
 
         forward["__list_length"] = Copy(length,  _name=".__list_length")
 
@@ -304,8 +304,8 @@ class ResourceSegment(Macro):
 
         resources_type = resources.type
 
-        begin = ListElement(resources_type["__list_seg_begin"].access(resources), index)
-        end = ListElement(resources_type["__list_seg_eng"].access(resources), index)
+        begin = GetElement(resources_type["__list_seg_begin"].access(resources), index)
+        end = GetElement(resources_type["__list_seg_eng"].access(resources), index)
 
         return ListInterval(resources, begin, end)
 
@@ -331,7 +331,7 @@ class PermuteResourceSegments(Macro):
         fields = {}
         forward = {}
 
-        indices = ListPermutation(SegmentCount(resources_type) - 1, seed)
+        indices = Permutation(SegmentCount(resources_type) - 1, seed)
 
         for name, field in resources_type:
             if name.startswith("__list_seg"):
@@ -340,9 +340,9 @@ class PermuteResourceSegments(Macro):
             if not real_field(field):
                 fields[name] = field
             else:
-                forward[name] = ListRemap(field.access(resources), indices, _name="." + name)
+                forward[name] = Remap(field.access(resources), indices, _name="." + name)
 
-        forward["__list_seg_begin"] = ListRemap(resources_type["__list_seg_begin"].access(resources), indices, _name=".__list_seg_begin")
-        forward["__list_seg_end"] = ListRemap(resources_type["__list_seg_end"].access(resources), indices, _name=".__list_seg_end")
+        forward["__list_seg_begin"] = Remap(resources_type["__list_seg_begin"].access(resources), indices, _name=".__list_seg_begin")
+        forward["__list_seg_end"] = Remap(resources_type["__list_seg_end"].access(resources), indices, _name=".__list_seg_end")
 
         return ResourceProxy(_fields=fields, **forward)

@@ -1,14 +1,16 @@
 from inspect import isclass
-from typing import Any, Optional
+from typing import Any, Optional, Tuple, List
 
 from docutils import nodes
 from docutils.parsers.rst import Directive
 from docutils.statemachine import StringList
 from docutils.parsers.rst import directives, Directive
 
+from sphinx import addnodes
 from sphinx.application import Sphinx
 from sphinx.locale import _
 from sphinx.util.docutils import SphinxDirective
+from sphinx.util.typing import OptionSpec
 from sphinx.ext.autodoc import ModuleDocumenter, ClassDocumenter, Documenter
 from sphinx.domains import Domain, ObjType, Index
 from sphinx.domains.python import py_sig_re, PyObject
@@ -23,6 +25,25 @@ def is_node(obj):
 
     return not obj.object.hidden()
 
+class NodeEntry(PyObject):
+
+    option_spec: OptionSpec = PyObject.option_spec.copy()
+    option_spec.update({
+        'final': directives.flag,
+    })
+
+    allow_nesting = True
+
+    def get_signature_prefix(self, sig: str) -> List[nodes.Node]:
+        return [nodes.Text(self.objtype), addnodes.desc_sig_space()]
+
+    def get_index_text(self, modname: str, name_cls: Tuple[str, str]) -> str:
+        if self.objtype == 'node':
+            if not modname:
+                return _('%s (built-in class)') % name_cls[0]
+            return _('%s (node in %s)') % (name_cls[0], modname)
+        else:
+            return ''
 
 class NodeIndex(Index):
     name = 'nodeindex'
@@ -90,9 +111,10 @@ class NodeIndex(Index):
 
 class NodeDomain(Domain):
 
-    name = 'node'
-    label = 'Node'
+    name = 'pp'
+    label = 'Pixelpipes'
     object_types = {
+        'module': ObjType(_('module'), 'module'),
         'node': ObjType(_('node'), 'node'),
         'op': ObjType(_('operation'), 'op'),
         'macro':  ObjType(_('macro'),  'macro'),
@@ -101,9 +123,10 @@ class NodeDomain(Domain):
     }
 
     directives = {
-        'op':      PyObject,
-        'node':    PyObject,
-        'macro':    PyObject,
+        'module':      NodeEntry,
+        'op':      NodeEntry,
+        'node':    NodeEntry,
+        'macro':    NodeEntry,
     }
     roles = {
 #        'node' :  GolangXRefRole(),
@@ -123,7 +146,7 @@ class NodeDomain(Domain):
 
 
 class NodesDocumenter(ModuleDocumenter):
-    domain = 'node'
+    domain = NodeDomain.name
     objtype = 'nodes'
     directivetype = ModuleDocumenter.objtype
     priority = 10 + ModuleDocumenter.priority
@@ -136,7 +159,7 @@ class NodesDocumenter(ModuleDocumenter):
 
 
 class NodeDocumenter(ClassDocumenter):
-    domain = 'node'
+    domain = NodeDomain.name
     objtype = 'node'
     directivetype = ClassDocumenter.objtype
     priority = 100 + ClassDocumenter.priority
@@ -177,6 +200,16 @@ class NodeDocumenter(ClassDocumenter):
         if self.doc_as_attr:
             self.directivetype = 'attribute'
         
+        from pixelpipes.graph import Node, Operation, Macro
+        node_object: Node = self.object
+
+        if issubclass(node_object, Operation):
+            self.directivetype = "op"
+        elif issubclass(node_object, Macro):
+            self.directivetype = "macro"
+        else:
+            self.directivetype = "node"
+
         Documenter.add_directive_header(self, sig)
 
         canonical_fullname = self.get_canonical_fullname()
