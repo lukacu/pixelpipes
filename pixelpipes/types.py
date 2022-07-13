@@ -49,7 +49,7 @@ def convert_element(element):
             return "int"
         if element == np.float32:
             return "float"
-        raise TypeException("Unsupported NumPy type: " + element)
+        raise TypeException("Unsupported NumPy type: " + str(element))
 
 class Data(object):
     """Abstract type base, represents description of token types accepted or returned by nodes.

@@ -4,8 +4,6 @@ from collections.abc import Container
 import typing
 import numbers
 
-from numpy import isin
-
 from ..graph import Graph, Graph, InferredReference, Macro, Node, NodeException, Operation, Reference, ValidationException, Constant, Copy, DebugOutput, Output
 from .. import Pipeline, PipelineOperation, types
 from ..numbers import Constant

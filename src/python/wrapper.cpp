@@ -315,20 +315,20 @@ int _add_operation(T &pipeline, std::string &name, py::list args, std::vector<in
 
     try
     {
-
-        std::vector<TokenReference> arguments;
-
         OperationDescription type_hints = describe_operation(name);
 
         if (type_hints.arguments.size() != args.size())
             throw std::invalid_argument("Argument number mismatch");
 
+        Sequence<TokenReference> arguments(args.size());
+
+
         for (size_t i = 0; i < args.size(); i++)
         {
-            arguments.push_back(python_to_token(args[i]));
+            arguments[i] = python_to_token(args[i]);
         }
 
-        return pipeline.append(name, make_span(arguments), make_span(inputs));
+        return pipeline.append(name, arguments, make_span(inputs));
     }
     catch (BaseException &e)
     {

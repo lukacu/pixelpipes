@@ -16,7 +16,6 @@ class ColorConversion(Enum):
     COLOR = auto()
     GRAYSCALE = auto()
 
-
 class LoadImage(ResourceField):
 
     def __init__(self, field: str, loader: Optional[bool] = None):

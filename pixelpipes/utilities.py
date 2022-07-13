@@ -125,7 +125,7 @@ class PersistentDict:
 
 def find_nodes(module=None):
 
-    from pixelpipes import Node
+    from pixelpipes.graph import Node
     import inspect
 
     if module is None:

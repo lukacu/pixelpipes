@@ -8,7 +8,8 @@
 namespace pixelpipes
 {
 
-    TensorReference create_tensor(TypeIdentifier element, Sizes sizes) {
+    TensorReference create_tensor(TypeIdentifier element, Sizes sizes)
+    {
 
         if (element == IntegerIdentifier)
         {
@@ -40,13 +41,14 @@ namespace pixelpipes
         }
     }
 
-    TensorReference create_tensor(Shape s) {
+    TensorReference create_tensor(Shape s)
+    {
 
         return create_tensor(s.element(), SizeSequence(std::vector<size_t>(s.begin(), s.end())));
-
     }
 
-    struct TensorGuard {
+    struct TensorGuard
+    {
         TensorReference guard;
     };
 
@@ -59,13 +61,12 @@ namespace pixelpipes
     {
         // TODO: can we verify shape somehow?
         // TODO: what if tensor is already a view?
-        VERIFY(!source->is<TensorView>(), "Unable to view existing views");
+        //VERIFY(!source->is<TensorView>(), "Unable to view existing views");
 
         VERIFY(shape.size() == strides.size(), "Size mismatch");
 
         _shape = SizeSequence(shape);
         _strides = SizeSequence(strides);
-        _offset = offset;
 
         _cell_size = source->cell_size();
         _cell_type = source->cell_type();
@@ -75,13 +76,14 @@ namespace pixelpipes
         _data = ByteSpan(source->data().data() + offset, source->data().size() - offset);
 
         _owner = new TensorGuard{source.reborrow()};
-        _cleanup = ([](void *v) -> void { delete static_cast<TensorGuard *>(v); });
-
+        _cleanup = ([](void *v) -> void
+                    { delete static_cast<TensorGuard *>(v); });
     }
 
     TensorView::~TensorView()
     {
-        if (_owner) {
+        if (_owner)
+        {
             _cleanup(_owner);
         }
     }
@@ -118,48 +120,28 @@ namespace pixelpipes
 
     TokenReference TensorView::get(const Sizes &index) const
     {
-        UNUSED(index);
-        /* switch (_data->cell_type()) {
-             case CharIdentifier:
-                 return create<CharScalar>();
-         }*/
-        return empty();
+        size_t o = get_offset(index);
+        return get_scalar(o);
     }
 
     TokenReference TensorView::get(size_t i) const
     {
-        UNUSED(i);
-        /*
-                if (_shape.size() == 1)
-                {
-                    return create<ScalarToken<T>>(_data.at<T>(i * sizeof(T)));
-                }
-                else
-                {
+        if (_shape.size() == 1)
+        {
+            return get_scalar(i * cell_size());
+        }
+        else
+        {
 
-                    std::array<size_t, N> index;
-                    index.fill(0);
-                    index[0] = i;
-                    size_t o1 = get_offset(make_span(index));
-                    index[0] = i + 1;
-                    size_t o2 = get_offset(make_span(index));
+            std::vector<size_t> index(_shape.size(), 0);
+            index[0] = i;
+            size_t offset = get_offset(make_span(index));
 
-                    auto data = Span<T>(reinterpret_cast<const T *>(std::data(_data) + o1), (o2 - o1) / sizeof(T));
+            auto ref = pixelpipes::cast<Tensor>(reference());
 
-                    if (_shape.size() == 1)
-                    {
-                        return create<Vector<T>>(data);
-                    }
-                    else if (N == 3)
-                    {
-                        return create<Matrix<T>>(_shape[1], _shape[2], data);
-                    }
-                    else
-                    {
-                        auto shape = make_span(_shape, (size_t)1);
-                        return create<ArrayTensor<T, N - 1>>(shape, data);
-                    }
-                }*/
+            return create<TensorView>(ref, offset, make_view(_shape, 1), make_view(_strides, 1));
+
+        }
         return empty();
     }
 
@@ -175,7 +157,7 @@ namespace pixelpipes
 
     ByteView TensorView::const_data() const
     {
-        return ByteView(_data.data() + _offset, _data.size() - _offset);
+        return ByteView(_data.data(), _data.size());
     }
 
     SizeSequence TensorView::strides() const
@@ -185,7 +167,7 @@ namespace pixelpipes
 
     ByteSpan TensorView::data()
     {
-        return ByteSpan(_data.data() + _offset, _data.size() - _offset);
+        return ByteSpan(_data.data(), _data.size());
     }
 
     template <>
@@ -329,7 +311,6 @@ namespace pixelpipes
             throw TypeException("Unsupported tensor type");
         }
     }
-
 
     template <typename T, typename Op, typename C>
     inline void _execute_slice(const uchar *b0, const uchar *b1, uchar *b2, size_t length)
@@ -481,39 +462,43 @@ namespace pixelpipes
         }
     }
 
-    inline SizeSequence _broadcasting_strides(const Shape& original, const SizeSequence& desired, const SizeSequence& strides) 
+    inline SizeSequence _broadcasting_strides(const Shape &original, const SizeSequence &desired, const SizeSequence &strides)
     {
-        auto bstrides = SizeSequence::repeat(desired.size(), (size_t) original[original.rank() - 1]);
+        auto bstrides = SizeSequence::repeat(desired.size(), (size_t)original[original.rank() - 1]);
 
-        for (size_t i = 0; i < original.rank(); i++) 
+        for (size_t i = 0; i < original.rank(); i++)
         {
-            if (desired[i] != (size_t)original[i]) {
+            if (desired[i] != (size_t)original[i])
+            {
                 bstrides[i] = 0;
-            } else {
+            }
+            else
+            {
                 bstrides[i] = strides[i];
             }
-
-
         }
 
         return bstrides;
-
     }
 
-    inline TypeIdentifier _promote_type(TypeIdentifier a, TypeIdentifier b) {
+    inline TypeIdentifier _promote_type(TypeIdentifier a, TypeIdentifier b)
+    {
         static TypeIdentifier ordered[] = {CharIdentifier, ShortIdentifier, UShortIdentifier, IntegerIdentifier, FloatIdentifier};
 
         size_t ai = 0;
         size_t bi = 0;
 
-        for (size_t i = 0; i < 5; i++) {
-            if (ordered[i] == a) ai = i; 
-            if (ordered[i] == b) bi = i;
+        for (size_t i = 0; i < 5; i++)
+        {
+            if (ordered[i] == a)
+                ai = i;
+            if (ordered[i] == b)
+                bi = i;
         }
 
-        if (ai > bi) return a;
-        return b; 
-
+        if (ai > bi)
+            return a;
+        return b;
     }
 
     template <template <typename> class T, template <typename, typename> class C>
@@ -558,21 +543,27 @@ namespace pixelpipes
             TypeIdentifier return_type = 0;
             TensorReference result;
 
-            if (s0.element() != s1.element()) {
+            if (s0.element() != s1.element())
+            {
                 return_type = _promote_type(s0.element(), s1.element());
                 result = create_tensor(return_type, outsize);
-                if (return_type == s0.element()) {
+                if (return_type == s0.element())
+                {
                     _tensor_copy_cast<nonsaturate_cast>(tv1, result);
                     tv1 = result.reborrow();
-                } else {
+                }
+                else
+                {
                     _tensor_copy_cast<nonsaturate_cast>(tv0, result);
                     tv0 = result.reborrow();
                 }
-            } else {
+            }
+            else
+            {
                 return_type = s0.element();
                 result = create_tensor(return_type, outsize);
             }
-  
+
             ReadonlySliceIterator it0 = tv0->read_slices();
             ReadonlySliceIterator it1 = tv1->read_slices();
             WriteableSliceIterator it2 = result->write_slices();
@@ -745,5 +736,18 @@ namespace pixelpipes
 #define tensor_divide_saturate tensor_elementwise_binary<std::divides, saturate_cast>
     PIXELPIPES_OPERATION_AUTO("tensor_divide_saturate", tensor_divide_saturate);
 
+    /*
+    #define tensor_add tensor_elementwise_binary<std::plus, nonsaturate_cast>
+        PIXELPIPES_OPERATION_AUTO("tensor_add", tensor_add);
+
+    #define tensor_subtract tensor_elementwise_binary<std::minus, nonsaturate_cast>
+        PIXELPIPES_OPERATION_AUTO("tensor_subtract", tensor_subtract);
+
+    #define tensor_multiply tensor_elementwise_binary<std::multiplies, nonsaturate_cast>
+        PIXELPIPES_OPERATION_AUTO("tensor_multiply", tensor_multiply);
+
+    #define tensor_divide tensor_elementwise_binary<std::divides, nonsaturate_cast>
+        PIXELPIPES_OPERATION_AUTO("tensor_divide", tensor_divide);
+    */
 
 }

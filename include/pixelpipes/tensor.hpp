@@ -62,7 +62,6 @@ namespace pixelpipes
     {
         PIXELPIPES_RTTI(TensorView, Tensor)
     public:
-
         template <typename T>
         TensorView(const ByteSequence &&data, const Sizes &shape) : TensorView(data, 0, shape, generate_strides(shape, sizeof(T)))
         {
@@ -78,14 +77,13 @@ namespace pixelpipes
 
             _shape = SizeSequence(shape);
             _strides = SizeSequence(strides);
-            _offset = offset;
 
             _cell_size = sizeof(T);
             _cell_type = GetTypeIdentifier<T>();
 
             _size = std::accumulate(shape.begin(), shape.end(), 1, std::multiplies<size_t>()) * _cell_size;
 
-            _data = ByteSpan((uchar *) data.data() + offset, data.size() - offset);
+            _data = ByteSpan((uchar *)data.data() + offset, data.size() - offset);
 
             _owner = new ByteSequence(std::move(data));
             _cleanup = ([](void *v) -> void
@@ -130,18 +128,36 @@ namespace pixelpipes
         inline size_t get_offset(const Sizes &index) const
         {
             VERIFY(index.size() == _shape.size(), "Rank mismatch");
-            size_t position = _offset;
+            size_t position = 0;
             for (size_t i = 0; i < index.size() - 1; i++)
             {
-                position = position * _shape[i + 1] + index[i];
+                position += _strides[i] * index[i];
             }
-            position *= cell_size();
+            //position *= cell_size();
 
             return position;
         }
 
+        inline TokenReference get_scalar(size_t offset) const
+        {
+            switch (cell_type())
+            {
+            case CharIdentifier:
+                return create<CharScalar>(_data.at<uchar>(offset));
+            case ShortIdentifier:
+                return create<ShortScalar>(_data.at<short>(offset));
+            case UShortIdentifier:
+                return create<UShortScalar>(_data.at<ushort>(offset));
+            case IntegerIdentifier:
+                return create<IntegerScalar>(_data.at<int>(offset));
+            case FloatIdentifier:
+                return create<FloatScalar>(_data.at<float>(offset));
+            default:
+                return empty();
+            }
+        }
+
         ByteSpan _data;
-        size_t _offset;
         size_t _size;
         SizeSequence _shape;
         SizeSequence _strides;
@@ -265,28 +281,13 @@ namespace pixelpipes
             else
             {
 
-                std::array<size_t, N> index;
-                index.fill(0);
+                std::vector<size_t> index(_shape.size(), 0);
                 index[0] = i;
-                size_t o1 = get_offset(make_view(index));
-                index[0] = i + 1;
-                size_t o2 = get_offset(make_view(index));
+                size_t offset = get_offset(make_span(index));
 
-                auto data = View<T>(reinterpret_cast<const T *>(std::data(_data) + o1), (o2 - o1) / sizeof(T));
+                auto ref = pixelpipes::cast<Tensor>(reference());
 
-                if constexpr (N == 2)
-                {
-                    return create<Vector<T>>(data);
-                }
-                else if constexpr (N == 3)
-                {
-                    return create<Matrix<T>>(_shape[1], _shape[2], data);
-                }
-                else
-                {
-                    auto shape = make_view(_shape, (size_t)1);
-                    return create<ArrayTensor<T, N - 1>>(shape, data);
-                }
+                return create<TensorView>(ref, offset, make_view(_shape, 1), make_view(_strides, 1));
             }
         }
 
@@ -319,13 +320,11 @@ namespace pixelpipes
         inline size_t get_offset(const Sizes &index) const
         {
             VERIFY(index.size() == _shape.size(), "Rank mismatch");
-            size_t position = index[index.size() - 1];
-            for (size_t i = 1; i < index.size(); i++)
+            size_t position = 0;
+            for (size_t i = 0; i < index.size() - 1; i++)
             {
-                position = position * _shape[i] + index[i - 1];
+                position += _strides[i] * index[i];
             }
-            position *= sizeof(T);
-
             return position;
         }
 
@@ -379,7 +378,7 @@ namespace pixelpipes
     };
 
     template <typename T>
-    inline TensorReference create_tensor(const Sizes& s)
+    inline TensorReference create_tensor(const Sizes &s)
     {
 
         if (s.size() == 1)
@@ -590,20 +589,25 @@ namespace pixelpipes
     {
         VERIFY((bool)v, "Uninitialized token");
 
-        if (v->is<Tensor>()) {
+        if (v->is<Tensor>())
+        {
             return cast<Tensor>(v);
         }
 
-        if (v->is<List>()) {
+        if (v->is<List>())
+        {
             Shape s = v->shape();
 
             if (!s.is_fixed())
                 throw TypeException("Cannot convert to tensorr");
 
-            if (s.element() == CharIdentifier || s.element() == ShortIdentifier || s.element() == UShortIdentifier || s.element() == IntegerIdentifier || s.element() == FloatIdentifier) {
+            if (s.element() == CharIdentifier || s.element() == ShortIdentifier || s.element() == UShortIdentifier || s.element() == IntegerIdentifier || s.element() == FloatIdentifier)
+            {
 
                 // TODO: convert
-            } else {
+            }
+            else
+            {
                 throw TypeException("Cannot convert to tensorr");
             }
         }

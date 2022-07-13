@@ -3,11 +3,12 @@ from attributee import List, Float
 
 from . import types
 from .graph import Macro, Input, NodeException, SeedInput, Copy, Operation
-from .resource import Resource, ConditionalResource, CopyResource
 
 class Conditional(Operation):
     """Node that executes conditional selection, output of branch "true" will be selected if
-    the "condition" is not zero, otherwise output of branch "false" will be selected.
+    the "condition" is not zero, otherwise output of branch "false" will be selected. Note that the inferred type of these 
+    two branches should match as much as possible, otherwise the inferred type of this node will cause problems with
+    dependent nodes.
     """
 
     true = Input(types.Wildcard(), description="Use this data if condition is true")
@@ -21,10 +22,11 @@ class Conditional(Operation):
         return true.common(false)
 
 class Switch(Macro):
-    """Random switch between multiple branches"""
+    """Random switch between multiple branches, a macro that generates a tree of binary choices based on a random
+    variable. The probability of choosing a defined branch """
 
-    inputs = List(Input(types.Anything()), description="Input branches")
-    weights = List(Float(val_min=0), description="Corresponing branch probabilities")
+    inputs = List(Input(types.Anything()), description="Two or more input branches")
+    weights = List(Float(val_min=0), description="Corresponing branch weights")
     seed = SeedInput()
 
     def _init(self):
@@ -48,6 +50,7 @@ class Switch(Macro):
         """
 
         from .numbers import SampleUnform
+        from .resource import Resource, ConditionalResource, CopyResource
 
         resource_type = Resource()
 

@@ -3,6 +3,7 @@ import os
 import typing
 import json
 import hashlib
+import numpy as np
 
 from attributee.object import class_fullname
 
@@ -84,8 +85,11 @@ class ResourceListSource(Macro):
             elif isinstance(field, list):
                 forward[name] = Constant(field, _name="." + name)
                 lenghts.append(len(field))
+            elif isinstance(field, np.ndarray):
+                forward[name] = Constant(field, _name="." + name)
+                lenghts.append(field.shape[0])
             else:
-                raise ValidationException("Not a supported resource list field: {}".format(field))
+                raise ValidationException("Not a supported resource list field: {!s:.100}".format(field))
     
         if len(lenghts) == 0:
             raise ValidationException("Empty resource list, no fields defined")

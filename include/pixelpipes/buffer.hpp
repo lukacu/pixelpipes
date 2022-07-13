@@ -86,7 +86,7 @@ namespace pixelpipes
     protected:
         inline void increment()
         {
-
+            // TODO: optimize this
             if (std::data(_data) == nullptr || _position[0] > _shape[0])
                 return;
 

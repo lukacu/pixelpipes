@@ -123,7 +123,7 @@ class Input(Attribute):
         if self._type.castable(types.Boolean()):
             return to_logical(value)
 
-        raise AttributeException("Illegal value: {}, expected {}".format(value, self._type))
+        raise AttributeException("Illegal value: {!s:.100}, expected {}".format(value, self._type))
 
     def dump(self, value):
         if isinstance(value, Reference):
@@ -331,7 +331,7 @@ class InferredReference(Reference, OperationProxy):
         return self._typ
 
 def hidden(node_class):
-    node_class.node_hidden_base = node_class
+    node_class.__hidden_base = node_class
     return node_class
 
 def _ensure_node(value):
@@ -389,8 +389,8 @@ class Node(Attributee, OperationProxy):
 
     @classmethod
     def hidden(cls):
-        if hasattr(cls, "node_hidden_base"):
-            return getattr(cls, "node_hidden_base") == cls
+        if hasattr(cls, "__hidden_base"):
+            return getattr(cls, "__hidden_base") == cls
         else:
             return False
 
@@ -728,7 +728,7 @@ class Constant(Operation):
             return types.Token(value.dtype, *value.shape)
         elif isinstance(value, list):
             return _list_type(value).push(length=len(value))
-        raise types.TypeException("Unsupported constant value: {}".format(value))
+        raise types.TypeException("Unsupported constant value: {!s:.100}".format(value))
 
     def key(self):
         if isinstance(self.value, bool):

@@ -4,6 +4,10 @@
 namespace pixelpipes
 {
 
+    Token::~Token() {
+
+    }
+
     Shape Token::shape() const
     {
         return Shape(AnyType, SizeSpan{});

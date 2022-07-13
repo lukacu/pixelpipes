@@ -364,3 +364,19 @@ class TestTensor(unittest.TestCase):
         # saturated ops
         #np.testing.assert_array_equal(output[5], np.ones((256,256), dtype=np.uint8) * 255)
         #np.testing.assert_array_equal(output[6], np.ones((256,256), dtype=np.uint8) * 255)
+
+
+    def test_tensor_list(self):
+
+        test = np.random.rand(10,20,20).astype(np.float32)
+
+        with Graph() as graph:
+            n = Constant(test)
+            outputs(n[5], n[8], n[2] + n[3])
+
+        pipeline = Compiler().build(graph)
+        output = pipeline.run(1)
+
+        np.testing.assert_array_equal(output[0], np.squeeze(test[5, :, :]))
+        np.testing.assert_array_equal(output[1], np.squeeze(test[8, :, :]))
+        np.testing.assert_array_equal(output[2], np.squeeze(test[2, :, :] + test[3, :, :]))

@@ -171,8 +171,10 @@ TokenReference wrap_tensor(const py::object& src)
 
     try
     {
+
         TensorReference src = create<NumpyArray>(a);
         Shape srcshape = src->shape();
+
         TensorReference dst = create_tensor(srcshape);
         
         copy_buffer(src, dst);

@@ -13,10 +13,12 @@ namespace pixelpipes
         return Pointer<T>();
     }
 
-    class PIXELPIPES_API Token : public virtual details::RTTI
+    class PIXELPIPES_API Token : public virtual details::RTTI, public enable_pointer_from_this<Token>
     {
         PIXELPIPES_RTTI(Token)
     public:
+        ~Token();
+
         virtual Shape shape() const;
 
         virtual void describe(std::ostream &os) const = 0;
