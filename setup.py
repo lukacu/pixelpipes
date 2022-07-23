@@ -18,6 +18,8 @@ cmake_args = ["-DBUILD_PYTHON=OFF",
                 "-DBUILD_TEST=OFF",
                 "-DCMAKE_BUILD_RPATH_USE_ORIGIN=ON"]
 
+cmake_workers = int(os.getenv("BUILD_WORKERS", "0"))
+
 if platid == "linux":
     rpath = ["$ORIGIN"]
     libext = [".so"]
@@ -146,7 +148,13 @@ class CMakeBuildCommand(Command):
         subprocess.check_call(command, cwd=build_dir, env=env)
         self.announce("Done", level=distutils.log.INFO)
 
-        command = ['cmake', '--build', build_dir, '-j']
+        command = ['cmake', '--build', build_dir]
+
+        if cmake_workers == 0:
+            command.append("-j")
+        elif cmake_workers > 1:
+            command.append("-j%d" % cmake_workers)
+
         self.announce(
             'Running command: %s' % str(command),
             level=distutils.log.INFO)
