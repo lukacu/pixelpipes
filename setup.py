@@ -43,8 +43,9 @@ def make_library_filter(name):
     import fnmatch
     from distutils.ccompiler import new_compiler
     from distutils.sysconfig import customize_compiler
-    compiler = customize_compiler(new_compiler())
-    filters = [compiler.shared_lib_format % (name, ext) for ext in libext]
+    compiler = new_compiler()
+    customize_compiler(compiler)
+    filters = [compiler.static_lib_format % (name, ext) for ext in libext]
     def _cb(filename):
         filename = os.path.split(filename)[1]
         return any([fnmatch.fnmatch(filename, f) for f in filters])
