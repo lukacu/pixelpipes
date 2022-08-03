@@ -12,8 +12,9 @@ from .filter import AverageFilter, BilateralFilter, GaussianFilter, LinearFilter
 from .render import LinearImage, NormalNoise, UniformNoise
 from ..geometry.rectangle import MakeRectangle
 
-test_image = np.random.randint(0, 254, (256,256), dtype=np.uint8)
-test_image_rgb = np.random.randint(0, 255, (256,256,3), dtype=np.uint8)
+np.random.seed(0)
+test_image = np.random.randint(0, 255, (32,32), dtype=np.uint8) 
+test_image_rgb = np.random.randint(0, 255, (32,32,3), dtype=np.uint8) 
 
 def clamp_uint8(image):
     return np.clip(image, 0, 255).astype(np.uint8)

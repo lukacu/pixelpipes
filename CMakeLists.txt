@@ -1,6 +1,11 @@
 
-CMAKE_POLICY(SET CMP0091 NEW)
-cmake_policy(SET CMP0114 NEW)
+IF(${CMAKE_VERSION} GREATER_EQUAL "3.15")
+    CMAKE_POLICY(SET CMP0091 NEW)
+ENDIF()
+
+IF(${CMAKE_VERSION} GREATER_EQUAL "3.19")
+    CMAKE_POLICY(SET CMP0114 NEW)
+ENDIF()
 
 PROJECT(pixelpipes)
 CMAKE_MINIMUM_REQUIRED(VERSION 3.11 FATAL_ERROR)
@@ -23,11 +28,11 @@ option(BUILD_TOOL "Build CLI tool" ON)
 SET(CMAKE_EXTERNALS_DIR "${CMAKE_BINARY_DIR}/external/")
 
 if (CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
-    add_compile_options(/W4 /WX /WL /wd4251 /permissive-)
+    ADD_COMPILE_OPTIONS(/W4 /WX /WL /wd4251 /permissive-)
 elseif (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
-    add_compile_options(-Wall -Wextra -pedantic -Werror)
+    ADD_COMPILE_OPTIONS(-Wall -Wextra -pedantic -Werror)
 elseif (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
-    add_compile_options(-Wall -Wextra -pedantic -Werror)
+    ADD_COMPILE_OPTIONS(-Wall -Wextra -pedantic -Werror)
     set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -Wl,--no-undefined" )
 endif()
 
@@ -129,11 +134,13 @@ IF(BUILD_PYTHON)
           LINKER_LANGUAGE C
       )
 
+  LIST(APPEND BINARY_TARGETS pypixelpipes)
+
 ENDIF()
 
 # Where to place outputs
 IF (BUILD_INPLACE)
-    set_target_properties(pixelpipes pypixelpipes pixelpipes_geometry pixelpipes_image
+    set_target_properties(${BINARY_TARGETS}
         PROPERTIES
         LIBRARY_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/pixelpipes"
         LIBRARY_OUTPUT_DIRECTORY_DEBUG "${CMAKE_SOURCE_DIR}/pixelpipes"
@@ -166,6 +173,6 @@ endif()
 
 IF (BUILD_TOOL)
     ADD_EXECUTABLE(pixelpipes_cli src/tool/main.cpp)
-    set_target_properties(pixelpipes_cli PROPERTIES OUTPUT_NAME "pixelpipes")
+    SET_TARGET_PROPERTIES(pixelpipes_cli PROPERTIES OUTPUT_NAME "pixelpipes")
     TARGET_LINK_LIBRARIES(pixelpipes_cli pixelpipes)
 ENDIF()

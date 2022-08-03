@@ -144,12 +144,13 @@ namespace pixelpipes
         TensorReference t = extract<TensorReference>(v);
         Shape s = t->shape();
         write_shape(t->shape(), drain);
-
+  
         size_t total = 0;
         for (ReadonlySliceIterator it = t->read_slices(); (bool)(*it); it++)
         {
             drain.write((char *)(*it).data(), (*it).size());
             total += (*it).size();
+			check_error(drain);
         }
 
         VERIFY(t->size() == total, "Tensor array size mismatch");
@@ -182,6 +183,8 @@ namespace pixelpipes
         VERIFY(tensor->size() == c, "Tensor read error");
 
         source.read((char *)tensor->data().data(), c);
+
+		check_error(source);
 
         return tensor;
     }
@@ -222,7 +225,7 @@ namespace pixelpipes
 
             return create<GenericList>(tokens);
         }
-        else
+        else 
         {
             switch (char_to_type(prefix))
             {
@@ -567,12 +570,13 @@ namespace pixelpipes
     void write_pipeline(const Pipeline &pipeline, const std::string &drain, bool compress, bool relocatable)
     {
 
-        std::fstream stream(drain, std::fstream::out);
+        std::fstream stream(drain, std::fstream::out  | std::ios_base::binary);
 
         std::string origin = (relocatable) ? std::filesystem::absolute(drain).parent_path().string() : "";
 
         _write_stream(pipeline, stream, origin, compress, relocatable);
 
+        stream.flush();
         stream.close();
     }
 
@@ -705,13 +709,15 @@ namespace pixelpipes
     Pipeline read_pipeline(const std::string &drain)
     {
 
-        std::fstream stream(drain, std::fstream::in);
+        std::fstream stream(drain, std::fstream::in | std::ios_base::binary);
 
         std::string origin = std::filesystem::absolute(drain).parent_path().string();
 
         Pipeline pipeline;
 
         _read_stream(stream, pipeline, origin);
+
+        stream.flush();
 
         stream.close();
 

@@ -170,12 +170,12 @@ namespace pixelpipes
     };
 
     template <typename T>
-    class PIXELPIPES_API Vector;
+    class Vector;
     template <typename T>
-    class PIXELPIPES_API Matrix;
+    class Matrix;
 
     template <typename T, size_t N>
-    class PIXELPIPES_API ArrayTensor : public Tensor
+    class ArrayTensor : public Tensor
     {
         PIXELPIPES_RTTI(ArrayTensor<T, N>, Tensor)
     public:
@@ -334,7 +334,7 @@ namespace pixelpipes
     };
 
     template <typename T>
-    class PIXELPIPES_API Vector : public ArrayTensor<T, 1>
+    class Vector : public ArrayTensor<T, 1>
     {
         PIXELPIPES_RTTI(Vector<T>, ArrayTensor<T, 1>)
     public:
@@ -358,7 +358,7 @@ namespace pixelpipes
     };
 
     template <typename T>
-    class PIXELPIPES_API Matrix : public ArrayTensor<T, 2>
+    class Matrix : public ArrayTensor<T, 2>
     {
         PIXELPIPES_RTTI(Matrix<T>, ArrayTensor<T, 2>)
     public:

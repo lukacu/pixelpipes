@@ -56,8 +56,10 @@ namespace pixelpipes
     template <typename T>
     T read_t(std::istream &source)
     {
+
         T v;
         source.read((char *)&v, sizeof(T));
+        check_error(source);
         return v;
     }
 
@@ -65,13 +67,15 @@ namespace pixelpipes
     void write_t(std::ostream &drain, T i)
     {
         drain.write((char *)&i, sizeof(T));
+        check_error(drain);
     }
 
     template <>
     inline void write_t(std::ostream &drain, bool b)
-    {
+    {  
         unsigned char c = b ? 0xFF : 0;
         drain.write((const char *)&c, sizeof(unsigned char));
+        check_error(drain);
     }
 
     template <>
@@ -79,6 +83,7 @@ namespace pixelpipes
     {
         char c;
         source.read(&c, sizeof(unsigned char));
+        check_error(source);
         return c > 0;
     }
 
@@ -88,6 +93,7 @@ namespace pixelpipes
         size_t len = s.size();
         write_t(drain, len);
         drain.write(&s[0], len);
+        check_error(drain);
     }
 
     template <>
@@ -99,9 +105,10 @@ namespace pixelpipes
             len = read_t<size_t>(source);
             std::string res(len, ' ');
             source.read(&res[0], len);
+            check_error(source);
             return res;
         }
-        catch (std::bad_alloc const&)
+        catch (std::bad_alloc const &)
         {
             throw SerializationException(Formatter() << "Unable to allocate a string of length " << len);
         }
