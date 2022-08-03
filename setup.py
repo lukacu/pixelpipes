@@ -40,6 +40,8 @@ def using_clang():
     compiler_ver = getoutput("{0} -v".format(compiler.compiler[0]))
     return 'clang' in compiler_ver
 
+root = os.path.abspath(os.path.dirname(__file__))
+
 # Override build command
 def make_library_filter(name):
     import fnmatch
@@ -71,8 +73,11 @@ class BuildExtCommand(build_ext.build_ext):
 
     def run(self):
 
-        target_dir = os.path.join(os.environ.get("BUILD_ROOT", os.path.dirname(
-            self.build_lib)), os.path.basename(self.build_lib), "pixelpipes")
+        if self.inplace:
+            target_dir = os.path.join(root, "pixelpipes")
+        else:
+            target_dir = os.path.join(os.environ.get("BUILD_ROOT", os.path.dirname(
+                self.build_lib)), os.path.basename(self.build_lib), "pixelpipes")
 
         self.library_dirs.append(target_dir)
 
@@ -135,6 +140,8 @@ class CMakeBuildCommand(Command):
         env = dict(**os.environ)
 
         cmake_command_args = list(cmake_args)
+        
+        cmake_command_args += ['-DBUILD_DEBUG=OFF']
 
         if not self.inplace:
             cmake_command_args += ['-DBUILD_INPLACE=OFF']
@@ -177,8 +184,6 @@ class CMakeBuildCommand(Command):
                 file_util.copy_file(file, os.path.join(
                     header_dir, os.path.basename(file)), update=True, verbose=True)
 
-
-root = os.path.abspath(os.path.dirname(__file__))
 
 include_dirs = []
 library_dirs = []

@@ -27,14 +27,15 @@ is optimized to reduce redundancy. This concept has the following benefits (some
 The source code for the PixelPipes framework is availabe on `GitHub <https://github.com/lukacu/pixelpipes>`_. Contributions to the project are welcome, please read the
 `development <development.html>` document on how to get started.
 
-Index
------
+Overview
+--------
 
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 1
 
    setup
    architecture
    tutorials/index
    api/index
    extending
+   development

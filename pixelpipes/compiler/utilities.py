@@ -6,9 +6,6 @@ import inspect
 from intbitset import intbitset
 
 from . import CompilerException
-from ..graph import Node, Reference, ValidationException
-
-from .. import types
 
 def toposort(data):
     """Dependencies are expressed as a dictionary whose keys are items

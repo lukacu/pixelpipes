@@ -24,6 +24,7 @@ def compare_serialized(graph, samples=100):
     os.close(tmpfd)
 
     write_pipeline(tmpname, pipeline1)
+
     pipeline2 = read_pipeline(tmpname)
 
     for i in range(1, samples):

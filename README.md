@@ -5,15 +5,6 @@ This project provides a framework for creating repeatable infinite streams of da
 
 PixelPipes combines both sampling and augmentation into a single data-generation pipeline. The pipeline is first described as a computational graph in Python. It is then transformed into an operation pipeline that is executed in C++, avoiding GIL and enabling efficient use of multiple threads with shared access to memory structures.
 
-## Architecture and terminology
-
-The PixelPipes framework is divided into two parts: 
-
- * a C++ core library, containing all low-level operations
- * a Python wrapper that provides high-level description of operations
-  
-The C++ library can be used standalone and embedded in other scripting languages for assembled pipelines. At the moment Python has to be used to compose a new pipeline.
-
 ## Quickstart
 
 ### Installing
@@ -26,27 +17,20 @@ The package can be installed as a Python wheel package, currently from a testing
 
 ### Simple example
 
-Below is an example of a Python script that constructs a very simple graphs for sampling images from a directory and randomly cropping and augmenting them. More complex examples are available in the documentation.
+Below is an example of a Python script that constructs a very simple graphs for sampling images from a directory and randomly cropping and augmenting them. Different and more complex examples are available in the documentation.
 
 TODO
 
-## Compiling and development
-
-The C++ library does not require any external dependencies during runtime, the Python wrapper requires some packages that are installed via Pip. The C++ library uses CMake build system. CMake can also build Python wrapper, however, it can also be built via distutils. A PyBind11 header library is used to generate Python bindings for the C++ core, it is installed as a Pip dependency. Optionally, the C++ code can be built using PyTorch support, this way the data can be converted directly to PyTorch tensors.
-
-For development and testing purposes, the libraries can be compiled inplace using the following commands.
-
-```
-> pip install cmake pybind11
-> pip install -r requirements.txt
-> python setup.py build_lib --inplace
-> python setup.py build_ext --inplace
-```
-
 ## Documentation
 
-ReadTheDocs: TODO
+The documentation is hosted at ReadTheDocs:
 
+ * Index
+ * Quick start
+ * Tutorials
+ * API
+ * Extending
+ * Development
 
 ## Acknowledgements
 

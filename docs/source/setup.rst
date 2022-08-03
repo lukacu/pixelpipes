@@ -17,4 +17,4 @@ display them.
 .. literalinclude:: ../../examples/simple.py
 
 Note that this sequence will be the same every time you run the script with the same sample indices. This example is very simple, but shows how a pipleine is built. More 
-complex examples with image operations are presented `here <examples.html>`_.
+complex examples with image operations are presented `here <tutorials/index.html>`_.

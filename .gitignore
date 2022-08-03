@@ -27,3 +27,5 @@ Debug
 *.pdb
 *.gz
 *.idx?-ubyte
+*.exp
+*.lib
