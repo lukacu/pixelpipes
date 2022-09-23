@@ -243,7 +243,6 @@ setup(
     install_requires=[
         "numpy>=1.20",
         "bidict>=0.21",
-        "intbitset>=2.4",
         "attributee>=0.1.7"
     ],
     extras_require={

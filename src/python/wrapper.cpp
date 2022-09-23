@@ -169,33 +169,6 @@ py::array token_to_python(const pixelpipes::TokenReference &variable)
     throw py::value_error(Formatter() << "Unable to convert token to Python:"  << variable);
 }
 
-TokenReference wrap_dnf_clause(py::object src)
-{
-
-    try
-    {
-        auto original = py::cast<std::vector<std::vector<bool>>>(src);
-        // TODO: make this nicer once we figure out how to convert nested types
-        std::vector<Sequence<bool>> data;
-        std::vector<Span<bool>> data2;
-
-        for (auto x : original)
-        {
-            data.push_back(Sequence<bool>(x));
-            data2.push_back(data.back());
-        }
-
-        DNF a(make_span(data2));
-
-        return create<ContainerToken<DNF>>(a);
-    }
-    catch (const std::exception &exc)
-    {
-    }
-
-    return empty();
-}
-
 template <typename T, typename C>
 TokenReference _python_list_convert_strict(const py::list &list)
 {
@@ -286,11 +259,6 @@ TokenReference python_to_token(py::object src)
     {
         return wrap_tensor(src);
     }
-
-    // Temporary solution, remove when predictive optimization is moved to C++
-    TokenReference dnf = wrap_dnf_clause(src);
-    if ((bool)dnf)
-        return dnf;
 
     if (py::list::check_(src))
     {
@@ -388,7 +356,7 @@ PYBIND11_MODULE(pypixelpipes, m)
 
     py::class_<Pipeline>(m, "Pipeline")
         .def(py::init<>())
-        .def("finalize", &Pipeline::finalize, "Finalize pipeline")
+        .def("finalize", &Pipeline::finalize, "Finalize pipeline", py::arg("optimize") = true)
         .def(
             "labels", [](Pipeline &p)
             {
@@ -426,6 +394,11 @@ PYBIND11_MODULE(pypixelpipes, m)
         "write_pipeline", [](const Pipeline &pipeline, std::string &name, bool compress)
         { return write_pipeline(pipeline, name, compress); },
         py::arg("pipeline"), py::arg("filename"), py::arg("compress") = true);
+
+    m.def(
+        "visualize_pipeline", [](const Pipeline &pipeline)
+        { return visualize_pipeline(pipeline); },
+        py::arg("pipeline"));
 
     /*py::class_<PipelineCallback, PyPipelineCallback, std::shared_ptr<PipelineCallback>>(m, "PipelineCallback")
         .def(py::init());*/

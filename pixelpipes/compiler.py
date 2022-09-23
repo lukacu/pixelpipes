@@ -4,13 +4,56 @@ from collections.abc import Container
 import typing
 import numbers
 
-from ..graph import Graph, Graph, InferredReference, Macro, Node, NodeException, Operation, Reference, ValidationException, Constant, Copy, Debug, Output
-from .. import Pipeline, PipelineOperation, types
-from ..numbers import Constant
-from .utilities import BranchSet, toposort
-from . import CompilerException, Variable
-from ..graph import RandomSeed, SampleIndex
-from ..flow import Conditional
+from .graph import Graph, Graph, InferredReference, Macro, Node, NodeException, Operation, Reference, ValidationException, Constant, Copy, Debug, Output
+from . import types
+from .numbers import Constant
+from .graph import RandomSeed, SampleIndex, Node, Operation
+from .flow import Conditional
+from pixelpipes import Pipeline, PipelineOperation
+
+from attributee import String, Number
+
+class CompilerException(Exception):
+    pass
+
+class Variable(Node):
+    """Variable placeholder that can be overriden later"""
+
+    name = String()
+    default = Number()
+
+from functools import reduce as _reduce
+
+def toposort(data):
+    """Dependencies are expressed as a dictionary whose keys are items
+and whose values are a set of dependent items. Output is a list of
+sets in topological order. The first set consists of items with no
+dependences, each subsequent set consists of items that depend upon
+items in the preceeding sets.
+"""
+    # Special case empty input.
+    if len(data) == 0:
+        return
+
+    # Copy the input so as to leave it unmodified.
+    data = data.copy()
+
+    # Ignore self dependencies.
+    for k, v in data.items():
+        v.discard(k)
+    # Find all items that don't depend on anything.
+    extra_items_in_deps = _reduce(set.union, data.values()) - set(data.keys())
+    # Add empty dependences where needed.
+    data.update({item : set() for item in extra_items_in_deps})
+    while True:
+        ordered = set(item for item, dep in data.items() if len(dep) == 0)
+        if not ordered:
+            break
+        yield ordered
+        data = {item: (dep - ordered) for item, dep in data.items() if item not in ordered}
+    if len(data) != 0:
+        raise CompilerException('Cyclic dependency detected among nodes: {}'.format(', '.join(repr(x) for x in data.keys())))
+
 
 def infer_type(node: typing.Union[Reference, str], graph: Graph = None, type_cache: typing.Mapping[str, types.Data] = None) -> types.Data:
     """Computes output type for a given node by recursively computing types of its dependencies and
@@ -83,18 +126,16 @@ class Compiler(object):
         compiler = Compiler(fixedout)
         return compiler.build(graph, variables, output)
 
-    def __init__(self, fixedout=False, predictive=True, debug=False):
+    def __init__(self, fixedout=False, debug=False):
         """[summary]
 
         Args:
             fixedout (bool, optional): Dimensions of all outputs should be fixed, making their concatenation possible.
                 This is important when creating a batch dataset. Defaults to False.
-            predictive (bool, optional): Optimize conditional operations by inserting jumps into the pipeline.
             debug (bool, optional): Print a lot of debug messages. Defaults to False.
         """
         self._fixedout = fixedout
         self._debug_enabled = debug
-        self._predictive = predictive
 
     def validate(self, graph: typing.Union[Graph, typing.Mapping[str, Node]]):
         """Validates graph by interring input and output types for all nodes. An exception will be
@@ -146,9 +187,20 @@ class Compiler(object):
     def build(self, graph: Graph,
                 variables: typing.Optional[typing.Mapping[str,
                                                           numbers.Number]] = None,
-                output: typing.Optional[typing.Union[Container, typing.Callable]] = None) -> Pipeline:
+                output: typing.Optional[typing.Union[Container, typing.Callable]] = None, optimize=True) -> Pipeline:
+        """Compiles the graph and builds a pipeline from it in one function.
 
-        return Pipeline(self.compile(graph, variables, output))
+        Args:
+            graph (Graph): _description_
+            variables (typing.Optional[typing.Mapping[str, numbers.Number]], optional): _description_. Defaults to None.
+            output (typing.Optional[typing.Union[Container, typing.Callable]], optional): _description_. Defaults to None.
+            optimize (bool, optional): Optimize conditional operations by inserting jumps into the pipeline.
+
+        Returns:
+            Pipeline: Pipeline object
+        """
+
+        return Pipeline(self.compile(graph, variables, output), optimize=optimize)
 
     def compile(self, graph: Graph,
                 variables: typing.Optional[typing.Mapping[str,
@@ -366,9 +418,6 @@ class Compiler(object):
                 if isinstance(node, Conditional):
                     # In case of a conditional node we can determine which nodes will be executed only
                     # in certain conditions and insert jumps into the pipeline to speed up execution.
-                    #
-                    # We add this constraints also in case we do not use predicitive jumps to maintain
-                    # the order of operations for comparison.
 
                     # Only register conditon once, do not use sets to preserve order
                     if not node.condition.name in conditions:
@@ -410,101 +459,19 @@ class Compiler(object):
         for i, name in enumerate(output_nodes):
              dependencies.setdefault(name, set()).update(output_nodes[0:i])
 
-        if not self._predictive:
-            self._debug("Jump optimization not disabled, skipping")
-            # Do not process jumps, just sort operations according to their dependencies
-            ordered = [(level, item) for level, sublist in enumerate(
-                toposort(dependencies)) for item in sublist]
-            ordered = sorted(ordered)
-            operations = [(name, operation_data(optimized[name]), [
-                           r.name for r in optimized[name].input_values()]) for _, name in ordered]
-        else:
 
-            def merge_branch(branch, condition, value=None):
-                if condition in branch:
-                    del branch[condition]
-                elif value is not None:
-                    branch[condition] = value
-
-            self._debug("Calculating branch sets")
-            branches = {}
-            for output_node in output_nodes:
-                for name, stack in traverse(optimized, output_node, stack=[]):
-                    branches.setdefault(name, BranchSet(conditions))
-                    branch = {}
-                    for i, node in enumerate(stack[:-1]):
-                        if isinstance(optimized[node], Conditional):
-                            condition = optimized[node]
-                            ancestor = stack[i+1]
-                            if condition.condition == ancestor:
-                                merge_branch(branch, condition.condition.name)
-                                break
-                            elif condition.true == ancestor:
-                                merge_branch(
-                                    branch, condition.condition.name, True)
-                            elif condition.false == ancestor:
-                                merge_branch(
-                                    branch, condition.condition.name, False)
-
-                branches[name].add(**branch)
-
-            #print("digraph pixelpipes {")
-            # for k, deps in dependencies.items():
-            #    k = k.replace(".", "_")
-            #    for v in deps:
-            #        v = v.replace(".", "_")
-            #        print("   %s -> %s; " % (k, v))
-            # print("}")
-
-            converter = BranchSet(conditions)
-
-            # There are cases where a node without a direct dependency is considered
-            # redundant in certain branch, we have to add these condition nodes to its
-            # dependencies to maintain a valid order
-            for name, node_branches in branches.items():
-                dependencies.setdefault(name, set()).update(
-                    node_branches.used())
-
-            # Insert partiton information into the sorting criteria, group instructions within levels by their
-            # partition sets
-            ordered = [(level, branches[item].condition(), item) for level,
-                       sublist in enumerate(toposort(dependencies)) for item in sublist]
-            ordered = sorted(ordered)
-
-            operations = []
-
-            pending = None
-            state = []
-
-            for level, condition, name in ordered:
-                if self._debug_enabled:
-                    self._debug("{}, {}: {}", level, name,
-                                converter.text(condition))
-                if condition != state:
-                    if not pending is None:
-                        current_position = len(operations)
-                        pending_position, pending_negate, pending_inputs = pending
-                        cjump = ("_cjump", pending_negate,
-                                 current_position - 1 - pending_position)
-                        operations[pending_position] = (
-                            "GOTO: %d" % current_position, cjump, pending_inputs)
-                        pending = None
-
-                    equation, inputs = converter.function(condition)
-                    if equation is not None:
-                        operations.append(None)
-                        pending = (len(operations) - 1, equation, inputs)
-
-                    state = condition
-
-                operations.append((name, operation_data(optimized[name]), [
-                                  r.name for r in optimized[name].input_values()]))
+        self._debug("Jump optimization disabled, skipping")
+        # Do not process jumps, just sort operations according to their dependencies
+        ordered = [(level, item) for level, sublist in enumerate(
+            toposort(dependencies)) for item in sublist]
+        ordered = sorted(ordered)
+        operations = [(name, operation_data(optimized[name]), [
+                        r.name for r in optimized[name].input_values()]) for _, name in ordered]
 
         pipeline_operations = []
     
         # Assemble a list of pipeline operations
         for i, (name, data, inputs) in enumerate(operations):
-            self._debug("{}: {}", i, data[0])
             pipeline_operations.append(PipelineOperation(name, data[0], list(data[1:]), inputs))
 
         return pipeline_operations

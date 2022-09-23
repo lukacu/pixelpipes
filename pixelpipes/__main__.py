@@ -6,14 +6,12 @@ from attributee.object import Callable
 from attributee.io import Entrypoint
 from pixelpipes import write_pipeline
 
-
 from pixelpipes.graph import ValidationException
 
 class Compiler(Attributee, Entrypoint):
 
     graph = Callable()
     debug = Boolean(default=False)
-    predictive = Boolean(default=True)
     relocatable = Boolean(default=True)
     compress = Boolean(default=True)
     fixedout = Boolean(default=False)
@@ -24,7 +22,7 @@ class Compiler(Attributee, Entrypoint):
 
         from pixelpipes.compiler import Compiler
 
-        compiler = Compiler(fixedout=self.fixedout, debug=self.debug, predictive=self.predictive)
+        compiler = Compiler(fixedout=self.fixedout, debug=self.debug)
 
         try:
             operations = compiler.compile(self.graph(), output=self.output)

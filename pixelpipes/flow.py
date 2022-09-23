@@ -16,7 +16,7 @@ class Conditional(Operation):
     condition = Input(types.Integer(), description="Condition to test")
 
     def operation(self):
-        return "condition", [[False]]
+        return "condition",
 
     def infer(self, true, false, condition):
         return true.common(false)

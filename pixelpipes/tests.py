@@ -330,7 +330,7 @@ class FlowTests(unittest.TestCase):
 
         with Graph() as graph:
             a = Round(SampleUnform(0, 30))
-            b = Constant(value=3)
+            b = Constant(value=2)
             d = Conditional(a, b, a > 15)
             outputs(a, b, d)
 

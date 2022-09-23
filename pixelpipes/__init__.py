@@ -77,7 +77,7 @@ class Pipeline(object):
     """Wrapper for the C++ pipeline object, includes metadata
     """
 
-    def __init__(self, data: Iterable[PipelineOperation]):
+    def __init__(self, data: Iterable[PipelineOperation], optimize=True):
 
         from . import pypixelpipes
         from pixelpipes.graph import ValidationException
@@ -99,7 +99,7 @@ class Pipeline(object):
                 #self._debug("{} ({}): {} ({})", indices[op.id], op.id,
                 #            op.name, ", ".join(["{} ({})".format(i, n) for i, n in zip(input_indices, op.inputs)]))
 
-            self._pipeline.finalize()
+            self._pipeline.finalize(optimize=optimize)
 
     def __len__(self):
         return len(self._operations)
@@ -131,3 +131,12 @@ def read_pipeline(filename: str):
     from . import pypixelpipes
     pipeline = pypixelpipes.read_pipeline(filename)
     return Pipeline(pipeline)
+
+def visualize_pipeline(pipeline: Pipeline):
+    from . import pypixelpipes
+    try:
+        from graphviz import Source
+    except ImportError:
+        raise ImportError("Install graphviz to visualize pipeline")
+    graph = Source(pypixelpipes.visualize_pipeline(pipeline._pipeline))
+    graph.view()

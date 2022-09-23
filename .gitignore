@@ -29,3 +29,5 @@ Debug
 *.idx?-ubyte
 *.exp
 *.lib
+*.gv
+*.gv.pdf

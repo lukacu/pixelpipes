@@ -62,7 +62,7 @@ class TestResource(unittest.TestCase):
             b = MakeResource(a = Constant(1.4), b = Constant(1.5))
             resource = ConditionalResource(a, b, SampleIndex() % 2 == 0)
             outputs(resource["a"], resource["b"])
-        
+
         pipeline = Compiler().build(graph)
 
         output = pipeline.run(1)

@@ -17,33 +17,13 @@ namespace pixelpipes
     class Pipeline;
     class PipelineException;
 
-    class PIXELPIPES_API DNF
-    {
-    public:
-        DNF();
+    bool PIXELPIPES_API is_output(OperationReference &op);
 
-        DNF(Span<Span<bool>> clauses);
-        DNF(std::istream &source);
+    bool PIXELPIPES_API is_conditional(OperationReference &op);
 
-        DNF(const DNF &);
-        DNF(DNF &&);
+    bool PIXELPIPES_API is_constant(OperationReference &op);
 
-        DNF &operator=(const DNF &);
-        DNF &operator=(DNF &&);
-
-        ~DNF();
-
-        size_t size() const;
-
-        bool compute(TokenList values) const;
-
-        void write(std::ostream &target) const;
-
-    private:
-        struct State;
-
-        Implementation<State> state;
-    };
+    bool PIXELPIPES_API is_context(OperationReference &op);
 
     class PIXELPIPES_API Pipeline
     {
@@ -64,13 +44,11 @@ namespace pixelpipes
 
         virtual ~Pipeline();
 
-        //Pipeline(const Pipeline &);
         Pipeline(Pipeline &&);
 
-        //Pipeline &operator=(const Pipeline &);
         Pipeline &operator=(Pipeline &&);
 
-        virtual void finalize();
+        virtual void finalize(bool optimize = true);
 
         virtual int append(std::string name, const TokenList& args, const Span<int>& inputs);
 
@@ -91,6 +69,8 @@ namespace pixelpipes
             unsigned long elapsed;
         } OperationStats;
     };
+
+    std::string PIXELPIPES_API visualize_pipeline(const Pipeline& pipeline);
 
     class PipelineCallback
     {

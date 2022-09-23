@@ -17,6 +17,8 @@
 #include <pixelpipes/serialization.hpp>
 #include <pixelpipes/operation.hpp>
 
+#include "pipeline/optimization.hpp"
+
 using namespace std;
 using namespace std::chrono;
 
@@ -37,121 +39,7 @@ namespace pixelpipes
 
     PipelineException::PipelineException(std::string reason) : BaseException(std::string(reason.c_str())) {}
 
-    OperationException::OperationException(std::string reason, const OperationReference& reference, int position) : PipelineException(std::string(reason.c_str()) + std::string(" (operation ") + operation_name(reference) + ", " + std::to_string(position) + std::string(")")), _position(position) {}
-
-    struct DNF::State
-    {
-        std::vector<std::vector<bool>> clauses;
-    };
-
-    DNF::DNF() = default;
-
-    DNF::DNF(const DNF &) = default;
-    DNF::DNF(DNF &&) = default;
-
-    DNF &DNF::operator=(const DNF &) = default;
-    DNF &DNF::operator=(DNF &&) = default;
-
-    DNF::~DNF() = default;
-
-    DNF::DNF(Span<Span<bool>> clauses)
-    {
-
-        for (auto x : clauses)
-        {
-            if (x.size() > 0)
-            {
-                state->clauses.push_back(std::vector<bool>(x.begin(), x.end()));
-            }
-        }
-    }
-
-    void DNF::write(std::ostream &target) const
-    {
-        write_t(target, state->clauses.size());
-        for (auto x : state->clauses)
-        {
-            write_t(target, x.size());
-            for (auto d : x)
-                write_t<bool>(target, d); // Explicit type needed
-        }
-    }
-
-    DNF::DNF(std::istream &source)
-    {
-        size_t len = read_t<size_t>(source);
-        state->clauses.reserve(len);
-        for (size_t i = 0; i < len; i++)
-        {
-            std::vector<bool> clause;
-            size_t n = read_t<size_t>(source);
-            for (size_t j = 0; j < n; j++)
-                clause.push_back(read_t<bool>(source));
-            state->clauses.push_back(clause);
-        }
-    }
-
-    size_t DNF::size() const
-    {
-
-        size_t count = 0;
-
-        for (auto x : state->clauses)
-        {
-            count += x.size();
-        }
-
-        return count;
-    }
-
-    bool DNF::compute(TokenList values) const
-    {
-
-        auto v = values.begin();
-
-        for (size_t i = 0; i < state->clauses.size(); i++)
-        {
-            auto offset = v;
-            bool result = true;
-            for (bool negate : state->clauses[i])
-            {
-                result &= (*v) && (extract<bool>(*v) != negate);
-                if (!result)
-                {
-                    v = offset + state->clauses[i].size();
-                    break;
-                }
-                else
-                    v++;
-            }
-
-            if (result)
-                return true;
-        }
-
-        return false;
-    }
-
-    template <>
-    inline DNF extract(const TokenReference &v)
-    {
-        VERIFY((bool)v, "Uninitialized token");
-        VERIFY(v->is<ContainerToken<DNF>>(), "Incorrect token type, expected DNF");
-        return v->cast<ContainerToken<DNF>>()->get();
-    }
-
-    template <>
-    inline TokenReference wrap(DNF v)
-    {
-        return create<ContainerToken<DNF>>(v);
-    }
-
-    PIXELPIPES_REGISTER_SERIALIZER(
-        GetTypeIdentifier<ContainerToken<DNF>>(), "_dnf_",
-        [](std::istream &source)
-        { return wrap(DNF(source)); },
-        [](const TokenReference &v, std::ostream &target)
-        { extract<DNF>(v).write(target); });
+    OperationException::OperationException(std::string reason, const OperationReference &reference, int position) : PipelineException(std::string(reason.c_str()) + std::string(" (operation ") + operation_name(reference) + ", " + std::to_string(position) + std::string(")")), _position(position) {}
 
     class Output : public Operation
     {
@@ -183,46 +71,19 @@ namespace pixelpipes
         std::string label;
     };
 
-    PIXELPIPES_OPERATION_CLASS("output", Output, std::string);
-
-    class Jump : public Operation
+    bool is_output(OperationReference &op)
     {
-    public:
-        Jump(int offset) : offset(offset)
-        {
+        return (bool)op && op->is<Output>();
+    }
 
-            if (offset < 1)
-                throw TypeException("Illegal jump location");
-        };
-
-        ~Jump() = default;
-
-        virtual TokenReference run(const TokenList &inputs)
-        {
-
-            VERIFY(inputs.size() == 1, "Incorrect number of parameters");
-
-            return create<IntegerScalar>(offset);
-        }
-
-        virtual TypeIdentifier type()
-        {
-            return GetTypeIdentifier<Jump>();
-        };
-
-        virtual Sequence<TokenReference> serialize() { return Sequence<TokenReference>({wrap(offset)}); }
-
-    protected:
-        int offset;
-    };
-
-    PIXELPIPES_OPERATION_CLASS("jump", Jump, int);
+    PIXELPIPES_OPERATION_CLASS("output", Output, std::string);
 
     class Constant : public Operation
     {
     public:
-        Constant(const TokenReference &value) : value(value.reborrow()) {
-            VERIFY((bool) value, "Constant value undefined");
+        Constant(const TokenReference &value) : value(value.reborrow())
+        {
+            VERIFY((bool)value, "Constant value undefined");
         }
 
         virtual TokenReference run(const TokenList &inputs)
@@ -243,63 +104,20 @@ namespace pixelpipes
     };
 
     PIXELPIPES_OPERATION_CLASS("constant", Constant, TokenReference);
-
-    class ConditionalJump : public Jump
-    {
-    public:
-        ConditionalJump(DNF condition, int offset) : Jump(offset), condition(condition)
-        {
-
-            VERIFY(condition.size() >= 1, "At least one condition must be defined");
-        }
-        ~ConditionalJump() = default;
-
-        virtual TokenReference run(const TokenList &inputs)
-        {
-
-            if (condition.compute(inputs.slice(2, inputs.size() - 2)))
-            {
-                return create<IntegerScalar>(0);
-            }
-            else
-            {
-                return create<IntegerScalar>(offset);
-            }
-        }
-
-        virtual TypeIdentifier type()
-        {
-            return GetTypeIdentifier<ConditionalJump>();
-        }
-
-        virtual Sequence<TokenReference> serialize() { return Sequence<TokenReference>({wrap(condition)}); }
-
-    private:
-        DNF condition;
-    };
-
     class Conditional : public Operation
     {
     public:
-        Conditional(DNF condition) : condition(condition)
-        {
-
-            VERIFY(condition.size() >= 1, "At least one condition must be defined");
-        };
-
+        Conditional() = default;
         ~Conditional() = default;
 
         virtual TokenReference run(const TokenList &inputs)
         {
+            VERIFY(inputs.size() == 3, "Illegal number of inputs");
 
-            if (condition.compute(inputs.slice(2, inputs.size() - 2)))
-            {
+            if (extract<bool>(inputs[2]))
                 return inputs[0].reborrow();
-            }
             else
-            {
                 return inputs[1].reborrow();
-            }
         }
 
         virtual TypeIdentifier type()
@@ -307,11 +125,18 @@ namespace pixelpipes
             return GetTypeIdentifier<Conditional>();
         }
 
-        virtual Sequence<TokenReference> serialize() { return Sequence<TokenReference>({wrap(condition)}); }
-
-    private:
-        DNF condition;
+        virtual Sequence<TokenReference> serialize() { return Sequence<TokenReference>(); }
     };
+
+    bool is_conditional(OperationReference &op)
+    {
+        return (bool)op && op->is<Conditional>();
+    }
+
+    bool is_constant(OperationReference &op)
+    {
+        return (bool)op && op->is<Constant>();
+    }
 
     class ContextQuery : public Operation
     {
@@ -341,6 +166,11 @@ namespace pixelpipes
         ContextData query;
     };
 
+    bool is_context(OperationReference &op)
+    {
+        return (bool)op && op->is<ContextQuery>();
+    }
+
     class DebugOutput : public Operation
     {
     public:
@@ -367,9 +197,7 @@ namespace pixelpipes
 
     PIXELPIPES_OPERATION_CLASS("context", ContextQuery, ContextData);
 
-    PIXELPIPES_OPERATION_CLASS("cjump", ConditionalJump, DNF, int);
-
-    PIXELPIPES_OPERATION_CLASS("condition", Conditional, DNF);
+    PIXELPIPES_OPERATION_CLASS("condition", Conditional);
 
     PIXELPIPES_OPERATION_CLASS("debug", DebugOutput, std::string);
 
@@ -406,10 +234,19 @@ namespace pixelpipes
 
     Pipeline::~Pipeline() = default;
 
-    void Pipeline::finalize()
+    void Pipeline::finalize(bool optimize)
     {
 
         state->finalized = true;
+
+        if (optimize)
+        {
+            state->operations = predictive_optimization(state->operations);
+        }
+        else
+        {
+            state->operations = ensure_order(state->operations);
+        }
 
         state->cache.resize(state->operations.size());
         state->stats.resize(state->operations.size());
@@ -432,11 +269,11 @@ namespace pixelpipes
         for (int i : inputs)
         {
             if (i >= (int)state->operations.size() || i < 0)
-                throw OperationException("Operation index out of bounds", operation, (int) state->operations.size());
+                throw OperationException("Operation index out of bounds", operation, (int)state->operations.size());
 
             if ((state->operations[i].first->type()) == GetTypeIdentifier<Output>())
             {
-                throw OperationException("Cannot refer to output operation", operation, (int) state->operations.size());
+                throw OperationException("Cannot refer to output operation", operation, (int)state->operations.size());
             }
         }
 
@@ -600,6 +437,60 @@ namespace pixelpipes
         auto r = Sequence<TokenReference>(result);
 
         return r;
+    }
+
+    std::string PIXELPIPES_API visualize_pipeline(const Pipeline &pipeline)
+    {
+        size_t n = 0;
+
+        std::stringstream stream;
+
+        stream << "digraph graphname {" << std::endl;
+
+        std::vector<size_t> outputs;
+
+        for (size_t o = 0; o < pipeline.size(); o++)
+        {
+            Pipeline::OperationData operation = pipeline.get(o);
+            auto name = operation_name(operation.first);
+
+            if (operation.first->is<ConditionalJump>())
+            {
+                name = "cjump";
+            }
+
+            stream << "OP" << n << " [ordering=in label=\"" << n << " - " << name << "\" ";
+            if (operation.first->is<Output>())
+            {
+                stream << " shape=box";
+                outputs.push_back(n);
+            }
+            else if (operation.first->is<ContextQuery>())
+            {
+                stream << " shape=hexagon";
+            }
+
+            stream << "];" << std::endl;
+
+            for (auto i : operation.second)
+            {
+                stream << "OP" << i << " -> "
+                       << "OP" << n << ";" << std::endl;
+            }
+
+            n++;
+        }
+
+        stream << "{ rank=same; ";
+
+        for (auto o : outputs)
+        {
+            stream << " OP" << o;
+        }
+
+        stream << "}}" << std::endl;
+
+        return stream.str();
     }
 
     std::vector<float> Pipeline::operation_time()
