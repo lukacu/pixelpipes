@@ -54,6 +54,14 @@ SET(OPENCV_STATIC_FLAGS
   -DBUILD_opencv_python2=OFF
 )
 
+SET(OPENCV_LIBS "")
+SET(OPENCV_INCLUDE_DIRS "${CMAKE_EXTERNALS_DIR}opencv/include/")
+
+SET(_SUFFIX ${CMAKE_STATIC_LIBRARY_SUFFIX})
+SET(_PREFIX ${CMAKE_STATIC_LIBRARY_PREFIX})
+
+
+IF(NOT EXISTS "${CMAKE_EXTERNALS_DIR}opencv/lib/${_PREFIX}opencv_core${_SUFFIX}")
 ExternalProject_Add(opencv
   PREFIX opencv
   GIT_REPOSITORY https://github.com/opencv/opencv
@@ -61,12 +69,7 @@ ExternalProject_Add(opencv
   CMAKE_ARGS ${OPENCV_STATIC_FLAGS}
   TEST_COMMAND ""
 )
-
-SET(OPENCV_LIBS "")
-SET(OPENCV_INCLUDE_DIRS "${CMAKE_EXTERNALS_DIR}opencv/include/")
-
-SET(_SUFFIX ${CMAKE_STATIC_LIBRARY_SUFFIX})
-SET(_PREFIX ${CMAKE_STATIC_LIBRARY_PREFIX})
+ENDIF()
 
 foreach(M IN ITEMS zlib ittnotify libpng libopenjp2 libjpeg-turbo libtiff)
   add_library(opencv_3dparty_${M} STATIC IMPORTED)
