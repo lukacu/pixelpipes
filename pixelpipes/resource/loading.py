@@ -9,6 +9,7 @@ from . import ResourceField
 from .list import ResourceListSource, FileList
 from .. import types
 from ..image import ReadImage, ReadImageAny
+from ..graph import ReadFile
 
 
 class ColorConversion(Enum):
@@ -25,8 +26,8 @@ class LoadImage(ResourceField):
 
     def access(self, parent):
         if self._loader:
-            return self._loader(parent.type[self._field].access(parent))
-        return ReadImage(parent.type[self._field].access(parent))
+            return self._loader(ReadFile(parent.type[self._field].access(parent)))
+        return ReadImage(ReadFile(parent.type[self._field].access(parent)))
 
 
 _EXTENSIONS = [".jpg", ".jpeg", ".png", ".tif", ".tiff"]

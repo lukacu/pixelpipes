@@ -424,8 +424,11 @@ class Node(Attributee, OperationProxy):
             if not input_type.castable(inputs[input_name]):
                 raise ValidationException("{}: input '{}' cannot convert {} to {}".format(
                     class_fullname(self), input_name, inputs[input_name], input_type), node=self)
+        try:
 
-        return self.infer(**inputs)
+            return self.infer(**inputs)
+        except TypeError as te:
+            raise ValidationException("Inferrence failed: {}".format(te), node=self)
 
     def input_types(self):
         return [i for _, i in self.get_inputs()]
@@ -797,6 +800,18 @@ class Output(Operation):
 
     def operation(self):
         return "output", self.label
+
+class ReadFile(Operation):
+    """Read file from disk to memory buffer. File is read in binary mode."""
+
+    filename = Input(types.String(), description="Path to the image file")
+
+    def operation(self):
+        return "read_file",
+
+    def infer(self, filename):
+        return types.Buffer()
+
 
 def outputs(*inputs, label="default"):
     for i in inputs:

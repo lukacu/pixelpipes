@@ -256,6 +256,9 @@ def BooleanList(length = None):
 def String(length = None):
     return Token("char", length)
 
+def Buffer(length = None):
+    return Token("char", length)
+
 def View():
     return Token("float", 3, 3)
 

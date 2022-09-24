@@ -179,6 +179,14 @@ namespace pixelpipes
         return cast<Buffer>(v);
     }
 
+    template <>
+    inline Pointer<FlatBuffer> extract(const TokenReference &v)
+    {
+        VERIFY((bool)v, "Uninitialized token");
+        VERIFY(v->is<FlatBuffer>(), "Cannot unpack a flat buffer");
+        return cast<FlatBuffer>(v);
+    }
+
     // Extend buffer interface?
     class PIXELPIPES_API String : public List
     {
