@@ -1,6 +1,6 @@
 
 #ifdef _WIN32
-#pragma warning(disable: 4251)
+#pragma warning(disable : 4251)
 #endif
 
 #include <fstream>
@@ -33,7 +33,7 @@ PYBIND11_DECLARE_HOLDER_TYPE(T, pixelpipes::Pointer<T>)
 // array.cpp
 TokenReference wrap_tensor(const py::object &src);
 py::object extract_tensor(const TokenReference &src);
-//TokenReference wrap_tensor_list(const py::object &src);
+// TokenReference wrap_tensor_list(const py::object &src);
 
 /*class PyPipelineCallback : public PipelineCallback
 {
@@ -166,7 +166,7 @@ py::array token_to_python(const pixelpipes::TokenReference &variable)
         return py::reinterpret_steal<py::array>(handle);
     }
 
-    throw py::value_error(Formatter() << "Unable to convert token to Python:"  << variable);
+    throw py::value_error(Formatter() << "Unable to convert token to Python:" << variable);
 }
 
 template <typename T, typename C>
@@ -196,15 +196,15 @@ TokenReference _python_list_convert_strict(const py::list &list)
     return wrap(clist);
 }
 
-#define _CONVERT_VECTOR(src, elem)                                     \
-    try                                                                \
-    {                                                                  \
-        auto list = Sequence<elem>(py::cast < std::vector<elem>>(src)); \
-                                                                       \
-        return create<Vector<elem>>(make_span(list));                  \
-    }                                                                  \
-    catch (...)                                                        \
-    {                                                                  \
+#define _CONVERT_VECTOR(src, elem)                                    \
+    try                                                               \
+    {                                                                 \
+        auto list = Sequence<elem>(py::cast<std::vector<elem>>(src)); \
+                                                                      \
+        return create<Vector<elem>>(make_span(list));                 \
+    }                                                                 \
+    catch (...)                                                       \
+    {                                                                 \
     }
 
 TokenReference python_to_token(py::object src)
@@ -237,7 +237,8 @@ TokenReference python_to_token(py::object src)
     {
         auto pylist = py::list(src);
         TokenReference r = _python_list_convert_strict<bool, py::bool_>(pylist);
-        if (r) {
+        if (r)
+        {
             return r;
         }
 
@@ -289,7 +290,6 @@ int _add_operation(T &pipeline, std::string &name, py::list args, std::vector<in
             throw std::invalid_argument("Argument number mismatch");
 
         Sequence<TokenReference> arguments(args.size());
-
 
         for (size_t i = 0; i < args.size(); i++)
         {
@@ -367,6 +367,7 @@ PYBIND11_MODULE(pypixelpipes, m)
             "append", [](Pipeline &p, std::string &name, py::list args, std::vector<int> inputs)
             { return _add_operation(p, name, args, inputs); },
             "Add operation to pipeline")
+        .def("size", &Pipeline::size, "Returns the length of the pipeline")
         .def(
             "run", [](Pipeline &p, unsigned long index)
             {

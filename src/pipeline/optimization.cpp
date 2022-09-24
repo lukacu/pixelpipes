@@ -511,10 +511,21 @@ namespace pixelpipes
         }
     }
 
-    std::vector<OperationData> predictive_optimization(std::vector<OperationData> &operations)
+    void ensure_order(const std::vector<size_t>& operations, std::vector<std::set<int>>& dependencies)
+    {
+        for (size_t i = 0; i < operations.size(); i++)
+        {
+            for (size_t j = 0; j < i; j++)
+                dependencies[operations[i]].insert(operations[j]);
+        }
+    }
+
+
+    std::vector<OperationData> optimize_pipeline(std::vector<OperationData> &operations, bool predictive)
     {
 
         std::vector<size_t> outputs;
+        std::vector<size_t> context;
         std::set<int> conditions;
         std::vector<BranchSet> branches;
         std::vector<std::set<int>> dependencies;
@@ -529,11 +540,14 @@ namespace pixelpipes
             {
                 outputs.push_back(i);
             }
+            else if (is_context(operations[i].first))
+            {
+                context.push_back(i);
+            }
             else if (is_conditional(operations[i].first))
             {
                 conditions.insert(operations[i].second[2]);
             }
-
             for (auto j : operations[i].second)
             {
                 dependencies[i].insert(j);
@@ -595,15 +609,13 @@ namespace pixelpipes
                 }
             }
 
-            build_branches(operations, output_node, branches, condition_map);
+            if (predictive)
+                build_branches(operations, output_node, branches, condition_map);
         }
 
-        // Ensure correct output ordering
-        for (size_t i = 0; i < outputs.size(); i++)
-        {
-            for (size_t j = 0; j < i; j++)
-                dependencies[outputs[i]].insert(outputs[j]);
-        }
+        // Ensure correct output and context query ordering
+        ensure_order(outputs, dependencies);
+        ensure_order(context, dependencies);
 
         /* There are cases where a node without a direct dependency is considered
            redundant in certain branch, we have to add these condition nodes to its
@@ -612,17 +624,20 @@ namespace pixelpipes
         std::vector<size_t> order(operations.size());
         for (size_t i = 0; i < operations.size(); i++)
         {
-            for (auto d : branches[i].used())
-            {
-                dependencies[i].insert(condition_rev[d]);
+            if (predictive) {
+                for (auto d : branches[i].used())
+                {
+                    dependencies[i].insert(condition_rev[d]);
+                }
+                // Remove self-references
+                dependencies[i].erase(i);
             }
-            // Remove self-references
-            dependencies[i].erase(i);
+
             // Prepare list for ordering
             order[i] = i;
 
             // Constants do not have to be conditionally skipped
-            if (is_constant(operations[i].first))
+            if (is_constant(operations[i].first) || is_context(operations[i].first))
             {
                 dependencies[i].clear();
                 branches[i].clear();
@@ -645,7 +660,7 @@ namespace pixelpipes
         std::vector<std::vector<bool>> pending_clause;
         BranchSet state(conditions.size());
 
-        std::vector<OperationData> predictive;
+        std::vector<OperationData> optimized;
         std::vector<int> reverse;
         reverse.resize(order.size(), -1);
 
@@ -657,7 +672,7 @@ namespace pixelpipes
             {
                 if (pending_position >= 0)
                 {
-                    size_t current_position = predictive.size();
+                    size_t current_position = optimized.size();
                     int offset = current_position - 1 - pending_position;
                     std::vector<int> remapped_inputs;
                     for (auto d : pending_inputs)
@@ -670,14 +685,14 @@ namespace pixelpipes
                         VERIFY(m >= 0, "Illegal reference");
                         remapped_inputs.push_back(m);
                     }
-                    predictive[pending_position] = {create<ConditionalJump>(DNF(pending_clause), offset), remapped_inputs};
+                    optimized[pending_position] = {create<ConditionalJump>(DNF(pending_clause), offset), remapped_inputs};
                     pending_position = -1;
                 }
                 auto clauses = branches[i].function();
                 if (!clauses.second.empty())
                 {
-                    predictive.push_back({OperationReference(), Sequence<int>()});
-                    pending_position = predictive.size() - 1;
+                    optimized.push_back({OperationReference(), Sequence<int>()});
+                    pending_position = optimized.size() - 1;
                     pending_clause = clauses.first;
                     pending_inputs = clauses.second;
                 }
@@ -693,81 +708,11 @@ namespace pixelpipes
                 remapped_inputs.push_back(m);
             }
 
-            predictive.push_back({operations[i].first.reborrow(), remapped_inputs});
-            reverse[i] = predictive.size() - 1;
+            optimized.push_back({operations[i].first.reborrow(), remapped_inputs});
+            reverse[i] = optimized.size() - 1;
         }
 
-        return predictive;
-    }
-
-    std::vector<Pipeline::OperationData> ensure_order(std::vector<Pipeline::OperationData> &operations)
-    {
-
-        std::vector<size_t> outputs;
-        std::vector<std::set<int>> dependencies;
-
-        dependencies.resize(operations.size());
-
-        DEBUGMSG("Ensuring valid ordering for %ld operations.\n", operations.size());
-
-        for (size_t i = 0; i < operations.size(); i++)
-        {
-            if (is_output(operations[i].first))
-            {
-                outputs.push_back(i);
-            }
-            for (auto j : operations[i].second)
-            {
-                dependencies[i].insert(j);
-            }
-        }
-
-        // Ensure correct output ordering
-        for (size_t i = 0; i < outputs.size(); i++)
-        {
-            for (size_t j = 0; j < i; j++)
-                dependencies[outputs[i]].insert(outputs[j]);
-        }
-
-        std::vector<size_t> order(operations.size());
-        for (size_t i = 0; i < operations.size(); i++)
-        {
-            // Remove self-references
-            dependencies[i].erase(i);
-            order[i] = i;
-        }
-
-        // Order operations according to dependencies and group by branches
-        DEBUGMSG("Sorting operations.\n");
-        auto levels = topological_sort(dependencies);
-
-        auto comparator = [&](const size_t &a, const size_t &b) -> bool { // a > b
-            return std::tie(levels[a], a) < std::tie(levels[b], b);
-        };
-
-        std::sort(order.begin(), order.end(), comparator);
-
-        std::vector<OperationData> validated;
-        std::vector<int> reverse;
-        reverse.resize(order.size(), -1);
-
-        DEBUGMSG("Rebuilding pipeline.\n");
-
-        for (auto i : order)
-        {
-            std::vector<int> remapped_inputs;
-            for (auto d : operations[i].second)
-            {
-                auto m = reverse[d];
-                VERIFY(m >= 0, "Illegal reference");
-                remapped_inputs.push_back(m);
-            }
-
-            validated.push_back({operations[i].first.reborrow(), remapped_inputs});
-            reverse[i] = validated.size() - 1;
-        }
-
-        return validated;
+        return optimized;
     }
 
 }

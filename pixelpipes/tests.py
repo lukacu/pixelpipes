@@ -280,7 +280,21 @@ class ListTests(unittest.TestCase):
 
 class FlowTests(unittest.TestCase):
 
-    def test_conditional_0(self):
+    def test_conditional_simple(self):
+
+        with Graph() as graph:
+            a = Round(SampleUnform(0, 30))
+            b = Constant(value=2)
+            d = Conditional(a, b, a > 15)
+            outputs(a, b, d)
+
+        pipeline = Compiler().build(graph)
+
+        for i in range(1, 100):
+            a = pipeline.run(i)
+            self.assertEqual(a[0] if a[0] > 15 else a[1], a[2])
+
+    def test_conditional_multiple(self):
 
         with Graph() as graph:
             c1 = Round(Floor(SampleIndex() / 4) % 2)
@@ -296,55 +310,8 @@ class FlowTests(unittest.TestCase):
             output = pipeline.run(i)
             self.assertEqual(output[0], i)
 
-    """
-    TODO FIX test_compiler_Conditional_1
-
-    def test_compiler_Conditional_1(self):
-
-        with GraphBuilder() as graph:
-            a = UniformDistribution(0, 30)
-            b = Constant(value=3)
-            c = b + 1
-            d = Conditional(a, c, a > 15)
-            outputs(a, c, d)
-
-        pipeline = Compiler(debug=False).build(graph)
-
-        for i in range(1, 100):
-            a = pipeline.run(i)
-            self.assertEqual(a[0] if a[0] > 15 else a[1], a[2])
-            outputs(a, b, d)
-      
-        pipeline = Compiler(debug=False).compile_graph(graph)
-
-        for i in range(1, 100):
-            a = pipeline.run(i)
-            self.assertEqual(a[0] if a[0] + a[1] > 15 else a[1], a[2])
-    """
-
-    """
-    PROPOSED FIX for test_compiler_Conditional_1 
-    """
-
-    def test_conditional_1(self):
-
-        with Graph() as graph:
-            a = Round(SampleUnform(0, 30))
-            b = Constant(value=2)
-            d = Conditional(a, b, a > 15)
-            outputs(a, b, d)
-
-        pipeline = Compiler().build(graph)
-
-        for i in range(1, 100):
-            a = pipeline.run(i)
-            self.assertEqual(a[0] if a[0] > 15 else a[1], a[2])
-
     def test_conditional_optimization(self):
-
-        # Does not work at the moment, the result is not the same because of the order of random generators
-        # TODO: this has to be fixed
-        return
+        from .flow import Switch
 
         with Graph() as graph:
             a = Constant(value=20)
@@ -354,8 +321,10 @@ class FlowTests(unittest.TestCase):
             b = Constant(value=4)
             outputs(Switch(inputs=[d, b, a - b], weights=[0.5, 0.5, 0.5]))
 
-        pipeline1 = Compiler(debug=True).build(graph)
-        pipeline2 = Compiler(debug=True, predictive=False).build(graph)
+        pipeline1 = Compiler().build(graph)
+        pipeline2 = Compiler().build(graph, optimize=False)
+
+        self.assertNotEqual(len(pipeline1), len(pipeline2))
 
         for i in range(1, 100):
             a = pipeline1.run(i)

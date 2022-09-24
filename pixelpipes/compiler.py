@@ -459,8 +459,6 @@ class Compiler(object):
         for i, name in enumerate(output_nodes):
              dependencies.setdefault(name, set()).update(output_nodes[0:i])
 
-
-        self._debug("Jump optimization disabled, skipping")
         # Do not process jumps, just sort operations according to their dependencies
         ordered = [(level, item) for level, sublist in enumerate(
             toposort(dependencies)) for item in sublist]

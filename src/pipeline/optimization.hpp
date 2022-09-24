@@ -60,8 +60,6 @@ namespace pixelpipes
         DNF condition;
     };
 
-    std::vector<Pipeline::OperationData> predictive_optimization(std::vector<Pipeline::OperationData> &operations);
-
-    std::vector<Pipeline::OperationData> ensure_order(std::vector<Pipeline::OperationData> &operations);
+    std::vector<Pipeline::OperationData> optimize_pipeline(std::vector<Pipeline::OperationData> &operations, bool predictive = true);
 
 }

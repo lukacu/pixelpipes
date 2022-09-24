@@ -239,14 +239,7 @@ namespace pixelpipes
 
         state->finalized = true;
 
-        if (optimize)
-        {
-            state->operations = predictive_optimization(state->operations);
-        }
-        else
-        {
-            state->operations = ensure_order(state->operations);
-        }
+        state->operations = optimize_pipeline(state->operations, optimize);
 
         state->cache.resize(state->operations.size());
         state->stats.resize(state->operations.size());

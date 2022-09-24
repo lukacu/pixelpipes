@@ -102,7 +102,7 @@ class Pipeline(object):
             self._pipeline.finalize(optimize=optimize)
 
     def __len__(self):
-        return len(self._operations)
+        return self._pipeline.size()
 
     def run(self, index):
         return self._pipeline.run(index)
