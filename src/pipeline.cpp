@@ -209,6 +209,8 @@ namespace pixelpipes
 
         std::vector<OperationData> operations;
 
+        std::vector<bool> constants;
+
         std::vector<OperationStats> stats;
 
         std::vector<std::string> labels;
@@ -243,11 +245,31 @@ namespace pixelpipes
 
         state->cache.resize(state->operations.size());
         state->stats.resize(state->operations.size());
+        state->constants.resize(state->operations.size());
 
         for (size_t i = 0; i < state->stats.size(); i++)
         {
             state->stats[i].count = 0;
             state->stats[i].elapsed = 0;
+        }
+
+        for (size_t i = 0; i < state->operations.size(); i++)
+        {
+            bool constant = true;
+
+            for (int j : state->operations[i].second)
+            {
+                if (!state->constants[j])
+                {
+                    constant = false;
+                    break;
+                }
+            }
+
+            if (is_context(state->operations[i].first))
+                constant = false;
+
+            state->constants[i] = constant;   
         }
     }
 
@@ -309,8 +331,6 @@ namespace pixelpipes
 
         if (!state->finalized)
             throw PipelineException("Pipeline not finalized");
-
-        // auto start = high_resolution_clock::now();
 
         context.resize(state->operations.size());
 
@@ -390,6 +410,10 @@ namespace pixelpipes
                 }
 
                 context[i] = std::move(output);
+
+                if (state->constants[i]) {
+                    state->cache[i] = context[i].reborrow();
+                }
 
                 if ((state->operations[i].first)->type() == GetTypeIdentifier<Jump>())
                 {
