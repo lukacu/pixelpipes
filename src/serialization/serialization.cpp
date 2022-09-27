@@ -102,28 +102,34 @@ namespace pixelpipes
         return AnyType;
     }
 
-    /*
-        PIXELPIPES_REGISTER_WRITER(IntegerIdentifier, [](TokenReference v, std::ostream &drain)
-                                   {
-        int i = extract<int>(v);
-        write_t<int>(drain, i); });
+    void write_metadata(std::ostream &drain, const Metadata &data)
+    {
+        write_t(drain, data.size());
+        for (auto key : data.keys())
+        {
+            write_t(drain, key);
+            write_t(drain, data.get(key));
+        }
+    }
 
-        PIXELPIPES_REGISTER_WRITER(FloatIdentifier, [](TokenReference v, std::ostream &drain)
-                                   {
-        float f = extract<float>(v);
-        drain.write((char*)&f, sizeof(float)); });
-
-        PIXELPIPES_REGISTER_WRITER(BooleanIdentifier, [](TokenReference v, std::ostream &drain)
-                                   {
-        bool b = extract<bool>(v);
-        unsigned char c = b ? 0xFF : 0;
-        drain.write((const char *) &c, 1); });
-
-        PIXELPIPES_REGISTER_WRITER(StringIdentifier, [](TokenReference v, std::ostream &drain)
-                                   {
-        std::string s = extract<std::string>(v);
-        write_t(drain, s); });
-    */
+    Metadata read_metadata(std::istream &source, Metadata& data)
+    {
+        try
+        {
+            size_t len = read_t<size_t>(source);
+            for (size_t i = 0; i < len; i++)
+            {
+                auto key = read_t<std::string>(source);
+                auto value = read_t<std::string>(source);
+                data.set(key, value);
+            }
+            return data;
+        }
+        catch (std::bad_alloc &exception)
+        {
+            throw SerializationException("Unable to allocate metadata object");
+        }
+    }
 
     void write_shape(const Shape &s, std::ostream &drain)
     {
@@ -419,7 +425,7 @@ namespace pixelpipes
     struct PipelineData
     {
 
-        typedef std::tuple<std::string, Sequence<int>, Sequence<int>> OperationData;
+        typedef std::tuple<std::string, Sequence<int>, Sequence<int>, Metadata> OperationData;
         typedef std::tuple<TokenReference, bool> TokenData;
 
         std::vector<TokenData> tokens;
@@ -436,7 +442,7 @@ namespace pixelpipes
 
                 Pipeline::OperationData op = pipeline.get(o);
 
-                auto name = operation_name(op.first);
+                auto name = operation_name(op.operation);
 
                 ModuleReference source = operation_source(name);
 
@@ -446,7 +452,7 @@ namespace pixelpipes
 
                 std::vector<int> token_indices;
 
-                auto args = op.first->serialize();
+                auto args = op.operation->serialize();
 
                 for (auto arg = args.begin(); arg != args.end(); arg++)
                 {
@@ -454,7 +460,7 @@ namespace pixelpipes
 
                     TokenReference token = arg->reborrow();
 
-                    if (op.first->type() == GetTypeIdentifier<FileList>() && (*arg)->is<StringList>())
+                    if (op.operation->type() == GetTypeIdentifier<FileList>() && (*arg)->is<StringList>())
                     {
                         token = make_relative(extract<ListReference>(*arg), origin);
                     }
@@ -475,7 +481,7 @@ namespace pixelpipes
                     token_indices.push_back((int)tokens.size() - 1);
                 }
 
-                operations.push_back(OperationData(name, Sequence<int>(token_indices), Sequence<int>(op.second)));
+                operations.push_back(OperationData(name, Sequence<int>(token_indices), Sequence<int>(op.inputs), op.metadata));
             }
         }
     };
@@ -507,8 +513,7 @@ namespace pixelpipes
             write_t(drain, (*m)->name());
         }
 
-
-        write_t(drain, (size_t)0); // Placeholder for metadata
+        write_metadata(drain, pipeline.metadata());
 
         // Write the operations with their arguments
 
@@ -535,7 +540,7 @@ namespace pixelpipes
             // Write inputs
             write_sequence(drain, std::get<2>(op));
 
-            write_t(drain, (size_t)0); // Placeholder for metadata
+            write_metadata(drain, std::get<3>(op));
 
         }
     }
@@ -619,7 +624,7 @@ namespace pixelpipes
 
         std::vector<TokenReference> tokens;
 
-        read_t<size_t>(source); // Placeholder for metadata
+        read_metadata(source, pipeline.metadata());
 
         // Read the variables used in operations
         {
@@ -653,7 +658,8 @@ namespace pixelpipes
 
                 Sequence<int> inputs = read_sequence<int>(source);
 
-                read_t<size_t>(source); // Placeholder for metadata
+                Metadata metadata;
+                read_metadata(source, metadata);
 
                 for (auto t : token_indices)
                 {
@@ -668,7 +674,7 @@ namespace pixelpipes
                     arguments.push_back(tokens[t].reborrow());
                 }
 
-                pipeline.append(name, make_span(arguments), make_span(inputs));
+                pipeline.append(name, make_span(arguments), make_span(inputs), metadata);
             }
         }
     }

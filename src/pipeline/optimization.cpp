@@ -406,7 +406,7 @@ namespace pixelpipes
             for (auto i : current)
             {
 
-                for (auto j : nodes[i].second)
+                for (auto j : nodes[i].inputs)
                 {
 
                     if (result.find(j) != result.end())
@@ -456,11 +456,11 @@ namespace pixelpipes
     void build_branches(std::vector<OperationData> &nodes, int current, std::vector<BranchSet> &branches, std::map<int, int> &mapping, std::map<size_t, bool> state = std::map<size_t, bool>())
     {
 
-        if (is_conditional(nodes[current].first))
+        if (is_conditional(nodes[current].operation))
         {
-            int condition = nodes[current].second[2];
-            int itrue = nodes[current].second[0];
-            int ifalse = nodes[current].second[1];
+            int condition = nodes[current].inputs[2];
+            int itrue = nodes[current].inputs[0];
+            int ifalse = nodes[current].inputs[1];
 
             int cposition = mapping[condition];
 
@@ -504,7 +504,7 @@ namespace pixelpipes
         {
             branches[current].add(state);
 
-            for (auto j : nodes[current].second)
+            for (auto j : nodes[current].inputs)
             {
                 build_branches(nodes, j, branches, mapping, state);
             }
@@ -536,19 +536,19 @@ namespace pixelpipes
 
         for (size_t i = 0; i < operations.size(); i++)
         {
-            if (is_output(operations[i].first))
+            if (is_output(operations[i].operation))
             {
                 outputs.push_back(i);
             }
-            else if (is_context(operations[i].first))
+            else if (is_context(operations[i].operation))
             {
                 context.push_back(i);
             }
-            else if (is_conditional(operations[i].first))
+            else if (is_conditional(operations[i].operation))
             {
-                conditions.insert(operations[i].second[2]);
+                conditions.insert(operations[i].inputs[2]);
             }
-            for (auto j : operations[i].second)
+            for (auto j : operations[i].inputs)
             {
                 dependencies[i].insert(j);
             }
@@ -573,13 +573,13 @@ namespace pixelpipes
             for (auto i : subtree(operations, output_node))
             {
 
-                if (is_conditional(operations[i].first))
+                if (is_conditional(operations[i].operation))
                 {
-                    VERIFY(operations[i].second.size() == 3, "Illegal conditional operation");
+                    VERIFY(operations[i].inputs.size() == 3, "Illegal conditional operation");
 
-                    int condition = operations[i].second[2];
-                    int itrue = operations[i].second[0];
-                    int ifalse = operations[i].second[1];
+                    int condition = operations[i].inputs[2];
+                    int itrue = operations[i].inputs[0];
+                    int ifalse = operations[i].inputs[1];
 
                     // List of nodes required by branch true
                     auto tree_true = subtree(operations, itrue);
@@ -637,7 +637,7 @@ namespace pixelpipes
             order[i] = i;
 
             // Constants do not have to be conditionally skipped
-            if (is_constant(operations[i].first) || is_context(operations[i].first))
+            if (is_constant(operations[i].operation) || is_context(operations[i].operation))
             {
                 dependencies[i].clear();
                 branches[i].clear();
@@ -685,13 +685,13 @@ namespace pixelpipes
                         VERIFY(m >= 0, "Illegal reference");
                         remapped_inputs.push_back(m);
                     }
-                    optimized[pending_position] = {create<ConditionalJump>(DNF(pending_clause), offset), remapped_inputs};
+                    optimized[pending_position] = {create<ConditionalJump>(DNF(pending_clause), offset), remapped_inputs, Metadata()};
                     pending_position = -1;
                 }
                 auto clauses = branches[i].function();
                 if (!clauses.second.empty())
                 {
-                    optimized.push_back({OperationReference(), Sequence<int>()});
+                    optimized.push_back({OperationReference(), Sequence<int>(), Metadata()});
                     pending_position = optimized.size() - 1;
                     pending_clause = clauses.first;
                     pending_inputs = clauses.second;
@@ -701,14 +701,14 @@ namespace pixelpipes
             }
 
             std::vector<int> remapped_inputs;
-            for (auto d : operations[i].second)
+            for (auto d : operations[i].inputs)
             {
                 auto m = reverse[d];
                 VERIFY(m >= 0, "Illegal reference");
                 remapped_inputs.push_back(m);
             }
 
-            optimized.push_back({operations[i].first.reborrow(), remapped_inputs});
+            optimized.push_back({operations[i].operation.reborrow(), remapped_inputs, operations[i].metadata});
             reverse[i] = optimized.size() - 1;
         }
 

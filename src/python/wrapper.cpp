@@ -279,7 +279,7 @@ TokenReference python_to_token(py::object src)
 }
 
 template <typename T>
-int _add_operation(T &pipeline, std::string &name, py::list args, std::vector<int> inputs)
+int _add_operation(T &pipeline, std::string &name, py::list& args, std::vector<int>& inputs, py::dict& meta)
 {
 
     try
@@ -296,7 +296,15 @@ int _add_operation(T &pipeline, std::string &name, py::list args, std::vector<in
             arguments[i] = python_to_token(args[i]);
         }
 
-        return pipeline.append(name, arguments, make_span(inputs));
+        Metadata metadata;
+
+        for (auto arg : meta) {
+            py::str key(arg.first);
+            py::str value(arg.second);
+            metadata.set(key, value);
+        }
+
+        return pipeline.append(name, arguments, make_span(inputs), metadata);
     }
     catch (BaseException &e)
     {
@@ -364,9 +372,17 @@ PYBIND11_MODULE(pypixelpipes, m)
                 return std::vector<std::string>(labels.begin(), labels.end()); },
             "Get output labels as a list")
         .def(
-            "append", [](Pipeline &p, std::string &name, py::list args, std::vector<int> inputs)
-            { return _add_operation(p, name, args, inputs); },
+            "append", [](Pipeline &p, std::string &name, py::list args, std::vector<int> inputs, py::dict meta)
+            { return _add_operation(p, name, args, inputs, meta); },
             "Add operation to pipeline")
+        .def(
+            "set", [](Pipeline &p, std::string &key, std::string &value)
+            { p.metadata().set(key, value); },
+            "Set metadata entry")
+        .def(
+            "get", [](Pipeline &p, std::string &key)
+            { return p.metadata().get(key); },
+            "Get metadata entry")
         .def("size", &Pipeline::size, "Returns the length of the pipeline")
         .def(
             "run", [](Pipeline &p, unsigned long index)

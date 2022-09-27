@@ -201,6 +201,58 @@ namespace pixelpipes
 
     PIXELPIPES_OPERATION_CLASS("debug", DebugOutput, std::string);
 
+    struct Metadata::State
+    {
+        std::map<std::string, std::string> data;
+    };
+
+    Metadata::Metadata() = default;
+    Metadata::Metadata(const Metadata&) = default;
+    Metadata::~Metadata() = default;
+
+    Metadata::Metadata(Metadata &&) = default;
+    
+    Metadata &Metadata::operator=(const Metadata &) = default;
+    Metadata &Metadata::operator=(Metadata &&) = default;
+
+    std::string Metadata::get(std::string key) const
+    {
+        auto i = _state->data.find(key);
+        if (i == _state->data.end())
+            return "";
+        return i->second;
+    }
+
+    bool Metadata::has(std::string key) const
+    {
+        auto i = _state->data.find(key);
+        return (i != _state->data.end());
+    }
+
+    void Metadata::set(std::string key, std::string value)
+    {
+        _state->data[key] = value;
+    }
+
+    size_t Metadata::size() const
+    {
+        return _state->data.size();
+    }
+
+    Sequence<std::string> Metadata::keys() const 
+    {
+        Sequence<std::string> list(_state->data.size());
+
+        size_t i;
+        for (auto item : _state->data) 
+        {
+            list[i++] = item.first;
+        }
+
+        return list;
+    }
+
+
     struct Pipeline::State
     {
         bool finalized;
@@ -214,6 +266,8 @@ namespace pixelpipes
         std::vector<OperationStats> stats;
 
         std::vector<std::string> labels;
+
+        Metadata metadata;
     };
 
     void Pipeline::StateDeleter::operator()(State *p) const
@@ -257,7 +311,7 @@ namespace pixelpipes
         {
             bool constant = true;
 
-            for (int j : state->operations[i].second)
+            for (int j : state->operations[i].inputs)
             {
                 if (!state->constants[j])
                 {
@@ -266,14 +320,14 @@ namespace pixelpipes
                 }
             }
 
-            if (is_context(state->operations[i].first))
+            if (is_context(state->operations[i].operation))
                 constant = false;
 
-            state->constants[i] = constant;   
+            state->constants[i] = constant;
         }
     }
 
-    int Pipeline::append(std::string name, const TokenList &args, const Span<int> &inputs)
+    int Pipeline::append(std::string name, const TokenList &args, const Span<int> &inputs, const Metadata& metadata)
     {
 
         if (state->finalized)
@@ -286,17 +340,17 @@ namespace pixelpipes
             if (i >= (int)state->operations.size() || i < 0)
                 throw OperationException("Operation index out of bounds", operation, (int)state->operations.size());
 
-            if ((state->operations[i].first->type()) == GetTypeIdentifier<Output>())
+            if (is_output(state->operations[i].operation))
             {
                 throw OperationException("Cannot refer to output operation", operation, (int)state->operations.size());
             }
         }
 
-        state->operations.push_back(pair<OperationReference, std::vector<int>>(std::move(operation), std::vector<int>(inputs.begin(), inputs.end())));
+        state->operations.push_back({std::move(operation), std::vector<int>(inputs.begin(), inputs.end()), metadata});
 
-        if ((state->operations.back().first->type()) == GetTypeIdentifier<Output>())
+        if (is_output(state->operations.back().operation))
         {
-            auto label = (state->operations.back().first.get_as<Output>())->get_label();
+            auto label = (state->operations.back().operation.get_as<Output>())->get_label();
             for (size_t i = 0; i < inputs.size(); i++)
                 state->labels.push_back(label);
         }
@@ -318,9 +372,19 @@ namespace pixelpipes
         return state->operations.size();
     }
 
+    Metadata& Pipeline::metadata() 
+    {
+        return state->metadata;
+    }
+
+    const Metadata& Pipeline::metadata() const
+    {
+        return state->metadata;
+    }
+
     Pipeline::OperationData Pipeline::get(size_t i) const
     {
-        return {state->operations[i].first.reborrow(), state->operations[i].second};
+        return {state->operations[i].operation.reborrow(), state->operations[i].inputs, state->operations[i].metadata};
     }
 
     Sequence<TokenReference> Pipeline::run(unsigned long index)
@@ -344,7 +408,7 @@ namespace pixelpipes
             if (state->cache[i])
             {
                 context[i] = state->cache[i].reborrow();
-                if ((state->operations[i].first->type()) == GetTypeIdentifier<Output>())
+                if ((state->operations[i].operation->type()) == GetTypeIdentifier<Output>())
                 {
                     result.push_back(state->cache[i].reborrow());
                 }
@@ -353,9 +417,9 @@ namespace pixelpipes
             }
 
             vector<TokenReference> local;
-            local.reserve(state->operations[i].second.size());
+            local.reserve(state->operations[i].inputs.size());
 
-            for (int j : state->operations[i].second)
+            for (int j : state->operations[i].inputs)
             {
                 local.push_back(context[j].reborrow());
             }
@@ -364,12 +428,12 @@ namespace pixelpipes
             {
                 auto operation_start = high_resolution_clock::now();
 
-                auto output = state->operations[i].first->run(make_span(local));
+                auto output = state->operations[i].operation->run(make_span(local));
                 auto operation_end = high_resolution_clock::now();
 
-                if ((state->operations[i].first->type()) == GetTypeIdentifier<ContextQuery>())
+                if ((state->operations[i].operation->type()) == GetTypeIdentifier<ContextQuery>())
                 {
-                    switch ((state->operations[i].first.get_as<ContextQuery>())->get_query())
+                    switch ((state->operations[i].operation.get_as<ContextQuery>())->get_query())
                     {
                     case ContextData::SampleIndex:
                     {
@@ -387,14 +451,14 @@ namespace pixelpipes
                         break;
                     }
                     default:
-                        throw OperationException("Illegal query", state->operations[i].first, (int)i);
+                        throw OperationException("Illegal query", state->operations[i].operation, (int)i);
                     }
                 }
 
                 state->stats[i].count++;
                 state->stats[i].elapsed += (unsigned long)duration_cast<microseconds>(operation_end - operation_start).count();
 
-                if ((state->operations[i].first)->type() == GetTypeIdentifier<Output>())
+                if ((state->operations[i].operation)->type() == GetTypeIdentifier<Output>())
                 {
                     for (auto x = local.begin(); x != local.end(); x++)
                     {
@@ -406,16 +470,17 @@ namespace pixelpipes
 
                 if (!output)
                 {
-                    throw OperationException("Operation output undefined", state->operations[i].first, (int)i);
+                    throw OperationException("Operation output undefined", state->operations[i].operation, (int)i);
                 }
 
                 context[i] = std::move(output);
 
-                if (state->constants[i]) {
+                if (state->constants[i])
+                {
                     state->cache[i] = context[i].reborrow();
                 }
 
-                if ((state->operations[i].first)->type() == GetTypeIdentifier<Jump>())
+                if ((state->operations[i].operation)->type() == GetTypeIdentifier<Jump>())
                 {
                     size_t jump = (size_t)extract<int>(context[i]);
 
@@ -430,7 +495,7 @@ namespace pixelpipes
             {
                 std::cout << "ERROR at operation " << i << ": " << e.what() << ", inputs:" << std::endl;
                 int k = 0;
-                for (int j : state->operations[i].second)
+                for (int j : state->operations[i].inputs)
                 {
                     std::cout << " * " << k << " (operation " << j << "): ";
                     if ((bool)(local[k]))
@@ -443,7 +508,7 @@ namespace pixelpipes
                     }
                     k++;
                 }
-                throw OperationException(e.what(), state->operations[i].first, (int)i);
+                throw OperationException(e.what(), state->operations[i].operation, (int)i);
             }
 
             i++;
@@ -469,27 +534,27 @@ namespace pixelpipes
         for (size_t o = 0; o < pipeline.size(); o++)
         {
             Pipeline::OperationData operation = pipeline.get(o);
-            auto name = operation_name(operation.first);
+            auto name = operation_name(operation.operation);
 
-            if (operation.first->is<ConditionalJump>())
+            if (operation.operation->is<ConditionalJump>())
             {
                 name = "cjump";
             }
 
             stream << "OP" << n << " [ordering=in label=\"" << n << " - " << name << "\" ";
-            if (operation.first->is<Output>())
+            if (operation.operation->is<Output>())
             {
                 stream << " shape=box";
                 outputs.push_back(n);
             }
-            else if (operation.first->is<ContextQuery>())
+            else if (operation.operation->is<ContextQuery>())
             {
                 stream << " shape=hexagon";
             }
 
             stream << "];" << std::endl;
 
-            for (auto i : operation.second)
+            for (auto i : operation.inputs)
             {
                 stream << "OP" << i << " -> "
                        << "OP" << n << ";" << std::endl;

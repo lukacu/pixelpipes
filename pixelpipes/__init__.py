@@ -73,6 +73,20 @@ ArithmeticOperations = LazyLoadEnum("arithmetic")
 
 PipelineOperation = namedtuple("PipelineOperation", ["id", "name", "arguments", "inputs"])
 
+class _PipelineMetadata(object):
+
+    def __init__(self, pipeline):
+        self._pipeline = pipeline
+
+    def __getitem__(self, key):
+        key = str(key)
+        return self._pipeline.get(key)
+
+    def __setitem__(self, key, value):
+        key = str(key)
+        value = str(value)
+        return self._pipeline.set(key, value)
+
 class Pipeline(object):
     """Wrapper for the C++ pipeline object, includes metadata
     """
@@ -92,12 +106,10 @@ class Pipeline(object):
             for op in data:
                 input_indices = [indices[id] for id in op.inputs]
                 try:
-                    indices[op.id] = self._pipeline.append(op.name, op.arguments, input_indices)
+                    indices[op.id] = self._pipeline.append(op.name, op.arguments, input_indices, {"label": op.id})
                 except ValueError as ve:
                     raise ValidationException("Error when adding operation %s: %s" % (op.name, str(ve)))
                 assert indices[op.id] >= 0
-                #self._debug("{} ({}): {} ({})", indices[op.id], op.id,
-                #            op.name, ", ".join(["{} ({})".format(i, n) for i, n in zip(input_indices, op.inputs)]))
 
             self._pipeline.finalize(optimize=optimize)
 
@@ -106,6 +118,10 @@ class Pipeline(object):
 
     def run(self, index):
         return self._pipeline.run(index)
+
+    @property
+    def metadata(self):
+        return _PipelineMetadata(self._pipeline)
 
     @property
     def outputs(self):

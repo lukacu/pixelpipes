@@ -25,6 +25,29 @@ namespace pixelpipes
 
     bool PIXELPIPES_API is_context(OperationReference &op);
 
+    class PIXELPIPES_API Metadata
+    {
+    public:
+        Metadata();
+        Metadata(const Metadata&);
+        Metadata(Metadata &&);
+        ~Metadata();
+
+        Metadata &operator=(const Metadata &);
+        Metadata &operator=(Metadata &&);
+
+        std::string get(std::string key) const;
+        bool has(std::string key) const;
+        void set(std::string key, std::string value);
+        size_t size() const;
+        
+        Sequence<std::string> keys() const;
+
+    private:
+        struct State;
+        Implementation<State> _state;
+    };
+
     class PIXELPIPES_API Pipeline
     {
         struct State;
@@ -38,7 +61,11 @@ namespace pixelpipes
         std::unique_ptr<State, StateDeleter> state;
 
     public:
-        typedef std::pair<OperationReference, Sequence<int>> OperationData;
+        struct OperationData {
+            OperationReference operation;
+            Sequence<int> inputs;
+            Metadata metadata;
+        };
 
         Pipeline();
 
@@ -50,7 +77,7 @@ namespace pixelpipes
 
         virtual void finalize(bool optimize = true);
 
-        virtual int append(std::string name, const TokenList& args, const Span<int>& inputs);
+        virtual int append(std::string name, const TokenList& args, const Span<int>& inputs, const Metadata& metadata = Metadata());
 
         virtual Sequence<TokenReference> run(unsigned long index) noexcept(false);
 
@@ -61,6 +88,10 @@ namespace pixelpipes
         virtual Sequence<std::string> get_labels() const;
 
         std::vector<float> operation_time();
+
+        Metadata& metadata();
+
+        const Metadata& metadata() const;
 
     protected:
         typedef struct

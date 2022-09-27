@@ -199,8 +199,11 @@ class Compiler(object):
         Returns:
             Pipeline: Pipeline object
         """
+        import datetime
 
-        return Pipeline(self.compile(graph, variables, output), optimize=optimize)
+        pipeline = Pipeline(self.compile(graph, variables, output), optimize=optimize)
+        pipeline.metadata["timestamp"] = datetime.datetime.now().isoformat()
+        return pipeline
 
     def compile(self, graph: Graph,
                 variables: typing.Optional[typing.Mapping[str,
