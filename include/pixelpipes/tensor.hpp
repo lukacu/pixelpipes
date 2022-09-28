@@ -62,10 +62,10 @@ namespace pixelpipes
     {
         PIXELPIPES_RTTI(TensorView, Tensor)
     public:
-        template <typename T>
+        /*template <typename T>
         TensorView(const ByteSequence &&data, const Sizes &shape) : TensorView(data, 0, shape, generate_strides(shape, sizeof(T)))
         {
-        }
+        }*/
 
         template <typename T>
         TensorView(const ByteSequence &&data, size_t offset, const Sizes &shape, const Sizes &strides)

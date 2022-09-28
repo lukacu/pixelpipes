@@ -243,7 +243,7 @@ namespace pixelpipes
     {
         Sequence<std::string> list(_state->data.size());
 
-        size_t i;
+        size_t i = 0;
         for (auto item : _state->data) 
         {
             list[i++] = item.first;

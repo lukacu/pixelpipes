@@ -161,31 +161,31 @@ namespace pixelpipes
 
         virtual void describe(std::ostream &os) const override;
 
-        virtual Shape shape() const;
+        virtual Shape shape() const override;
 
-        virtual size_t length() const;
+        virtual size_t length() const override;
 
-        virtual size_t size() const;
+        virtual size_t size() const override;
 
-        virtual TokenReference get(size_t i) const;
+        virtual TokenReference get(size_t i) const override;
 
-        virtual TokenReference get(const Sizes &i) const;
+        virtual TokenReference get(const Sizes &i) const override;
 
-        virtual ReadonlySliceIterator read_slices() const;
+        virtual ReadonlySliceIterator read_slices() const override;
 
-        virtual WriteableSliceIterator write_slices();
+        virtual WriteableSliceIterator write_slices() override;
 
-        virtual ByteView const_data() const;
+        virtual ByteView const_data() const override;
 
-        virtual ByteSpan data();
+        virtual ByteSpan data() override;
 
-        virtual SizeSequence strides() const;
+        virtual SizeSequence strides() const override;
 
         virtual cv::Mat get() const;
 
-        virtual size_t cell_size() const;
+        virtual size_t cell_size() const override;
 
-        virtual TypeIdentifier cell_type() const;
+        virtual TypeIdentifier cell_type() const override;
 
         static cv::Mat copy(const TensorReference &tensor);
 
