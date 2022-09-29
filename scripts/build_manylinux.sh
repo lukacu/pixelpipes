@@ -16,9 +16,12 @@ function repair_wheel {
 }
 
 # Compile wheels
-   for PYBIN in /opt/python/*/bin; do
+for PYBIN in /opt/python/*/bin; do
     #"${PYBIN}/pip" install -r /io/dev-requirements.txt
     PYDIST=`basename $(dirname $PYBIN)`
+    if [[ "$PYDIST" =~ cp36-* ]]; then
+        continue
+    fi
     "${PYBIN}/pip" wheel /io/ --no-deps -w ${WHEEL_ROOT}
 done
 

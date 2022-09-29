@@ -3,7 +3,7 @@ from typing import Iterable, List, Mapping, Optional
 
 import os
 
-__version__ = "0.0.7"
+__version__ = "0.0.8"
 
 import os
 import logging
