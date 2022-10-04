@@ -1,14 +1,12 @@
 from __future__ import absolute_import
-from types import MappingProxyType
-from typing import Iterable, List, Mapping, Optional, Tuple
+
 import os
 import logging
+from types import MappingProxyType
+from typing import Iterable, List, Mapping, Optional, Tuple
 from collections import namedtuple
 
-
 __version__ = "0.0.8"
-
-import numpy as np
 
 _logger = logging.getLogger(__name__)
 
@@ -119,7 +117,7 @@ class Pipeline(object):
     def __len__(self):
         return self._pipeline.size()
 
-    def run(self, index: int) ->Tuple[np.ndarray]:
+    def run(self, index: int) ->Tuple["np.ndarray"]:
         """Executes the pipeline for a given index and resturns result
 
         Args:
