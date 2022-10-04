@@ -1,5 +1,6 @@
 
 
+from functools import reduce as _reduce
 from collections.abc import Container
 import typing
 import numbers
@@ -13,8 +14,10 @@ from pixelpipes import Pipeline, PipelineOperation
 
 from attributee import String, Number
 
+
 class CompilerException(Exception):
     pass
+
 
 class Variable(Node):
     """Variable placeholder that can be overriden later"""
@@ -22,7 +25,6 @@ class Variable(Node):
     name = String()
     default = Number()
 
-from functools import reduce as _reduce
 
 def toposort(data):
     """Dependencies are expressed as a dictionary whose keys are items
@@ -44,15 +46,17 @@ items in the preceeding sets.
     # Find all items that don't depend on anything.
     extra_items_in_deps = _reduce(set.union, data.values()) - set(data.keys())
     # Add empty dependences where needed.
-    data.update({item : set() for item in extra_items_in_deps})
+    data.update({item: set() for item in extra_items_in_deps})
     while True:
         ordered = set(item for item, dep in data.items() if len(dep) == 0)
         if not ordered:
             break
         yield ordered
-        data = {item: (dep - ordered) for item, dep in data.items() if item not in ordered}
+        data = {item: (dep - ordered)
+                for item, dep in data.items() if item not in ordered}
     if len(data) != 0:
-        raise CompilerException('Cyclic dependency detected among nodes: {}'.format(', '.join(repr(x) for x in data.keys())))
+        raise CompilerException('Cyclic dependency detected among nodes: {}'.format(
+            ', '.join(repr(x) for x in data.keys())))
 
 
 def infer_type(node: typing.Union[Reference, str], graph: Graph = None, type_cache: typing.Mapping[str, types.Data] = None) -> types.Data:
@@ -62,8 +66,7 @@ def infer_type(node: typing.Union[Reference, str], graph: Graph = None, type_cac
     Args:
         node (typing.Union[Reference, typing.Type[Node]]): Reference of the node or raw value
         graph (Graph): Mapping of all nodes in the graph
-        type_cache (typing.Mapping[str, types.Type], optional): Optional cache for already computed types.
-            Makes repetititve calls much faster. Defaults to None.
+        type_cache (typing.Mapping[str, types.Type], optional): Optional cache for already computed types. Makes repetititve calls much faster. Defaults to None.
 
     Raises:
         ValidationException: Contains information about the error during node validation process.
@@ -95,7 +98,7 @@ def infer_type(node: typing.Union[Reference, str], graph: Graph = None, type_cac
 
     input_types = {}
     for k, i in zip(node.input_names(), node.input_values()):
-        typ = infer_type(i, graph, type_cache) 
+        typ = infer_type(i, graph, type_cache)
         if typ is None:
             return None
         input_types[k] = typ
@@ -105,6 +108,8 @@ def infer_type(node: typing.Union[Reference, str], graph: Graph = None, type_cac
     if type_cache is not None and output_type is not None:
         type_cache[name] = output_type
     return output_type
+
+
 class Compiler(object):
     """Compiler object contains utilities to validate a graph and compiles it to a pipeline
      (a sequence of operations, written in native code) that can be executed to obtain output
@@ -112,9 +117,10 @@ class Compiler(object):
     """
 
     @staticmethod
-    def build_graph(graph: typing.Union[Graph, typing.Mapping[str, Node]], 
-                      variables: typing.Optional[typing.Mapping[str, numbers.Number]] = None,
-                      output: typing.Optional[str] = None, fixedout: bool = False) -> Pipeline:
+    def build_graph(graph: typing.Union[Graph, typing.Mapping[str, Node]],
+                    variables: typing.Optional[typing.Mapping[str,
+                                                              numbers.Number]] = None,
+                    output: typing.Optional[str] = None, fixedout: bool = False) -> Pipeline:
         compiler = Compiler(fixedout)
         return compiler.build(graph, variables, output)
 
@@ -177,9 +183,9 @@ class Compiler(object):
         return type_cache
 
     def build(self, graph: Graph,
-                variables: typing.Optional[typing.Mapping[str,
-                                                          numbers.Number]] = None,
-                output: typing.Optional[typing.Union[Container, typing.Callable]] = None, optimize=True) -> Pipeline:
+              variables: typing.Optional[typing.Mapping[str,
+                                                        numbers.Number]] = None,
+              output: typing.Optional[typing.Union[Container, typing.Callable]] = None, optimize=True) -> Pipeline:
         """Compiles the graph and builds a pipeline from it in one function.
 
         Args:
@@ -193,7 +199,8 @@ class Compiler(object):
         """
         import datetime
 
-        pipeline = Pipeline(self.compile(graph, variables, output), optimize=optimize)
+        pipeline = Pipeline(self.compile(
+            graph, variables, output), optimize=optimize)
         pipeline.metadata["timestamp"] = datetime.datetime.now().isoformat()
         return pipeline
 
@@ -228,7 +235,7 @@ class Compiler(object):
         for name, node in graph:
             if isinstance(node, Variable):
                 if variables is not None and node.name in variables:
-                    value=variables[node.name]
+                    value = variables[node.name]
                 else:
                     value = node.default
                 graph.replace(name, Constant(value=value, _auto=False))
@@ -258,7 +265,8 @@ class Compiler(object):
                         change = True
                         input_value = subgraph.reference(input_value)
                         self._debug("Generating new node {}", input_value)
-                    inputs[input_name] = InferredReference(input_value, input_type)
+                    inputs[input_name] = InferredReference(
+                        input_value, input_type)
                 subgraph.commit()
             return inputs, change
 
@@ -289,7 +297,8 @@ class Compiler(object):
 
             if Reference(name) in macro_builder:
                 if not name == output_reference.name:
-                    raise NodeException("Node naming convention violation for output node in macro {}.".format(name), node=name)
+                    raise NodeException(
+                        "Node naming convention violation for output node in macro {}.".format(name), node=name)
 
             # delete original macro node, replace it with the subgraph
             graph.remove(node)
@@ -319,9 +328,10 @@ class Compiler(object):
                         graph.replace(name, node.duplicate(**inputs))
                         changes += 1
                     infer_type(name, graph, inferred_types)
-                    
+
             if not expanded and changes == 0:
-                raise CompilerException("Unable to expand graph, probably due to some misbehaving nodes")
+                raise CompilerException(
+                    "Unable to expand graph, probably due to some misbehaving nodes")
 
             if expanded:
                 break
@@ -336,11 +346,11 @@ class Compiler(object):
         aliases = dict()
 
         if output is None:
-            include_output = lambda x: True
+            def include_output(x): return True
         elif isinstance(output, Container):
-            include_output = lambda x: x in output
+            def include_output(x): return x in output
         elif isinstance(output, str):
-            include_output = lambda x: x == output
+            def include_output(x): return x == output
         else:
             include_output = output
 
@@ -407,7 +417,8 @@ class Compiler(object):
             for name in traverse(optimized, output_node):
                 node = optimized[name]
                 if not isinstance(node, Operation):
-                    raise ValidationException("Only atomic operations allowed, got {}".format(node), node=node)
+                    raise ValidationException(
+                        "Only atomic operations allowed, got {}".format(node), node=node)
                 if isinstance(node, Conditional):
                     # In case of a conditional node we can determine which nodes will be executed only
                     # in certain conditions and insert jumps into the pipeline to speed up execution.
@@ -420,7 +431,8 @@ class Compiler(object):
                     # List of nodes required by branch false
                     tree_false = set(traverse(optimized, node.false.name))
                     # List of nodes required to process condition
-                    tree_condition = set(traverse(optimized, node.condition.name))
+                    tree_condition = set(
+                        traverse(optimized, node.condition.name))
                     # Required by both branches (A - B) + C
                     common = tree_true.intersection(
                         tree_false).union(tree_condition)
@@ -450,20 +462,21 @@ class Compiler(object):
 
         # Retain correct order of output nodes
         for i, name in enumerate(output_nodes):
-             dependencies.setdefault(name, set()).update(output_nodes[0:i])
+            dependencies.setdefault(name, set()).update(output_nodes[0:i])
 
         # Do not process jumps, just sort operations according to their dependencies
         ordered = [(level, item) for level, sublist in enumerate(
             toposort(dependencies)) for item in sublist]
         ordered = sorted(ordered)
         operations = [(name, operation_data(optimized[name]), [
-                        r.name for r in optimized[name].input_values()]) for _, name in ordered]
+            r.name for r in optimized[name].input_values()]) for _, name in ordered]
 
         pipeline_operations = []
-    
+
         # Assemble a list of pipeline operations
         for i, (name, data, inputs) in enumerate(operations):
-            pipeline_operations.append(PipelineOperation(name, data[0], list(data[1:]), inputs))
+            pipeline_operations.append(PipelineOperation(
+                name, data[0], list(data[1:]), inputs))
 
         return pipeline_operations
 
