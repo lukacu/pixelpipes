@@ -2,20 +2,16 @@
 API documentation
 =================
 
-This is meant to be a reference documentation for the infividual blocks of code in the project. It is organized in three parts. First is a list
-of 
+The reference API documentation for the Python wrapper as well as the C++ exported symbols. Note that the wrapper documentation does not contain node classes that
+are instead documented separately as `a list of available nodes <../nodes.html>`_..
+
+Python API
+----------
 
 .. toctree::
    :maxdepth: 1
 
-   nodes 
-   cpp_token
-   cpp_operation
-   cpp_pipeline
-
-
-Python API
-----------
+   python
 
 C++ API
 ----------
@@ -23,7 +19,4 @@ C++ API
 .. toctree::
    :maxdepth: 1
 
-   cpp_types
-   cpp_token
-   cpp_operation
-   cpp_pipeline
+   cpp

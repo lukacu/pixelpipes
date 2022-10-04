@@ -5,12 +5,12 @@
 import os
 import sys
 
-from pixelpipes import __version__
-
 sys.path.insert(0, os.path.abspath('..'))
 sys.path.insert(0, os.path.abspath('.'))
 
 # -- General configuration ------------------------------------------------
+
+from pixelpipes import __version__
 
 extensions = ['sphinx.ext.autodoc', 'link_roles', 'nodedoc']
 
@@ -94,11 +94,15 @@ texinfo_documents = [
      'Miscellaneous'),
 ]
 
-"""
 def setup(app):
-    app.connect('source-read', generate_node_list)
+    app.connect('autodoc-skip-member', skip_nodes)
 
 
-def generate_node_list():
-    pass
-"""
+def skip_nodes(app, what, name, obj, skip, options):
+    from inspect import isclass
+    from pixelpipes.graph import Node
+    if what != "class":
+        return None
+    if not isclass(obj):
+        return None
+    return issubclass(obj, Node)

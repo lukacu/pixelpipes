@@ -17,7 +17,6 @@ def get_github_rev():
         path = tag
     return path
 
-
 def setup(app):
     baseurl = 'https://github.com/lukacu/pixelpipes'
     rev = get_github_rev()
@@ -27,7 +26,12 @@ def setup(app):
 
 def autolink(pattern):
     def role(name, rawtext, text, lineno, inliner, options={}, content=[]):
-        url = pattern % (text,)
+        tokens = text.split(" ")
+        url = pattern % (tokens[0],)
+        if len(tokens) == 1:
+            text = tokens[0]
+        else:
+            text = " ".join(tokens[1:])
         node = nodes.reference(rawtext, text, refuri=url, **options)
         return [node], []
     return role

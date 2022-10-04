@@ -5,8 +5,7 @@ import cv2
 
 from pixelpipes.resource.loading import ImageDirectory
 from pixelpipes.resource.list import RandomResource
-from pixelpipes.image.geometry import ViewImage
-from pixelpipes.resource.patch import RandomPatchView
+from pixelpipes.image.geometry import ViewImage, RandomPatchView
 from pixelpipes.utilities import pipeline
 
 @pipeline()

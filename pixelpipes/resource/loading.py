@@ -8,7 +8,7 @@ from attributee import String, Boolean, Enumeration, Callable
 from . import ResourceField
 from .list import ResourceListSource, FileList
 from .. import types
-from ..image import ReadImage, ReadImageAny
+from ..image.loading import ReadImage, ReadImageAny
 from ..graph import ReadFile
 
 

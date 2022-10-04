@@ -1,9 +1,12 @@
 
-from numpy import source
-from ..graph import EnumerationInput, Input, Operation
+
+
+from ..geometry.view import TranslateView
+from ..numbers import SampleUnform
+from ..graph import EnumerationInput, Input, Macro, Operation, SeedInput
 from .. import types
 
-from . import BorderStrategy, InterpolationMode
+from . import BorderStrategy, GetImageProperties, InterpolationMode
 
 class Scale(Operation):
     """Scales an image defined by scale factor.
@@ -98,6 +101,26 @@ class ImageCrop(Operation):
     def infer(self, source, region):
         return types.Image(None, None, source[2], source.element)
 
+class RandomPatchView(Macro):
+    """Returns a view that focuses on a random patch in an image"""
+
+    source = Input(types.Image(), description="Input image")
+    width = Input(types.Integer(), description="Width of a patch")
+    height = Input(types.Integer(), description="Height of a patch")
+    padding = Input(types.Integer(), default=0, description="Padding for sampling")
+    seed = SeedInput()
+
+    def expand(self, source, width, height, padding, seed):
+
+        properties = GetImageProperties(source)
+        image_width = properties["width"]
+        image_height = properties["height"]
+
+        x = SampleUnform(- padding, image_width - width + padding, seed=seed)
+        y = SampleUnform(- padding, image_height - height + padding, seed=seed * 2)
+
+        return TranslateView(x=-x, y=-y)
+
 class ViewImage(Operation):
     """ Apply a linear transformation to an image and generate a new image based on it."""
 
@@ -117,12 +140,12 @@ class ViewImage(Operation):
 
 
 class ImageRemap(Operation):
-    """Remaps an image pixels with interpoation.
+    """Remap image pixels based on given X any Y map using interpoation.
     """
 
     source = Input(types.Image(), description="Input image")
-    x = Input(types.Image(channels=1, depth="float"), description="Matrix denoting x lookup coordinates")
-    y = Input(types.Image(channels=1, depth="float"), description="Matrix denoting y lookup coordinates")
+    x = Input(types.Image(channels=1, depth="float"), description="Matrix denoting X lookup coordinates")
+    y = Input(types.Image(channels=1, depth="float"), description="Matrix denoting Y lookup coordinates")
     interpolation = EnumerationInput(InterpolationMode, default="Linear")
     border = EnumerationInput(BorderStrategy, default="ConstantLow")
 

@@ -1,5 +1,6 @@
 from inspect import isclass
-from typing import Any, Optional, Tuple, List
+from typing import Any, NamedTuple, Optional, Tuple, List
+import typing
 
 from docutils import nodes
 from docutils.parsers.rst import Directive
@@ -11,9 +12,12 @@ from sphinx.application import Sphinx
 from sphinx.locale import _
 from sphinx.util.docutils import SphinxDirective
 from sphinx.util.typing import OptionSpec
+from sphinx.util.nodes import make_id
+from sphinx.roles import XRefRole
 from sphinx.ext.autodoc import ModuleDocumenter, ClassDocumenter, Documenter
 from sphinx.domains import Domain, ObjType, Index
 from sphinx.domains.python import py_sig_re, PyObject
+from sphinx.environment import BuildEnvironment
 
 def is_node(obj):
     from pixelpipes.graph import Node
@@ -24,6 +28,12 @@ def is_node(obj):
         return False
 
     return not obj.object.hidden()
+
+class IndexEntry(NamedTuple):
+    docname: str
+    node_id: str
+    objtype: str
+    aliased: bool
 
 class NodeEntry(PyObject):
 
@@ -45,6 +55,33 @@ class NodeEntry(PyObject):
         else:
             return ''
 
+    def add_target_and_index(self, name_cls: Tuple[str, str], sig: str,
+                             signode: addnodes.desc_signature) -> None:
+        modname = self.options.get('module', self.env.ref_context.get('py:module'))
+        fullname = (modname + '.' if modname else '') + name_cls[0]
+        node_id = make_id(self.env, self.state.document, '', fullname)
+        signode['ids'].append(node_id)
+
+        # Assign old styled node_id(fullname) not to break old hyperlinks (if possible)
+        # Note: Will removed in Sphinx-5.0  (RemovedInSphinx50Warning)
+        if node_id != fullname and fullname not in self.state.document.ids:
+            signode['ids'].append(fullname)
+
+        self.state.document.note_explicit_target(signode)
+
+        domain = typing.cast(NodeDomain, self.env.get_domain('nodes'))
+        domain.note_object(fullname, self.objtype, node_id, location=signode)
+
+        canonical_name = self.options.get('canonical')
+        if canonical_name:
+            domain.note_object(canonical_name, self.objtype, node_id, aliased=True,
+                               location=signode)
+
+        if 'noindexentry' not in self.options:
+            indextext = self.get_index_text(modname, name_cls)
+            if indextext:
+                self.indexnode['entries'].append(('single', indextext, node_id, '', None))
+
 class NodeIndex(Index):
     name = 'nodeindex'
     localname = _('Node Index')
@@ -57,7 +94,7 @@ class NodeIndex(Index):
         ignores = sorted(ignores, key=len, reverse=True)
         # list of all packages, sorted by package name
         packages = sorted(self.domain.data['nodes'].items(),
-                         key=lambda x: x[0].lower())
+                          key=lambda x: x[0].lower())
         # sort out collapsable packages
         prev_pkgname = ''
         num_toplevels = 0
@@ -109,41 +146,82 @@ class NodeIndex(Index):
 
         return content, collapse
 
+class NodeXRefRole(XRefRole):
+    def process_link(self, env: BuildEnvironment, refnode: nodes.Element,
+                     has_explicit_title: bool, title: str, target: str) -> Tuple[str, str]:
+        refnode['py:module'] = env.ref_context.get('py:module')
+        refnode['py:class'] = env.ref_context.get('py:class')
+        if not has_explicit_title:
+            title = title.lstrip('.')    # only has a meaning for the target
+            target = target.lstrip('~')  # only has a meaning for the title
+            # if the first character is a tilde, don't display the module/class
+            # parts of the contents
+            if title[0:1] == '~':
+                title = title[1:]
+                dot = title.rfind('.')
+                if dot != -1:
+                    title = title[dot + 1:]
+        # if the first character is a dot, search more specific namespaces first
+        # else search builtins first
+        if target[0:1] == '.':
+            target = target[1:]
+            refnode['refspecific'] = True
+        return title, target
+
 class NodeDomain(Domain):
 
-    name = 'pp'
+    name = 'nodes'
     label = 'Pixelpipes'
     object_types = {
         'module': ObjType(_('module'), 'module'),
         'node': ObjType(_('node'), 'node'),
-        'op': ObjType(_('operation'), 'op'),
-        'macro':  ObjType(_('macro'),  'macro'),
+        'operation': ObjType(_('operation'), 'operation', 'node'),
+        'macro':  ObjType(_('macro'),  'macro', 'node'),
         'token':  ObjType(_('token'),  'token'),
-        'res':  ObjType(_('resource'),  'res'),
+        'res':  ObjType(_('resource'),  'resource'),
     }
 
     directives = {
         'module':      NodeEntry,
-        'op':      NodeEntry,
-        'node':    NodeEntry,
-        'macro':    NodeEntry,
+        'operation':   NodeEntry,
+        'node':        NodeEntry,
+        'macro':       NodeEntry,
     }
     roles = {
-#        'node' :  GolangXRefRole(),
+        'node':  NodeXRefRole(),
     }
     initial_data = {
-        'nodes': {}, 
+        'nodes': {},
     }
     indices = [
         NodeIndex,
     ]
 
     def clear_doc(self, docname):
-        for fullname in list(self.data['nodes'].keys()):
-            fn, _ = self.data['nodes'].get(fullname)
-            if fn == docname:
-                self.data['nodes'].pop(fullname)
+        pass
+        #for fullname in list(self.data['nodes'].keys()):
+        #    fn, _ = self.data['nodes'].get(fullname)
+        #    if fn == docname:
+        #        self.data['nodes'].pop(fullname)
 
+
+    def note_object(self, name: str, objtype: str, node_id: str,
+                    aliased: bool = False, location: Any = None) -> None:
+        """Note an object for cross reference.
+
+        .. versionadded:: 2.1
+        """
+        
+        if name in self.data["nodes"]:
+            other = self.data["nodes"][name]
+            if other.aliased and aliased is False:
+                # The original definition found. Override it!
+                pass
+            elif other.aliased is False and aliased:
+                # The original definition is already registered.
+                return
+
+        self.data["nodes"][name] = IndexEntry(self.env.docname, node_id, "node", aliased)
 
 class NodesDocumenter(ModuleDocumenter):
     domain = NodeDomain.name
@@ -152,10 +230,18 @@ class NodesDocumenter(ModuleDocumenter):
     priority = 10 + ModuleDocumenter.priority
     option_spec = dict(ModuleDocumenter.option_spec)
 
+    def add_directive_header(self, sig: str) -> None:
+        pass
+
+    def add_content(self,
+                    more_content: Optional[StringList],
+                    no_docstring: bool = False
+                    ) -> None:
+        pass
+
     def get_module_members(self):
         members = super().get_module_members()
         return {k: v for k, v in members.items() if is_node(v)}
-
 
 
 class NodeDocumenter(ClassDocumenter):
@@ -191,7 +277,7 @@ class NodeDocumenter(ClassDocumenter):
         for arg_name, _ in node_object.attributes().items():
             args.append(arg_name)
 
-        return " (" + ", ".join(args) + ")"
+        return "  (" + ", ".join(args) + ")"
 
     def add_directive_header(self, sig: str) -> None:
         from sphinx.util import inspect
@@ -199,12 +285,12 @@ class NodeDocumenter(ClassDocumenter):
 
         if self.doc_as_attr:
             self.directivetype = 'attribute'
-        
+
         from pixelpipes.graph import Node, Operation, Macro
         node_object: Node = self.object
 
         if issubclass(node_object, Operation):
-            self.directivetype = "op"
+            self.directivetype = "operation"
         elif issubclass(node_object, Macro):
             self.directivetype = "macro"
         else:
@@ -216,6 +302,7 @@ class NodeDocumenter(ClassDocumenter):
         if not self.doc_as_attr and canonical_fullname and self.fullname != canonical_fullname:
             self.add_line('   :canonical: %s' % canonical_fullname, sourcename)
 
+        #self.add_line('   .. term: %s' % canonical_fullname, sourcename)
 
     def add_content(self,
                     more_content: Optional[StringList],
@@ -247,7 +334,6 @@ class NodeDocumenter(ClassDocumenter):
                 arg_type = "bool"
             elif isinstance(arg_value, Any):
                 arg_type = "any"
-            
 
             if not is_undefined(arg_value.default):
                 arg_type += f" = {arg_value.default!s}"
@@ -255,6 +341,8 @@ class NodeDocumenter(ClassDocumenter):
             self.add_line(
                 f"**{arg_name}** [{arg_type}]: {arg_value.description}", source_name)
             self.add_line('', source_name)
+
+    
 
 
 def setup(app: Sphinx) -> None:

@@ -4,8 +4,8 @@ CIFAR and resource lists
 CIFAR is one of the most well known datasets for computer vision, espectially for representation learning. 
 This tutorial will show how to generate a stream of random samples from CIFAR-10 collection. In contract to the previous tutorial on MNIST, we will introduce
 the concept of resources and resource lists as a high-level way of structuring data into datasets. The full code for the example is available 
-:example:`here <cifar.py>`, we will just commend on the core parts.
-
+:example:`cifar.py here`, we will just commend on the core parts.
+  
 Resources
 ---------
 
@@ -15,7 +15,7 @@ and group them together into a structure-like connections. Individual fields can
 It is important to know that resources are built upon macros and are therefore not really used in the final pipeline, they are dissolved during compilation and all
 the their fields that are not required to produce stream output are stripped away.
 
-Define a resource list
+Define a resource list 
 ----------------------
 
 Lets define a macro that will produce a dataset resource. This can be done manually by overloading the Macro class, but it is recommended to use a ResourceListSource

@@ -1,13 +1,14 @@
 from __future__ import absolute_import
-from typing import Iterable, List, Mapping, Optional
-
-import os
-
-__version__ = "0.0.8"
-
+from types import MappingProxyType
+from typing import Iterable, List, Mapping, Optional, Tuple
 import os
 import logging
 from collections import namedtuple
+
+
+__version__ = "0.0.8"
+
+import numpy as np
 
 _logger = logging.getLogger(__name__)
 
@@ -41,6 +42,8 @@ def link_dirs() -> List[str]:
     return [os.path.join(os.path.dirname(__file__))]
 
 class LazyLoadEnum(Mapping):
+    """Special enum class used to load mappings from the core library when they are needed for the first time.
+    """
 
     def __init__(self, name):
         self._name = name
@@ -88,7 +91,7 @@ class _PipelineMetadata(object):
         return self._pipeline.set(key, value)
 
 class Pipeline(object):
-    """Wrapper for the C++ pipeline object, includes metadata
+    """Wrapper for the C++ pipeline object, includes additional metadata. This wrapper should be used instead of interacting with the C++ object directly.
     """
 
     def __init__(self, data: Iterable[PipelineOperation], optimize=True):
@@ -116,18 +119,33 @@ class Pipeline(object):
     def __len__(self):
         return self._pipeline.size()
 
-    def run(self, index):
+    def run(self, index: int) ->Tuple[np.ndarray]:
+        """Executes the pipeline for a given index and resturns result
+
+        Args:
+            index (int): Index of sample to generate. Starts with 1.
+
+        Returns:
+            Tuple[np.ndarray]: Generated sample, a sequence of NumPy objects.
+        """
         return self._pipeline.run(index)
 
     @property
-    def metadata(self):
+    def metadata(self) -> MappingProxyType:
+        """Accesses the pipeline metadata storage.
+
+        Returns:
+            MappingProxyType: A string to string key-value storage. 
+        """
         return _PipelineMetadata(self._pipeline)
 
     @property
-    def outputs(self):
+    def outputs(self) -> List[str]:
+        """Returns labels for individual elements of the output tuple.
+        """
         return self._pipeline.labels()
 
-    def stats(self):
+    def _stats(self):
         # TODO: remove this
         stats = self._pipeline.operation_time()
         for k, v in zip(self._operations, stats):
@@ -139,9 +157,16 @@ class Pipeline(object):
             yield self._pipeline.run(index)
             index += 1
 
-def write_pipeline(filename: str, pipeline: Pipeline, compress: Optional[bool] = True):
-        from . import pypixelpipes
-        pypixelpipes.write_pipeline(pipeline._pipeline, filename, compress)
+def write_pipeline(filename: str, pipeline: Pipeline, compress: Optional[bool] = True) -> None:
+    """Serializes pipeline to a file with optional compression
+
+    Args:
+        filename (str): Filename to use.
+        pipeline (Pipeline): Pipeline to serialize.
+        compress (Optional[bool], optional): Use GZIP compression or not. Defaults to True.
+    """
+    from . import pypixelpipes
+    pypixelpipes.write_pipeline(pipeline._pipeline, filename, compress)
 
 def read_pipeline(filename: str):
     from . import pypixelpipes

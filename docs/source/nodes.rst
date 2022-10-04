@@ -1,15 +1,17 @@
 List of nodes
 =============
 
-Despite being Python classes, nodes are documented separately and a bit differently to make their use cleared. Below is a list of nodes included in the PixelPipes
-package, without helper internal nodes.
+Despite being Python classes, nodes follow a consistent logic are documented separately from the rest of the API. Below is a list of nodes included in the PixelPipes
+core.
 
 Core nodes
 ----------
 
 .. autonodes:: pixelpipes.graph
-   :members: 
+   :members:       
  
+.. autonodes:: pixelpipes.compiler
+   :members: 
 
 Scalar operations
 -----------------
@@ -20,19 +22,19 @@ Scalar operations
 .. autonodes:: pixelpipes.expression
    :members:
 
-Flow control
+Flow control 
 ------------
 
 .. autonodes:: pixelpipes.flow
    :members:
    
-List creation and manipulation
-------------------------------
-
+Lists
+-----
+  
 .. autonodes:: pixelpipes.list
-   :members:
+   :members: 
 
-
+ 
 Geometery
 ---------
 
@@ -48,10 +50,13 @@ Geometery
 .. autonodes:: pixelpipes.geometry.rectangle
    :members:
 
-Image manipulation
-------------------
+Images
+------
 
 .. autonodes:: pixelpipes.image
+   :members:
+
+.. autonodes:: pixelpipes.image.loading
    :members:
 
 .. autonodes:: pixelpipes.image.render
@@ -60,6 +65,14 @@ Image manipulation
 .. autonodes:: pixelpipes.image.filter
    :members:
 
+.. autonodes:: pixelpipes.image.processing
+   :members:
+
+.. autonodes:: pixelpipes.image.augmentation
+   :members:
+
+.. autonodes:: pixelpipes.image.geometry
+   :members:
 
 Resources
 ---------

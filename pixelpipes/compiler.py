@@ -105,14 +105,6 @@ def infer_type(node: typing.Union[Reference, str], graph: Graph = None, type_cac
     if type_cache is not None and output_type is not None:
         type_cache[name] = output_type
     return output_type
-
-
-def print_graph(graph: Graph):
-    print("========== START", len(graph), " nodes =========" )
-    for ref, _ in graph:
-        print(ref)
-    print("========== END", len(graph), " nodes =========" )
-
 class Compiler(object):
     """Compiler object contains utilities to validate a graph and compiles it to a pipeline
      (a sequence of operations, written in native code) that can be executed to obtain output
@@ -272,8 +264,6 @@ class Compiler(object):
 
         def expand_macro(name, node):
             self._debug("Expanding macro {} ({})", name, node)
-
-            #print_graph(graph)
 
             inputs, _ = normalize_inputs(node)
             if inputs is None:
