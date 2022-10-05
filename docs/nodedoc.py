@@ -305,14 +305,13 @@ class NodeDocumenter(ClassDocumenter):
         #self.add_line('   .. term: %s' % canonical_fullname, sourcename)
 
     def add_content(self,
-                    more_content: Optional[StringList],
-                    no_docstring: bool = False
+                    more_content: Optional[StringList]
                     ) -> None:
 
         from pixelpipes.graph import Node, Input
         from attributee import Integer, String, Float, Any, Boolean, is_undefined
 
-        super().add_content(more_content, no_docstring)
+        super().add_content(more_content)
 
         source_name = self.get_sourcename()
 

@@ -1,6 +1,9 @@
 
 # PixelPipes - infinite data streams for deep learning
 
+[![Documentation Status](https://readthedocs.org/projects/pixelpipes/badge/?version=latest)](https://pixelpipes.readthedocs.io/en/latest/?badge=latest)
+
+
 This project provides a framework for creating repeatable infinite streams of data samples with the emphasis on computer vision data. The main reason for this is (of course) deep learning, most deep models require a huge amount of samples to be processed in a training phase. These samples have to be sampled from a dataset and bundled into batches that can be processed at the same time on a GPU. Besides sampling, another important concept in deep learning for computer vision is data augmentation where images are processed with a number of image processing steps to increase data diversity in a controlled manner. 
 
 PixelPipes combines both sampling and augmentation into a single data-generation pipeline. The pipeline is first described as a computational graph in Python. It is then transformed into an operation pipeline that is executed in C++, avoiding GIL and enabling efficient use of multiple threads with shared access to memory structures.
