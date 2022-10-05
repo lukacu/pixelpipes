@@ -239,15 +239,12 @@ setup(
     ext_modules=ext_modules,
     packages=setuptools.find_packages(include=["pixelpipes", "pixelpipes.*"]),
     include_package_data=True,
-    setup_requires=["pybind11>=2.5.0", "numpy>=1.20"],
+    setup_requires=["pybind11>=2.5.0", "numpy>=1.23,<1.25"],
     install_requires=[
-        "numpy>=1.20",
+        "numpy>=1.23,<1.25",
         "bidict>=0.21",
         "attributee>=0.1.7"
     ],
-    extras_require={
-        'torch': ['torch']
-    },
     python_requires='>=3.7',
     zip_safe=False,
     cmdclass={

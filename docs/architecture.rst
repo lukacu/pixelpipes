@@ -27,8 +27,8 @@ Below is a list of Python-level concepts that are important to know when you sta
  * Graph: a collection of connected nodes, a graph describes dependencies between operations, each operation, represented as a node in a graph can accept zero or more inputs and produces a single output. There are two types of nodes, operations and macros.
  * Operation: special nodes that map directly to individual operations in the final pipeline.
  * Macro: A macro is a combination of operations that are frequently used together and are represented as a single node. During compilation macros are expanded to their inner subgraph
-until only the basic operation nodes remain. Macros are written in Python and combined normal Python language together with DAG generation, they can therefore base generation 
-on input types, use loops and conditional statements.
+   until only the basic operation nodes remain. Macros are written in Python and combined normal Python language together with DAG generation, they can therefore base generation 
+   on input types, use loops and conditional statements.
  * Constant: Special type of operation node, used to introduce constant values into the pipeline. Constats can be scalars, but also tensors and lists.
  * Compilation: a process of iterativelly reducing macro nodes in a graph to basic operations, removing duplicates where possible and ordering operations according to dependencies.
  * Resource: Special type of macros that handle multi-field type abstractions, can be used to make the graph more organized, but get dissolved during compilation.

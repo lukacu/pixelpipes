@@ -32,3 +32,4 @@ Debug
 *.gv
 *.gv.pdf
 _data
+_build

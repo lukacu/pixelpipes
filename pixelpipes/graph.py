@@ -5,7 +5,6 @@ import threading
 import numbers
 import traceback
 from enum import Enum, auto
-import unittest
 
 import numpy as np
 
