@@ -8,8 +8,6 @@ from enum import Enum, auto
 
 import numpy as np
 
-import bidict
-
 from attributee import Attributee, Attribute, AttributeException, Undefined, Any, Enumeration
 from attributee.object import class_fullname
 from attributee.primitives import to_number, to_logical, to_string, String
@@ -546,6 +544,7 @@ class _IndexOperationWrapper(_OperationWrapper):
 class Graph(object):
 
     def __init__(self, prefix: typing.Optional[typing.Union[str, Reference]] = ""):
+        import bidict
         from .utilities import Counter
 
         self._nodes = bidict.bidict()
