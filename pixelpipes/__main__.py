@@ -4,9 +4,9 @@ from attributee import Attributee
 from attributee.primitives import String, Boolean
 from attributee.object import Callable
 from attributee.io import Entrypoint
-from pixelpipes import write_pipeline
+from pixelpipes import Pipeline, write_pipeline
 
-from pixelpipes.graph import ValidationException
+from pixelpipes.graph import Graph, ValidationException
 
 class Compiler(Attributee, Entrypoint):
 
@@ -22,14 +22,18 @@ class Compiler(Attributee, Entrypoint):
 
         from pixelpipes.compiler import Compiler
 
-        compiler = Compiler(fixedout=self.fixedout, debug=self.debug)
-
         try:
-            operations = compiler.compile(self.graph(), output=self.output)
+            graph = self.graph()
 
-            print("Compiled pipeline of %d operations, writing to %s" % (len(operations), self.save))
+            if isinstance(graph, Graph):
+                compiler = Compiler(fixedout=self.fixedout, debug=self.debug)
+                pipeline = compiler.build(graph, output=self.output)
+            elif isinstance(graph, Pipeline):
+                pipeline = graph
 
-            write_pipeline(self.save, operations, self.compress, self.relocatable)
+            print("Compiled pipeline of %d operations, writing to %s" % (len(pipeline), self.save))
+
+            write_pipeline(self.save, pipeline, self.compress)
 
             print("Done.")
 
