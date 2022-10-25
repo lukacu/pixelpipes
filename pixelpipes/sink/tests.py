@@ -8,40 +8,36 @@ from ..compiler import Compiler
 from ..graph import Graph, Constant, outputs
 from . import PipelineDataLoader
 
+def _run_sink_text(constructor, batch_size, workers):
+
+    with Graph() as graph:
+        outputs(Constant(1), Constant([10, 20, 30]))
+
+    batch_size = 10
+
+    loader = constructor(Compiler().build(graph), batch=batch_size, workers=workers)
+
+    for _ in zip(loader, range(1000)):
+        pass
+
 class TestSinks(unittest.TestCase):
 
-    def test_sink_PipelineDataLoader(self):
+    def test_sink_single_worker(self):
         
-        with Graph() as graph:
-            outputs(Constant(1), Constant([10, 20, 30]))
+        _run_sink_text(PipelineDataLoader, 32, 1)
 
-        batch_size = 10
+    def test_sink_multi_worker(self):
+        
+        _run_sink_text(PipelineDataLoader, 32, 50)
 
-        loader = PipelineDataLoader(Compiler().build(graph), batch_size, 1)
+    def test_sink_pytorch(self):
 
-        for batch in loader:
-            self.assertIsInstance(batch[0], np.ndarray)
-            self.assertIsInstance(batch[1], np.ndarray)
-            self.assertEqual(batch[0].shape, (batch_size, 1))
-            self.assertEqual(batch[1].shape, (batch_size, 3))
+        try:
+            from . import TorchDataLoader
+            _run_sink_text(TorchDataLoader, 32, 1)
+        except ImportError:
             return
 
-    """
-    # TODO FIX
-    def test_torch_list(self):
+        
 
-        import torch
-        from pixelpipes.engine import FloatList
-
-        with GraphBuilder() as builder:
-            n1 = ListSource(FloatList([0.5, 0.1, 0.3]))
-            Output(outputs=[n1])
-
-        compiler = Compiler()
-        pipeline = compiler.compile(builder)
-
-        sample = pipeline.run_torch(1)
-
-        self.assertIsInstance(sample[0], torch.Tensor)
-        self.assertEqual(sample[0][0], 0.5)
-    """
+  

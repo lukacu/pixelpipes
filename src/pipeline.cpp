@@ -81,7 +81,7 @@ namespace pixelpipes
     class Constant : public Operation
     {
     public:
-        Constant(const TokenReference &value) : value(value.reborrow())
+        Constant(const TokenReference &value) : _value(value.reborrow())
         {
             VERIFY((bool)value, "Constant value undefined");
         }
@@ -89,7 +89,11 @@ namespace pixelpipes
         virtual TokenReference run(const TokenList &inputs)
         {
             UNUSED(inputs);
-            return value.reborrow();
+
+            // Constants are shared 
+            std::scoped_lock lock(_mutex);
+
+            return _value.reborrow();
         }
 
         virtual TypeIdentifier type()
@@ -97,10 +101,12 @@ namespace pixelpipes
             return GetTypeIdentifier<Constant>();
         }
 
-        virtual Sequence<TokenReference> serialize() { return Sequence<TokenReference>({value.reborrow()}); }
+        virtual Sequence<TokenReference> serialize() { return Sequence<TokenReference>({_value.reborrow()}); }
 
     private:
-        TokenReference value;
+        TokenReference _value;
+
+        std::mutex _mutex;
     };
 
     PIXELPIPES_OPERATION_CLASS("constant", Constant, TokenReference);

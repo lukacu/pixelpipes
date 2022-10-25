@@ -152,9 +152,6 @@ class PipelineDataLoader(AbstractDataLoader):
 
         self._pipeline = pipeline
 
-    def _outputs(self):
-        return self._pipeline.outputs()
-
     def _commit(self, index):
         try:
             return self._workers.submit(self._pipeline.run, index)
