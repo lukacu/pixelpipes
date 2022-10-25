@@ -1,8 +1,8 @@
 #pragma once
 
 #include <functional>
+#include <atomic>
 
-#include <pixelpipes/details/atomic.hpp>
 #include <pixelpipes/details/rtti.hpp>
 
 /*
@@ -16,153 +16,30 @@ namespace pixelpipes
     template <typename T>
     class Pointer;
 
-    ////////////////////////////////////////////////////////////////////////
-
-    // NOTE: currently this implementation of Borrowable does an atomic
-    // backoff instead of blocking the thread when the destructor waits
-    // for all borrows to be relinquished. This will be much less
-    // efficient (and hold up a CPU) if the borrowers take a while to
-    // relinquish. However, since Borrowable will mostly be used in
-    // cirumstances where the tally is definitely back to 0 when we wait
-    // no backoff will occur. For circumstances where Borrowable is being
-    // used to wait until work is completed consider using a Notification
-    // to be notified when the work is complete and then Borrowable should
-    // destruct without any atomic backoff (because any workers/threads
-    // will have relinquished).
     class TypeErasedBorrowable
     {
     public:
-        template <typename F>
-        bool Watch(F &&f)
-        {
-            auto [state, count] = tally_.Wait([](auto, size_t)
-                                              { return true; });
-
-            do
-            {
-                if (state == State::Watching)
-                {
-                    return false;
-                }
-                else if (count == 0)
-                {
-                    f();
-                    return true;
-                }
-
-                CHECK_EQ(state, State::Borrowing);
-
-            } while (!tally_.Update(state, count, State::Watching, count + 1));
-
-            watch_ = std::move(f);
-
-            relinquish();
-
-            return true;
-        }
-
-        void WaitUntilBorrowsEquals(size_t borrows)
-        {
-            tally_.Wait([&](auto /* state */, size_t count)
-                        { return count == borrows; });
-        }
 
         size_t borrows()
         {
-            return tally_.count();
+            return _count.load();
         }
 
         bool relinquish()
         {
-            auto [state, count] = tally_.Decrement();
-
-            if (state == State::Watching && count == 0)
-            {
-                // Move out 'watch_' in case it gets reset either in the
-                // callback or because a concurrent call to 'borrow()' occurs
-                // after we've updated the tally below.
-                auto f = std::move(watch_);
-                watch_ = std::function<void()>();
-
-                tally_.Update(state, State::Borrowing);
-
-                // At this point a call to 'borrow()' may mean that there are
-                // outstanding 'borrowed_ref/ptr' when the watch callback gets
-                // invoked and thus it's up to the users of this abstraction to
-                // avoid making calls to 'borrow()' until after the watch
-                // callback gets invoked if they want to guarantee that there
-                // are no outstanding 'borrowed_ref/ptr'.
-
-                f();
-            }
-
-            return count == 0;
+            return _count.fetch_sub(1) == 1;
         }
 
     protected:
         TypeErasedBorrowable()
-            : tally_(State::Borrowing) {}
+            : _count(0) { reborrow(); }
 
-        TypeErasedBorrowable(const TypeErasedBorrowable &that)
-            : tally_(State::Borrowing) { UNUSED(that); }
+        TypeErasedBorrowable(const TypeErasedBorrowable &that) = delete;
 
-        TypeErasedBorrowable(TypeErasedBorrowable &&that)
-            : tally_(State::Borrowing)
-        {
-            // We need to wait until all borrows have been relinquished so
-            // any memory associated with 'that' can be safely released.
-            that.WaitUntilBorrowsEquals(0);
-        }
+        TypeErasedBorrowable(TypeErasedBorrowable &&that) = delete;
 
-        virtual ~TypeErasedBorrowable()
-        {
-            auto state = State::Borrowing;
-            if (!tally_.Update(state, State::Destructing))
-            {
-                // LOG(FATAL) << "Unable to transition to Destructing from state " << state;
-            }
-            else
-            {
-                // NOTE: it's possible that we'll block forever if exceptions
-                // were thrown and destruction was not successful.
-                // if (!std::uncaught_exceptions() > 0) {
-                WaitUntilBorrowsEquals(0);
-                // }
-            }
-        }
-
-        enum class State : uint8_t
-        {
-            Borrowing,
-            Watching,
-            Destructing,
-        };
-
-        // We need to overload '<<' operator for 'State' enum class in
-        // order to use 'CHECK_*' family macros.
-        friend std::ostream &operator<<(
-            std::ostream &os,
-            const TypeErasedBorrowable::State &state)
-        {
-            switch (state)
-            {
-            case TypeErasedBorrowable::State::Borrowing:
-                return os << "Borrowing";
-            case TypeErasedBorrowable::State::Watching:
-                return os << "Watching";
-            case TypeErasedBorrowable::State::Destructing:
-                return os << "Destructing";
-            }
-        };
-
-        // NOTE: 'stateful_tally' ensures this is non-moveable (but still
-        // copyable). What would it mean to be able to borrow a pointer to
-        // something that might move!? If an implemenetation ever replaces
-        // 'stateful_tally' with something else care will need to be taken
-        // to ensure that 'Borrowable' doesn't become moveable.
-        pixelpipes::details::StatefulTally<State> tally_;
-
-        std::function<void()> watch_;
+        // TODO: move implementation so that STL class is not public
+        std::atomic<unsigned long> _count;
 
     private:
         // Only 'Pointer' can reborrow!
@@ -179,15 +56,7 @@ namespace pixelpipes
 
         void reborrow()
         {
-            auto [state, count] = tally_.Wait([](auto, size_t)
-                                              { return true; });
-
-            // CHECK_GT(count, 0u);
-
-            do
-            {
-                // CHECK_NE(state, State::Destructing);
-            } while (!tally_.Increment(state));
+            _count.fetch_add(1);
         }
     };
 
@@ -224,26 +93,6 @@ namespace pixelpipes
         {
             return &t_;
         }
-/*
-        T *operator->()
-        {
-            return get();
-        }
-
-        const T *operator->() const
-        {
-            return get();
-        }
-
-        T &operator*()
-        {
-            return t_;
-        }
-
-        const T &operator*() const
-        {
-            return t_;
-        }*/
 
     private:
         T t_;
@@ -467,21 +316,6 @@ namespace pixelpipes
 
     template <typename T>
     inline constexpr bool is_pointer_v = is_pointer<T>::value;
-    /*
-        template<typename T>
-        class Selfown {
-        protected:
-            PointerAware()
-            {
-                _ptr_weak = new Borrowable<T>(this);
-            }
-
-
-        private:
-
-            Borrowable<T> * _ptr_weak = nullptr;
-
-        };*/
         
     template <typename T>
     class enable_pointer_from_this : public TypeErasedBorrowable
