@@ -86,7 +86,9 @@ class ResourceListSource(Macro):
                 forward[name] = Constant(field, _name="." + name)
                 lenghts.append(len(field))
             elif isinstance(field, np.ndarray):
-                forward[name] = Constant(field, _name="." + name)
+                # The current array copy is quite slow for strided arrays so use NumPy to make
+                # input array contiguous.
+                forward[name] = Constant(np.ascontiguousarray(field), _name="." + name)
                 lenghts.append(field.shape[0])
             else:
                 raise ValidationException("Not a supported resource list field: {!s:.100}".format(field))

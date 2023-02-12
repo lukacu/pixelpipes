@@ -1,5 +1,6 @@
 
 import os
+import sys
 import pickle
 
 import numpy as np
@@ -24,8 +25,8 @@ class CIFARDataset(ResourceListSource):
                     dict[b"data"], (-1, 3, 32, 32)), (0, 2, 3, 1)))
                 label_batches.append(np.array(dict[b"labels"], dtype=np.int32))
 
-        return {"image": np.ascontiguousarray(np.concatenate(image_batches, 0)),
-                "label": np.ascontiguousarray(np.concatenate(label_batches, 0))}
+        return {"image": np.concatenate(image_batches, 0),
+                "label": np.concatenate(label_batches, 0)}
 
 from pixelpipes.utilities import pipeline
 
@@ -43,9 +44,12 @@ if __name__ == "__main__":
     # Download original dataset from http://www.cs.toronto.edu/~kriz/cifar.html
     # unzip it and point the paths below to the final files
 
-    root = os.path.dirname(__file__)
+    datadir = os.path.join(os.path.dirname(__file__), "cifar")
 
-    stream = cifar(os.path.join(root, "cifar"))
+    if len(sys.argv) > 1:
+        datadir = sys.argv[1]
+
+    stream = cifar(datadir)
 
     for image, _ in stream:
         cv2.imshow("CIFAR", cv2.cvtColor(image, cv2.COLOR_BGR2RGB))

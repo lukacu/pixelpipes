@@ -7,10 +7,15 @@ import numpy as np
 
 from pixelpipes.graph import RandomSeed, Constant
 from pixelpipes.list import GetRandom
+from pixelpipes.image import ConvertDepth
 from pixelpipes.utilities import pipeline
 
 @pipeline()
-def mnist(images_file, labels_file):
+def mnist():
+    root = os.path.dirname(__file__)
+    images_file = os.path.join(root, "_data", "mnist", "train-images.idx3-ubyte")
+    labels_file = os.path.join(root, "_data", "mnist", "train-labels.idx1-ubyte")
+
     images = []
     labels = []
     with open(images_file, mode="rb") as h:
@@ -33,22 +38,18 @@ def mnist(images_file, labels_file):
     i = Constant(images)
     s = RandomSeed() # Both label and image should be sampled the same way, we are binding the same random seed
 
-    return GetRandom(i, seed=s), GetRandom(l, seed=s)
+    return ConvertDepth(GetRandom(i, seed=s), "Float"), GetRandom(l, seed=s)
 
 if __name__ == "__main__":
 
     # Download original train or test files from http://yann.lecun.com/exdb/mnist/
     # unzip them and point the paths below to the final files
 
-    root = os.path.dirname(__file__)
-    images_file = os.path.join(root, "train-images.idx3-ubyte")
-    labels_file = os.path.join(root, "train-labels.idx1-ubyte")
-
-    stream = mnist(images_file, labels_file)
+    stream = mnist()
 
     for image, label in stream:
         print(label)
-        cv2.imshow("Patch", image)
+        cv2.imshow("Patch", (image * 255).astype(np.uint8))
         if cv2.waitKey() != 32:
             break
 
