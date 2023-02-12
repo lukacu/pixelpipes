@@ -1,10 +1,17 @@
 #!/bin/bash
-set -e -u -x
+set -e -u
 
 auditwheel -V
 
 : ${WHEEL_ROOT:=/io/dist}
 : ${PLAT:=manylinux2014_x86_64}
+
+function exists_in_list() {
+    LIST=$1
+    DELIMITER=$2
+    VALUE=$3
+    echo $LIST | tr "$DELIMITER" '\n' | grep -F -q -x "$VALUE"
+}
 
 function repair_wheel {
     wheel="$1"
@@ -19,9 +26,11 @@ function repair_wheel {
 for PYBIN in /opt/python/*/bin; do
     #"${PYBIN}/pip" install -r /io/dev-requirements.txt
     PYDIST=`basename $(dirname $PYBIN)`
-    if [[ "$PYDIST" =~ cp36-* ]]; then
+    if exists_in_list "$SKIP" "," "$PYDIST"; then
+        echo "Skipping $PYDIST"
         continue
     fi
+    echo "Building $PYDIST"
     "${PYBIN}/pip" wheel /io/ --no-deps -w ${WHEEL_ROOT}
 done
 

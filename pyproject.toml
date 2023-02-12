@@ -1,2 +1,2 @@
 [build-system]
-requires = ["setuptools", "wheel", "cmake>=3.11", "pybind11>=2.9.0", "numpy>=1.20", "pip"]
+requires = ["setuptools", "wheel", "cmake>=3.11", "pybind11>=2.9.0", "numpy>=1.23,<1.25", "pip"]

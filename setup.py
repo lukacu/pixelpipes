@@ -245,7 +245,7 @@ setup(
         "bidict>=0.21",
         "attributee>=0.1.7"
     ],
-    python_requires='>=3.7',
+    python_requires='>=3.8',
     zip_safe=False,
     cmdclass={
         'build_lib': CMakeBuildCommand,
