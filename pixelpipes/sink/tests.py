@@ -11,6 +11,7 @@ from . import PipelineDataLoader
 def _run_sink_text(constructor, batch_size, workers):
 
     with Graph() as graph:
+        outputs(Constant(np.zeros((10, 10), dtype=np.float32)))
         outputs(Constant(1), Constant([10, 20, 30]))
 
     batch_size = 10

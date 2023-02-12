@@ -601,6 +601,16 @@ inline void verify(bool condition, std::string reason = std::string("Assertion f
             return data() + this->size();
         }
 
+        const_iterator cend() const noexcept
+        {
+            return data() + this->size();
+        }
+
+        const_iterator cbegin() const noexcept
+        {
+            return data();
+        }
+
         reverse_iterator rbegin() noexcept
         {
             return reverse_iterator(end());

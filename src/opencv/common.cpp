@@ -388,7 +388,7 @@ namespace pixelpipes
     cv::Mat convert_depth(const cv::Mat &image, ImageDepth depth) noexcept(false)
     {
         double maxin = maximum_value(image);
-        int dtype;
+        int dtype = -1;
         double maxout = 1;
 
         switch (depth)
