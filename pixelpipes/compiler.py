@@ -332,8 +332,8 @@ class Compiler(object):
             if not expanded and changes == 0:
                 raise CompilerException(
                     "Unable to expand graph, probably due to some misbehaving nodes")
-
-            if expanded:
+                    
+            if expanded and changes == 0:
                 break
 
         expanded = graph.nodes()
