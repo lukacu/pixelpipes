@@ -9,6 +9,20 @@
 namespace pixelpipes
 {
 
+	static std::atomic<uint32_t> _ref_count(0);
+
+    uint32_t debug_ref_count() {
+		return _ref_count.load();
+	}
+
+    uint32_t debug_ref_inc() {
+		return _ref_count.fetch_add(1);
+	}
+
+    uint32_t debug_ref_dec() {
+		return _ref_count.fetch_sub(1);
+	}
+
 	// TODO: base exception impl probably does not belong here
 
     BaseException::BaseException() : BaseException("")

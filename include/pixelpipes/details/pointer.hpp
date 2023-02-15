@@ -3,6 +3,7 @@
 #include <functional>
 #include <atomic>
 
+#include <pixelpipes/details/api.hpp>
 #include <pixelpipes/details/rtti.hpp>
 
 /*
@@ -12,7 +13,10 @@
 
 namespace pixelpipes
 {
-
+    // These functions can only be used in debug mode to resolve memory problems
+    uint32_t PIXELPIPES_API debug_ref_count();
+    uint32_t PIXELPIPES_API debug_ref_inc();
+    uint32_t PIXELPIPES_API debug_ref_dec();
     template <typename T>
     class Pointer;
 
@@ -32,11 +36,21 @@ namespace pixelpipes
 
     protected:
         TypeErasedBorrowable()
-            : _count(0) { reborrow(); }
+            : _count(0) { 
+                #ifdef PIXELPIPES_DEBUG
+                    debug_ref_inc();
+                #endif
+            }
 
         TypeErasedBorrowable(const TypeErasedBorrowable &that) = delete;
 
         TypeErasedBorrowable(TypeErasedBorrowable &&that) = delete;
+
+        virtual ~TypeErasedBorrowable() {
+            #ifdef PIXELPIPES_DEBUG
+                debug_ref_dec();
+            #endif
+        }
 
         // TODO: move implementation so that STL class is not public
         std::atomic<unsigned long> _count;
@@ -82,7 +96,7 @@ namespace pixelpipes
             : TypeErasedBorrowable(std::move(that)),
               t_(std::move(that.t_)) {}
 
-        ~Borrowable() = default;
+        virtual ~Borrowable() = default;
 
         T *get()
         {
@@ -153,7 +167,6 @@ namespace pixelpipes
         {
             if (borrowable_ != nullptr)
             {
-                borrowable_->reborrow();
                 return Pointer<U>(borrowable_, t_);
             }
             else
@@ -174,7 +187,6 @@ namespace pixelpipes
         {
             if (borrowable_ != nullptr)
             {
-                borrowable_->reborrow();
                 return Pointer<U>(borrowable_, t_);
             }
             else
@@ -198,7 +210,7 @@ namespace pixelpipes
             T *t = nullptr;
             std::swap(borrowable, borrowable_);
             std::swap(t, t_);
-            return Pointer<U>(borrowable, t);
+            return Pointer<U>(borrowable, t, false);
         }
 
         Pointer reborrow() const
@@ -272,10 +284,10 @@ namespace pixelpipes
         friend Pointer<B>
         cast(const Pointer<A> &p);
 
-        Pointer(TypeErasedBorrowable *borrowable, T *t)
+        Pointer(TypeErasedBorrowable *borrowable, T *t, bool borrow = true)
             : borrowable_(borrowable),
               t_(t) {
-                if (borrowable_)
+                if (borrowable_ && borrow)
                     borrowable_->reborrow();
               }
 
@@ -300,7 +312,6 @@ namespace pixelpipes
     Pointer<B>
     cast(const Pointer<A> &p)
     {
-        p.borrowable_->reborrow();
         return Pointer<B>(p.borrowable_, p.t_->template cast<B>());
     }
 
@@ -326,7 +337,7 @@ namespace pixelpipes
             static_assert(
                 std::is_base_of_v<enable_pointer_from_this<T>, T>,
                 "Type 'T' must derive from 'pixelpipes::enable_pointer_from_this<T>'");
-            // This is not good :(
+            // TODO: This is not very nice :(
             return Pointer<T>((TypeErasedBorrowable *) static_cast<const TypeErasedBorrowable*>(this),
                  (T *) static_cast<const T*>(this));
         }

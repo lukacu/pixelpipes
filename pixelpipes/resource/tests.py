@@ -9,6 +9,7 @@ from ..graph import Constant, SampleIndex, outputs
 from ..graph import Graph
 from ..compiler import Compiler
 from . import AppendField, ConditionalResource, MakeResource
+from ..tests import TestBase
 
 class TestResourceList(ResourceListSource):
 
@@ -36,7 +37,7 @@ class TestSegmentedResourceList(SegmentedResourceListSource):
         }
 
 
-class TestResource(unittest.TestCase):    
+class TestResource(TestBase):    
     
     def test_create(self):
 
@@ -74,7 +75,7 @@ class TestResource(unittest.TestCase):
         self.assertEqual(output[1], 2)
 
 
-class TestList(unittest.TestCase): 
+class TestList(TestBase): 
 
     def test_resource_list(self):
 
@@ -111,7 +112,7 @@ class TestList(unittest.TestCase):
         pipeline = Compiler().build(graph)
         output = pipeline.run(1)
 
-class TestLoading(unittest.TestCase):    
+class TestLoading(TestBase):    
     
     def test_image_directory(self):
         

@@ -54,6 +54,7 @@ namespace pixelpipes
         virtual ByteSpan data() override = 0;
 
         virtual SizeSequence strides() const = 0;
+
     };
 
     typedef Pointer<Tensor> TensorReference;
@@ -133,7 +134,7 @@ namespace pixelpipes
             {
                 position += _strides[i] * index[i];
             }
-            //position *= cell_size();
+            // position *= cell_size();
 
             return position;
         }
@@ -413,6 +414,8 @@ namespace pixelpipes
 
     TensorReference PIXELPIPES_API create_tensor(Shape s);
 
+    void PIXELPIPES_API copy_tensor(const TensorReference &in, const TensorReference &out);
+
     template <>
     inline Sequence<int> extract(const TokenReference &v)
     {
@@ -614,5 +617,54 @@ namespace pixelpipes
 
         throw TypeException("Not a tensor");
     }
+
+#ifdef XTENSOR_TENSOR_HPP
+
+    template <typename T>
+    xt::xarray_adaptor<xt::xbuffer_adaptor<T*, xt::no_ownership>, xt::layout_type::dynamic, std::vector<size_t> >
+    wrap_xtensor(const TensorReference& tr)
+    {
+        // TODO: deterine if tensor is contiguous, change adapt call in this case
+        auto ts = tr->shape();
+
+        std::vector<size_t> _shape(ts.rank());
+        std::vector<size_t> _strides(ts.rank());
+        for (size_t i = 0; i < ts.rank(); i++) { 
+            _shape[i] = ts[i];
+            _strides[i] = tr->strides()[i] / sizeof(T);
+        }
+
+        if constexpr (std::is_same_v<T, uchar>)
+        {
+            if (GetTypeIdentifier<char>() != tr->cell_type()) throw TypeException("Tensor type mismatch, use casting");
+            return xt::adapt(tr->data().reinterpret<uchar>().data(), ts.size(), xt::no_ownership(), _shape, _strides);
+        }
+        else if constexpr (std::is_same_v<T, short>)
+        {
+            if (GetTypeIdentifier<short>() != tr->cell_type()) throw TypeException("Tensor type mismatch, use casting");
+            return xt::adapt(tr->data().reinterpret<short>().data(), ts.size(), xt::no_ownership(), _shape, _strides);
+        }
+        else if constexpr (std::is_same_v<T, ushort>)
+        {
+            if (GetTypeIdentifier<ushort>() != tr->cell_type()) throw TypeException("Tensor type mismatch, use casting");
+            return xt::adapt(tr->data().reinterpret<ushort>().data(), ts.size(), xt::no_ownership(), _shape, _strides);
+        }
+        else if constexpr (std::is_same_v<T, int>)
+        {
+            if (GetTypeIdentifier<int>()  != tr->cell_type()) throw TypeException("Tensor type mismatch, use casting");
+            return xt::adapt(tr->data().reinterpret<int>().data(), ts.size(), xt::no_ownership(), _shape, _strides);
+        }
+        else if constexpr (std::is_same_v<T, float>)
+        {
+            if (GetTypeIdentifier<float>()  != tr->cell_type()) throw TypeException("Tensor type mismatch, use casting");
+            return xt::adapt(tr->data().reinterpret<float>().data(), ts.size(), xt::no_ownership(), _shape, _strides);
+        }
+        else
+        {
+            throw TypeException("Unsupported tensor type");
+        }
+    }
+
+#endif
 
 }

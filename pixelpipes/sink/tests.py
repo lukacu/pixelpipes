@@ -8,6 +8,8 @@ from ..compiler import Compiler
 from ..graph import Graph, Constant, outputs
 from . import PipelineDataLoader
 
+from ..tests import TestBase
+
 def _run_sink_text(constructor, batch_size, workers):
 
     with Graph() as graph:
@@ -21,7 +23,7 @@ def _run_sink_text(constructor, batch_size, workers):
     for _ in zip(loader, range(1000)):
         pass
 
-class TestSinks(unittest.TestCase):
+class TestSinks(TestBase):
 
     def test_sink_single_worker(self):
         

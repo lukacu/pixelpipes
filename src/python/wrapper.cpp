@@ -359,7 +359,7 @@ PYBIND11_MODULE(pypixelpipes, m)
     py::register_exception<OperationException>(m, "OperationException");
     py::register_exception<TypeException>(m, "TypeException");
     py::register_exception<ModuleException>(m, "ModuleException");
-    py::register_exception<IllegalStateException>(m, "IllegalStateException");
+    py::register_exception<IllegalStateException>(m, "IllegalStateException"); 
     py::register_exception<PipelineException>(m, "PipelineException");
 
     py::class_<Pipeline>(m, "Pipeline")
@@ -394,14 +394,14 @@ PYBIND11_MODULE(pypixelpipes, m)
                     result = p.run(index);
                 }
 
-                py::tuple transformed(result.size());
+                py::tuple transformed(result.size());  
                 size_t i = 0;
                 for (auto element = result.begin(); element != result.end(); element++, i++) {
                         transformed[i] = (token_to_python(*element));
                 }
                 return transformed; },
             "Run pipeline", py::arg("index"));
-
+ 
     m.def(
         "read_pipeline", [](std::string &name)
         { return read_pipeline(name); },
@@ -416,6 +416,12 @@ PYBIND11_MODULE(pypixelpipes, m)
         "visualize_pipeline", [](const Pipeline &pipeline)
         { return visualize_pipeline(pipeline); },
         py::arg("pipeline"));
+
+    #ifdef PIXELPIPES_DEBUG
+    m.def(
+        "_refcount", []()
+        { return debug_ref_count(); });
+    #endif
 
     /*py::class_<PipelineCallback, PyPipelineCallback, std::shared_ptr<PipelineCallback>>(m, "PipelineCallback")
         .def(py::init());*/

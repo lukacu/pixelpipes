@@ -19,7 +19,7 @@ def compare_serialized(graph, samples=100):
 
     pipeline1 = compiler.build(graph)
 
-    tmpfd, tmpname = tempfile.mkstemp()
+    tmpfd, tmpname = tempfile.mkstemp(suffix=".pxpi")
 
     os.close(tmpfd)
 
@@ -34,9 +34,23 @@ def compare_serialized(graph, samples=100):
         for x, y in zip(a, b):
             npt.assert_equal(x, y)
 
-    os.remove(tmpname)
+    #os.remove(tmpname)
 
-class TypesTests(unittest.TestCase):
+class TestBase(unittest.TestCase):
+
+    def setUp(self) -> None:
+        from pixelpipes import pypixelpipes
+        if hasattr(pypixelpipes, "_refcount"):
+            print("\n **** Refs start:", pypixelpipes._refcount(), "**** ")
+        return super().setUp()
+
+    def tearDown(self) -> None:
+        from pixelpipes import pypixelpipes
+        if hasattr(pypixelpipes, "_refcount"):
+            print("\n **** Refs end:", pypixelpipes._refcount(), "**** ")
+        return super().tearDown()
+
+class TypesTests(TestBase):
 
     def test_casting_scalar(self):
 
@@ -79,7 +93,7 @@ class TypesTests(unittest.TestCase):
         self.assertFalse(IntegerList(1).castable(IntegerList(5)))
 
 
-class GraphTests(unittest.TestCase):
+class GraphTests(TestBase):
 
     def test_constants(self):
 
@@ -90,7 +104,10 @@ class GraphTests(unittest.TestCase):
             outputs(c1, c2, c3)
 
         pipeline = Compiler().build(graph)
-        output = pipeline.run(1)
+        pipeline.run(1)
+
+        pipeline = None
+
 
     def test_serialization(self):
         from .numbers import SampleUnform
@@ -150,7 +167,7 @@ class GraphTests(unittest.TestCase):
 
         self.assertEqual(len(pipeline.run(1)), 2)
 
-class NumbersTests(unittest.TestCase):
+class NumbersTests(TestBase):
 
     def test_arithmetic(self):
 
@@ -199,7 +216,7 @@ class NumbersTests(unittest.TestCase):
         np.testing.assert_array_equal(sample[2], [0, 1, 2])
 
 
-class ListTests(unittest.TestCase):
+class ListTests(TestBase):
 
     def test_list_range(self):
 
@@ -278,7 +295,7 @@ class ListTests(unittest.TestCase):
         np.testing.assert_array_equal(sample[2], [True, False, False])
 
 
-class FlowTests(unittest.TestCase):
+class FlowTests(TestBase):
 
     def test_conditional_simple(self):
 
@@ -331,7 +348,7 @@ class FlowTests(unittest.TestCase):
             b = pipeline2.run(i)
             self.assertEqual(a[0], b[0])
 
-class TestTensor(unittest.TestCase):
+class TestTensor(TestBase):
 
     def test_tensor_add(self):
 
