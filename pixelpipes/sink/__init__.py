@@ -20,9 +20,13 @@ class BatchIterator(object):
             commit ([type]): [description]
             size (int): Size of batch
         """
+
+        if size < 1: raise ValueError("Batch size should be one or more")
+        if offset < 0: raise ValueError("Offset should be strictly positive")
+
         self._commit = commit
         self._size = size
-        self._index = max(0, offset) + 1
+        self._index = offset + 1
         self._lock = Condition()
         self._cache = []
         self._partial = None
@@ -109,6 +113,10 @@ class AbstractDataLoader(object):
             return batch
 
     def __init__(self, batch: int, workers: typing.Optional[typing.Union[int, WorkerPool]] = None, offset: int = 0):
+
+        if batch < 1: raise ValueError("Batch size should be one or more")
+        if offset < 0: raise ValueError("Offset should be strictly positive")
+
         if workers is None:
             workers = WorkerPool()
         elif isinstance(workers, int):

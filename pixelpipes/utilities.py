@@ -124,6 +124,14 @@ class PersistentDict:
         return os.path.isfile(filename)
 
 def find_nodes(module=None):
+    """Find all nodes in a given module. Returns a list of classes
+
+    Args:
+        module (_type_, optional): _description_. Defaults to None.
+
+    Returns:
+        _type_: _description_
+    """
 
     from pixelpipes.graph import Node
     import inspect
@@ -202,3 +210,27 @@ def collage(pipeline: Pipeline, index: int, rows: int, columns: int, offset: typ
         image = column if image is None else np.concatenate((image, column), 0)
 
     return image
+
+def limit(pipeline: Pipeline, field: typing.Union[int, str]):
+    """Returns a bounded generator for the pipeline, in every iteration a given field
+    value is compared to the current sample number, if the value is reached or supassed
+    the generation is interrupted.
+
+    Args:
+        pipeline (Pipeline): Original pipeline
+        property (typing.Union[int, str]): Either field label or field index
+
+    Yields:
+        Tuple: Sample from a pipeline sequence.
+    """
+    if isinstance(field, str):
+        j = pipeline.outputs.index(field)
+    else:
+        j = field
+    assert j >= 0 and j < len(pipeline.outputs)
+    i = 1
+    for sample in pipeline:
+        yield sample
+        if sample[j] == i:
+            break
+        i += 1
