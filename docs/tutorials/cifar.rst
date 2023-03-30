@@ -24,7 +24,7 @@ as a base since it makes this easier.
 .. note::
    This example assumes that you have downloaded the Python version of the CIFAR dataset from the `dataset website <http://www.cs.toronto.edu/~kriz/cifar.html>`_ and that you have extracted the files to the example directory.
 
-.. literalinclude:: ../../../examples/cifar.py
+.. literalinclude:: ../../examples/cifar.py
    :pyobject: CIFARDataset
 
 The ResourceListSource expects subclasses to implement the load method that generates the fields, each field is expected to be a list or a NumPy array, they are also
@@ -32,7 +32,7 @@ expected to be of equal length (for NumPy arrays this means the number of rows).
 
 Since we have defined the dataset as a resource list, the final graph is now quite simple:
 
-.. literalinclude:: ../../../examples/cifar.py
+.. literalinclude:: ../../examples/cifar.py
    :pyobject: cifar
 
 Notice that special macros are available to process resource lists efficiently. In this case a random resource is sampled from a list and its two fields are returned as

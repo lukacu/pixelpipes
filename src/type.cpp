@@ -168,12 +168,6 @@ namespace pixelpipes
 
 		return Size(data == other.data ? data : unknown);
 	}
-	/*
-		TypeMap &types()
-		{
-			static TypeMap map;
-			return map;
-		}*/
 
 	Shape::Shape() : Shape(AnyType)
 	{
@@ -237,6 +231,11 @@ namespace pixelpipes
 			scalar &= d.data == 1;
 		}
 		return scalar;
+	}
+
+	Shape Shape::cast(TypeIdentifier t) const
+	{
+		return Shape(t, _shape);
 	}
 
 	Shape Shape::push(Size s) const

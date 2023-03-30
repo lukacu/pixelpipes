@@ -14,7 +14,7 @@ Simple example
 To demonstrate a very simple example of using a PixelPipes pipeline (without any image operations), lets sample random numbers from a pre-defined list and 
 display them.
 
-.. literalinclude:: ../../examples/simple.py
+.. literalinclude:: ../examples/simple.py
 
 Note that this sequence will be the same every time you run the script with the same sample indices. This example is very simple, but shows how a pipleine is built. More 
 complex examples with image operations are presented `here <tutorials/index.html>`_.

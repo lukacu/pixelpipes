@@ -6,7 +6,7 @@ be achieved using a few operations, since suitable image manipulation macros are
 
 For this example we will be using example images, located in `examples/images` directory. The entire code for the example is available :example:`patches.py here`, lets look at the pipeline.
 
-.. literalinclude:: ../../../examples/patches.py
+.. literalinclude:: ../../examples/patches.py
    :pyobject: stream
  
 The pipeline first generates a list of images from a given directory. Then a random image entry is selected from a list. Images are resources,

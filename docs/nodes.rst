@@ -6,8 +6,8 @@ core.
 
 Core nodes
 ----------
-
-.. autonodes:: pixelpipes.graph
+ 
+.. autonodes:: pixelpipes.graph 
    :members:       
  
 .. autonodes:: pixelpipes.compiler

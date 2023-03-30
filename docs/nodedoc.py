@@ -14,7 +14,8 @@ from sphinx.util.docutils import SphinxDirective
 from sphinx.util.typing import OptionSpec
 from sphinx.util.nodes import make_id
 from sphinx.roles import XRefRole
-from sphinx.ext.autodoc import ModuleDocumenter, ClassDocumenter, Documenter
+#from sphinx.ext.autodoc import ModuleDocumenter, ClassDocumenter, Documenter
+from autoapi.documenters import AutoapiDocumenter as Documenter, AutoapiModuleDocumenter as ModuleDocumenter, AutoapiClassDocumenter as ClassDocumenter
 from sphinx.domains import Domain, ObjType, Index
 from sphinx.domains.python import py_sig_re, PyObject
 from sphinx.environment import BuildEnvironment
@@ -226,9 +227,18 @@ class NodeDomain(Domain):
 class NodesDocumenter(ModuleDocumenter):
     domain = NodeDomain.name
     objtype = 'nodes'
-    directivetype = ModuleDocumenter.objtype
+    directivetype = ModuleDocumenter.directivetype
     priority = 10 + ModuleDocumenter.priority
     option_spec = dict(ModuleDocumenter.option_spec)
+
+    @classmethod
+    def can_document_member(cls, member: Any, membername: str, isattr: bool, parent: Any
+                            ) -> bool:
+        from pixelpipes.graph import Node
+        try:
+            return issubclass(member, Node)
+        except TypeError:
+            return False
 
     def add_directive_header(self, sig: str) -> None:
         pass
@@ -241,13 +251,14 @@ class NodesDocumenter(ModuleDocumenter):
 
     def get_module_members(self):
         members = super().get_module_members()
+        print(members)
         return {k: v for k, v in members.items() if is_node(v)}
 
 
 class NodeDocumenter(ClassDocumenter):
     domain = NodeDomain.name
     objtype = 'node'
-    directivetype = ClassDocumenter.objtype
+    directivetype = ClassDocumenter.directivetype
     priority = 100 + ClassDocumenter.priority
     option_spec = dict(ClassDocumenter.option_spec)
 

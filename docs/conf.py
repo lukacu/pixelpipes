@@ -4,6 +4,7 @@
 
 import os
 import sys
+import subprocess
 
 sys.path.insert(0, os.path.abspath('..'))
 sys.path.insert(0, os.path.abspath('.'))
@@ -12,7 +13,7 @@ sys.path.insert(0, os.path.abspath('.'))
 
 from pixelpipes import __version__
 
-extensions = ['sphinx.ext.autodoc', 'link_roles', 'nodedoc']
+extensions = ['autoapi.extension', 'link_roles', 'nodedoc', 'breathe']
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
@@ -94,13 +95,41 @@ texinfo_documents = [
      'Miscellaneous'),
 ]
 
+autoapi_dirs = ["../pixelpipes"]
+
+autoapi_generate_api_docs = False
+
+autoapi_keep_files = True
+
+breathe_projects = {"pixelpipes": "_build/doxygen/xml/"}
+
+breathe_default_project = "pixelpipes"
+
+cpp_index_common_prefix = ['pixelpipes::']
+
 def setup(app):
-    app.connect('autodoc-skip-member', skip_nodes)
+    app.connect('autoapi-skip-member', skip_nodes)
+    app.connect("builder-inited", generate_doxygen_xml)
+
+def generate_doxygen_xml(app):
+    """Run the doxygen make commands if we're on the ReadTheDocs server"""
+
+    read_the_docs_build = os.environ.get('READTHEDOCS', None) == 'True'
+
+    if read_the_docs_build:
+
+        try:
+            retcode = subprocess.call("doxygen", shell=True)
+            if retcode < 0:
+                sys.stderr.write("doxygen terminated by signal %s" % (-retcode))
+        except OSError as e:
+            sys.stderr.write("doxygen execution failed: %s" % e)
 
 
 def skip_nodes(app, what, name, obj, skip, options):
     from inspect import isclass
     from pixelpipes.graph import Node
+    print(obj, what)
     if what != "class":
         return None
     if not isclass(obj):

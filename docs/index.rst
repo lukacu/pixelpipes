@@ -25,7 +25,7 @@ This concept has the following benefits (some of which have not yet been impleme
   * Despite a C++ core, the framework is extendable with new operations.
 
 The source code for the PixelPipes framework is availabe on `GitHub <https://github.com/lukacu/pixelpipes>`_. Contributions to the project are welcome, please read the
-`development <development.html>` document on how to get started.
+`development <development.html>`_ document on how to get started.
 
 Overview
 --------

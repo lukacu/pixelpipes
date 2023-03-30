@@ -14,8 +14,8 @@ The framework is therefore divided into two parts with a binding API bridge:
 
 TODO: image overview
 
-Python
-------
+Python wrapper
+--------------
 
 As already said, the Python part of the framework is just a frontent that makes assembling a pipeline easy. It is not involved in the execution in any way and once a pipeline is
 assembled, it can be executed from C++ directly (or from any other language). The frontend makes graph description easier by introducing organizational concepts
@@ -33,10 +33,11 @@ Below is a list of Python-level concepts that are important to know when you sta
  * Compilation: a process of iterativelly reducing macro nodes in a graph to basic operations, removing duplicates where possible and ordering operations according to dependencies.
  * Resource: Special type of macros that handle multi-field type abstractions, can be used to make the graph more organized, but get dissolved during compilation.
 
-C++
----
+C++ core
+--------
 
-The native part of the framework is written in C++, this part is less accessible when only using the framework, but it is important for  
+The native part of the framework is written in C++, this part is less visible when only using the framework for training, but it is important when one wants to add some fast custom operations.
+The core operates with the following concepts:
 
  * Operation: A stateless algorithm that accepts zero or more inputs and produces a single output. Direct mapping of the operation node concept.
  * Token: Tokens are data units passed from operation to operation. 

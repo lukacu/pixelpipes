@@ -20,9 +20,8 @@ For development and testing purposes, the libraries can be compiled inplace usin
    python setup.py build_lib --inplace
    python setup.py build_ext --inplace
 
-
 Submitting issues and patches
 -----------------------------
 
 .. note::
-   At the moment there are no specific rules on submitting issues and patches, just use Github issue tracker.
+   At the moment there are no specific rules on submitting issues and patches, just use `Github issue tracker <https://github.com/lukacu/pixelpipes/issues>`_.

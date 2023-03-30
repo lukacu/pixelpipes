@@ -12,21 +12,21 @@ NumPy sink
 
 The default sink generates a tuple of 
 
-.. literalinclude:: ../../../examples/mnist_batch.py
+.. literalinclude:: ../../examples/mnist_batch.py
 
 PyTorch sink
 ------------
 
 A simple example on how to download, prepare and convert PyTorch MNIST dataset into acceptable type for injecting it into pixelpipes graph.
 
-.. literalinclude:: ../../../examples/mnist_pytorch.py
+.. literalinclude:: ../../examples/mnist_pytorch.py
 
 TensorFlow sink
 ---------------
 
 A simple example on how to download, prepare and convert TensorFlow MNIST dataset into acceptable type for injecting it into pixelpipes graph.
 
-.. literalinclude:: ../../../examples/mnist_tensorflow.py
+.. literalinclude:: ../../examples/mnist_tensorflow.py
 
 
 
