@@ -63,8 +63,10 @@ ENDIF()
 INCLUDE(cmake/lodepng.cmake)
 INCLUDE(cmake/zlib.cmake)
 INCLUDE(cmake/opencv.cmake)
+INCLUDE(cmake/xtensor.cmake)
 
-#FIND_PACKAGE(OpenCV REQUIRED core imgproc imgcodecs video calib3d)
+add_compile_definitions(XTENSOR_USE_XSIMD)
+#add_compile_options(-march=native)
 
 SET(CORE_SOURCE
     src/queue.cpp
@@ -85,17 +87,22 @@ SET(CORE_SOURCE
     src/serialization/serialization.cpp
 )
 
-INCLUDE_DIRECTORIES(${OPENCV_INCLUDE_DIRS} ${lodepng_SOURCE_DIR} ${ZLIB_INCLUDE_DIRS}
-    ${lodepng_SOURCE_DIR}/include  include/ )
+INCLUDE_DIRECTORIES(SYSTEM ${OPENCV_INCLUDE_DIRS} ${lodepng_SOURCE_DIR} ${ZLIB_INCLUDE_DIRS}
+    ${XTENSOR_INCLUDE_DIRS} ${lodepng_SOURCE_DIR}/include )
     
+INCLUDE_DIRECTORIES(include/)
+
 LINK_DIRECTORIES(${CMAKE_BINARY_DIR}/deps/lib)
 
 ADD_LIBRARY(pixelpipes SHARED ${CORE_SOURCE})
+ADD_DEPENDENCIES(pixelpipes ${XTENSOR_TARGET})
 TARGET_LINK_LIBRARIES(pixelpipes ${CMAKE_DL_LIBS} lodepng ${ZLIB_LIBS})
 target_compile_definitions(pixelpipes PRIVATE PIXELPIPES_BUILD_CORE)
 
+
 ADD_LIBRARY(pixelpipes_opencv SHARED 
     src/opencv/common.cpp
+    src/opencv/loading.cpp
     src/opencv/view.cpp
     src/opencv/filter.cpp
     src/opencv/geometry.cpp

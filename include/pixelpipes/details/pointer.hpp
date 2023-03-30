@@ -266,6 +266,11 @@ namespace pixelpipes
             return H::combine(std::move(h), that.t_);
         }
 
+        size_t borrows() const {
+            if (borrowable_) return borrowable_->borrows();
+            return 0;
+        }
+
     private:
         template <typename>
         friend class Pointer;

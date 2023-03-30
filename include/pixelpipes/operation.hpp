@@ -73,7 +73,7 @@ namespace pixelpipes
     class PIXELPIPES_API Operation
     {
     public:
-        ~Operation() = default;
+        virtual ~Operation() = default;
 
         virtual TokenReference run(const TokenList& inputs) = 0;
 
@@ -251,7 +251,7 @@ namespace pixelpipes
 
     public:
         OperationWrapper() = default;
-        ~OperationWrapper() = default;
+        virtual ~OperationWrapper() = default;
 
         virtual TokenReference run(const TokenList& inputs)
         {

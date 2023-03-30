@@ -87,7 +87,7 @@ class Grayscale(Operation):
         return "opencv:grayscale",
 
     def infer(self, source):
-        return types.Image(source[0], source[1], 1, source.element)
+        return types.Image(source[2], source[1], source.element)
 
 
 class Threshold(Operation):
@@ -100,7 +100,7 @@ class Threshold(Operation):
         return "opencv:threshold",
 
     def infer(self, source, threshold):
-        return types.Image(source[0], source[1], 1, "bool")
+        return types.Image(source[1], source[0], "bool")
 
 class Invert(Operation):
     """Inverts image values"""
@@ -111,7 +111,7 @@ class Invert(Operation):
         return "opencv:invert",
 
     def infer(self, source):
-        return types.Image(source[1], source[0], 1, source.element)
+        return types.Image(source[2], source[1], 1, source.element)
 
 class Equals(Operation):
     """Equal
@@ -133,35 +133,9 @@ class Equals(Operation):
         return "opencv:equals",
 
     def infer(self, source, value):
-        return types.Image(source[0], source[1], 1, "bool")
+        return types.Image(source[1], source[0], "bool")
 
-class Channel(Operation):
-    """Extracts a single channel from multichannel image."""
 
-    source = Input(types.Image(), description="Source image")
-    index = Input(types.Integer(), description="Image index")
-
-    def operation(self):
-        return "opencv:extract_channel",
-
-    def infer(self, source, index):
-        return types.Image(source[1], source[0], 1, source.element)
-
-class Merge(Operation):
-    """Merges three single channel images into three channel image.
-    """
-
-    # TODO: multi channel
-
-    a = Input(types.Image(channels=1))
-    b = Input(types.Image(channels=1))
-    c = Input(types.Image(channels=1))
-
-    def operation(self):
-        return "opencv:merge_channels",
-
-    def infer(self, a, b, c):
-        return types.Image(a[1], a[0], 3, a.element)
 
 class Moments(Operation):
     """Calculates (first five) image moments."""

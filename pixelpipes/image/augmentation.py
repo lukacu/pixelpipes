@@ -12,14 +12,14 @@ class ImageNoise(Macro):
     """Apply gaussian noise to an image
     """
     
-    source = Input(types.Image(depth="uchar"), description="Input image")
+    source = Input(types.Image(), description="Input image")
     amount = Input(types.Float(), description="Amount of noise")
     seed = SeedInput()
 
     def expand(self, source, amount, seed):
         properties = GetImageProperties(source)
         noise = NormalNoise(width=properties["width"], height=properties["height"], mean=0, std=amount, seed=seed)
-        return ConvertDepth(TensorAdd(ConvertDepth(source, "Float"), noise, saturate=True), depth="Char")
+        return ConvertDepth(TensorAdd(ConvertDepth(source, "Float"), noise), depth="Char")
 
 
 class ImageBrightness(Macro):

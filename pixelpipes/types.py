@@ -237,7 +237,10 @@ def Image(width: typing.Optional[int] = None, height: typing.Optional[int] = Non
     """Represents an image type. This type can be specialized with image width, height, number of channels as well
     as bit-depth.
     """
-    return Token(depth, height, width, channels)
+    if channels == 1:
+        return Token(depth, height, width)
+    else:
+        return Token(depth, channels, height, width)
 
 def List(element = None, length = None):
     """Type that represents a list of elements.

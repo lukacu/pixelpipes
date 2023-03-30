@@ -14,7 +14,7 @@ class GaussianKernel(Operation):
         return "opencv:gaussian_kernel",
 
     def infer(self, size):
-        return types.Image(depth="float")
+        return types.Image(channels=1, depth="float")
 
 class UniformKernel(Operation):
     """Generate a uniform kernel
@@ -32,7 +32,7 @@ class UniformKernel(Operation):
         return "opencv:uniform_kernel",
 
     def infer(self, size):
-        return types.Image(depth="float")
+        return types.Image(channels=1, depth="float")
 
 class MedianBlur(Operation):
     """Blurs an image using a median filter."""

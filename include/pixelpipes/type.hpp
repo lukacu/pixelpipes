@@ -288,6 +288,8 @@ namespace pixelpipes
 
         bool is_scalar() const;
 
+        Shape cast(TypeIdentifier t) const;
+
         Shape push(Size s) const;
 
         Shape pop() const;

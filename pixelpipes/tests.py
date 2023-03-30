@@ -3,7 +3,7 @@ import numpy as np
 
 from .flow import Conditional
 from .list import Table, LogicalAnd, LogicalNot, LogicalOr, Range
-from .numbers import Floor, Round, SampleUnform
+from .numbers import Floor, Round, SampleUnform, Stack
 from .types import Integer, Char, Float, IntegerList, FloatList, Token, Boolean
 from .compiler import Compiler
 from .graph import Constant, Debug, Graph, SampleIndex, outputs
@@ -452,3 +452,22 @@ class TestTensor(TestBase):
         np.testing.assert_array_equal(output[0], np.squeeze(test[5, :, :]))
         np.testing.assert_array_equal(output[1], np.squeeze(test[8, :, :]))
         np.testing.assert_array_equal(output[2], np.squeeze(test[2, :, :] + test[3, :, :]))
+
+    def test_tensor_stack(self):
+
+        test_image = np.random.randint(0, 255, (4,20,40), dtype=np.uint8)
+
+        with Graph() as graph:
+            n0 = Constant(test_image[0, ...])
+            n1 = Constant(test_image[1, ...])
+            n2 = Constant(test_image[2, ...])
+            n4 = Constant(test_image[3, ...])
+            o0 = Stack(inputs=[n0, n1, n2, n4])
+            outputs(o0, n0, o0[1], n1)
+
+        pipeline = Compiler().build(graph)
+        output = pipeline.run(1)
+
+        np.testing.assert_array_equal(output[1], test_image[0, ...])
+        np.testing.assert_array_equal(output[2], output[3])
+        np.testing.assert_array_equal(output[0], test_image)

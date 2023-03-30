@@ -3,6 +3,11 @@
 #include <algorithm>
 #include <limits>
 
+#include <xtensor/xtensor.hpp>
+#include <xtensor/xtensor_simd.hpp>
+#include <xtensor/xadapt.hpp>
+#include <xtensor/xnoalias.hpp>
+
 #include <pixelpipes/tensor.hpp>
 
 namespace pixelpipes
@@ -47,6 +52,47 @@ namespace pixelpipes
         return create_tensor(s.element(), SizeSequence(std::vector<size_t>(s.begin(), s.end())));
     }
 
+    TensorReference create_scalar(const TokenReference &in)
+    {
+        Shape s = in->shape();
+
+        if (!s.is_scalar())
+            throw TypeException("Input not a scalar");
+
+        TensorReference out = create_tensor(s.element(), SizeSequence({1}));
+
+        if (s.element() == IntegerIdentifier)
+        {
+            out->data().reinterpret<int>()[0] = extract<int>(in);
+        }
+        else if (s.element() == FloatIdentifier)
+        {
+            out->data().reinterpret<float>()[0] = extract<float>(in);
+        }
+        else if (s.element() == CharIdentifier)
+        {
+            out->data().reinterpret<uchar>()[0] = extract<char>(in);
+        }
+        else if (s.element() == BooleanIdentifier)
+        {
+            out->data().reinterpret<bool>()[0] = extract<bool>(in);
+        }
+        else if (s.element() == ShortIdentifier)
+        {
+            out->data().reinterpret<short>()[0] = extract<short>(in);
+        }
+        else if (s.element() == UShortIdentifier)
+        {
+            out->data().reinterpret<ushort>()[0] = extract<ushort>(in);
+        }
+        else
+        {
+            throw TypeException("Unsupported tensor format");
+        }
+
+        return out;
+    }
+
     struct TensorGuard
     {
         TensorReference guard;
@@ -61,7 +107,7 @@ namespace pixelpipes
     {
         // TODO: can we verify shape somehow?
         // TODO: what if tensor is already a view?
-        //VERIFY(!source->is<TensorView>(), "Unable to view existing views");
+        // VERIFY(!source->is<TensorView>(), "Unable to view existing views");
 
         VERIFY(shape.size() == strides.size(), "Size mismatch");
 
@@ -140,7 +186,6 @@ namespace pixelpipes
             auto ref = pixelpipes::cast<Tensor>(reference());
 
             return create<TensorView>(ref, offset, make_view(_shape, 1), make_view(_strides, 1));
-
         }
         return empty();
     }
@@ -190,88 +235,61 @@ namespace pixelpipes
     template <typename A, typename B>
     struct nonsaturate_cast
     {
-        inline B operator()(const A val)
+        template <typename TIN>
+        inline auto operator()(TIN &val)
         {
-            return static_cast<B>(val);
+            return xt::cast<B>(val);
         }
     };
 
     template <typename A, typename B>
     struct saturate_cast
     {
-        inline B operator()(const A val)
+        template <typename TIN>
+        inline auto operator()(TIN &val)
         {
-            return static_cast<B>(std::clamp<A>(val, std::numeric_limits<B>::min(), std::numeric_limits<B>::max()));
+            return xt::cast<B>(xt::clip(val, std::numeric_limits<B>::min(), std::numeric_limits<B>::max()));
         }
     };
 
-    template <typename F, typename T, template <typename, typename> class C>
-    inline void _execute_tensor_cast(ReadonlySliceIterator &it0, WriteableSliceIterator &it1)
+    template <typename Op, typename C, typename TA, typename TB, typename TR>
+    inline void _execute_tensor_binary(TA &&a, TB &&b, TR &&res)
     {
-        size_t offset0 = 0;
-        size_t offset1 = 0;
-
-        C<F, T> cast;
-
-        while (true)
-        {
-            size_t len0 = (*it0).size() - offset0;
-            size_t len1 = (*it1).size() - offset1;
-            size_t length = (std::min)(len0 / sizeof(F), len1 / sizeof(T));
-
-            if (length == 0)
-                break;
-
-            const F *c0 = (F *)(*it0).data() + offset0;
-            T *c1 = (T *)((*it1).data() + offset1);
-
-            for (size_t i = 0; i < length; i++)
-            {
-                c1[i] = cast(c0[i]);
-            }
-
-            offset0 += length * sizeof(F);
-            offset1 += length * sizeof(T);
-
-            if (len0 == length)
-            {
-                offset0 = 0;
-                it0++;
-            }
-
-            if (len1 == length)
-            {
-                offset1 = 0;
-                it1++;
-            }
-        }
+        C cast;
+        Op operation;
+        auto v = operation(a, b);
+        res = cast(v);
     }
 
-    template <typename F, template <typename, typename> class C>
-    void _execute_tensor_cast(ReadonlySliceIterator &it0, const TensorReference &t1)
+    template <typename TIN>
+    inline void _execute_xtensor_cast(TIN &&ain, const TensorReference &out)
     {
+        auto t = out->cell_type();
 
-        WriteableSliceIterator it1 = t1->write_slices();
-        auto c1 = t1->cell_type();
-        if (c1 == CharIdentifier)
+        if (t == CharIdentifier)
         {
-            _execute_tensor_cast<F, char, C>(it0, it1);
+            auto aout = wrap_xtensor<uchar>(out);
+            aout = xt::cast<uchar>(ain);
         }
-        else if (c1 == ShortIdentifier)
+        else if (t == ShortIdentifier)
         {
-            _execute_tensor_cast<F, short, C>(it0, it1);
+            auto aout = wrap_xtensor<short>(out);
+            aout = xt::cast<short>(ain);
         }
-        else if (c1 == UShortIdentifier)
+        else if (t == UShortIdentifier)
         {
-            _execute_tensor_cast<F, ushort, C>(it0, it1);
+            auto aout = wrap_xtensor<ushort>(out);
+            aout = xt::cast<ushort>(ain);
         }
-        else if (c1 == IntegerIdentifier)
+        else if (t == IntegerIdentifier)
         {
-            _execute_tensor_cast<F, int, C>(it0, it1);
+            auto aout = wrap_xtensor<int>(out);
+            aout = xt::cast<int>(ain);
         }
-        else if (c1 == FloatIdentifier)
+        else if (t == FloatIdentifier)
         {
-            _execute_tensor_cast<F, float, C>(it0, it1);
+            auto aout = wrap_xtensor<float>(out);
+            aout = xt::cast<float>(ain);
         }
         else
         {
@@ -279,185 +297,77 @@ namespace pixelpipes
         }
     }
 
-    template <template <typename, typename> class C>
-    void _tensor_copy_cast(const TensorReference &t0, const TensorReference &t1)
+    void copy_tensor(const TensorReference &in, const TensorReference &out)
     {
-        ReadonlySliceIterator it0 = t0->read_slices();
 
-        auto c0 = t0->cell_type();
+        auto tin = in->cell_type();
 
-        if (c0 == CharIdentifier)
+        if (tin == out->cell_type())
         {
-            _execute_tensor_cast<uchar, C>(it0, t1);
-        }
-        else if (c0 == ShortIdentifier)
-        {
-            _execute_tensor_cast<short, C>(it0, t1);
-        }
-        else if (c0 == UShortIdentifier)
-        {
-            _execute_tensor_cast<ushort, C>(it0, t1);
-        }
-        else if (c0 == IntegerIdentifier)
-        {
-            _execute_tensor_cast<int, C>(it0, t1);
-        }
-        else if (c0 == FloatIdentifier)
-        {
-            _execute_tensor_cast<float, C>(it0, t1);
+            if (tin == CharIdentifier)
+            {
+                auto aout = wrap_xtensor<uchar>(out);
+                auto ain = wrap_xtensor<uchar>(in);
+                xt::assign_xexpression(aout, ain);
+            }
+            else if (tin == ShortIdentifier)
+            {
+                auto aout = wrap_xtensor<short>(out);
+                auto ain = wrap_xtensor<short>(in);
+                aout = ain;
+            }
+            else if (tin == UShortIdentifier)
+            {
+                auto aout = wrap_xtensor<ushort>(out);
+                auto ain = wrap_xtensor<ushort>(in);
+                aout = xt::eval(ain);
+                
+            }
+            else if (tin == IntegerIdentifier)
+            {
+                auto aout = wrap_xtensor<int>(out);
+                auto ain = wrap_xtensor<int>(in);
+                aout = xt::eval(ain);
+            }
+            else if (tin == FloatIdentifier)
+            {
+                auto aout = wrap_xtensor<float>(out);
+                auto ain = wrap_xtensor<float>(in);
+                xt::assign_xexpression(aout, ain);
+            }
+            else
+            {
+                throw TypeException("Unsupported tensor type");
+            }
+
+
         }
         else
         {
-            throw TypeException("Unsupported tensor type");
-        }
-    }
 
-    template <typename T, typename Op, typename C>
-    inline void _execute_slice(const uchar *b0, const uchar *b1, uchar *b2, size_t length)
-    {
-        Op op;
-        C cast;
-        length /= sizeof(T);
-
-        const T *c0 = (T *)b0;
-        const T *c1 = (T *)b1;
-        T *c2 = (T *)b2;
-
-        for (size_t i = 0; i < length; i++)
-        {
-            c2[i] = cast(op(c0[i], c1[i]));
-        }
-    }
-
-    template <typename T, typename Op, typename C>
-    inline void _execute_tensor_tensor(ReadonlySliceIterator &it0, ReadonlySliceIterator &it1, WriteableSliceIterator &it2)
-    {
-        size_t offset0 = 0;
-        size_t offset1 = 0;
-        size_t offset2 = 0;
-
-        while (true)
-        {
-            size_t len0 = (*it0).size() - offset0;
-            size_t len1 = (*it1).size() - offset1;
-            size_t len2 = (*it2).size() - offset2;
-            size_t length = (std::min)((std::min)(len0, len1), len2);
-
-            if (length == 0)
-                break;
-
-            _execute_slice<T, Op, C>((*it0).data() + offset0, (*it1).data() + offset1, (uchar *)((*it2).data() + offset2), length);
-
-            offset0 += length;
-            offset1 += length;
-            offset2 += length;
-
-            if (len0 == length)
+            if (tin == CharIdentifier)
             {
-                offset0 = 0;
-                it0++;
+                _execute_xtensor_cast(wrap_xtensor<uchar>(in), out);
             }
-
-            if (len1 == length)
+            else if (tin == ShortIdentifier)
             {
-                offset1 = 0;
-                it1++;
+                _execute_xtensor_cast(wrap_xtensor<short>(in), out);
             }
-
-            if (len2 == length)
+            else if (tin == UShortIdentifier)
             {
-                offset2 = 0;
-                it2++;
+                _execute_xtensor_cast(wrap_xtensor<ushort>(in), out);
             }
-        }
-    }
-
-    template <typename T, typename Op, typename C>
-    inline void _execute_tensor_scalar(ReadonlySliceIterator &it0, T it1, WriteableSliceIterator &it2)
-    {
-        size_t offset0 = 0;
-        size_t offset2 = 0;
-
-        Op op;
-        C cast;
-
-        while (true)
-        {
-            size_t len0 = (*it0).size() - offset0;
-            size_t len2 = (*it2).size() - offset2;
-            size_t length = (std::min)(len0, len2);
-
-            if (length == 0)
-                break;
-
-            size_t blength = length / sizeof(T);
-
-            const T *c0 = (T *)(*it0).data() + offset0;
-            T *c2 = (T *)((*it2).data() + offset2);
-
-            for (size_t i = 0; i < blength; i++)
+            else if (tin == IntegerIdentifier)
             {
-                c2[i] = cast(op(c0[i], it1));
+                _execute_xtensor_cast(wrap_xtensor<int>(in), out);
             }
-
-            offset0 += length;
-            offset2 += length;
-
-            if (len0 == length)
+            else if (tin == FloatIdentifier)
             {
-                offset0 = 0;
-                it0++;
+                _execute_xtensor_cast(wrap_xtensor<float>(in), out);
             }
-
-            if (len2 == length)
+            else
             {
-                offset2 = 0;
-                it2++;
-            }
-        }
-    }
-
-    template <typename T, typename Op, typename C>
-    inline void _execute_scalar_tensor(T it0, ReadonlySliceIterator &it1, WriteableSliceIterator &it2)
-    {
-        size_t offset1 = 0;
-        size_t offset2 = 0;
-
-        Op op;
-        C cast;
-
-        while (true)
-        {
-            size_t len1 = (*it1).size() - offset1;
-            size_t len2 = (*it2).size() - offset2;
-            size_t length = (std::min)(len1, len2);
-
-            if (length == 0)
-                break;
-
-            size_t blength = length / sizeof(T);
-
-            const T *c1 = (T *)(*it1).data() + offset1;
-            T *c2 = (T *)((*it2).data() + offset2);
-
-            for (size_t i = 0; i < blength; i++)
-            {
-                c2[i] = cast(op(it0, c1[i]));
-            }
-
-            offset1 += length;
-            offset2 += length;
-
-            if (len1 == length)
-            {
-                offset1 = 0;
-                it1++;
-            }
-
-            if (len2 == length)
-            {
-                offset2 = 0;
-                it2++;
+                throw TypeException("Unsupported tensor type");
             }
         }
     }
@@ -501,253 +411,258 @@ namespace pixelpipes
         return b;
     }
 
-    template <template <typename> class T, template <typename, typename> class C>
-    TokenReference tensor_elementwise_binary(const TokenReference &t0, const TokenReference &t1)
+    template <class T, template <typename, typename> class C>
+    TokenReference tensor_elementwise_binary(const TokenReference &ta, const TokenReference &tb)
     {
-        Shape s0 = t0->shape();
-        Shape s1 = t1->shape();
+        Shape sa = ta->shape();
+        Shape sb = tb->shape();
 
-        if (!s0.is_scalar() && !s1.is_scalar())
+        TensorReference tra;
+        TensorReference trb;
+
+        if (sa.is_scalar())
         {
-
-            TensorReference tr0 = extract<TensorReference>(t0);
-            TensorReference tr1 = extract<TensorReference>(t1);
-
-            size_t outdim = std::max(s0.rank(), s1.rank());
-            SizeSequence outsize(outdim);
-
-            for (size_t i = 0; i < outdim; i++)
-            {
-                if (s0[i] == 1)
-                {
-                    outsize[i] = s1[i];
-                }
-                else if (s1[i] == 1)
-                {
-                    outsize[i] = s0[i];
-                }
-                else if (s0[i] == s1[i])
-                {
-                    outsize[i] = s0[i];
-                }
-                else
-                    throw TypeException("Tensor dimension mismatch");
-            }
-
-            auto strides0 = _broadcasting_strides(s0, outsize, tr0->strides());
-            auto strides1 = _broadcasting_strides(s1, outsize, tr1->strides());
-
-            TensorReference tv0 = create<TensorView>(tr0, 0, outsize, strides0);
-            TensorReference tv1 = create<TensorView>(tr1, 0, outsize, strides1);
-
-            TypeIdentifier return_type = 0;
-            TensorReference result;
-
-            if (s0.element() != s1.element())
-            {
-                return_type = _promote_type(s0.element(), s1.element());
-                result = create_tensor(return_type, outsize);
-                if (return_type == s0.element())
-                {
-                    _tensor_copy_cast<nonsaturate_cast>(tv1, result);
-                    tv1 = result.reborrow();
-                }
-                else
-                {
-                    _tensor_copy_cast<nonsaturate_cast>(tv0, result);
-                    tv0 = result.reborrow();
-                }
-            }
-            else
-            {
-                return_type = s0.element();
-                result = create_tensor(return_type, outsize);
-            }
-
-            ReadonlySliceIterator it0 = tv0->read_slices();
-            ReadonlySliceIterator it1 = tv1->read_slices();
-            WriteableSliceIterator it2 = result->write_slices();
-
-            if (return_type == CharIdentifier)
-            {
-                _execute_tensor_tensor<uchar, T<int>, C<int, uchar>>(it0, it1, it2);
-                return result;
-            }
-            else if (return_type == ShortIdentifier)
-            {
-                _execute_tensor_tensor<short, T<int>, C<int, short>>(it0, it1, it2);
-                return result;
-            }
-            else if (return_type == UShortIdentifier)
-            {
-                _execute_tensor_tensor<ushort, T<int>, C<int, ushort>>(it0, it1, it2);
-                return result;
-            }
-            else if (return_type == IntegerIdentifier)
-            {
-                _execute_tensor_tensor<int, T<int>, C<int, int>>(it0, it1, it2);
-                return result;
-            }
-            else if (return_type == FloatIdentifier)
-            {
-                _execute_tensor_tensor<float, T<float>, nonsaturate_cast<float, float>>(it0, it1, it2);
-                return result;
-            }
-            else
-            {
-                throw TypeException("Unsupported tensor type");
-            }
+            tra = create_scalar(ta);
+        }
+        else
+        {
+            tra = extract<TensorReference>(ta);
         }
 
-        if (!s0.is_scalar())
+        if (sb.is_scalar())
         {
+            trb = create_scalar(tb);
+        }
+        else
+        {
+            trb = extract<TensorReference>(tb);
+        }
 
-            TensorReference tr0 = extract<TensorReference>(t0);
+        size_t outdim = std::max(sa.rank(), sb.rank());
+        SizeSequence outsize(outdim);
 
-            /*TypeIdentifier return_type = 0;
-            TensorReference result;
-
-            if (s0.element() != s1.element()) {
-                return_type = _promote_type(s0.element(), s1.element());
-                result = create_tensor(return_type, outsize);
-                if (return_type != s0.element()) {
-                    _tensor_copy_cast<nonsaturate_cast>(tr0, result);
-                    tr0 = result;
-                }
-            } else {
-                return_type = s0.element();
-                result = create_tensor(s0);
-            }*/
-
-            ReadonlySliceIterator it0 = tr0->read_slices();
-
-            if (s0.element() == CharIdentifier)
+        for (size_t i = 0; i < outdim; i++)
+        {
+            if (sa[i] == 1)
             {
-                TensorReference result = create_tensor(s0);
-                WriteableSliceIterator it2 = result->write_slices();
-                _execute_tensor_scalar<uchar, T<int>, C<int, uchar>>(it0, extract<int>(t1), it2);
-                return result;
+                outsize[i] = sb[i];
             }
-            else if (s0.element() == ShortIdentifier)
+            else if (sb[i] == 1)
             {
-                TensorReference result = create_tensor(s0);
-                WriteableSliceIterator it2 = result->write_slices();
-                _execute_tensor_scalar<short, T<int>, C<int, short>>(it0, extract<int>(t1), it2);
-                return result;
+                outsize[i] = sa[i];
             }
-            else if (s0.element() == UShortIdentifier)
+            else if (sa[i] == sb[i])
             {
-                TensorReference result = create_tensor(s0);
-                WriteableSliceIterator it2 = result->write_slices();
-                _execute_tensor_scalar<ushort, T<int>, C<int, ushort>>(it0, extract<int>(t1), it2);
-                return result;
+                outsize[i] = sa[i];
             }
-            else if (s0.element() == IntegerIdentifier)
+            else
+                throw TypeException("Tensor dimension mismatch");
+        }
+
+        TypeIdentifier return_type = 0;
+        TensorReference result;
+
+        auto strides_a = _broadcasting_strides(sa, outsize, tra->strides());
+        auto strides_b = _broadcasting_strides(sb, outsize, trb->strides());
+
+        TensorReference tva = create<TensorView>(tra, 0, outsize, strides_a);
+        TensorReference tvb = create<TensorView>(trb, 0, outsize, strides_b);
+
+        if (sa.element() != sb.element())
+        {
+            return_type = _promote_type(sa.element(), sb.element());
+
+            result = create_tensor(return_type, outsize);
+            if (return_type == sa.element())
             {
-                TensorReference result = create_tensor(s0);
-                WriteableSliceIterator it2 = result->write_slices();
-                _execute_tensor_scalar<int, T<int>, C<int, int>>(it0, extract<int>(t1), it2);
-                return result;
-            }
-            else if (s0.element() == FloatIdentifier)
-            {
-                TensorReference result = create_tensor(s0);
-                WriteableSliceIterator it2 = result->write_slices();
-                _execute_tensor_scalar<float, T<float>, nonsaturate_cast<float, float>>(it0, extract<float>(t1), it2);
-                return result;
+                copy_tensor(tvb, result);
+                tvb = result.reborrow();
+                tva = tra.reborrow();
             }
             else
             {
-                throw TypeException("Unsupported tensor type");
+                copy_tensor(tva, result);
+                tva = result.reborrow();
+                tvb = trb.reborrow();
             }
         }
-
-        if (t1->is<Tensor>())
+        else
         {
-
-            TensorReference tr1 = extract<TensorReference>(t1);
-            ReadonlySliceIterator it1 = tr1->read_slices();
-
-            if (s1.element() == CharIdentifier)
-            {
-                TensorReference result = create_tensor(s1);
-                WriteableSliceIterator it2 = result->write_slices();
-                _execute_scalar_tensor<uchar, T<int>, C<int, uchar>>(extract<int>(t0), it1, it2);
-                return result;
-            }
-            else if (s1.element() == ShortIdentifier)
-            {
-                TensorReference result = create_tensor(s1);
-                WriteableSliceIterator it2 = result->write_slices();
-                _execute_scalar_tensor<short, T<int>, C<int, short>>(extract<int>(t0), it1, it2);
-                return result;
-            }
-            if (s1.element() == UShortIdentifier)
-            {
-                TensorReference result = create_tensor(s1);
-                WriteableSliceIterator it2 = result->write_slices();
-                _execute_scalar_tensor<ushort, T<int>, C<int, ushort>>(extract<int>(t0), it1, it2);
-                return result;
-            }
-            else if (s1.element() == IntegerIdentifier)
-            {
-                TensorReference result = create_tensor(s1);
-                WriteableSliceIterator it2 = result->write_slices();
-                _execute_scalar_tensor<int, T<int>, C<int, int>>(extract<int>(t0), it1, it2);
-                return result;
-            }
-            else if (s1.element() == FloatIdentifier)
-            {
-                TensorReference result = create_tensor(s1);
-                WriteableSliceIterator it2 = result->write_slices();
-                _execute_scalar_tensor<float, T<float>, nonsaturate_cast<float, float>>(extract<float>(t0), it1, it2);
-                return result;
-            }
-            else
-            {
-                throw TypeException("Unsupported tensor type");
-            }
+            return_type = sa.element();
+            result = create_tensor(return_type, outsize);
+            tva = tra.reborrow();
+            tvb = trb.reborrow();
         }
 
-        throw TypeException("Not a tensor");
+        if (return_type == CharIdentifier)
+        {
+            auto a = wrap_xtensor<uchar>(tva);
+            auto b = wrap_xtensor<uchar>(tvb);
+            auto out = wrap_xtensor<uchar>(result);
+
+            _execute_tensor_binary<T, C<int, uchar>>(a, b, out);
+            return result;
+        }
+        else if (return_type == ShortIdentifier)
+        {
+            auto a = wrap_xtensor<short>(tva);
+            auto b = wrap_xtensor<short>(tvb);
+            auto out = wrap_xtensor<short>(result);
+
+            _execute_tensor_binary<T, C<int, short>>(a, b, out);
+            return result;
+        }
+        else if (return_type == UShortIdentifier)
+        {
+            auto a = wrap_xtensor<ushort>(tva);
+            auto b = wrap_xtensor<ushort>(tvb);
+            auto out = wrap_xtensor<ushort>(result);
+
+            _execute_tensor_binary<T, C<int, ushort>>(a, b, out);
+            return result;
+        }
+        else if (return_type == IntegerIdentifier)
+        {
+            auto a = wrap_xtensor<int>(tva);
+            auto b = wrap_xtensor<int>(tvb);
+            auto out = wrap_xtensor<int>(result);
+
+            _execute_tensor_binary<T, C<int, int>>(a, b, out);
+            return result;
+        }
+        else if (return_type == FloatIdentifier)
+        {
+            auto a = wrap_xtensor<float>(tva);
+            auto b = wrap_xtensor<float>(tvb);
+            auto out = wrap_xtensor<float>(result);
+
+            // There is no saturation in floats
+            _execute_tensor_binary<T, nonsaturate_cast<float, float>>(a, b, out);
+            return result;
+        }
+        else
+        {
+            throw TypeException("Unsupported tensor type");
+        }
     }
 
-#define tensor_add tensor_elementwise_binary<std::plus, nonsaturate_cast>
+#define tensor_add tensor_elementwise_binary<xt::detail::plus, nonsaturate_cast>
     PIXELPIPES_OPERATION_AUTO("tensor_add", tensor_add);
 
-#define tensor_subtract tensor_elementwise_binary<std::minus, nonsaturate_cast>
+#define tensor_subtract tensor_elementwise_binary<xt::detail::minus, nonsaturate_cast>
     PIXELPIPES_OPERATION_AUTO("tensor_subtract", tensor_subtract);
 
-#define tensor_multiply tensor_elementwise_binary<std::multiplies, nonsaturate_cast>
+#define tensor_multiply tensor_elementwise_binary<xt::detail::multiplies, nonsaturate_cast>
     PIXELPIPES_OPERATION_AUTO("tensor_multiply", tensor_multiply);
 
-#define tensor_divide tensor_elementwise_binary<std::divides, nonsaturate_cast>
+#define tensor_divide tensor_elementwise_binary<xt::detail::divides, nonsaturate_cast>
     PIXELPIPES_OPERATION_AUTO("tensor_divide", tensor_divide);
 
-#define tensor_add_saturate tensor_elementwise_binary<std::plus, saturate_cast>
+#define tensor_add_saturate tensor_elementwise_binary<xt::detail::plus, saturate_cast>
     PIXELPIPES_OPERATION_AUTO("tensor_add_saturate", tensor_add_saturate);
 
-#define tensor_subtract_saturate tensor_elementwise_binary<std::minus, saturate_cast>
+#define tensor_subtract_saturate tensor_elementwise_binary<xt::detail::minus, saturate_cast>
     PIXELPIPES_OPERATION_AUTO("tensor_subtract_saturate", tensor_subtract_saturate);
 
-#define tensor_multiply_saturate tensor_elementwise_binary<std::multiplies, saturate_cast>
+#define tensor_multiply_saturate tensor_elementwise_binary<xt::detail::multiplies, saturate_cast>
     PIXELPIPES_OPERATION_AUTO("tensor_multiply_saturate", tensor_multiply_saturate);
 
-#define tensor_divide_saturate tensor_elementwise_binary<std::divides, saturate_cast>
+#define tensor_divide_saturate tensor_elementwise_binary<xt::detail::divides, saturate_cast>
     PIXELPIPES_OPERATION_AUTO("tensor_divide_saturate", tensor_divide_saturate);
 
+    class Stack : public Operation
+    {
+    public:
+        Stack() {}
+
+        virtual TokenReference run(const TokenList &inputs)
+        {
+            VERIFY(inputs.size() > 1, "Two or more tensors expected");
+
+            TensorReference t0 = extract<TensorReference>(inputs[0]);
+
+            Shape s = t0->shape();
+
+            for (size_t i = 1; i < inputs.size(); i++)
+            {
+                TensorReference ti = extract<TensorReference>(inputs[i]);
+
+                VERIFY(s == ti->shape(), "Shape mismatch");
+            }
+
+            s = s.push(inputs.size());
+
+            TensorReference result = create_tensor(s);
+
+            for (size_t i = 0; i < inputs.size(); i++)
+            {
+                TensorReference ts = extract<TensorReference>(inputs[i]);
+                TensorReference td = extract<TensorReference>(result->get(i));
+
+                copy_buffer(ts, td);
+            }
+
+            return result;
+        }
+
+        virtual TypeIdentifier type()
+        {
+            return GetTypeIdentifier<Stack>();
+        }
+
+        virtual Sequence<TokenReference> serialize() { return Sequence<TokenReference>(); }
+
+    };
+
+    PIXELPIPES_OPERATION_CLASS("stack", Stack);
+
+    /**
+     * @brief Converts depth of an image, scaling pixel values.
+     *
+     */
     /*
-    #define tensor_add tensor_elementwise_binary<std::plus, nonsaturate_cast>
-        PIXELPIPES_OPERATION_AUTO("tensor_add", tensor_add);
+    TokenReference convert(const TensorReference &tensor, ImageDepth depth) noexcept(false)
+    {
+        double maxin = maximum_value(image);
+        int dtype = -1;
+        double maxout = 1;
 
-    #define tensor_subtract tensor_elementwise_binary<std::minus, nonsaturate_cast>
-        PIXELPIPES_OPERATION_AUTO("tensor_subtract", tensor_subtract);
+        switch (depth)
+        {
+        case ImageDepth::Char:
+            dtype = CV_8U;
+            maxout = std::numeric_limits<uchar>::max();
+            break;
+        case ImageDepth::Short:
+            dtype = CV_16S;
+            maxout = std::numeric_limits<short>::max();
+            break;
+        case ImageDepth::UShort:
+            dtype = CV_16U;
+            maxout = std::numeric_limits<ushort>::max();
+            break;
+        case ImageDepth::Integer:
+            dtype = CV_32S;
+            maxout = std::numeric_limits<int>::max();
+            break;
+        case ImageDepth::Float:
+            dtype = CV_32F;
+            maxout = 1;
+            break;
+        }
 
-    #define tensor_multiply tensor_elementwise_binary<std::multiplies, nonsaturate_cast>
-        PIXELPIPES_OPERATION_AUTO("tensor_multiply", tensor_multiply);
+        if (image.depth() == dtype)
+        {
+            // No conversion required
+            return image;
+        }
 
-    #define tensor_divide tensor_elementwise_binary<std::divides, nonsaturate_cast>
-        PIXELPIPES_OPERATION_AUTO("tensor_divide", tensor_divide);
-    */
+        cv::Mat result;
+        image.convertTo(result, dtype, maxout / maxin);
 
+        return result;
+    }
+
+    PIXELPIPES_OPERATION_AUTO("convert", convert);
+*/
 }

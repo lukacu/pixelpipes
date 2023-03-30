@@ -106,4 +106,56 @@ namespace pixelpipes
 
     PIXELPIPES_OPERATION_AUTO("linear_image", linear_image);
 
+
+
+    /**
+     * @brief Tabulates a function into a matrix of a given size
+     *
+     * TODO: reorganize into spearate methods
+     *
+     */
+    /*cv::Mat map_gaussian(int size_x, int size_y, int function, bool normalize) noexcept(false)
+    {
+        cv::Mat result(size_y, size_x, CV_32F);
+
+        switch (function)
+        {
+        case 0:
+        {
+            VERIFY(inputs.size() == 6, "Incorrect number of parameters");
+
+            float mean_x = FloatScalar::get_value(inputs[2]);
+            float mean_y = FloatScalar::get_value(inputs[3]);
+            float sigma_x = FloatScalar::get_value(inputs[4]);
+            float sigma_y = FloatScalar::get_value(inputs[5]);
+
+            // intialising standard deviation to 1.0
+            float r;
+            float sum = 0.0;
+
+            // generating 5x5 kernel
+            for (int x = 0; x < size_x; x++)
+            {
+                for (int y = 0; y < size_y; y++)
+                {
+                    float px = x - mean_x;
+                    float py = y - mean_y;
+                    r = (px * px) / (2 * sigma_x * sigma_x) + (py * py) / (2 * sigma_y * sigma_y);
+                    float v = exp(-r);
+                    sum += v;
+                    result.at<float>(y, x) = v;
+                }
+            }
+
+            if (normalize)
+                result /= sum;
+        }
+        }
+
+        return result;
+    }
+
+    PIXELPIPES_OPERATION_AUTO("map_function", map_function);*/
+
+
 }

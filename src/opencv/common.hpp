@@ -41,6 +41,16 @@ namespace pixelpipes
         Wrap
     };
 
+    enum class ColorConversion
+    {
+        RGB_GRAY,
+        GRAY_RGB,
+        RGB_HSV,
+        HSV_RGB,
+        RGB_YCRCB,
+        YCRCB_RGB
+    };
+
     enum class ImageDepth
     {
         Char,
@@ -53,6 +63,7 @@ namespace pixelpipes
     PIXELPIPES_CONVERT_ENUM(Interpolation)
     PIXELPIPES_CONVERT_ENUM(BorderStrategy)
     PIXELPIPES_CONVERT_ENUM(ImageDepth)
+    PIXELPIPES_CONVERT_ENUM(ColorConversion)
 
     template <>
     inline cv::Point2f extract(const TokenReference &v)
@@ -157,7 +168,7 @@ namespace pixelpipes
     public:
         MatImage(cv::Mat data);
 
-        virtual ~MatImage() = default;
+        virtual ~MatImage();
 
         virtual void describe(std::ostream &os) const override;
 
@@ -187,16 +198,18 @@ namespace pixelpipes
 
         virtual TypeIdentifier cell_type() const override;
 
-        static cv::Mat copy(const TensorReference &tensor);
-
-        static cv::Mat wrap(const TensorReference &tensor);
-
     private:
         cv::Mat _mat;
         SizeSequence _shape;
         SizeSequence _strides;
         TypeIdentifier _element;
     };
+
+    //cv::Mat copy(const TensorReference &tensor);
+
+    cv::Mat wrap_tensor(const TensorReference &tensor);
+
+    TensorReference create_tensor(const cv::Mat &mat);
 
     template <>
     inline cv::Mat extract(const TokenReference &v)
@@ -210,7 +223,7 @@ namespace pixelpipes
 
         if (v->is<Tensor>())
         {
-            return MatImage::wrap(cast<Tensor>(v));
+            return wrap_tensor(cast<Tensor>(v));
         }
 
         throw TypeException("Not an image value");
@@ -232,13 +245,32 @@ namespace pixelpipes
         case CV_16U:
             return 255 * 255;
         case CV_32S:
-            return 255 * 255 * 255 * 128;
+            return std::numeric_limits<int32_t>::max();
         case CV_32F:
             return 1;
         default:
             throw TypeException("Unsupported image depth");
         }
     }
+
+    inline int minimum_value(cv::Mat image)
+    {
+
+        switch (image.depth())
+        {
+        case CV_8U:
+            return 0;
+        case CV_16U:
+            return 0;
+        case CV_32S:
+            return std::numeric_limits<int32_t>::min();
+        case CV_32F:
+            return 0;
+        default:
+            throw TypeException("Unsupported image depth");
+        }
+    }
+
 
     int ocv_border_type(BorderStrategy b, int *value);
 

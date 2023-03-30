@@ -16,7 +16,7 @@ class ImageBlend(Operation):
         return "opencv:blend",
 
     def infer(self, a, b, alpha):
-        return types.Image(a[1], a[0], a[2], a.element)
+        return types.Image(a[2], a[1], a[0], a.element)
 
 
 class ImageNormalize(Operation):
@@ -30,7 +30,7 @@ class ImageNormalize(Operation):
         return "opencv:normalize",
 
     def infer(self, source):
-        return types.Image(source[1], source[0], source[2], source.element)
+        return types.Image(source[2], source[1], source[0], source.element)
 
 class ImageDropout(Operation):
     """Sets image pixels to zero with probability p."""
@@ -43,7 +43,7 @@ class ImageDropout(Operation):
         return "opencv:dropout",
 
     def infer(self, source, probability, seed):
-        return types.Image(source[1], source[0], source[2], source.element)
+        return types.Image(source[2], source[1], source[0], source.element)
 
 class ImageCoarseDropout(Operation):
     """Divides an image into patches and cuts them with probability p.
@@ -58,7 +58,7 @@ class ImageCoarseDropout(Operation):
         return "opencv:coarse_dropout",
 
     def infer(self, source, probability, size, seed):
-        return types.Image(source[1], source[0], source[2], source.element)
+        return types.Image(source[2], source[1], source[0], source.element)
 
 class ImageCut(Operation):
     """Sets a given rectangular region in an image to zero.
@@ -71,7 +71,7 @@ class ImageCut(Operation):
         return "opencv:cut",
 
     def infer(self, source, region):
-        return types.Image(source[1], source[0], source[2], source.element)
+        return types.Image(source[2], source[1], source[0], source.element)
 
 class ImageSolarize(Operation):
     """Invert all values above a threshold in images."""
@@ -83,4 +83,4 @@ class ImageSolarize(Operation):
         return "opencv:solarize",
 
     def infer(self, source, threshold):
-        return types.Image(source[1], source[0], source[2], source.element)
+        return types.Image(source[2], source[1], source[0], source.element)

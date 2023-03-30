@@ -1,16 +1,10 @@
 import typing
-import numbers
 
 import torch
 import numpy as np
 
-from .. import Pipeline, types
+from .. import Pipeline
 from . import BatchIterator, PipelineDataLoader, WorkerPool
-
-def _transform_if_image(tensor: torch.Tensor):
-    if tensor.ndimension() == 4:
-        return tensor.permute((0, 3, 1, 2))
-    return tensor
 
 class TorchDataLoader(PipelineDataLoader):
 
@@ -24,7 +18,7 @@ class TorchDataLoader(PipelineDataLoader):
             for i in range(len(samples[0])):
                 field = [x[i] for x in samples]
                 batch.append(torch.from_numpy(np.stack(field, axis=0)))
-            return [_transform_if_image(item) for item in batch]
+            return batch
 
     def __iter__(self):
         return TorchDataLoader._TorchBatchIterator(self._commit, self._batch, offset=self._offset)

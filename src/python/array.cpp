@@ -199,10 +199,11 @@ py::object extract_tensor(const TokenReference& src)
 
     TensorReference tensor = extract<TensorReference>(src);
 
+
     auto v = new TensorGuard{tensor.reborrow()};
     // TODO: add capsule name
     auto capsule = py::capsule((void *)v, [](void *v)
-                               { delete static_cast<TensorGuard *>(v); });
+                               {  delete static_cast<TensorGuard *>(v); });
 
     std::vector<ssize_t> pydimensions;
     std::vector<ssize_t> pystrides;
@@ -217,12 +218,6 @@ py::object extract_tensor(const TokenReference& src)
         pydimensions[i] = static_cast<ssize_t>((size_t)shape[i]);
         pystrides[i] = static_cast<ssize_t>(strides[i]);
     }
-/*
-    if (image->channels() > 1)
-    {
-        dimensions.push_back(static_cast<ssize_t>(image->channels()));
-        strides.push_back(image->element());
-    }*/
 
     if (shape.element() == CharIdentifier)
     {
@@ -248,7 +243,6 @@ py::object extract_tensor(const TokenReference& src)
     {
         return py::array(std::move(pydimensions), std::move(pystrides), (bool *)tensor->data().data(), capsule);
     }
-
 
     throw py::value_error(Formatter() << "Unable to convert token to NumPy array:"  << src);
 }

@@ -1,8 +1,8 @@
 
-from attributee import Boolean
+from attributee import Boolean, List
 
 from . import types
-from .graph import Macro, Operation, Node, Input, SeedInput, hidden, NodeOperation, Constant
+from .graph import Macro, Operation, Node, Input, SeedInput, hidden, NodeOperation, Constant, NodeException
 
 class SampleUnform(Operation):
     """Samples random value between min and max value."""
@@ -267,3 +267,34 @@ class TensorDivide(Operation):
         return _tensor_piecewise_infer(a, b)
 
 _register_tensor_operation(NodeOperation.DIVIDE, TensorDivide)
+
+
+class Stack(Operation):
+    """Merges three single channel images into three channel image.
+    """
+
+    inputs = List(Input(types.Wildcard(mindim=1)), description="Two or more input tensors")
+
+    def _init(self):
+        if len(self.inputs) == 0:
+            raise NodeException("No inputs provided", node=self)
+
+    def input_values(self):
+        return [self.inputs[int(name)] for name, _ in enumerate(self.inputs)]
+
+    def get_inputs(self):
+        return [(str(k), types.Wildcard(mindim=1)) for k, _ in enumerate(self.inputs)]
+
+    def duplicate(self, _origin=None, **inputs):
+        config = self.dump()
+        for k, v in inputs.items():
+            i = int(k)
+            assert i >= 0 and i < len(config["inputs"])
+            config["inputs"][i] = v
+        return self.__class__(_origin=_origin, **config)
+
+    def operation(self):
+        return "stack",
+
+    def infer(self, **inputs):
+        return types.Token(inputs["0"].element, len(inputs), *list(inputs["0"]))

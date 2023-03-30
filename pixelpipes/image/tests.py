@@ -4,7 +4,7 @@ import numpy as np
 
 from ..graph import Graph, Constant, outputs
 from ..compiler import Compiler
-from . import Channel, Equals, Grayscale, Invert, Merge, Threshold, Moments, GetImageProperties, ConvertDepth
+from . import Equals, Grayscale, Invert, Threshold, Moments, GetImageProperties, ConvertDepth
 from .processing import ImageBlend, ImageCoarseDropout, ImageCut, ImageDropout, ImageSolarize
 from .geometry import Flip, MaskBoundingBox, Resize, Rotate90, Scale, ImageCrop
 from .augmentation import ImageBrightness, ImageNoise, ImagePiecewiseAffine
@@ -14,7 +14,7 @@ from ..geometry.rectangle import MakeRectangle
 
 np.random.seed(0)
 test_image = np.random.randint(0, 255, (32,32), dtype=np.uint8) 
-test_image_rgb = np.random.randint(0, 255, (32,32,3), dtype=np.uint8) 
+test_image_rgb = np.random.randint(0, 255, (3,32,32), dtype=np.uint8) 
 
 def clamp_uint8(image):
     return np.clip(image, 0, 255).astype(np.uint8)
@@ -386,8 +386,8 @@ class TestsImage(unittest.TestCase):
 
         test_image_gray_0 = np.random.randint(0, 255, (256,256), dtype=np.uint8)
         test_image_gray_1 = np.random.random_sample((256,256)).astype(dtype=np.float32)
-        test_image_rgb_0 = np.random.randint(0, 255, (256,256,3), dtype=np.uint8)
-        test_image_rgb_1 = np.random.random_sample((256,256,3)).astype(dtype=np.float32)
+        test_image_rgb_0 = np.random.randint(0, 255, (3,256,256), dtype=np.uint8)
+        test_image_rgb_1 = np.random.random_sample((3,256,256)).astype(dtype=np.float32)
 
         with Graph() as graph:
             o0 = Constant(test_image_gray_0)
@@ -466,10 +466,10 @@ class TestsImage(unittest.TestCase):
     def test_grayscale(self):
   
         test_image_gray = np.random.randint(1, 254, (256,256), dtype=np.uint8)
-        test_image_rgb = np.ndarray((256,256,3), dtype=np.uint8)
-        test_image_rgb[:,:,0] = test_image_gray - 1
-        test_image_rgb[:,:,1] = test_image_gray 
-        test_image_rgb[:,:,2] = test_image_gray + 1
+        test_image_rgb = np.ndarray((3,256,256), dtype=np.uint8)
+        test_image_rgb[0,:,:] = test_image_gray - 1
+        test_image_rgb[1,:,:] = test_image_gray 
+        test_image_rgb[2,:,:] = test_image_gray + 1
 
         with Graph() as graph:
             n0 = Constant(test_image_rgb)
@@ -533,42 +533,6 @@ class TestsImage(unittest.TestCase):
         temp[temp!=128] = 0
         temp[temp==128] = 255
         np.testing.assert_array_equal(output[0], temp)
-
-    def test_image_channel(self):
-
-        test_image = np.random.randint(0, 255, (256,256,3), dtype=np.uint8)
-
-        with Graph() as graph:
-            n0 = Constant(test_image)
-            o0 = Channel(n0, index=0)
-            o1 = Channel(n0, index=1)
-            o2 = Channel(n0, index=2)
-            outputs(o0, o1, o2)
-
-        pipeline = Compiler().build(graph)
-        output = pipeline.run(1)
-
-        np.testing.assert_array_equal(output[0], test_image[..., 0])
-        np.testing.assert_array_equal(output[1], test_image[..., 1])
-        np.testing.assert_array_equal(output[2], test_image[..., 2])
-
-    def test_image_merge(self):
-
-        test_image = np.random.randint(0, 255, (4,4,3), dtype=np.uint8)
-
-        with Graph() as graph:
-            n0 = Constant(test_image[..., 0])
-            n1 = Constant(test_image[..., 1])
-            n2 = Constant(test_image[..., 2])
-            o0 = Merge(n0, n1, n2)
-            outputs(o0, n0, n1, n2)
-
-        pipeline = Compiler().build(graph)
-        output = pipeline.run(1)
-
-        np.testing.assert_array_equal(output[1], test_image[..., 0])
-        np.testing.assert_array_equal(output[0], test_image)
-
 
     def test_image_moments(self):
 

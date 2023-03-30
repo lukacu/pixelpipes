@@ -168,17 +168,17 @@ namespace pixelpipes
      * @brief Rotates an image without cropping.
      *
      */
-    cv::Mat rotate90(const cv::Mat &image, int clockwise) noexcept(false)
+    cv::Mat rotate90(const cv::Mat &image, int direction) noexcept(false)
     {
 
         cv::Mat result;
 
-        if (clockwise == 1)
+        if (direction > 0)
         {
             cv::transpose(image, result);
             cv::flip(result, result, 1);
         }
-        else if (clockwise == -1)
+        else if (direction < 0)
         {
             cv::transpose(image, result);
             cv::flip(result, result, 0);
@@ -197,31 +197,33 @@ namespace pixelpipes
      * @brief Flips a 2D array around vertical, horizontal, or both axes.
      *
      */
-    cv::Mat flip(const cv::Mat& image, bool horizontal, bool vertical) noexcept(false)
+    TokenReference flip(const cv::Mat& image, bool horizontal, bool vertical) noexcept(false)
     {
 
-        cv::Mat result;
+        TensorReference result = create_tensor(image);
+
+        cv::Mat out = wrap_tensor(result);
 
         if (horizontal)
         {
             if (vertical)
             {
-                cv::flip(image, result, -1);
+                cv::flip(image, out, -1);
             }
             else
             {
-                cv::flip(image, result, 1);
+                cv::flip(image, out, 1);
             }
         }
         else
         {
             if (!vertical)
             {
-                result = image;
+                cv::copyTo(image, out, cv::Mat());
             }
             else
             {
-                cv::flip(image, result, 0);
+                cv::flip(image, out, 0);
             }
         }
 
