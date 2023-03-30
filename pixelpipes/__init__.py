@@ -6,7 +6,7 @@ from types import MappingProxyType
 from typing import Iterable, List, Mapping, Optional, Tuple
 from collections import namedtuple
 
-__version__ = "0.0.8"
+__version__ = "0.0.9"
 
 _logger = logging.getLogger(__name__)
 
