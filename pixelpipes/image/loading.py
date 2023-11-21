@@ -1,10 +1,8 @@
 
-from pixelpipes.graph import EnumerationInput, Operation
-from pixelpipes.graph import Input, Macro, hidden
+from pixelpipes.graph import Operation, Input
 
 from attributee import Boolean
 
-from ..list import GetElement
 from .. import types
 
 from . import ImageDepth

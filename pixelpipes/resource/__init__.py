@@ -188,8 +188,6 @@ class ResourceProxy(Node):
     def infer(self, **inputs):
         #for name, ref in inputs.items():
         #    if name in self._fields
-
-
         return Resource(**self._fields)
 
 class MakeResource(Macro):

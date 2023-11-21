@@ -6,8 +6,6 @@ import numbers
 import traceback
 from enum import Enum, auto
 
-import numpy as np
-
 from attributee import Attributee, Attribute, AttributeException, Undefined, Any, Enumeration
 from attributee.object import class_fullname
 from attributee.primitives import to_number, to_logical, to_string, String
@@ -716,6 +714,7 @@ class Constant(Operation):
 
     @staticmethod
     def resolve_type(value) -> types.Data:
+        import numpy as np
 
         if isinstance(value, bool):
             return types.Boolean()

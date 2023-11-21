@@ -294,6 +294,22 @@ class ListTests(TestBase):
         np.testing.assert_array_equal(sample[1], [True, True, True])
         np.testing.assert_array_equal(sample[2], [True, False, False])
 
+    def test_list_arrays(self):
+
+        a1 = np.random.randint(0, 255, (10, 10), dtype=np.uint8)
+        a2 = np.random.rand(15, 15).astype(np.float32)
+        a3 = np.random.randint(0, 1000, (20, 20), dtype=np.uint16)
+
+        with Graph() as graph:
+            n1 = Constant([a1, a2, a3])
+            outputs(n1[0], n1[1], n1[2])
+
+        pipeline = Compiler.build_graph(graph)
+        sample = pipeline.run(1)
+
+        self.assertEqual(sample[0].shape, a1.shape)
+        self.assertEqual(sample[1].shape, a2.shape)
+        self.assertEqual(sample[2].shape, a3.shape)
 
 class FlowTests(TestBase):
 
