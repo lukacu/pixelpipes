@@ -169,11 +169,20 @@ namespace pixelpipes
 		return Size(data == other.data ? data : unknown);
 	}
 
+    /**
+     * The type identifier for anything, only used for placeholders, denotes any type as well as any shape.
+    */
+    constexpr static TypeIdentifier Anything = 1;
+
 	Shape::Shape() : Shape(AnyType)
 	{
 	}
 
 	Shape::Shape(TypeIdentifier element) : Shape(element, SizeSpan{})
+	{
+	}
+
+	Shape::Shape(TypeIdentifier element, const std::initializer_list<Size>& shape) : _element(element), _shape(shape)
 	{
 	}
 
@@ -187,11 +196,17 @@ namespace pixelpipes
 
 	TypeIdentifier Shape::element() const
 	{
+		if (is_anything())
+			return AnyType;
+
 		return _element;
 	}
 
 	Size Shape::operator[](size_t index) const
 	{
+		if (is_anything())
+			return unknown;
+
 		if (index >= _shape.size())
 			return 1;
 		return _shape.at(index);
@@ -233,6 +248,11 @@ namespace pixelpipes
 		return scalar;
 	}
 
+	bool Shape::is_anything() const
+	{
+		return _element == Anything;
+	}
+
 	Shape Shape::cast(TypeIdentifier t) const
 	{
 		return Shape(t, _shape);
@@ -240,6 +260,9 @@ namespace pixelpipes
 
 	Shape Shape::push(Size s) const
 	{
+		if (is_anything())
+			return Shape(Anything);
+
 		std::vector<Size> _s;
 		_s.push_back(s);
 		_s.insert(_s.end(), _shape.begin(), _shape.end());
@@ -249,11 +272,23 @@ namespace pixelpipes
 
 	Shape Shape::pop() const
 	{
+		if (is_anything())
+			return Shape(Anything);
+
 		return Shape(element(), make_view(_shape, 1));
 	}
 
+	/** Calculates common denominator of two shapes
+	 * 
+	 * @param a First shape
+	 * @param b Second shape
+	 * @return Common denominator, undefined where shapes do not match
+	*/
 	Shape Shape::operator&(const Shape &other) const
 	{
+
+		if (element() == Anything || other.element() == Anything)
+			return Shape(Anything);
 
 		std::vector<Size> _s;
 
@@ -273,6 +308,8 @@ namespace pixelpipes
 
 	bool Shape::operator==(const Shape &other) const
 	{
+		// TODO: what to do with Anything?
+		
 		if (element() != other.element())
 			return false;
 
@@ -287,69 +324,13 @@ namespace pixelpipes
 
 		return true;
 	}
-	/*
-		void type_register(TypeIdentifier i, std::string_view name)
-		{
 
-			DEBUGMSG("Registering type %s (%ld) \n", std::string(name).data(), i);
 
-			if (types().find(i) != types().end())
-			{
-				throw TypeException("Type already registered");
-			}
+    Shape AnythingType()
+    {
+        return Shape(Anything);
+    }
 
-			for (auto d = types().begin(); d != types().end(); d++)
-			{
-
-				if (std::get<0>(d->second) == name)
-				{
-					throw TypeException(Formatter() << "Type already registered with name " << name);
-				}
-			}
-
-			ModuleReference source = Module::context();
-
-			types().insert(TypeMap::value_type{i, TypeData{name, source.reborrow()}});
-		}
-
-		TypeIdentifier type_find(TypeName name)
-		{
-			for (auto d = types().begin(); d != types().end(); d++)
-			{
-				if (std::get<0>(d->second) == name)
-				{
-					return d->first;
-				}
-			}
-			throw TypeException(Formatter() << "Type for name " << name << " not found");
-		}
-
-		ModuleReference type_source(TypeIdentifier i)
-		{
-
-			auto item = types().find(i);
-
-			if (item == types().end())
-			{
-				throw TypeException((Formatter() << "Unknown type identifier: " << i << "").str());
-			}
-
-			return std::get<1>(item->second).reborrow();
-		}
-
-		TypeName type_name(TypeIdentifier i)
-		{
-
-			auto item = types().find(i);
-
-			if (item == types().end())
-			{
-				return (Formatter() << "??? (" << i << ")").str();
-			}
-
-			return std::string(std::get<0>(item->second));
-		}
-	*/
 
 	typedef std::map<std::string, EnumerationMap> EnumerationRegistry;
 

@@ -16,9 +16,15 @@ PIXELPIPES_MODULE(opencv)
 namespace pixelpipes
 {
 
+    TokenReference forward_image_type(const TokenList &inputs) 
+    {
+        return create<Placeholder>(inputs[0]->shape());
+    }
+
     PIXELPIPES_REGISTER_ENUM("interpolation", Interpolation);
     PIXELPIPES_REGISTER_ENUM("border", BorderStrategy);
     PIXELPIPES_REGISTER_ENUM("depth", ImageDepth);
+    PIXELPIPES_REGISTER_ENUM("channels", ImageChannels);
 
     int ocv_border_type(BorderStrategy b, int *value)
     {
@@ -362,6 +368,6 @@ namespace pixelpipes
         return result;
     }
 
-    PIXELPIPES_OPERATION_AUTO("equals", equals);
+    PIXELPIPES_COMPUTE_OPERATION_AUTO("equals", equals, forward_image_type);
 
 }

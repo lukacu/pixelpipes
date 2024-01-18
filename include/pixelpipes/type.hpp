@@ -107,6 +107,9 @@ namespace pixelpipes
 
     using TypeIdentifier = pixelpipes::details::TypeIdentifier;
 
+    /**
+     * The type identifier for any type.
+    */
     constexpr static TypeIdentifier AnyType = 0;
 
     /**
@@ -118,18 +121,7 @@ namespace pixelpipes
     template <typename T>
     constexpr TypeIdentifier PIXELPIPES_TYPE_API GetTypeIdentifier() noexcept
     {
-       /* if constexpr (details::is_container<T>::value)
-        {
-            return GetTypeIdentifier<typename T::value_type>() << 1;
-        }
-        else if constexpr (details::is_reference<T>::value)
-        {
-            return GetTypeIdentifier<typename std::pointer_traits<T>::element_type>();
-        }
-        else
-        {*/
-            return details::TypeInfo<T>::Id();
-        //}
+        return details::TypeInfo<T>::Id();
     }
 
 #define VIEWCHARS(S) std::string(S).c_str()
@@ -256,6 +248,7 @@ namespace pixelpipes
     typedef Span<size_t> SizeSpan;
     typedef View<size_t> Sizes;
 
+    // TODO: Add support for larger ranks, make it so that anything above MAX is a dynamicly allocated array
     #define SHAPE_RANK_MAX 6
 
     class PIXELPIPES_API Shape
@@ -269,6 +262,7 @@ namespace pixelpipes
         Shape(const Shape &) = default;
         Shape(Shape &&s) = default;
 
+        Shape(TypeIdentifier element, const std::initializer_list<Size>& shape);
         Shape(TypeIdentifier element, const View<Size>& shape);
         Shape(TypeIdentifier element, const Sizes& shape);
 
@@ -287,6 +281,8 @@ namespace pixelpipes
         bool is_fixed() const;
 
         bool is_scalar() const;
+
+        bool is_anything() const;
 
         Shape cast(TypeIdentifier t) const;
 
@@ -392,6 +388,8 @@ namespace pixelpipes
     {
         return Shape(element, Sequence<Size>({width, height, channels}));
     }
+
+    Shape PIXELPIPES_API AnythingType();
 
     typedef std::map<std::string, int> EnumerationMap;
 

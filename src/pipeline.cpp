@@ -17,7 +17,7 @@
 #include <pixelpipes/serialization.hpp>
 #include <pixelpipes/operation.hpp>
 
-#include "pipeline/optimization.hpp"
+#include "compiler/optimization.hpp"
 
 using namespace std;
 using namespace std::chrono;
@@ -49,10 +49,14 @@ namespace pixelpipes
 
         virtual TokenReference run(const TokenList &inputs)
         {
-
             VERIFY(inputs.size() == 1, "One input required");
-
             return empty();
+        }
+
+        virtual TokenReference evaluate(const TokenList &inputs)
+        {
+            VERIFY(inputs.size() == 1, "One input required");
+            return inputs[0].reborrow();
         }
 
         std::string get_label() const
@@ -60,7 +64,12 @@ namespace pixelpipes
             return label;
         }
 
-        virtual TypeIdentifier type()
+        virtual OperationTrait trait() const override
+        {
+            return OperationTrait::Unit;
+        }
+
+        virtual TypeIdentifier type() const override
         {
             return GetTypeIdentifier<Output>();
         }
@@ -96,7 +105,17 @@ namespace pixelpipes
             return _value.reborrow();
         }
 
-        virtual TypeIdentifier type()
+        virtual TokenReference evaluate(const TokenList &inputs)
+        {
+            return run(inputs);
+        }
+
+        virtual OperationTrait trait() const override 
+        {
+            return OperationTrait::Unit;
+        }
+
+        virtual TypeIdentifier type() const override
         {
             return GetTypeIdentifier<Constant>();
         }
@@ -126,7 +145,25 @@ namespace pixelpipes
                 return inputs[1].reborrow();
         }
 
-        virtual TypeIdentifier type()
+        virtual TokenReference evaluate(const TokenList &inputs)
+        {
+            VERIFY(inputs.size() == 3, "Illegal number of inputs");
+
+            // If all inputs are defined, evaluate the condition
+            if (any_placeholder(inputs)) {
+                return create<Placeholder>(inputs[0]->shape() & inputs[1]->shape());
+            } else {
+                return run(inputs);
+            }
+            
+        }
+
+        virtual OperationTrait trait() const override
+        {
+            return OperationTrait::Unit;
+        }
+
+        virtual TypeIdentifier type() const override
         {
             return GetTypeIdentifier<Conditional>();
         }
@@ -156,12 +193,23 @@ namespace pixelpipes
             return empty<IntegerScalar>();
         }
 
+        virtual TokenReference evaluate(const TokenList &inputs)
+        {
+            UNUSED(inputs);
+            return create<Placeholder>(ScalarType<int>());
+        }
+
+        virtual OperationTrait trait() const override
+        {
+            return OperationTrait::Unit;
+        }
+
         ContextData get_query()
         {
             return query;
         }
 
-        virtual TypeIdentifier type()
+        virtual TypeIdentifier type() const override
         {
             return GetTypeIdentifier<ContextQuery>();
         }
@@ -193,6 +241,21 @@ namespace pixelpipes
             std::cout << prefix << inputs[0]->describe() << std::endl;
 
             return inputs[0].reborrow();
+        }
+
+        virtual TokenReference evaluate(const TokenList &inputs)
+        {
+            return run(inputs);
+        }
+
+        virtual OperationTrait trait() const override
+        {
+            return OperationTrait::Unit;
+        }
+
+        virtual TypeIdentifier type() const override
+        {
+            return GetTypeIdentifier<DebugOutput>();
         }
 
         virtual Sequence<TokenReference> serialize() { return Sequence<TokenReference>({wrap(prefix)}); }
@@ -298,8 +361,14 @@ namespace pixelpipes
 
     void Pipeline::finalize(bool optimize)
     {
-
+        if (state->finalized)
+            throw PipelineException("Pipeline is finalized");
+            
         state->finalized = true;
+
+        // First determine stateless outputs
+        // prune if needed (replace with constants)
+        // optimize if needed (add jumps)
 
         state->operations = optimize_pipeline(state->operations, optimize);
 
@@ -499,11 +568,11 @@ namespace pixelpipes
             }
             catch (BaseException &e)
             {
-                std::cout << "ERROR at operation " << i << ": " << e.what() << ", inputs:" << std::endl;
+                std::cout << "ERROR at operation " << i << " " << operation_name(state->operations[i].operation) << ": " << e.what() << ", inputs:" << std::endl;
                 int k = 0;
                 for (int j : state->operations[i].inputs)
                 {
-                    std::cout << " * " << k << " (operation " << j << "): ";
+                    std::cout << " * " << k << " (operation " << j << " " << operation_name(state->operations[j].operation) << "): ";
                     if ((bool)(local[k]))
                     {
                         std::cout << local[k]->describe() << std::endl;

@@ -12,7 +12,6 @@
 
 namespace pixelpipes
 {
-
     TensorReference create_tensor(TypeIdentifier element, Sizes sizes)
     {
 
@@ -233,6 +232,16 @@ namespace pixelpipes
     }
 
     template <typename A, typename B>
+    struct no_cast
+    {
+        template <typename TIN>
+        inline auto operator()(TIN &val)
+        {
+            return val;
+        }
+    };
+
+    template <typename A, typename B>
     struct nonsaturate_cast
     {
         template <typename TIN>
@@ -291,6 +300,11 @@ namespace pixelpipes
             auto aout = wrap_xtensor<float>(out);
             aout = xt::cast<float>(ain);
         }
+        else if (t == BooleanIdentifier)
+        {
+            auto aout = wrap_xtensor<bool>(out);
+            aout = xt::cast<bool>(ain);
+        }
         else
         {
             throw TypeException("Unsupported tensor type");
@@ -335,6 +349,12 @@ namespace pixelpipes
                 auto ain = wrap_xtensor<float>(in);
                 xt::assign_xexpression(aout, ain);
             }
+            else if (tin == BooleanIdentifier)
+            {
+                auto aout = wrap_xtensor<bool>(out);
+                auto ain = wrap_xtensor<bool>(in);
+                xt::assign_xexpression(aout, ain);
+            }
             else
             {
                 throw TypeException("Unsupported tensor type");
@@ -364,6 +384,10 @@ namespace pixelpipes
             else if (tin == FloatIdentifier)
             {
                 _execute_xtensor_cast(wrap_xtensor<float>(in), out);
+            }
+            else if (tin == BooleanIdentifier)
+            {
+                _execute_xtensor_cast(wrap_xtensor<bool>(in), out);
             }
             else
             {
@@ -537,14 +561,118 @@ namespace pixelpipes
             auto out = wrap_xtensor<float>(result);
 
             // There is no saturation in floats
-            _execute_tensor_binary<T, nonsaturate_cast<float, float>>(a, b, out);
+            _execute_tensor_binary<T, no_cast<float, float>>(a, b, out);
             return result;
         }
+
         else
         {
             throw TypeException("Unsupported tensor type");
         }
     }
+
+    TokenReference common_shape(const TokenList& inputs)
+    {
+        
+        VERIFY(inputs.size() > 0, "At least one tensor expected");
+
+        TensorReference t0 = extract<TensorReference>(inputs[0]);
+
+        Shape s = t0->shape();
+
+        for (size_t i = 1; i < inputs.size(); i++)
+        {
+            TensorReference ti = extract<TensorReference>(inputs[i]);
+
+            VERIFY(s == ti->shape(), "Shape mismatch");
+        }
+
+        return t0;
+    }
+
+    template <typename T, template <typename, typename> class C>
+    TokenReference tensor_elementwise_unary(const TokenReference &ta)
+    {
+        Shape sa = ta->shape();
+
+        TensorReference tra;
+
+        if (sa.is_scalar())
+        {
+            tra = create_scalar(ta);
+        }
+        else
+        {
+            tra = extract<TensorReference>(ta);
+        }
+
+        TensorReference result = create_tensor(sa);
+
+        if (sa.element() == CharIdentifier)
+        {
+            auto a = wrap_xtensor<uchar>(tra);
+            auto out = wrap_xtensor<uchar>(result);
+
+            C<int, uchar> cast;
+            T operation;
+
+            auto v = operation(a);
+            out = cast(v);
+        }
+        else if (sa.element() == ShortIdentifier)
+        {
+            auto a = wrap_xtensor<short>(tra);
+            auto out = wrap_xtensor<short>(result);
+
+            C<int, short> cast;
+            T operation;
+
+            auto v = operation(a);
+            out = cast(v);
+        }
+        else if (sa.element() == UShortIdentifier)
+        {
+            auto a = wrap_xtensor<ushort>(tra);
+            auto out = wrap_xtensor<ushort>(result);
+
+            C<int, ushort> cast;
+            T operation;
+
+            auto v = operation(a);
+            out = cast(v);
+        }
+        else if (sa.element() == IntegerIdentifier)
+        {
+            auto a = wrap_xtensor<int>(tra);
+            auto out = wrap_xtensor<int>(result);
+
+            C<int, int> cast;
+            T operation;
+
+            auto v = operation(a);
+            out = cast(v);
+        }
+        else if (sa.element() == FloatIdentifier)
+        {
+            auto a = wrap_xtensor<float>(tra);
+            auto out = wrap_xtensor<float>(result);
+
+            C<float, float> cast;
+            T operation;
+
+            auto v = operation(a);
+            out = cast(v);
+        }
+        else
+        {
+            throw TypeException("Unsupported tensor type");
+        }
+
+        return result;
+    }
+
+
+// Arithmetic operations on tensors
 
 #define tensor_add tensor_elementwise_binary<xt::detail::plus, nonsaturate_cast>
     PIXELPIPES_OPERATION_AUTO("tensor_add", tensor_add);
@@ -569,6 +697,232 @@ namespace pixelpipes
 
 #define tensor_divide_saturate tensor_elementwise_binary<xt::detail::divides, saturate_cast>
     PIXELPIPES_OPERATION_AUTO("tensor_divide_saturate", tensor_divide_saturate);
+
+
+// Functor operations for power, modulus, sqrt
+
+#define XTENSOR_FUNCTOR_UNARY(name, op) \
+    struct name \
+    { \
+        template <typename T1> \
+        inline auto operator()(T1 &a) \
+        { \
+            return op(a); \
+        } \
+    };
+
+#define XTENSOR_FUNCTOR_BINARY(name, op) \
+    struct name \
+    { \
+        template <typename T1, typename T2> \
+        inline auto operator()(T1 &a, T2 &b) \
+        { \
+            return op(a, b); \
+        } \
+    };
+
+// Operations for modulus, power, sqrt
+
+//#define tensor_modulus tensor_elementwise_binary<tensor_modulus_functor, nonsaturate_cast>
+//    PIXELPIPES_OPERATION_AUTO("tensor_modulus", tensor_modulus);
+
+XTENSOR_FUNCTOR_BINARY(tensor_power_functor, xt::pow)
+
+#define tensor_power tensor_elementwise_binary<tensor_power_functor, nonsaturate_cast>
+    PIXELPIPES_OPERATION_AUTO("tensor_power", tensor_power);
+
+XTENSOR_FUNCTOR_UNARY(tensor_sqrt_functor, xt::sqrt)
+
+#define tensor_sqrt tensor_elementwise_unary<tensor_sqrt_functor, nonsaturate_cast>
+    PIXELPIPES_OPERATION_AUTO("tensor_sqrt", tensor_sqrt);
+
+// Trigonometric operations on tensors
+
+
+XTENSOR_FUNCTOR_UNARY(tensor_sin_functor, xt::sin)
+
+#define tensor_sin tensor_elementwise_unary<tensor_sin_functor, nonsaturate_cast>
+    PIXELPIPES_OPERATION_AUTO("tensor_sin", tensor_sin);
+
+XTENSOR_FUNCTOR_UNARY(tensor_cos_functor, xt::cos)
+
+#define tensor_cos tensor_elementwise_unary<tensor_cos_functor, nonsaturate_cast>
+    PIXELPIPES_OPERATION_AUTO("tensor_cos", tensor_cos);
+
+XTENSOR_FUNCTOR_UNARY(tensor_tan_functor, xt::tan)
+
+#define tensor_tan tensor_elementwise_unary<tensor_tan_functor, nonsaturate_cast>
+    PIXELPIPES_OPERATION_AUTO("tensor_tan", tensor_tan);
+
+XTENSOR_FUNCTOR_UNARY(tensor_asin_functor, xt::asin)
+
+#define tensor_asin tensor_elementwise_unary<tensor_asin_functor, nonsaturate_cast>
+    PIXELPIPES_OPERATION_AUTO("tensor_asin", tensor_asin);
+
+XTENSOR_FUNCTOR_UNARY(tensor_acos_functor, xt::acos)
+
+#define tensor_acos tensor_elementwise_unary<tensor_acos_functor, nonsaturate_cast>
+    PIXELPIPES_OPERATION_AUTO("tensor_acos", tensor_acos);
+
+XTENSOR_FUNCTOR_UNARY(tensor_atan_functor, xt::atan)
+
+#define tensor_atan tensor_elementwise_unary<tensor_atan_functor, nonsaturate_cast>
+    PIXELPIPES_OPERATION_AUTO("tensor_atan", tensor_atan);
+
+// Comparison operations on tensors
+
+#define tensor_equal tensor_elementwise_binary<xt::detail::equal_to, no_cast>
+    PIXELPIPES_OPERATION_AUTO("tensor_equal", tensor_equal);
+
+#define tensor_not_equal tensor_elementwise_binary<xt::detail::not_equal_to, no_cast>
+    PIXELPIPES_OPERATION_AUTO("tensor_not_equal", tensor_not_equal);
+
+#define tensor_less tensor_elementwise_binary<xt::detail::less, no_cast>
+    PIXELPIPES_OPERATION_AUTO("tensor_less", tensor_less);
+
+#define tensor_less_equal tensor_elementwise_binary<xt::detail::less_equal, no_cast>
+    PIXELPIPES_OPERATION_AUTO("tensor_less_equal", tensor_less_equal);
+
+#define tensor_greater tensor_elementwise_binary<xt::detail::greater, no_cast>
+    PIXELPIPES_OPERATION_AUTO("tensor_greater", tensor_greater);
+
+#define tensor_greater_equal tensor_elementwise_binary<xt::detail::greater_equal, no_cast>
+    PIXELPIPES_OPERATION_AUTO("tensor_greater_equal", tensor_greater_equal);
+
+
+// Logical operations on tensors
+
+template <class T>
+    TokenReference tensor_logical_binary(const TokenReference &ta, const TokenReference &tb)
+    {
+        Shape sa = ta->shape();
+        Shape sb = tb->shape();
+
+        TensorReference tra;
+        TensorReference trb;
+
+        VERIFY(sa.element() == BooleanIdentifier, "Boolean type expected");
+        VERIFY(sb.element() == BooleanIdentifier, "Boolean type expected");
+
+        if (sa.is_scalar())
+        {
+            tra = create_scalar(ta);
+        }
+        else
+        {
+            tra = extract<TensorReference>(ta);
+        }
+
+        if (sb.is_scalar())
+        {
+            trb = create_scalar(tb);
+        }
+        else
+        {
+            trb = extract<TensorReference>(tb);
+        }
+
+        size_t outdim = std::max(sa.rank(), sb.rank());
+        SizeSequence outsize(outdim);
+
+        for (size_t i = 0; i < outdim; i++)
+        {
+            if (sa[i] == 1)
+            {
+                outsize[i] = sb[i];
+            }
+            else if (sb[i] == 1)
+            {
+                outsize[i] = sa[i];
+            }
+            else if (sa[i] == sb[i])
+            {
+                outsize[i] = sa[i];
+            }
+            else
+                throw TypeException("Tensor dimension mismatch");
+        }
+
+        TypeIdentifier return_type = 0;
+        TensorReference result;
+
+        auto strides_a = _broadcasting_strides(sa, outsize, tra->strides());
+        auto strides_b = _broadcasting_strides(sb, outsize, trb->strides());
+
+        TensorReference tva = create<TensorView>(tra, 0, outsize, strides_a);
+        TensorReference tvb = create<TensorView>(trb, 0, outsize, strides_b);
+
+        if (sa.element() != sb.element())
+        {
+            return_type = _promote_type(sa.element(), sb.element());
+
+            result = create_tensor(return_type, outsize);
+            if (return_type == sa.element())
+            {
+                copy_tensor(tvb, result);
+                tvb = result.reborrow();
+                tva = tra.reborrow();
+            }
+            else
+            {
+                copy_tensor(tva, result);
+                tva = result.reborrow();
+                tvb = trb.reborrow();
+            }
+        }
+        else
+        {
+            return_type = sa.element();
+            result = create_tensor(return_type, outsize);
+            tva = tra.reborrow();
+            tvb = trb.reborrow();
+        }
+
+        auto a = wrap_xtensor<bool>(tva);
+        auto b = wrap_xtensor<bool>(tvb);
+        auto out = wrap_xtensor<bool>(result);
+        _execute_tensor_binary<T, no_cast<bool, bool> >(a, b, out);
+        return result;
+
+    }
+
+template <typename T>
+    TokenReference tensor_logical_unary(const TokenReference &ta)
+    {
+        Shape sa = ta->shape();
+
+        VERIFY(sa.element() == BooleanIdentifier, "Boolean type expected");
+
+        TensorReference tra;
+
+        if (sa.is_scalar())
+        {
+            tra = create_scalar(ta);
+        }
+        else
+        {
+            tra = extract<TensorReference>(ta);
+        }
+
+        TensorReference result = create_tensor(sa);
+
+        auto a = wrap_xtensor<bool>(tra);
+        auto out = wrap_xtensor<bool>(result);
+
+        T operation;
+        out = operation(a);
+        return result;
+    }
+
+
+#define tensor_not tensor_logical_unary<xt::detail::logical_not>
+    PIXELPIPES_OPERATION_AUTO("tensor_logical_not", tensor_not);
+
+#define tensor_and tensor_logical_binary<xt::detail::logical_and>
+    PIXELPIPES_OPERATION_AUTO("tensor_logical_and", tensor_and);
+
+#define tensor_or tensor_logical_binary<xt::detail::logical_or>
+    PIXELPIPES_OPERATION_AUTO("tensor_logical_or", tensor_or);
 
     class Stack : public Operation
     {

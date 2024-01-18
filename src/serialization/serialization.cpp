@@ -351,9 +351,27 @@ namespace pixelpipes
             return value.reborrow();
         }
 
-        virtual TypeIdentifier type()
+        virtual TypeIdentifier type() const override
         {
             return GetTypeIdentifier<FileList>();
+        }
+
+        virtual void describe(std::ostream &os) const
+        {
+            StringListReference list = extract<StringListReference>(value);
+
+            os << "[FileList: " << list->length() << " files]";
+        }
+
+        virtual OperationTrait trait() const override
+        {
+            return OperationTrait::Unit;
+        }
+
+        virtual TokenReference evaluate(const TokenList &inputs) override
+        {
+            UNUSED(inputs);
+            return value.reborrow();
         }
 
         virtual Sequence<TokenReference> serialize() { return Sequence<TokenReference>({value.reborrow()}); }

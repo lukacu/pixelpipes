@@ -269,6 +269,132 @@ class TensorDivide(Operation):
 _register_tensor_operation(NodeOperation.DIVIDE, TensorDivide)
 
 
+class TensorPower(Operation):
+    """Raises image to power of another image or scalar (per-element multiplication).
+    """
+
+    a = Input(types.Wildcard(), description="First operand")
+    b = Input(types.Wildcard(), description="Second operand")
+
+    def operation(self):
+        return "tensor_power",
+
+    def infer(self, a, b):
+        return _tensor_piecewise_infer(a, b)
+    
+_register_tensor_operation(NodeOperation.POWER, TensorPower)
+
+class TensorEqual(Operation):
+    a = Input(types.Wildcard(), description="First operand")
+    b = Input(types.Wildcard(), description="Second operand")
+
+    def operation(self):
+        return "tensor_equal",
+
+    def infer(self, a, b):
+        return _tensor_piecewise_infer(a, b)
+
+_register_tensor_operation(NodeOperation.EQUAL, TensorEqual)
+
+class TensorNotEqual(Operation):
+    a = Input(types.Wildcard(), description="First operand")
+    b = Input(types.Wildcard(), description="Second operand")
+
+    def operation(self):
+        return "tensor_not_equal",
+
+    def infer(self, a, b):
+        return _tensor_piecewise_infer(a, b)
+
+_register_tensor_operation(NodeOperation.NOT_EQUAL, TensorNotEqual)
+
+class TensorGreater(Operation):
+    a = Input(types.Wildcard(), description="First operand")
+    b = Input(types.Wildcard(), description="Second operand")
+
+    def operation(self):
+        return "tensor_greater",
+
+    def infer(self, a, b):
+        return _tensor_piecewise_infer(a, b)
+
+_register_tensor_operation(NodeOperation.GREATER, TensorGreater)
+
+class TensorGreaterEqual(Operation):
+    a = Input(types.Wildcard(), description="First operand")
+    b = Input(types.Wildcard(), description="Second operand")
+
+    def operation(self):
+        return "tensor_greater_equal",
+
+    def infer(self, a, b):
+        return _tensor_piecewise_infer(a, b)
+    
+_register_tensor_operation(NodeOperation.GREATER_EQUAL, TensorGreaterEqual)
+
+class TensorLower(Operation):
+    a = Input(types.Wildcard(), description="First operand")
+    b = Input(types.Wildcard(), description="Second operand")
+
+    def operation(self):
+        return "tensor_less",
+
+    def infer(self, a, b):
+        return _tensor_piecewise_infer(a, b)
+    
+_register_tensor_operation(NodeOperation.LOWER, TensorLower)
+
+class TensorLowerEqual(Operation):
+
+    a = Input(types.Wildcard(), description="First operand")
+    b = Input(types.Wildcard(), description="Second operand")
+
+    def operation(self):
+        return "tensor_less_equal",
+
+    def infer(self, a, b):
+        return _tensor_piecewise_infer(a, b)
+    
+_register_tensor_operation(NodeOperation.LOWER_EQUAL, TensorLowerEqual)
+
+class TensorLogicalAnd(Operation):
+    
+        a = Input(types.Wildcard(), description="First operand")
+        b = Input(types.Wildcard(), description="Second operand")
+    
+        def operation(self):
+            return "tensor_logical_and",
+    
+        def infer(self, a, b):
+            return _tensor_piecewise_infer(a, b)
+
+Node.register_operation(NodeOperation.LOGICAL_AND, TensorLogicalAnd, types.Wildcard(mindim=1), types.Wildcard(mindim=1))
+
+class TensorLogicalOr(Operation):
+
+    a = Input(types.Wildcard(), description="First operand")
+    b = Input(types.Wildcard(), description="Second operand")
+
+    def operation(self):
+        return "tensor_logical_or",
+
+    def infer(self, a, b):
+        return _tensor_piecewise_infer(a, b)
+
+Node.register_operation(NodeOperation.LOGICAL_OR, TensorLogicalOr, types.Wildcard(mindim=1), types.Wildcard(mindim=1))
+
+class TensorLogicalNot(Operation):
+
+    a = Input(types.Wildcard(), description="First operand")
+
+    def operation(self):
+        return "tensor_logical_not",
+
+    def infer(self, a):
+        return a
+    
+Node.register_operation(NodeOperation.LOGICAL_NOT, TensorLogicalNot, types.Wildcard(mindim=1))
+
 class Stack(Operation):
     """Merges three single channel images into three channel image.
     """

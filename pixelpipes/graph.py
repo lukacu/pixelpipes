@@ -46,6 +46,10 @@ class NodeOperation(Enum):
     GREATER = auto()
     GREATER_EQUAL = auto()
 
+    LOGICAL_AND = auto()
+    LOGICAL_OR = auto()
+    LOGICAL_NOT = auto()
+
 class NodeException(Exception):
 
     def __init__(self, *args, node: typing.Optional["Node"] = None):
@@ -254,6 +258,17 @@ class OperationProxy:
 
     def __len__(self):
         return _UnaryOperationWrapper(self, operation=NodeOperation.INDEX)
+
+    def __and__(self, other):
+        other = _ensure_node(other)
+        return _BinaryOperationWrapper(self, other, operation=NodeOperation.LOGICAL_AND)
+    
+    def __or__(self, other):
+        other = _ensure_node(other)
+        return _BinaryOperationWrapper(self, other, operation=NodeOperation.LOGICAL_OR)
+    
+    def __invert__(self):
+        return _UnaryOperationWrapper(self, operation=NodeOperation.LOGICAL_NOT)
 
     @staticmethod
     def register_operation(operation: NodeOperation, generator: typing.Callable, *args: types.Data):

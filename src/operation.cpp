@@ -30,7 +30,22 @@ namespace pixelpipes
 
     Operation::Operation() {}
 
-    TypeIdentifier Operation::type()
+    OperationTrait Operation::trait() const
+    {
+        return OperationTrait::Unit;
+    }
+
+    TokenReference Operation::evaluate(const TokenList &inputs)
+    {
+        // If all inputs are defined, run the operation, otherwise convert placeholders to dummy values, run and extract shape
+        if (any_placeholder(inputs)) {
+            return create<Placeholder>();
+        } else {
+            return run(inputs);
+        }
+    }
+
+    TypeIdentifier Operation::type() const
     {
         return AnyType;
     }
@@ -143,7 +158,6 @@ namespace pixelpipes
 
         for (auto x = _registry().begin(); x != _registry().end(); x++)
         {
-
             if (std::get<0>(x->second) == operation->type())
                 return x->first;
         }

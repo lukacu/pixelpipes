@@ -29,7 +29,7 @@ namespace pixelpipes
         return {left, top, right, bottom};
     }
 
-    PIXELPIPES_OPERATION_AUTO("bounding_box", bounding_box);
+    PIXELPIPES_COMPUTE_OPERATION_AUTO("bounding_box", bounding_box, (constant_shape<float, 4>));
 
     /**
      * @brief Returns a bounding box of custom size, defined by four inputs.
@@ -41,7 +41,7 @@ namespace pixelpipes
         return rectangle;
     }
 
-    PIXELPIPES_OPERATION_AUTO("make_rectangle", make_rectangle);
+    PIXELPIPES_UNIT_OPERATION_AUTO("make_rectangle", make_rectangle, (constant_shape<float, 4>));
 
     Point2D points2d_center(const Sequence<Point2D> &list)
     {
@@ -59,21 +59,21 @@ namespace pixelpipes
         return accumulator;
     }
 
-    PIXELPIPES_OPERATION_AUTO("points2d_center", points2d_center);
+    PIXELPIPES_COMPUTE_OPERATION_AUTO("points2d_center", points2d_center, (constant_shape<float, 1, 2>));
 
     Sequence<Point2D> points_from_rectangle(Rectangle r)
     {
         return Sequence<Point2D>({Point2D{r.left, r.top}, Point2D{r.right, r.top}, Point2D{r.right, r.bottom}, Point2D{r.left, r.bottom}});
     }
 
-    PIXELPIPES_OPERATION_AUTO("points_from_rectangle", points_from_rectangle);
+    PIXELPIPES_UNIT_OPERATION_AUTO("points_from_rectangle", points_from_rectangle, (constant_shape<float, 4, 2>));
 
     Point2D make_point2d(float x, float y)
     {
         return Point2D{x, y};
     }
 
-    PIXELPIPES_OPERATION_AUTO("make_point2d", make_point2d);
+    PIXELPIPES_UNIT_OPERATION_AUTO("make_point2d", make_point2d, (constant_shape<float, 1, 2>));
 
     TokenReference make_points2d(const TokenList &inputs)
     {
@@ -92,7 +92,7 @@ namespace pixelpipes
         return wrap(result);
     }
 
-    PIXELPIPES_OPERATION("make_points2d", make_points2d);
+    PIXELPIPES_COMPUTE_OPERATION("make_points2d", make_points2d, (constant_shape<float, unknown, 2>));
     /*
     TokenReference PointsFromList(TokenList inputs) {
 
@@ -132,7 +132,7 @@ namespace pixelpipes
         return data;
     }
 
-    PIXELPIPES_OPERATION_AUTO("random_points2d", random_points2d);
+    PIXELPIPES_COMPUTE_OPERATION_AUTO("random_points2d", random_points2d, (constant_shape<float, unknown, 2>));
 
     Point2D point2d_add(const Point2D &point0, const Point2D &point1)
     {
@@ -142,7 +142,7 @@ namespace pixelpipes
         return result;
     }
 
-    PIXELPIPES_OPERATION_AUTO("point2d_add", point2d_add);
+    PIXELPIPES_UNIT_OPERATION_AUTO("point2d_add", point2d_add, (constant_shape<float, 1, 2>));
 
     Point2D point2d_subtract(const Point2D &point0, const Point2D &point1)
     {
@@ -152,7 +152,7 @@ namespace pixelpipes
         return result;
     }
 
-    PIXELPIPES_OPERATION_AUTO("point2d_subtract", point2d_subtract);
+    PIXELPIPES_UNIT_OPERATION_AUTO("point2d_subtract", point2d_subtract, (constant_shape<float, 1, 2>));
 
     Point2D point2d_multiply(const Point2D &point0, const Point2D &point1)
     {
@@ -162,7 +162,7 @@ namespace pixelpipes
         return result;
     }
 
-    PIXELPIPES_OPERATION_AUTO("point2d_multiply", point2d_multiply);
+    PIXELPIPES_UNIT_OPERATION_AUTO("point2d_multiply", point2d_multiply, (constant_shape<float, 1, 2>));
 
     Point2D point2d_divide(const Point2D &point0, const Point2D &point1)
     {
@@ -172,7 +172,7 @@ namespace pixelpipes
         return result;
     }
 
-    PIXELPIPES_OPERATION_AUTO("point2d_divide", point2d_divide);
+    PIXELPIPES_UNIT_OPERATION_AUTO("point2d_divide", point2d_divide, (constant_shape<float, 1, 2>));
 
     Point2D point2d_power(const Point2D &point0, const Point2D &point1)
     {
@@ -182,7 +182,7 @@ namespace pixelpipes
         return result;
     }
 
-    PIXELPIPES_OPERATION_AUTO("point2d_power", point2d_power);
+    PIXELPIPES_UNIT_OPERATION_AUTO("point2d_power", point2d_power, (constant_shape<float, 1, 2>));
 
     template <Point2D (*F)(const Point2D &, const Point2D &)>
     Sequence<Point2D> points2d_elementwise_binary(const Sequence<Point2D> &points0, const Sequence<Point2D> &points1)

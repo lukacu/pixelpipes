@@ -21,7 +21,6 @@ ByteSequence decode_png_wrapper(unsigned &w, unsigned &h, const unsigned char *i
         state.info_raw.bitdepth = bitdepth;
         size_t buffersize = lodepng_get_raw_size(w, h, &state.info_raw);
         return ByteSequence::claim(buffer, buffersize);
-        // out.insert(out.end(), &buffer[0], &buffer[buffersize]);
     }
     else
     {
@@ -47,7 +46,7 @@ namespace pixelpipes
         return buffer;
     }
 
-    PIXELPIPES_OPERATION_AUTO("read_file", read_file);
+    PIXELPIPES_ACCESS_OPERATION_AUTO("read_file", read_file, (constant_shape<uchar, unknown>) );
 
     TokenReference load_png_palette(const BufferReference& buffer) noexcept(false)
     {
@@ -58,6 +57,6 @@ namespace pixelpipes
         return create<Matrix<char>>(width, height, data.reinterpret<char>());
     }
 
-    PIXELPIPES_OPERATION_AUTO("load_png_palette", load_png_palette);
+    PIXELPIPES_COMPUTE_OPERATION_AUTO("load_png_palette", load_png_palette, (constant_shape<uchar, unknown, unknown>) );
 
 }

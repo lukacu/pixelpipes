@@ -10,6 +10,21 @@ namespace pixelpipes
 
 #define IS_INTEGER(x) ((x)->is<ContainerToken<int>>())
 
+    TokenReference int_or_float(const TokenList &inputs)
+    {
+        bool integer = true;
+
+        for (auto input = inputs.begin(); input != inputs.end(); input++)
+        {
+            integer &= IS_INTEGER(*input);
+        }
+
+        if (integer)
+            return constant_shape<int>(inputs);
+        else
+            return constant_shape<float>(inputs);
+    }
+
     float sample_normal(float mean, float stdev, int seed)
     {
         RandomGenerator generator = create_generator(seed);
@@ -17,7 +32,7 @@ namespace pixelpipes
         return dst(generator);
     }
 
-    PIXELPIPES_OPERATION_AUTO("random_normal", sample_normal);
+    PIXELPIPES_UNIT_OPERATION_AUTO("random_normal", sample_normal, constant_shape<float>);
 
     float sample_uniform(float min, float max, int seed)
     {
@@ -26,30 +41,30 @@ namespace pixelpipes
         return dst(generator);
     }
 
-    PIXELPIPES_OPERATION_AUTO("random_uniform", sample_uniform);
+    PIXELPIPES_UNIT_OPERATION_AUTO("random_uniform", sample_uniform, constant_shape<float>);
 
     int round_value(float value)
     {
         return static_cast<int>(round(value));
     }
 
-    PIXELPIPES_OPERATION_AUTO("numbers_round", round_value);
+    PIXELPIPES_UNIT_OPERATION_AUTO("numbers_round", round_value, constant_shape<int>);
 
     int floor_value(float value)
     {
         return static_cast<int>(floor(value));
     }
 
-    PIXELPIPES_OPERATION_AUTO("numbers_floor", floor_value);
+    PIXELPIPES_UNIT_OPERATION_AUTO("numbers_floor", floor_value, constant_shape<int>);
 
     int ceil_value(float value)
     {
         return static_cast<int>(ceil(value));
     }
 
-    PIXELPIPES_OPERATION_AUTO("numbers_ceil", ceil_value);
+    PIXELPIPES_UNIT_OPERATION_AUTO("numbers_ceil", ceil_value, constant_shape<int>);
 
-    TokenReference number_add(const TokenList& inputs)
+    TokenReference number_add(const TokenList &inputs)
     {
         VERIFY(inputs.size() >= 1, "Illegal number of inputs");
 
@@ -68,9 +83,9 @@ namespace pixelpipes
             return wrap(value);
     }
 
-    PIXELPIPES_OPERATION("numbers_add", number_add);
+    PIXELPIPES_UNIT_OPERATION("numbers_add", number_add, int_or_float);
 
-    TokenReference number_subtract(const TokenReference& a, const TokenReference& b)
+    TokenReference number_subtract(const TokenReference &a, const TokenReference &b)
     {
         float v1 = extract<float>(a);
         float v2 = extract<float>(b);
@@ -83,9 +98,9 @@ namespace pixelpipes
             return wrap(v1 - v2);
     }
 
-    PIXELPIPES_OPERATION_AUTO("numbers_subtract", number_subtract);
+    PIXELPIPES_UNIT_OPERATION_AUTO("numbers_subtract", number_subtract, int_or_float);
 
-    TokenReference number_multiply(const TokenList& inputs)
+    TokenReference number_multiply(const TokenList &inputs)
     {
 
         VERIFY(inputs.size() >= 1, "Illegal number of inputs");
@@ -105,7 +120,7 @@ namespace pixelpipes
             return wrap(value);
     }
 
-    PIXELPIPES_OPERATION("numbers_multiply", number_multiply);
+    PIXELPIPES_UNIT_OPERATION("numbers_multiply", number_multiply, int_or_float);
 
     float number_divide(float a, float b)
     {
@@ -113,23 +128,23 @@ namespace pixelpipes
         return a / b;
     }
 
-    PIXELPIPES_OPERATION_AUTO("numbers_divide", number_divide);
+    PIXELPIPES_UNIT_OPERATION_AUTO("numbers_divide", number_divide, constant_shape<float>);
 
     float number_power(float value, float exponent)
     {
         return pow(value, exponent);
     }
 
-    PIXELPIPES_OPERATION_AUTO("numbers_power", number_power);
+    PIXELPIPES_UNIT_OPERATION_AUTO("numbers_power", number_power, constant_shape<float>);
 
     int number_modulo(int value, int quotient)
     {
         return value % quotient;
     }
 
-    PIXELPIPES_OPERATION_AUTO("numbers_modulo", number_modulo);
+    PIXELPIPES_UNIT_OPERATION_AUTO("numbers_modulo", number_modulo, constant_shape<int>);
 
-    TokenReference Maximum(const TokenList& inputs)
+    TokenReference number_maximum(const TokenList &inputs)
     {
 
         VERIFY(inputs.size() > 1, "Illegal number of inputs, at least one required");
@@ -149,9 +164,9 @@ namespace pixelpipes
             return wrap(value);
     }
 
-    PIXELPIPES_OPERATION("numbers_max", Maximum);
+    PIXELPIPES_UNIT_OPERATION("numbers_max", number_maximum, int_or_float);
 
-    TokenReference number_minimum(const TokenList& inputs)
+    TokenReference number_minimum(const TokenList &inputs)
     {
 
         VERIFY(inputs.size() > 1, "Illegal number of inputs, at least one required");
@@ -171,7 +186,7 @@ namespace pixelpipes
             return wrap(value);
     }
 
-    PIXELPIPES_OPERATION("numbers_min", number_minimum);
+    PIXELPIPES_UNIT_OPERATION("numbers_min", number_minimum, int_or_float);
 
     template <typename Op>
     TokenReference compare_binary(float a, float b)
@@ -181,21 +196,21 @@ namespace pixelpipes
     }
 
 #define compare_equal compare_binary<std::equal_to<float>>
-    PIXELPIPES_OPERATION_AUTO("compare_equal", compare_equal);
+    PIXELPIPES_UNIT_OPERATION_AUTO("compare_equal", compare_equal, constant_shape<bool>);
 
 #define compare_not_equal compare_binary<std::not_equal_to<float>>
-    PIXELPIPES_OPERATION_AUTO("compare_not_equal", compare_not_equal);
+    PIXELPIPES_UNIT_OPERATION_AUTO("compare_not_equal", compare_not_equal, constant_shape<bool>);
 
 #define compare_greater compare_binary<std::greater<float>>
-    PIXELPIPES_OPERATION_AUTO("compare_greater", compare_greater);
+    PIXELPIPES_UNIT_OPERATION_AUTO("compare_greater", compare_greater, constant_shape<bool>);
 
 #define compare_less compare_binary<std::less<float>>
-    PIXELPIPES_OPERATION_AUTO("compare_less", compare_less);
+    PIXELPIPES_UNIT_OPERATION_AUTO("compare_less", compare_less, constant_shape<bool>);
 
 #define compare_greater_equal compare_binary<std::greater_equal<float>>
-    PIXELPIPES_OPERATION_AUTO("compare_greater_equal", compare_greater_equal);
+    PIXELPIPES_UNIT_OPERATION_AUTO("compare_greater_equal", compare_greater_equal, constant_shape<bool>);
 
 #define compare_less_equal compare_binary<std::less_equal<float>>
-    PIXELPIPES_OPERATION_AUTO("compare_less_equal", compare_less_equal);
+    PIXELPIPES_UNIT_OPERATION_AUTO("compare_less_equal", compare_less_equal, constant_shape<bool>);
 
 }

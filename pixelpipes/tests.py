@@ -2,7 +2,7 @@ import unittest
 import numpy as np
 
 from .flow import Conditional
-from .list import Table, LogicalAnd, LogicalNot, LogicalOr, Range
+from .list import Table, Range
 from .numbers import Floor, Round, SampleUnform, Stack
 from .types import Integer, Char, Float, IntegerList, FloatList, Token, Boolean
 from .compiler import Compiler
@@ -284,8 +284,7 @@ class ListTests(TestBase):
             n1 = Constant([True, False, True])
             n2 = Constant([False, True, True])
 
-            outputs(LogicalAnd(n1, n2), LogicalOr(
-                n1, n2), LogicalNot(n2))
+            outputs(n1 & n2, n1 | n2, ~n2)
 
         pipeline = Compiler.build_graph(graph)
         sample = pipeline.run(1)

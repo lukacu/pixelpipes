@@ -1,5 +1,6 @@
 
 #include <pixelpipes/token.hpp>
+#include <pixelpipes/tensor.hpp>
 
 namespace pixelpipes
 {
@@ -18,6 +19,38 @@ namespace pixelpipes
         std::stringstream ss;
         describe(ss);
         return ss.str();
+    }
+
+
+    Placeholder::Placeholder(const Shape &shape) : _shape{shape}
+    {
+    }
+
+    Placeholder::~Placeholder() = default;
+
+    void Placeholder::describe(std::ostream &os) const
+    {
+        os << "[Placeholder: " << _shape << "]";
+    }
+
+    Shape Placeholder::shape() const
+    {
+        return _shape;
+    }
+
+    TokenReference Placeholder::dummy() const
+    {
+        if (_shape.is_scalar()) {
+            if (_shape.element() == IntegerIdentifier) {
+                return create<IntegerScalar>(0);
+            } else if (_shape.element() == FloatIdentifier) {
+                return create<FloatScalar>(0.0f);
+            } else {
+                return create<CharScalar>(0);
+            }
+        } else {
+            return create_tensor(_shape);
+        }
     }
 
     void List::describe(std::ostream &os) const

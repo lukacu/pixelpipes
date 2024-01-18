@@ -82,7 +82,7 @@ SET(CORE_SOURCE
     src/image.cpp
     src/io.cpp 
     src/list.cpp
-    src/pipeline/optimization.cpp
+    src/compiler/optimization.cpp
     src/serialization/compression.cpp
     src/serialization/serialization.cpp
 )

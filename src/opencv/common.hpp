@@ -60,9 +60,17 @@ namespace pixelpipes
         Float
     };
 
+    enum class ImageChannels
+    {
+        GRAY,
+        RGB,
+        RGBA
+    };
+
     PIXELPIPES_CONVERT_ENUM(Interpolation)
     PIXELPIPES_CONVERT_ENUM(BorderStrategy)
     PIXELPIPES_CONVERT_ENUM(ImageDepth)
+    PIXELPIPES_CONVERT_ENUM(ImageChannels)
     PIXELPIPES_CONVERT_ENUM(ColorConversion)
 
     template <>
@@ -243,7 +251,9 @@ namespace pixelpipes
         case CV_8U:
             return 255;
         case CV_16U:
-            return 255 * 255;
+            return std::numeric_limits<uint16_t>::max();
+        case CV_16S:
+            return std::numeric_limits<int16_t>::max();
         case CV_32S:
             return std::numeric_limits<int32_t>::max();
         case CV_32F:
@@ -261,6 +271,7 @@ namespace pixelpipes
         case CV_8U:
             return 0;
         case CV_16U:
+        case CV_16S:
             return 0;
         case CV_32S:
             return std::numeric_limits<int32_t>::min();
@@ -271,7 +282,10 @@ namespace pixelpipes
         }
     }
 
-
     int ocv_border_type(BorderStrategy b, int *value);
+
+    TokenReference forward_image_type(const TokenList &inputs);
+
+    //TokenReference common_image_type(const TokenList &inputs);
 
 }

@@ -659,6 +659,11 @@ namespace pixelpipes
             if (GetTypeIdentifier<float>()  != tr->cell_type()) throw TypeException("Tensor type mismatch, use casting");
             return xt::adapt(tr->data().reinterpret<float>().data(), ts.size(), xt::no_ownership(), _shape, _strides);
         }
+        else if constexpr (std::is_same_v<T, bool>)
+        {
+            if (GetTypeIdentifier<bool>()  != tr->cell_type()) throw TypeException("Tensor type mismatch, use casting");
+            return xt::adapt(tr->data().reinterpret<bool>().data(), ts.size(), xt::no_ownership(), _shape, _strides);
+        }
         else
         {
             throw TypeException("Unsupported tensor type");

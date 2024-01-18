@@ -1,13 +1,14 @@
 
 from pixelpipes.graph import Operation, Input
 
-from attributee import Boolean
+from attributee import Enumeration
 
 from .. import types
+from ..graph import EnumerationInput
 
-from . import ImageDepth
+from . import ImageDepth, ImageChannels
 
-class LoadPNGPaletteIndices(Operation):
+class DecodePNGPaletteIndices(Operation):
     """Decodes buffer as PNG as palette indices (no conversion to RGB)"""
 
     buffer = Input(types.Buffer(), description="Memory buffer encoded as PNG")
@@ -19,31 +20,16 @@ class LoadPNGPaletteIndices(Operation):
         # TODO: is this correct
         return types.Image(channels=1, depth="uchar")
 
-class ReadImage(Operation):
+class DecodeImage(Operation):
     """Read image from file with 8-bit per channel depth. Color or grayscale.
     """
 
     buffer = Input(types.Buffer(), description="Memory buffer with encoded image")
-    grayscale = Boolean(
-        default=False, description="Convert to grayscale, otherwise convert to color")
+    depth = Enumeration(ImageDepth, default="Char", description="Depth of the image")
+    channels = Enumeration(ImageChannels, default="RGB", description="Number of channels in the image")
 
-    def operation(self):
-        if self.grayscale:
-            return "opencv:image_read_grayscale",
-        return "opencv:image_read_color",
+    def operation(self):    
+        return "opencv:image_decode", self.depth, self.channels
 
     def infer(self, buffer):
-        return types.Image(channels=1 if self.grayscale else 3)
-
-
-class ReadImageAny(Operation):
-    """Read image from file without conversions
-    """
-
-    buffer = Input(types.Buffer(), description="Memory buffer with encoded image")
-
-    def operation(self):
-        return "opencv:image_read",
-
-    def infer(self, buffer):
-        return types.Image()
+        return types.Image(channels=None)

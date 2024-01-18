@@ -467,8 +467,8 @@ namespace pixelpipes
         return (int)list->length();
     }
 
-    PIXELPIPES_OPERATION_AUTO("list_length", list_length);
-
+    PIXELPIPES_UNIT_OPERATION_AUTO("list_length", list_length, constant_shape<int>);
+/*
     template <typename Op, typename F, typename R>
     TokenReference list_elementwise_binary(const Sequence<F> &a, const Sequence<F> &b)
     {
@@ -526,20 +526,6 @@ namespace pixelpipes
 
 #define list_compare_less_equal list_elementwise_binary<std::less_equal<float>, float, bool>
     PIXELPIPES_OPERATION_AUTO("list_compare_less_equal", list_compare_less_equal);
-/*
-    TokenReference list_logical_and(const Sequence<bool> &a, const Sequence<bool> &b)
-    {
-        if (a.size() != b.size())
-            throw TypeException("List length mismatch");
-
-        Sequence<bool> result(a.size());
-        for (size_t i = 0; i < a.size(); i++)
-        {
-            result[i] = (a[i] && b[i]);
-        }
-
-        return wrap(result);
-    }*/
 
 #define list_logical_and list_elementwise_binary<std::logical_and<bool>, bool, bool>
     PIXELPIPES_OPERATION_AUTO("list_logical_and", list_logical_and);
@@ -572,7 +558,7 @@ namespace pixelpipes
     }
 
     PIXELPIPES_OPERATION_AUTO("list_logical_not", list_logical_not);
-
+*/
     // TODO: better detecton of integer lists vs float
     TokenReference list_build(const TokenList &inputs)
     {
@@ -603,6 +589,23 @@ namespace pixelpipes
         }
     }
 
-    PIXELPIPES_OPERATION("list_build", list_build);
+    TokenReference shape_from_elements(const TokenList &inputs) 
+    {
+        // Determine list type from elements, the size is the number of elements
+
+        VERIFY(inputs.size() > 0, "No inputs");
+
+        Shape shape = inputs[0]->shape();
+
+        for (size_t i = 1; i < inputs.size(); i++)
+        {
+            shape = shape & inputs[i]->shape();
+        }
+
+        return create<Placeholder>(shape.push(inputs.size()));
+
+    }
+
+    PIXELPIPES_COMPUTE_OPERATION("list_build", list_build, shape_from_elements);
 
 }

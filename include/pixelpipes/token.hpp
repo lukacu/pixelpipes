@@ -26,6 +26,32 @@ namespace pixelpipes
         std::string describe() const;
     };
 
+
+    class PIXELPIPES_API Placeholder : public Token
+    /**
+    Placeholder token is used to represent a token with unknown value, but known shape. It is used in inference phase.
+    */
+    {
+        PIXELPIPES_RTTI(Placeholder, Token)
+    public:
+        /** Construct a placeholder token with given shape.
+        */
+        Placeholder(const Shape &shape = AnythingType());
+
+        /** Destruct the placeholder token.
+        */
+        virtual ~Placeholder();
+
+        virtual void describe(std::ostream &os) const override;
+
+        virtual Shape shape() const override;
+
+        TokenReference dummy() const;
+
+    private:
+        Shape _shape;
+    };
+
     inline std::ostream& operator<<(std::ostream& os, const TokenReference& token)
     {
         if (!token) {
@@ -128,6 +154,8 @@ namespace pixelpipes
     typedef ScalarToken<ushort> UShortScalar;
 
 #define _IS_SCALAR_TOKEN(TOKEN, INNER) (((TOKEN)->is<ContainerToken<INNER>>()))
+
+#define _IS_PLACEHOLDER(TOKEN) (((TOKEN)->is<Placeholder>()))
 
 // TODO: validate
 #define PIXELPIPES_CONVERT_ENUM(E)            \

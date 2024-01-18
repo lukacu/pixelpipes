@@ -3,14 +3,15 @@ import os
 from enum import Enum, auto
 from typing import Optional
 
-from attributee import String, Boolean, Enumeration, Callable
+from attributee import String, Boolean, Callable, Enumeration
 
 from . import ResourceField
 from .list import ResourceListSource, FileList
 from .. import types
-from ..image.loading import ReadImage, ReadImageAny
+from ..image.loading import DecodeImage
 from ..graph import ReadFile
 
+from ..image import ImageDepth, ImageChannels
 
 class ColorConversion(Enum):
     UNCHANGED = auto()
@@ -19,15 +20,15 @@ class ColorConversion(Enum):
 
 class LoadImage(ResourceField):
 
-    def __init__(self, field: str, loader: Optional[bool] = None):
+    def __init__(self, field: str, decoder: Optional[bool] = None):
         super().__init__(types.Image())
-        self._loader = loader
+        self._decoder = decoder
         self._field = field
 
     def access(self, parent):
-        if self._loader:
-            return self._loader(ReadFile(parent.type[self._field].access(parent)))
-        return ReadImage(ReadFile(parent.type[self._field].access(parent)))
+        if self._decoder is not None:
+            return self._decoder(ReadFile(parent.type[self._field].access(parent)))
+        return DecodeImage(ReadFile(parent.type[self._field].access(parent)))
 
 
 _EXTENSIONS = [".jpg", ".jpeg", ".png", ".tif", ".tiff"]
@@ -46,10 +47,10 @@ class ImageDirectory(ResourceListSource):
     recursive = Boolean(
         default=False, description="Images are collected in subdirectories as well")
     sorted = Boolean(default=True, description="Sort images by filename")
-    conversion = Enumeration(
-        ColorConversion, default=ColorConversion.COLOR, description="Color conversion options")
     filter = Callable(
         default=None, description="Filtering function, recieves filename, tells if file should be included")
+    depth = Enumeration(ImageDepth, default="Char", description="Depth of the image")
+    channels = Enumeration(ImageChannels, default="RGB", description="Number of channels in the image")
 
     def load(self):
         if not self.recursive:
@@ -65,14 +66,7 @@ class ImageDirectory(ResourceListSource):
         if self.filter is not None:
             files = [file for file in files if self.filter(file)]
 
-        if self.conversion == ColorConversion.COLOR:
-            def loader(x): return ReadImage(x, grayscale=False)
-        elif self.conversion == ColorConversion.GRAYSCALE:
-            def loader(x): return ReadImage(x, grayscale=True)
-        elif self.conversion == ColorConversion.UNCHANGED:
-            def loader(x): return ReadImageAny(x)
-
-        image = LoadImage(field="file", loader=loader)
+        image = LoadImage(field="file", decoder=lambda x: DecodeImage(x, depth=self.depth, channels=self.channels))
 
         return {
             "file": FileList(files),

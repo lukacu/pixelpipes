@@ -38,6 +38,6 @@ namespace pixelpipes
         return create<IntegerVector>(make_view(std::vector<int>({(int)s[1], (int)s[0], (int)s[2], (int)depth * 8})));
     }
 
-    PIXELPIPES_OPERATION_AUTO("image_properties", GetImageProperties);
+    PIXELPIPES_UNIT_OPERATION_AUTO("image_properties", GetImageProperties, (constant_shape<int, 4>));
 
 }

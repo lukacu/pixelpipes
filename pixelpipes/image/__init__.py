@@ -3,6 +3,7 @@ from .. import LazyLoadEnum, load_module
 
 load_module("opencv")
 
+ImageChannels = LazyLoadEnum("channels")
 ImageDepth = LazyLoadEnum("depth")
 InterpolationMode = LazyLoadEnum("interpolation")
 BorderStrategy = LazyLoadEnum("border")
@@ -11,8 +12,6 @@ from pixelpipes.graph import Operation, Input, Macro, hidden, EnumerationInput
 
 from ..list import GetElement
 from .. import types
-
-from . import ImageDepth
 
 @hidden
 class _GetImageProperties(Operation):
