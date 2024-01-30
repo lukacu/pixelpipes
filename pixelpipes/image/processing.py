@@ -15,10 +15,6 @@ class ImageBlend(Operation):
     def operation(self):
         return "opencv:blend",
 
-    def infer(self, a, b, alpha):
-        return types.Image(a[2], a[1], a[0], a.element)
-
-
 class ImageNormalize(Operation):
     """Normalizes values between a range determined by the type of image elements, for integer types this is
     min-max, for float it is 0 and 1.
@@ -29,9 +25,6 @@ class ImageNormalize(Operation):
     def operation(self):
         return "opencv:normalize",
 
-    def infer(self, source):
-        return types.Image(source[2], source[1], source[0], source.element)
-
 class ImageDropout(Operation):
     """Sets image pixels to zero with probability p."""
 
@@ -41,9 +34,6 @@ class ImageDropout(Operation):
 
     def operation(self):
         return "opencv:dropout",
-
-    def infer(self, source, probability, seed):
-        return types.Image(source[2], source[1], source[0], source.element)
 
 class ImageCoarseDropout(Operation):
     """Divides an image into patches and cuts them with probability p.
@@ -57,9 +47,6 @@ class ImageCoarseDropout(Operation):
     def operation(self):
         return "opencv:coarse_dropout",
 
-    def infer(self, source, probability, size, seed):
-        return types.Image(source[2], source[1], source[0], source.element)
-
 class ImageCut(Operation):
     """Sets a given rectangular region in an image to zero.
     """
@@ -70,9 +57,6 @@ class ImageCut(Operation):
     def operation(self):
         return "opencv:cut",
 
-    def infer(self, source, region):
-        return types.Image(source[2], source[1], source[0], source.element)
-
 class ImageSolarize(Operation):
     """Invert all values above a threshold in images."""
 
@@ -81,6 +65,3 @@ class ImageSolarize(Operation):
 
     def operation(self):
         return "opencv:solarize",
-
-    def infer(self, source, threshold):
-        return types.Image(source[2], source[1], source[0], source.element)

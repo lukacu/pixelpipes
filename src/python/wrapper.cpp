@@ -98,6 +98,96 @@ static PyGetSetDef PipelineError_getsetters[] = {
 
 // static PyObject *PyPipelineError;
 
+py::object convert_type(const Type &type)
+{
+    switch (type)
+    {
+    case IntegerType:
+        return py::str("int");
+    case FloatType:
+        return py::str("float");
+    case BooleanType:
+        return py::str("bool");
+    case CharType:
+        return py::str("char");
+    case ShortType:
+        return py::str("short");
+    case UnsignedShortType:
+        return py::str("ushort");
+    default:
+        return py::none();
+    }
+}
+
+Type convert_type(const py::object &type)
+{
+    if (type.is_none())
+        return AnyType;
+
+    auto stype = type.cast<py::str>();
+
+    if (stype.equal(py::str("int")))
+        return IntegerType;
+    if (stype.equal(py::str("float")))
+        return FloatType;
+    if (stype.equal(py::str("bool")))
+        return BooleanType;
+    if (stype.equal(py::str("char")))
+        return CharType;
+    if (stype.equal(py::str("short")))
+        return ShortType;
+    if (stype.equal(py::str("ushort")))
+        return UnsignedShortType;
+
+    return AnyType;
+}
+
+py::tuple shape_to_tuple(const Shape &shape)
+{
+    py::tuple result(shape.rank() + 1);
+
+    result[0] = convert_type(shape.element());
+
+    for (size_t i = 0; i < shape.rank(); i++)
+    {
+        if (shape[i] == unknown)
+        {
+            result[i + 1] = py::none();
+        }
+        else
+        {
+            result[i + 1] = (size_t) shape[i];
+        }
+    }
+
+    return result;
+}
+
+Shape tuple_to_shape(const py::tuple &shape)
+{
+    if (shape.size() == 0)
+    {
+        return Shape();
+    }
+
+    std::vector<Size> result(shape.size() - 1);
+
+    for (size_t i = 0; i < shape.size() - 1; i++)
+    {
+        // Convert None to unknown
+        if (shape[i + 1].is_none())
+        {
+            result[i] = unknown;
+        }
+        else
+        {
+            result[i] = shape[i + 1].cast<size_t>();
+        }
+    }
+
+    return Shape(convert_type(shape[0].cast<py::str>()), make_span(result));
+}
+
 py::array token_to_python(const pixelpipes::TokenReference &variable)
 {
     if (!variable)
@@ -209,8 +299,13 @@ TokenReference _python_list_convert_strict(const py::list &list)
 
 TokenReference python_to_token(py::object src)
 {
-    if (py::bool_::check_(src))
+    if (py::none::check_(src))
     {
+        throw py::value_error("Unable to convert Python data");
+    }
+ 
+    if (py::bool_::check_(src))
+    { 
         py::bool_ value(src);
         return create<BooleanScalar>(value);
     }
@@ -279,7 +374,7 @@ TokenReference python_to_token(py::object src)
 }
 
 template <typename T>
-int _add_operation(T &pipeline, std::string &name, py::list& args, std::vector<int>& inputs, py::dict& meta)
+int _add_operation(T &pipeline, std::string &name, py::tuple &args, std::vector<int> &inputs, py::dict &meta)
 {
 
     try
@@ -298,7 +393,8 @@ int _add_operation(T &pipeline, std::string &name, py::list& args, std::vector<i
 
         Metadata metadata;
 
-        for (auto arg : meta) {
+        for (auto arg : meta)
+        {
             py::str key(arg.first);
             py::str value(arg.second);
             metadata.set(key, value);
@@ -312,6 +408,54 @@ int _add_operation(T &pipeline, std::string &name, py::list& args, std::vector<i
     }
 }
 
+TokenReference _evaluate_operation(std::string &name, const TokenList &inputs, py::tuple &args)
+{
+
+    try
+    {
+        OperationDescription type_hints = describe_operation(name);
+
+        if (type_hints.arguments.size() != args.size())
+            throw std::invalid_argument("Argument number mismatch");
+
+        Sequence<TokenReference> arguments(args.size());
+
+        for (size_t i = 0; i < args.size(); i++)
+        {
+            arguments[i] = python_to_token(args[i]);
+        }
+
+        auto operation = create_operation(name, arguments);
+
+        return operation->evaluate(inputs);
+    }
+    catch (BaseException &e)
+    {
+        throw py::value_error(e.what());
+    }
+}
+
+class PyToken
+{
+public:
+    PyToken(const TokenReference &token) : token(token.reborrow()) {}
+
+    PyToken(const PyToken &other) : token(other.token.reborrow()) {}
+
+    py::tuple shape()
+    {
+        return shape_to_tuple(token->shape());
+    }
+
+    TokenReference get()
+    {
+        return token.reborrow();
+    }
+
+private:
+    TokenReference token;
+};
+
 PYBIND11_MODULE(pypixelpipes, m)
 {
 
@@ -320,7 +464,7 @@ PYBIND11_MODULE(pypixelpipes, m)
         throw py::error_already_set();
     }
 
-    m.doc() = "Python Wrapper for PixelPipes Engine";
+    m.doc() = "Python Wrapper for the PixelPipes Framwork";
     /*
         PyPipelineError = PyErr_NewException("PipelineError", NULL, NULL);
         if (PyPipelineError) {
@@ -359,8 +503,11 @@ PYBIND11_MODULE(pypixelpipes, m)
     py::register_exception<OperationException>(m, "OperationException");
     py::register_exception<TypeException>(m, "TypeException");
     py::register_exception<ModuleException>(m, "ModuleException");
-    py::register_exception<IllegalStateException>(m, "IllegalStateException"); 
+    py::register_exception<IllegalStateException>(m, "IllegalStateException");
     py::register_exception<PipelineException>(m, "PipelineException");
+
+    py::class_<PyToken>(m, "Token")
+        .def("shape", &PyToken::shape, "Get shape of the token");
 
     py::class_<Pipeline>(m, "Pipeline")
         .def(py::init<>())
@@ -372,7 +519,7 @@ PYBIND11_MODULE(pypixelpipes, m)
                 return std::vector<std::string>(labels.begin(), labels.end()); },
             "Get output labels as a list")
         .def(
-            "append", [](Pipeline &p, std::string &name, py::list args, std::vector<int> inputs, py::dict meta)
+            "append", [](Pipeline &p, std::string &name, py::tuple args, std::vector<int> inputs, py::dict meta)
             { return _add_operation(p, name, args, inputs, meta); },
             "Add operation to pipeline")
         .def(
@@ -401,7 +548,7 @@ PYBIND11_MODULE(pypixelpipes, m)
                 }
                 return transformed; },
             "Run pipeline", py::arg("index"));
- 
+
     m.def(
         "read_pipeline", [](std::string &name)
         { return read_pipeline(name); },
@@ -417,16 +564,27 @@ PYBIND11_MODULE(pypixelpipes, m)
         { return visualize_pipeline(pipeline); },
         py::arg("pipeline"));
 
-    #ifdef PIXELPIPES_DEBUG
+#ifdef PIXELPIPES_DEBUG
     m.def(
         "_refcount", []()
         { return debug_ref_count(); });
-    #endif
+#endif
 
     /*py::class_<PipelineCallback, PyPipelineCallback, std::shared_ptr<PipelineCallback>>(m, "PipelineCallback")
         .def(py::init());*/
 
-    // py::class_<Operation, OperationReference >(m, "Operation");
+    m.def("evaluate_operation", [](std::string &name, std::vector<PyToken> inputs, py::tuple args)
+          { 
+            std::vector<TokenReference> token_inputs(inputs.size());
+            for (size_t i = 0; i < inputs.size(); i++)
+            {
+                token_inputs[i] = inputs[i].get();
+            }
+
+            TokenReference r = _evaluate_operation(name, make_view(token_inputs), args);
+            return PyToken(r);
+           
+           });
 
     m.def("enum", [](std::string &name)
           { return describe_enumeration(name); });

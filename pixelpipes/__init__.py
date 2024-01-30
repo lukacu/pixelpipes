@@ -107,7 +107,7 @@ class Pipeline(object):
             for op in data:
                 input_indices = [indices[id] for id in op.inputs]
                 try:
-                    indices[op.id] = self._pipeline.append(op.name, op.arguments, input_indices, {"label": op.id})
+                    indices[op.id] = self._pipeline.append(op.name, tuple(op.arguments), input_indices, {"label": op.id})
                 except ValueError as ve:
                     raise ValidationException("Error when adding operation %s: %s" % (op.name, str(ve)))
                 assert indices[op.id] >= 0
@@ -179,3 +179,20 @@ def visualize_pipeline(pipeline: Pipeline):
         raise ImportError("Install graphviz to visualize pipeline")
     graph = Source(pypixelpipes.visualize_pipeline(pipeline._pipeline))
     graph.view()
+
+def evaluate_operation(name: str, inputs, arguments):
+    from . import pypixelpipes, types
+
+    def _unwrap(input):
+        assert isinstance(input, types.Token)
+        if hasattr(input, "_native"):
+            return input._native
+
+    def _wrap(output):
+        shape = output.shape()
+        out = types.Token(shape[0], *shape[1:])
+        out._native = output
+        return out
+
+    return _wrap(pypixelpipes.evaluate_operation(name, [_unwrap(input) for input in inputs], arguments))
+    

@@ -120,7 +120,7 @@ namespace pixelpipes {
             if (any_placeholder(inputs))
             {
                 Size channels;
-                TypeIdentifier depth = AnyType;
+                Type depth = AnyType;
 
                 switch (_channels)
                 {
@@ -138,19 +138,19 @@ namespace pixelpipes {
                 switch (_depth)
                 {
                 case ImageDepth::Char:
-                    depth = GetTypeIdentifier<uint8_t>();
+                    depth = GetType<uint8_t>();
                     break;
                 case ImageDepth::UShort:
-                    depth = GetTypeIdentifier<uint16_t>();
+                    depth = GetType<uint16_t>();
                     break;
                 case ImageDepth::Short:
-                    depth = GetTypeIdentifier<int16_t>();
+                    depth = GetType<int16_t>();
                     break;
                 case ImageDepth::Integer:
-                    depth = GetTypeIdentifier<int32_t>();
+                    depth = GetType<int32_t>();
                     break;
                 case ImageDepth::Float:
-                    depth = GetTypeIdentifier<float>();
+                    depth = GetType<float>();
                     break;
                 }
 
@@ -169,9 +169,9 @@ namespace pixelpipes {
             return OperationTrait::Compute;
         }
 
-        virtual TypeIdentifier type() const override
+        virtual Type type() const override
         {
-            return GetTypeIdentifier<ImageDecode>();
+            return GetType<ImageDecode>();
         }
 
         virtual Sequence<TokenReference> serialize() { return Sequence<TokenReference>({wrap(_channels), wrap(_depth)}); }

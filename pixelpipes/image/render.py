@@ -2,7 +2,7 @@
 from ..graph import Input, Operation, SeedInput
 from .. import types
 
-class NormalNoise(Operation):
+class GaussianNoise(Operation):
     """
     Creates a single channel image with values sampled from gaussian distribution.
     """
@@ -14,10 +14,7 @@ class NormalNoise(Operation):
     seed = SeedInput()
     
     def operation(self):
-        return "opencv:normal_noise",
-
-    def infer(self, **inputs):
-        return types.Image(depth="float", channels=1)
+        return "opencv:gaussian_noise",
 
 class UniformNoise(Operation):
     """
@@ -33,9 +30,6 @@ class UniformNoise(Operation):
     def operation(self):
         return "opencv:uniform_noise",
 
-    def infer(self, **inputs):
-        return types.Image(depth="float", channels=1)
-
 class LinearImage(Operation):
     """Generate an image with linearly progressing values from min to max.
     """
@@ -49,9 +43,6 @@ class LinearImage(Operation):
     def operation(self):
         return "opencv:linear_image",
 
-    def infer(self, **inputs):
-        return types.Image(depth="float", channels=1)
-
 class Polygon(Operation):
     """Draw a polygon to a canvas of a given size
     """
@@ -62,6 +53,3 @@ class Polygon(Operation):
 
     def operation(self):
         return "opencv:polygon",
-
-    def infer(self, **inputs):
-        return types.Image(depth="uchar", channels=1)

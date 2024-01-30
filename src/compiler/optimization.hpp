@@ -35,7 +35,7 @@ namespace pixelpipes
 
         virtual TokenReference run(const TokenList &inputs);
 
-        virtual TypeIdentifier type();
+        virtual Type type();
 
         virtual Sequence<TokenReference> serialize();
 
@@ -52,7 +52,7 @@ namespace pixelpipes
 
         virtual TokenReference run(const TokenList &inputs);
 
-        virtual TypeIdentifier type();
+        virtual Type type();
 
         virtual Sequence<TokenReference> serialize();
 

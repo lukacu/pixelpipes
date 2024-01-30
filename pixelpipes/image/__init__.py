@@ -31,9 +31,6 @@ class _GetImageProperties(Operation):
     def operation(self):
         return "image_properties",
 
-    def infer(self, source):
-        return types.IntegerList(4)
-
 class GetImageProperties(Macro):
     """Get image properties
 
@@ -73,10 +70,6 @@ class ConvertDepth(Operation):
     def operation(self):
         return "opencv:convert_depth",
 
-    def infer(self, source, depth):
-        return types.Image(source[1], source[0], source[2])
-
-
 class Grayscale(Operation):
     """Converts image to grayscale."""
 
@@ -84,10 +77,6 @@ class Grayscale(Operation):
 
     def operation(self):
         return "opencv:grayscale",
-
-    def infer(self, source):
-        return types.Image(source[2], source[1], source.element)
-
 
 class Threshold(Operation):
     """Sets pixels with values above threshold to zero. Returns a binary image"""
@@ -98,9 +87,6 @@ class Threshold(Operation):
     def operation(self):
         return "opencv:threshold",
 
-    def infer(self, source, threshold):
-        return types.Image(source[1], source[0], "bool")
-
 class Invert(Operation):
     """Inverts image values"""
 
@@ -108,9 +94,6 @@ class Invert(Operation):
 
     def operation(self):
         return "opencv:invert",
-
-    def infer(self, source):
-        return types.Image(source[2], source[1], 1, source.element)
 
 class Equals(Operation):
     """Equal
@@ -131,10 +114,6 @@ class Equals(Operation):
     def operation(self):
         return "opencv:equals",
 
-    def infer(self, source, value):
-        return types.Image(source[1], source[0], "bool")
-
-
 
 class Moments(Operation):
     """Calculates (first five) image moments."""
@@ -144,6 +123,3 @@ class Moments(Operation):
 
     def operation(self):
         return "opencv:moments",
-
-    def infer(self, source, binary):
-        return types.FloatList()

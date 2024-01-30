@@ -26,7 +26,6 @@ namespace pixelpipes
         std::string describe() const;
     };
 
-
     class PIXELPIPES_API Placeholder : public Token
     /**
     Placeholder token is used to represent a token with unknown value, but known shape. It is used in inference phase.
@@ -35,11 +34,15 @@ namespace pixelpipes
         PIXELPIPES_RTTI(Placeholder, Token)
     public:
         /** Construct a placeholder token with given shape.
-        */
-        Placeholder(const Shape &shape = AnythingType());
+         */
+        Placeholder(const Shape &shape = AnythingShape());
+
+        Placeholder(const Placeholder &that);
+
+        Placeholder(const Type &type, const Sizes &shape);
 
         /** Destruct the placeholder token.
-        */
+         */
         virtual ~Placeholder();
 
         virtual void describe(std::ostream &os) const override;
@@ -52,11 +55,14 @@ namespace pixelpipes
         Shape _shape;
     };
 
-    inline std::ostream& operator<<(std::ostream& os, const TokenReference& token)
+    inline std::ostream &operator<<(std::ostream &os, const TokenReference &token)
     {
-        if (!token) {
+        if (!token)
+        {
             os << "[Empty token]";
-        } else {
+        }
+        else
+        {
             os << token->describe();
         }
         return os;
@@ -67,21 +73,19 @@ namespace pixelpipes
     {
         PIXELPIPES_RTTI(ContainerToken<T>, Token)
     public:
-        ContainerToken(T value) : value(value)
-        {
-        };
+        ContainerToken(T value) : value(value){};
 
         ~ContainerToken() = default;
 
         virtual Shape shape() const override
         {
-            return Shape(GetTypeIdentifier<T>());
+            return Shape(GetType<T>());
         }
 
-        virtual TypeIdentifier container_type() const
+        virtual Type container_type() const
         {
 
-            return GetTypeIdentifier<ContainerToken<T>>();
+            return GetType<ContainerToken<T>>();
         }
 
         inline T get() const { return value; };
@@ -94,9 +98,9 @@ namespace pixelpipes
     protected:
         T value;
     };
-    
+
     template <typename T>
-    T extract(const TokenReference& v)
+    T extract(const TokenReference &v)
     {
         UNUSED(v);
         static_assert(details::always_false<T>, "Conversion not supported");
@@ -111,7 +115,7 @@ namespace pixelpipes
     }
 
     template <>
-    inline TokenReference extract(const TokenReference& v)
+    inline TokenReference extract(const TokenReference &v)
     {
         return v.reborrow();
     }
@@ -122,190 +126,26 @@ namespace pixelpipes
         return v.reborrow();
     }
 
-    template <typename T>
-    class PIXELPIPES_API ScalarToken : public ContainerToken<T>
-    {
-        PIXELPIPES_RTTI(ScalarToken<T>, ContainerToken<T>)
-    public:
-        ScalarToken(T value) : ContainerToken<T>(value) { static_assert(std::is_fundamental_v<T>, "Only primitive types allowed"); };
+#define TokenIdentifier GetType<TokenReference>()
 
-        ~ScalarToken() = default;
+typedef View<TokenReference> TokenList;
 
-        virtual void describe(std::ostream &os) const override
-        {
-            os << "[Scalar " << details::TypeInfo<T>::Name() << ", value: " << this->get() << "]";
-        }
-    };
-
-#define TokenIdentifier GetTypeIdentifier<TokenReference>()
-
-#define IntegerIdentifier GetTypeIdentifier<int>()
-#define ShortIdentifier GetTypeIdentifier<short>()
-#define FloatIdentifier GetTypeIdentifier<float>()
-#define BooleanIdentifier GetTypeIdentifier<bool>()
-#define CharIdentifier GetTypeIdentifier<char>()
-#define UShortIdentifier GetTypeIdentifier<ushort>()
-
-    typedef ScalarToken<int> IntegerScalar;
-    typedef ScalarToken<float> FloatScalar;
-    typedef ScalarToken<bool> BooleanScalar;
-    typedef ScalarToken<char> CharScalar;
-    typedef ScalarToken<short> ShortScalar;
-    typedef ScalarToken<ushort> UShortScalar;
-
-#define _IS_SCALAR_TOKEN(TOKEN, INNER) (((TOKEN)->is<ContainerToken<INNER>>()))
+#define _IS_CONTAINER_TOKEN(TOKEN, INNER) (((TOKEN)->is<ContainerToken<INNER>>()))
 
 #define _IS_PLACEHOLDER(TOKEN) (((TOKEN)->is<Placeholder>()))
 
 // TODO: validate
 #define PIXELPIPES_CONVERT_ENUM(E)            \
     template <>                               \
-    inline E extract(const TokenReference &v)    \
+    inline E extract(const TokenReference &v) \
     {                                         \
         int raw = extract<int>(v);            \
         return (E)raw;                        \
     }                                         \
     template <>                               \
-    inline TokenReference wrap(E v)       \
+    inline TokenReference wrap(E v)           \
     {                                         \
         return create<IntegerScalar>((int)v); \
-    }
-
-    template <>
-    inline int extract(const TokenReference& v)
-    {
-        VERIFY((bool)v, "Uninitialized token");
-
-        if (_IS_SCALAR_TOKEN(v, int))
-            return v->cast<ContainerToken<int>>()->get();
-
-        if (_IS_SCALAR_TOKEN(v, short))
-            return v->cast<ContainerToken<short>>()->get();
-
-        if (_IS_SCALAR_TOKEN(v, ushort))
-            return v->cast<ContainerToken<ushort>>()->get();
-
-        if (_IS_SCALAR_TOKEN(v, bool))
-            return v->cast<ContainerToken<bool>>()->get() ? 1 : 0;
-
-        throw TypeException("Unexpected token type: expected int, got " + v->describe());
-    }
-
-    template <>
-    inline TokenReference wrap(const int v)
-    {
-        return create<IntegerScalar>(v);
-    }
-
-
-    template <>
-    inline short extract(const TokenReference& v)
-    {
-        VERIFY((bool)v, "Uninitialized token");
-
-        if (_IS_SCALAR_TOKEN(v, short))
-            return v->cast<ContainerToken<short>>()->get();
-
-        if (_IS_SCALAR_TOKEN(v, bool))
-            return v->cast<ContainerToken<bool>>()->get() ? 1 : 0;
-
-        throw TypeException("Unexpected token type: expected short, got " + v->describe());
-    }
-
-    template <>
-    inline ushort extract(const TokenReference& v)
-    {
-        VERIFY((bool)v, "Uninitialized token");
-
-        if (_IS_SCALAR_TOKEN(v, ushort))
-            return v->cast<ContainerToken<ushort>>()->get();
-
-        if (_IS_SCALAR_TOKEN(v, bool))
-            return v->cast<ContainerToken<bool>>()->get() ? 1 : 0;
-
-        throw TypeException("Unexpected token type: expected ushort, got " + v->describe());
-    }
-
-    template <>
-    inline TokenReference wrap(const short v)
-    {
-        return create<ShortScalar>(v);
-    }
-
-    template <>
-    inline TokenReference wrap(const ushort v)
-    {
-        return create<UShortScalar>(v);
-    }
-
-
-    template <>
-    inline bool extract(const TokenReference& v)
-    {
-        VERIFY((bool)v, "Uninitialized token");
-
-        if (_IS_SCALAR_TOKEN(v, bool))
-            return v->cast<ContainerToken<bool>>()->get();
-
-        if (_IS_SCALAR_TOKEN(v, float))
-            return v->cast<ScalarToken<float>>()->get() != 0;
-
-        if (_IS_SCALAR_TOKEN(v, int))
-            return v->cast<ContainerToken<int>>()->get() != 0;
-
-        throw TypeException("Unexpected token type: expected bool, got " + v->describe());
-    }
-
-    template <>
-    inline TokenReference wrap(const bool v)
-    {
-        return create<BooleanScalar>(v);
-    }
-
-    template <>
-    inline char extract(const TokenReference& v)
-    {
-        VERIFY((bool)v, "Uninitialized token");
-
-        if (_IS_SCALAR_TOKEN(v, char))
-            return v->cast<ContainerToken<char>>()->get();
-
-        throw TypeException("Unexpected token type: expected char, got " + v->describe());
-    }
-
-    template <>
-    inline TokenReference wrap(const char v)
-    {
-        return create<ScalarToken<char>>(v);
-    }
-
-    template <>
-    inline float extract(const TokenReference& v)
-    {
-        VERIFY((bool)v, "Uninitialized token");
-
-        if (_IS_SCALAR_TOKEN(v, float))
-            return (float)v->cast<ContainerToken<float>>()->get();
-
-        if (_IS_SCALAR_TOKEN(v, int))
-            return (float)v->cast<ContainerToken<int>>()->get();
-
-        if (_IS_SCALAR_TOKEN(v, short))
-            return (float)v->cast<ContainerToken<short>>()->get();
-
-        if (_IS_SCALAR_TOKEN(v, ushort))
-            return (float)v->cast<ContainerToken<ushort>>()->get();
-
-        if (_IS_SCALAR_TOKEN(v, bool))
-            return (float)v->cast<ContainerToken<bool>>()->get();
-
-        throw TypeException("Unexpected token type: expected float, got " + v->describe());
-    }
-
-    template <>
-    inline TokenReference wrap(const float v)
-    {
-        return create<FloatScalar>(v);
     }
 
     class PIXELPIPES_API List : public virtual Token
@@ -342,7 +182,7 @@ namespace pixelpipes
     typedef Pointer<List> ListReference;
 
     template <>
-    inline ListReference extract(const TokenReference& v)
+    inline ListReference extract(const TokenReference &v)
     {
         VERIFY((bool)v, "Uninitialized token");
         VERIFY(v->is<List>(), "Not a list");

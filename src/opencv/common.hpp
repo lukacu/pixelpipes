@@ -204,13 +204,13 @@ namespace pixelpipes
 
         virtual size_t cell_size() const override;
 
-        virtual TypeIdentifier cell_type() const override;
+        virtual Type cell_type() const override;
 
     private:
         cv::Mat _mat;
         SizeSequence _shape;
         SizeSequence _strides;
-        TypeIdentifier _element;
+        Type _element;
     };
 
     //cv::Mat copy(const TensorReference &tensor);
@@ -286,6 +286,40 @@ namespace pixelpipes
 
     TokenReference forward_image_type(const TokenList &inputs);
 
-    //TokenReference common_image_type(const TokenList &inputs);
+    inline Size get_size(const TokenReference &token) {
+        if (_IS_PLACEHOLDER(token)) return unknown;
+        return extract<int>(token);
+    }
+
+    template <int W, int H, Type T>
+    TokenReference given_shape(const TokenList &inputs) noexcept(false)
+    {
+        VERIFY(inputs.size() >= W && inputs.size() >= H, "Incorrect number of parameters");
+        return create<Placeholder>(Shape(T, {get_size(inputs[H]), get_size(inputs[W])}));
+    }
+
+    template <int I>
+    TokenReference forward_shape(const TokenList &inputs) noexcept(false)
+    {
+        VERIFY(inputs.size() >= I, "Incorrect number of parameters");
+        return create<Placeholder>(inputs[I]->shape());
+    }
+
+    template <int I, Type T>
+    TokenReference forward_shape_new_type(const TokenList &inputs) noexcept(false)
+    {
+        VERIFY(inputs.size() >= I, "Incorrect number of parameters");
+        return create<Placeholder>(inputs[I]->shape().cast(T));
+    }
+
+    template <int W, int H, int I>
+    TokenReference given_shape_type(const TokenList &inputs) noexcept(false)
+    {
+        VERIFY(inputs.size() >= W && inputs.size() >= H && inputs.size() >= I, "Incorrect number of parameters");
+        return create<Placeholder>(Shape(inputs[I]->shape().element(), {get_size(inputs[H]), get_size(inputs[W])}));
+    }
+
+    #define rect_shape_int constant_shape<int, 4>
+    #define rect_shape_float constant_shape<float, 4>
 
 }

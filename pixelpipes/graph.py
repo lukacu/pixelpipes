@@ -10,7 +10,9 @@ from attributee import Attributee, Attribute, AttributeException, Undefined, Any
 from attributee.object import class_fullname
 from attributee.primitives import to_number, to_logical, to_string, String
 
-from . import types
+from pixelpipes.types import Data
+
+from . import types, evaluate_operation
 
 from . import ContextFields
 
@@ -326,19 +328,21 @@ class Reference(object):
         return False
 
 class InferredReference(Reference, OperationProxy):
-    """A node reference with type already inferred. Using during compilation in macro expansion.
+    """A node reference with type or value already inferred. Used during compilation and in macro expansion."""
 
-    """
-
-    def __init__(self, ref: str, typ: types.Data):
+    def __init__(self, ref: str, data):
         if isinstance(ref, Reference):
             ref = ref.name
         super().__init__(ref)
-        self._typ = typ
+        self._data = data
 
     @property
     def type(self):
-        return self._typ
+        if isinstance(self._data, types.Data):
+            return self._data
+        else:
+            shape = self._data.shape()
+            return types.Token(shape[0], *shape[1:])
 
 def hidden(node_class):
     node_class.__hidden_base = node_class
@@ -425,7 +429,7 @@ class Node(Attributee, OperationProxy):
         double._source = self._source
         return double
 
-    def validate(self, **inputs):
+    def evaluate(self, **inputs):
         input_types = self.get_inputs()
         assert len(inputs) == len(input_types)
         for input_name, input_type in input_types:
@@ -435,8 +439,7 @@ class Node(Attributee, OperationProxy):
                 raise ValidationException("{}: input '{}' cannot convert {} to {}".format(
                     class_fullname(self), input_name, inputs[input_name], input_type), node=self)
         try:
-
-            return self.infer(**inputs)
+            return self._evaluate([inputs[name] for name, _ in input_types])
         except TypeError as te:
             raise ValidationException("Inferrence failed: {}".format(te), node=self)
 
@@ -449,7 +452,7 @@ class Node(Attributee, OperationProxy):
     def input_names(self):
         return [name for name, _ in self.get_inputs()]
 
-    def infer(self, **inputs) -> types.Data:
+    def _evaluate(self, inputs) -> types.Data:
         raise types.TypeException("Type inferrence must be implemented: {}".format(class_fullname(self)))
 
     def get_inputs(self):
@@ -484,7 +487,16 @@ class Operation(Node):
             typing.Tuple: A tuple of library arguments, the first one being the name of the operation and the rest its construction
             arguments.
         """
-        raise NodeException("Node not converable to operation", node=self)
+        raise NodeException("Node not converable to operation: " + str(self), node=self)
+
+    def _evaluate(self, inputs) -> types.Data:
+        data = self.operation()
+        try:
+            return evaluate_operation(data[0], inputs, data[1:])
+        except Exception as e:
+            strinputs = ", ".join([str(i) for i in inputs])
+            raise NodeException("Error during operation evaluation ({}): {} - {}".format(self.__class__.__name__, e, strinputs), node=self)
+
 
 @hidden
 class Macro(Node):
@@ -492,7 +504,8 @@ class Macro(Node):
     def expand(self, **inputs):
         raise NotImplementedError()
 
-    def infer(self, **inputs):
+    def evaluate(self, **inputs):
+        # Macro inferrence will never be used, this is just a placeholder
         return None
 
 @hidden
@@ -724,9 +737,6 @@ class Constant(Operation):
     def operation(self):
         return "constant", self.value
 
-    def infer(self) -> types.Data:
-        return Constant.resolve_type(self.value)
-
     @staticmethod
     def resolve_type(value) -> types.Data:
         import numpy as np
@@ -761,9 +771,6 @@ class SampleIndex(Operation):
     to initialize random generators where sequential consistentcy is required.
     """
 
-    def infer(self):
-        return types.Integer()
-
     def operation(self):
         return "context", ContextFields["SampleIndex"]
 
@@ -772,9 +779,6 @@ class RandomSeed(Operation):
     itself is sampled from a pseudo-random generator that produces the same sequence of seeds for
     a specific position in the data sequence. This is the corner-stone of repeatability of the pipeline. 
     """
-
-    def infer(self):
-        return types.Integer()
 
     def operation(Operation):
         return "context", ContextFields["RandomSeed"]
@@ -791,11 +795,11 @@ class Debug(Operation):
     source = Input(types.Wildcard(), description="Result of which node to print")
     prefix = String(default="", description="String that is prepended to the output")
 
-    def infer(self, source):
-        return source
-
     def operation(self):
         return "debug", self.prefix
+    
+    def _evaluate(self, inputs) -> Data:
+        return inputs[0]
  
 class Output(Operation):
     """Output node that accepts a single input, enables outputting tokens from the final pipeline. Tokens
@@ -806,9 +810,6 @@ class Output(Operation):
     output = Input(types.Wildcard(), description="Output token")
 
     label = String(default="default", description="Nonunique label of the output")
-
-    def infer(self, output) -> types.Data:
-        return output
 
     def operation(self):
         return "output", self.label
@@ -821,10 +822,6 @@ class ReadFile(Operation):
     def operation(self):
         return "read_file",
 
-    def infer(self, filename):
-        return types.Buffer()
-
-
 def outputs(*inputs, label="default"):
     for i in inputs:
         Output(output=i, label=label)
@@ -834,6 +831,6 @@ class Copy(Node):
 
     source = Input(types.Wildcard())
 
-    def infer(self, source):
-        return source
+    def _evaluate(self, inputs):
+        return inputs[0]
 

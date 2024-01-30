@@ -31,7 +31,7 @@ namespace pixelpipes
 
     typedef TokenReference (*TokenReader)(std::istream &);
 
-    void PIXELPIPES_API type_register_serializer(TypeIdentifier i, std::string_view name, TokenReader reader, TokenWriter writer);
+    void PIXELPIPES_API type_register_serializer(Type i, std::string_view name, TokenReader reader, TokenWriter writer);
 
 #define PIXELPIPES_REGISTER_SERIALIZER(T, UID, READER, WRITER) static AddModuleInitializer CONCAT(__type_io_init_, __COUNTER__)([]() { type_register_serializer(T, UID, READER, WRITER); })
 

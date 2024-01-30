@@ -228,10 +228,28 @@ namespace pixelpipes
 
         Shape shape = v->shape();
 
-        if (shape.rank() == 1 && shape[0] == 9)
+        if (shape.rank() == 2 && shape[0] == 3 && shape[1] == 3)
         {
-            auto value = extract<Sequence<float>>(v);
-            return View2D{value[0], value[1], value[2], value[3], value[4], value[5], value[6], value[7], value[8]};
+            if (v->is<Tensor>()) {
+                TensorReference tensor = extract<TensorReference>(v);
+                View2D view;
+                auto view2 = bytes(view);
+
+                if (shape.element() == FloatType)
+                {
+                    copy_buffer(tensor, view2);
+                    return view;
+                } else 
+                {
+                    for (size_t i = 0; i < 3; i++) {
+                        for (size_t j = 0; j < 3; j++)
+                        {
+                            auto value = tensor->get(SizeSequence({i, j}));  
+                            view2[i * 3 + j] = extract<float>(value);
+                        }
+                    }
+                }
+            } 
         }
 
         throw TypeException("Unable to convert to View2D");
@@ -240,7 +258,7 @@ namespace pixelpipes
     template <>
     inline TokenReference wrap(const View2D v)
     {
-        return create<FloatVector>(make_view<float>((float *)&v, 9));
+        return create<FloatMatrix>(3, 3, make_view<float>((float *)&v, 9));
     }
 
     template <>
@@ -373,7 +391,7 @@ namespace pixelpipes
     inline bool is_numeric_list(const ListReference &v)
     {
         Shape s = v->shape();
-        return (s.element() == IntegerIdentifier || s.element() == FloatIdentifier) && (s.rank() == 1);
+        return (s.element() == IntegerType || s.element() == FloatType) && (s.rank() == 1);
     }
 
     inline bool is_rectangle(const ListReference &v)

@@ -2,7 +2,7 @@
 from attributee import Boolean, List
 
 from . import types
-from .graph import Macro, Operation, Node, Input, SeedInput, hidden, NodeOperation, Constant, NodeException
+from .graph import Macro, Operation, Node, Input, SeedInput, NodeOperation, Constant, NodeException
 
 class SampleUnform(Operation):
     """Samples random value between min and max value."""
@@ -11,11 +11,8 @@ class SampleUnform(Operation):
     max = Input(types.Float(), description="Maximum value")
     seed = SeedInput()
 
-    def infer(self, min, max, seed) -> types.Data:
-        return types.Float()
-
     def operation(self):
-        return "random_uniform",
+        return "sample_uniform",
 
 class SampleNormal(Operation):
     """Samples values between from normal distribution.
@@ -25,11 +22,25 @@ class SampleNormal(Operation):
     sigma = Input(types.Float(), default=1, description="Standard deviation")
     seed = SeedInput()
 
-    def infer(self, mean, sigma, seed) -> types.Data:
-        return types.Float()
+    def operation(self):
+        return "sample_normal",
+
+class SampleBernoulli(Operation):
+
+    p = Input(types.Float(), description="Probability of True")
+    seed = SeedInput()
 
     def operation(self):
-        return "random_normal",
+        return "sample_bernoulli",
+
+class SampleBinomial(Operation):
+
+    p = Input(types.Float(), description="Probability of True")
+    n = Input(types.Integer(), description="Number of samples")
+    seed = SeedInput()
+
+    def operation(self):
+        return "sample_binomial",
 
 class RandomBoolean(Macro):
     """Samples a boolean value with equal probability
@@ -40,360 +51,254 @@ class RandomBoolean(Macro):
     def expand(self, seed):
         return SampleUnform(0, 1, seed) >= 0.5
 
+class Add(Operation):
+
+    a = Input(types.Wildcard(), description="First operand")
+    b = Input(types.Wildcard(), description="Second operand")
+    saturate = Boolean(default=False, description="Saturate cast")
+
+    def operation(self):
+        if self.saturate:
+            return "add_saturate",
+        return "add",
+
+class Multiply(Operation):
+
+    a = Input(types.Wildcard(), description="First operand")
+    b = Input(types.Wildcard(), description="Second operand")
+    saturate = Boolean(default=False, description="Saturate cast")
+
+    def operation(self):
+        if self.saturate:
+            return "multiply_saturate",
+        return "multiply",
+
+class Subtract(Operation):
+
+    a = Input(types.Wildcard(), description="First operand")
+    b = Input(types.Wildcard(), description="Second operand")
+    saturate = Boolean(default=False, description="Saturate cast")
+
+    def operation(self):
+        if self.saturate:
+            return "subtract_saturate",
+        return "subtract",
+
+class Divide(Operation):
+
+    a = Input(types.Wildcard(), description="First operand")
+    b = Input(types.Wildcard(), description="Second operand")
+    saturate = Boolean(default=False, description="Saturate cast")
+
+    def operation(self):
+        if self.saturate:
+            return "divide",
+        return "divide",
+
+
+class Power(Operation):
+
+    a = Input(types.Wildcard(), description="First operand")
+    b = Input(types.Wildcard(), description="Second operand")
+
+    def operation(self):
+        return "power",
+
+class Sqrt(Operation):
+
+    a = Input(types.Wildcard(), description="Input value")
+
+    def operation(self):
+        return "sqrt",
+
+class Modulo(Operation):
+
+    a = Input(types.Wildcard(), description="First operand")
+    b = Input(types.Wildcard(), description="Second operand")
+
+    def operation(self):
+        return "modulo",
+
+class Greater(Operation):
+
+    a = Input(types.Wildcard(), description="First operand")
+    b = Input(types.Wildcard(), description="Second operand")
+
+    def operation(self):
+        return "greater",
+
+class Lower(Operation):
+
+    a = Input(types.Wildcard(), description="First operand")
+    b = Input(types.Wildcard(), description="Second operand")
+
+    def operation(self):
+        return "less",
+
+class GreaterEqual(Operation):
+
+    a = Input(types.Wildcard(), description="First operand")
+    b = Input(types.Wildcard(), description="Second operand")
+
+    def operation(self):
+        return "greater_equal",
+
+class NotEqual(Operation):
+
+    a = Input(types.Wildcard(), description="First operand")
+    b = Input(types.Wildcard(), description="Second operand")
+
+    def operation(self):
+        return "not_equal",
+
+class LowerEqual(Operation):
+
+    a = Input(types.Wildcard(), description="First operand")
+    b = Input(types.Wildcard(), description="Second operand")
+
+    def operation(self):
+        return "less_equal",
+
+class Equal(Operation):
+
+    a = Input(types.Wildcard(), description="First operand")
+    b = Input(types.Wildcard(), description="Second operand")
+
+    def operation(self):
+        return "equal",
+
+class Maximum(Operation):
+
+    a = Input(types.Wildcard(), description="First operand")
+    b = Input(types.Wildcard(), description="Second operand")
+
+    def operation(self):
+        return "max",
+
+class Minimum(Operation):
+
+    a = Input(types.Wildcard(), description="First operand")
+    b = Input(types.Wildcard(), description="Second operand")
+
+    def operation(self):
+        return "min", 
+
+Node.register_operation(NodeOperation.ADD, Add, types.Wildcard(), types.Wildcard())
+Node.register_operation(NodeOperation.SUBTRACT, Subtract, types.Wildcard(), types.Wildcard())
+Node.register_operation(NodeOperation.MULIPLY, Multiply, types.Wildcard(), types.Wildcard())
+Node.register_operation(NodeOperation.DIVIDE, Divide, types.Wildcard(), types.Wildcard())
+Node.register_operation(NodeOperation.POWER, Power, types.Wildcard(), types.Wildcard())
+Node.register_operation(NodeOperation.MODULO, Modulo, types.Wildcard(), types.Wildcard())
+
+Node.register_operation(NodeOperation.NEGATE, lambda x: Multiply(x, Constant(-1)), types.Wildcard())
+
+Node.register_operation(NodeOperation.GREATER, Greater, types.Wildcard(), types.Wildcard())
+Node.register_operation(NodeOperation.GREATER_EQUAL, GreaterEqual, types.Wildcard(), types.Wildcard())
+Node.register_operation(NodeOperation.LOWER, Lower, types.Wildcard(), types.Wildcard())
+Node.register_operation(NodeOperation.LOWER_EQUAL, LowerEqual, types.Wildcard(), types.Wildcard())
+Node.register_operation(NodeOperation.EQUAL, Equal, types.Wildcard(), types.Wildcard())
+Node.register_operation(NodeOperation.NOT_EQUAL, NotEqual, types.Wildcard(), types.Wildcard())
+
+# Rounding
+
 class Round(Operation):
     """Round number to closest integer and convert to integer type."""
 
-    source = Input(types.Float(), description="Number to be rounded")
-
-    def infer(self, source):
-        return types.Integer()
+    source = Input(types.Wildcard(), description="Number to be rounded")
 
     def operation(self):
-        return "numbers_round",
+        return "round",
 
 class Floor(Operation):
     """Floor number and convert to integer."""
 
-    source = Input(types.Float(), description="Number to be rounded")
-
-    def infer(self, source):
-        return types.Integer()
+    source = Input(types.Wildcard(), description="Number to be rounded")
 
     def operation(self):
-        return "numbers_floor",
+        return "floor",
 
 class Ceil(Operation):
     """Ceil number and convert to integer.
     """
 
-    source = Input(types.Float(), description="Number on which ceil operation is performed")
-
-    def infer(self, source):
-        return types.Integer()
+    source = Input(types.Wildcard(), description="Number on which ceil operation is performed")
 
     def operation(self):
-        return "numbers_ceil",
+        return "ceil",
 
-@hidden
-class _BinaryOperator(Operation):
+# Trigonometric functions
 
-    a = Input(types.Float(), description="First operand")
-    b = Input(types.Float(), description="Second operand")
-
-    def infer(self, a, b):
-        return a.common(b)
-
-class Add(_BinaryOperator):
-
-    def operation(self):
-        return "numbers_add",
-
-class Multiply(_BinaryOperator):
-
-    def operation(self):
-        return "numbers_multiply",
-
-class Subtract(_BinaryOperator):
-
-    def operation(self):
-        return "numbers_subtract",
-
-class Divide(_BinaryOperator):
-
-    def operation(self):
-        return "numbers_divide",
-
-
-class Power(_BinaryOperator):
-
-    def operation(self):
-        return "numbers_power",
-
-class Modulo(_BinaryOperator):
-
-    a = Input(types.Integer())
-    b = Input(types.Integer())
-
-    def operation(self):
-        return "numbers_modulo",
-
-@hidden
-class _ComparisonOperation(_BinaryOperator):
-
-    def infer(self, **inputs):
-        return types.Boolean()        
-
-class Greater(_ComparisonOperation):
-
-    def operation(self):
-        return "compare_greater",
-
-class Lower(_ComparisonOperation):
-
-    def operation(self):
-        return "compare_less",
-
-class GreaterEqual(_ComparisonOperation):
-
-    def operation(self):
-        return "compare_greater_equal",
-
-class NotEqual(_ComparisonOperation):
-
-    def operation(self):
-        return "compare_not_equal",
-
-class LowerEqual(_ComparisonOperation):
-
-    def operation(self):
-        return "compare_less_equal",
-
-class Equal(_ComparisonOperation):
-
-    def operation(self):
-        return "compare_equal",
-
-class Maximum(_BinaryOperator):
-
-    def operation(self):
-        return "numbers_max",
-
-class Minimum(_BinaryOperator):
-
-    def operation(self):
-        return "numbers_min", 
-
-Node.register_operation(NodeOperation.ADD, Add, types.Float(), types.Float())
-Node.register_operation(NodeOperation.SUBTRACT, Subtract, types.Float(), types.Float())
-Node.register_operation(NodeOperation.MULIPLY, Multiply, types.Float(), types.Float())
-Node.register_operation(NodeOperation.DIVIDE, Divide, types.Float(), types.Float())
-Node.register_operation(NodeOperation.POWER, Power, types.Float(), types.Float())
-Node.register_operation(NodeOperation.MODULO, Modulo, types.Float(), types.Float())
-
-Node.register_operation(NodeOperation.NEGATE, lambda x: Multiply(x, Constant(-1)), types.Float())
-
-Node.register_operation(NodeOperation.GREATER, Greater, types.Float(), types.Float())
-Node.register_operation(NodeOperation.GREATER_EQUAL, GreaterEqual, types.Float(), types.Float())
-Node.register_operation(NodeOperation.LOWER, Lower, types.Float(), types.Float())
-Node.register_operation(NodeOperation.LOWER_EQUAL, LowerEqual, types.Float(), types.Float())
-Node.register_operation(NodeOperation.EQUAL, Equal, types.Float(), types.Float())
-Node.register_operation(NodeOperation.NOT_EQUAL, NotEqual, types.Float(), types.Float())
-
-def _register_tensor_operation(operation, generator):
-    Node.register_operation(operation, generator, types.Wildcard(mindim=1), types.Wildcard(mindim=1))
-    Node.register_operation(operation, generator, types.Wildcard(mindim=1), types.Float())
-    Node.register_operation(operation, generator, types.Float(), types.Wildcard(mindim=1))
-
-def _tensor_piecewise_infer(a: types.Token, b: types.Token):
-    a = a.squeeze()
-    b = b.squeeze()
-
-    #for i in range(max(a.rank, b.rank)):
-    #    if a[i] is not None and b[i] is not None and a[i] != b[i]:
-    #        raise types.TypeException("Size mismatch")
-
-    #if a.element is not None and b.element is not None and a.element != b.element:
-    #    raise types.TypeException("Element mismatch, {} and {}  ".format(a.element, b.element))
-
-
-    return a.common(b)
-
-class TensorAdd(Operation):
-
-    a = Input(types.Wildcard(), description="First operand")
-    b = Input(types.Wildcard(), description="Second operand")
-    saturate = Boolean(default=False, description="Saturate cast")
-
-    def operation(self):
-        if self.saturate:
-            return "tensor_add_saturate",
-        return "tensor_add",
-
-    def infer(self, a, b):
-        return _tensor_piecewise_infer(a, b)
-
-_register_tensor_operation(NodeOperation.ADD, TensorAdd)
-
-class TensorSubtract(Operation):
-    """Subtracts two images with same size and number of channels or an image and a number.
-    """
-
-    a = Input(types.Wildcard(), description="First operand")
-    b = Input(types.Wildcard(), description="Second operand")
-    saturate = Boolean(default=False, description="Saturate cast")
-
-    def operation(self):
-        if self.saturate:
-            return "tensor_subtract_saturate",
-        return "tensor_subtract",
-
-    def infer(self, a, b):
-        return _tensor_piecewise_infer(a, b)
-
-_register_tensor_operation(NodeOperation.SUBTRACT, TensorSubtract)
-
-class TensorMultiply(Operation):
-    """Multiplies image with another image or scalar (per-element multiplication).
-    """
-
-    a = Input(types.Wildcard(), description="First operand")
-    b = Input(types.Wildcard(), description="Second operand")
-    saturate = Boolean(default=False, description="Saturate cast")
-
-    def operation(self):
-        if self.saturate:
-            return "tensor_multiply_saturate",
-        return "tensor_multiply",
-
-    def infer(self, a, b):
-        return _tensor_piecewise_infer(a, b)
-
-_register_tensor_operation(NodeOperation.MULIPLY, TensorMultiply)
-
-class TensorDivide(Operation):
-    """Divides image with another image or scalar (per-element multiplication).
-    """
-
-    a = Input(types.Wildcard(), description="First operand")
-    b = Input(types.Wildcard(), description="Second operand")
-    saturate = Boolean(default=False, description="Saturate cast")
-
-    def operation(self):
-        if self.saturate:
-            return "tensor_divide_saturate",
-        return "tensor_divide",
-
-    def infer(self, a, b):
-        return _tensor_piecewise_infer(a, b)
-
-_register_tensor_operation(NodeOperation.DIVIDE, TensorDivide)
-
-
-class TensorPower(Operation):
-    """Raises image to power of another image or scalar (per-element multiplication).
-    """
-
-    a = Input(types.Wildcard(), description="First operand")
-    b = Input(types.Wildcard(), description="Second operand")
-
-    def operation(self):
-        return "tensor_power",
-
-    def infer(self, a, b):
-        return _tensor_piecewise_infer(a, b)
+class Sin(Operation):
     
-_register_tensor_operation(NodeOperation.POWER, TensorPower)
-
-class TensorEqual(Operation):
-    a = Input(types.Wildcard(), description="First operand")
-    b = Input(types.Wildcard(), description="Second operand")
+    a = Input(types.Wildcard(), description="Input value")
 
     def operation(self):
-        return "tensor_equal",
+        return "sin",
 
-    def infer(self, a, b):
-        return _tensor_piecewise_infer(a, b)
-
-_register_tensor_operation(NodeOperation.EQUAL, TensorEqual)
-
-class TensorNotEqual(Operation):
-    a = Input(types.Wildcard(), description="First operand")
-    b = Input(types.Wildcard(), description="Second operand")
+class Cos(Operation):
+        
+    a = Input(types.Wildcard(), description="Input value")
 
     def operation(self):
-        return "tensor_not_equal",
+        return "cos",
 
-    def infer(self, a, b):
-        return _tensor_piecewise_infer(a, b)
-
-_register_tensor_operation(NodeOperation.NOT_EQUAL, TensorNotEqual)
-
-class TensorGreater(Operation):
-    a = Input(types.Wildcard(), description="First operand")
-    b = Input(types.Wildcard(), description="Second operand")
+class Tan(Operation):
+            
+    a = Input(types.Wildcard(), description="Input value")
 
     def operation(self):
-        return "tensor_greater",
+        return "tan",
 
-    def infer(self, a, b):
-        return _tensor_piecewise_infer(a, b)
-
-_register_tensor_operation(NodeOperation.GREATER, TensorGreater)
-
-class TensorGreaterEqual(Operation):
-    a = Input(types.Wildcard(), description="First operand")
-    b = Input(types.Wildcard(), description="Second operand")
+class ArcSin(Operation):
+    a = Input(types.Wildcard(), description="Input value")
 
     def operation(self):
-        return "tensor_greater_equal",
+        return "asin",
 
-    def infer(self, a, b):
-        return _tensor_piecewise_infer(a, b)
+class ArcCos(Operation):
+
+    a = Input(types.Wildcard(), description="Input value")
+
+    def operation(self):
+        return "acos",
+
+class ArcTan(Operation):
     
-_register_tensor_operation(NodeOperation.GREATER_EQUAL, TensorGreaterEqual)
+    a = Input(types.Wildcard(), description="Input value")
 
-class TensorLower(Operation):
+    def operation(self):
+        return "atan",
+
+# Logical operations
+
+class LogicalAnd(Operation):
+    
     a = Input(types.Wildcard(), description="First operand")
     b = Input(types.Wildcard(), description="Second operand")
 
     def operation(self):
-        return "tensor_less",
+        return "logical_and",
 
-    def infer(self, a, b):
-        return _tensor_piecewise_infer(a, b)
-    
-_register_tensor_operation(NodeOperation.LOWER, TensorLower)
+Node.register_operation(NodeOperation.LOGICAL_AND, LogicalAnd, types.Wildcard(), types.Wildcard())
 
-class TensorLowerEqual(Operation):
+class LogicalOr(Operation):
 
     a = Input(types.Wildcard(), description="First operand")
     b = Input(types.Wildcard(), description="Second operand")
 
     def operation(self):
-        return "tensor_less_equal",
+        return "logical_or",
 
-    def infer(self, a, b):
-        return _tensor_piecewise_infer(a, b)
-    
-_register_tensor_operation(NodeOperation.LOWER_EQUAL, TensorLowerEqual)
+Node.register_operation(NodeOperation.LOGICAL_OR, LogicalOr, types.Wildcard(), types.Wildcard())
 
-class TensorLogicalAnd(Operation):
-    
-        a = Input(types.Wildcard(), description="First operand")
-        b = Input(types.Wildcard(), description="Second operand")
-    
-        def operation(self):
-            return "tensor_logical_and",
-    
-        def infer(self, a, b):
-            return _tensor_piecewise_infer(a, b)
-
-Node.register_operation(NodeOperation.LOGICAL_AND, TensorLogicalAnd, types.Wildcard(mindim=1), types.Wildcard(mindim=1))
-
-class TensorLogicalOr(Operation):
-
-    a = Input(types.Wildcard(), description="First operand")
-    b = Input(types.Wildcard(), description="Second operand")
-
-    def operation(self):
-        return "tensor_logical_or",
-
-    def infer(self, a, b):
-        return _tensor_piecewise_infer(a, b)
-
-Node.register_operation(NodeOperation.LOGICAL_OR, TensorLogicalOr, types.Wildcard(mindim=1), types.Wildcard(mindim=1))
-
-class TensorLogicalNot(Operation):
+class LogicalNot(Operation):
 
     a = Input(types.Wildcard(), description="First operand")
 
     def operation(self):
-        return "tensor_logical_not",
+        return "logical_not",
 
-    def infer(self, a):
-        return a
-    
-Node.register_operation(NodeOperation.LOGICAL_NOT, TensorLogicalNot, types.Wildcard(mindim=1))
+Node.register_operation(NodeOperation.LOGICAL_NOT, LogicalNot, types.Wildcard())
 
 class Stack(Operation):
     """Merges three single channel images into three channel image.
@@ -421,6 +326,3 @@ class Stack(Operation):
 
     def operation(self):
         return "stack",
-
-    def infer(self, **inputs):
-        return types.Token(inputs["0"].element, len(inputs), *list(inputs["0"]))

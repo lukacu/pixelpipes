@@ -185,9 +185,9 @@ class ResourceProxy(Node):
     def get_inputs(self):
         return [(k, Wildcard()) for k in self.inputs.keys()]
 
-    def infer(self, **inputs):
-        #for name, ref in inputs.items():
-        #    if name in self._fields
+    def evaluate(self, **inputs):
+    #    for name, ref in inputs.items():
+    #        if name in self._fields
         return Resource(**self._fields)
 
 class MakeResource(Macro):

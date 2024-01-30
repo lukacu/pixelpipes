@@ -13,13 +13,10 @@ class Conditional(Operation):
 
     true = Input(types.Wildcard(), description="Use this data if condition is true")
     false = Input(types.Wildcard(), description="Use this data if condition is false")
-    condition = Input(types.Integer(), description="Condition to test")
+    condition = Input(types.Boolean(), description="Condition to test")
 
     def operation(self):
         return "condition",
-
-    def infer(self, true, false, condition):
-        return true.common(false)
 
 class Switch(Macro):
     """Random switch between multiple branches, a macro that generates a tree of binary choices based on a random

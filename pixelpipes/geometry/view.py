@@ -10,9 +10,6 @@ class TranslateView(Operation):
     x = Input(types.Float(), default=0, description="X direction translation")
     y = Input(types.Float(), default=0, description="Y direction translation")
 
-    def infer(self, **inputs) -> types.Data:
-        return types.View()
-
     def operation(self):
         return "opencv:translate_view2d",
 
@@ -20,9 +17,6 @@ class RotateView(Operation):
     """Create a 2D rotation matrix."""
 
     angle = Input(types.Float(), default=0, description="Rotation angle in radians")
-
-    def infer(self, angle) -> types.Data:
-        return types.View()
 
     def operation(self):
         return "opencv:rotate_view2d",
@@ -34,17 +28,11 @@ class ScaleView(Operation):
     x = Input(types.Float(), default=1, description="X direction scaling")
     y = Input(types.Float(), default=1, description="Y direction scaling")
 
-    def infer(self, x, y) -> types.Data:
-        return types.View()
-
     def operation(self):
         return "opencv:scale_view2d",
 
 class IdentityView(Operation):
     """ Create a 2D identity matrix."""
-
-    def infer(self) -> types.Data:
-        return types.View()
 
     def operation(self):
         return "opencv:identity",
@@ -53,9 +41,6 @@ class Chain(Operation):
     """Multiply a series of views"""
 
     inputs = List(Input(types.View()), description="A list of views to multiply")
-
-    def infer(self, **inputs):
-        return types.View()     
 
     def input_values(self):
         return [self.inputs[int(name)] for name, _ in self.get_inputs()]
@@ -98,20 +83,8 @@ class CenterView(Operation):
     def _output(self) -> types.Data:
         return types.View()
 
-    def operation(self):
-        return "center_view",
-
 class FocusView(Operation):
     """Create a view that centers to a bounding box and scales so that bounding box maintains relative scale."""
 
     source = Input(types.Rectangle(), description="A bounding box type")
     scale = Input(types.Float(), description="Scaling factor")
-
-    def infer(self, source, scale) -> types.Data:
-        return types.View()
-
-    def operation(self):
-        return "focus_view",
-
-# TODO: register arithmetic operations
-

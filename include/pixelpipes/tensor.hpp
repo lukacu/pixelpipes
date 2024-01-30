@@ -39,7 +39,7 @@ namespace pixelpipes
 
         virtual size_t cell_size() const = 0;
 
-        virtual TypeIdentifier cell_type() const = 0;
+        virtual Type cell_type() const = 0;
 
         virtual TokenReference get(size_t i) const override = 0;
 
@@ -54,10 +54,110 @@ namespace pixelpipes
         virtual ByteSpan data() override = 0;
 
         virtual SizeSequence strides() const = 0;
-
     };
 
     typedef Pointer<Tensor> TensorReference;
+
+    template <typename T>
+    class Scalar;
+    template <typename T>
+    class Vector;
+    template <typename T>
+    class Matrix;
+
+    typedef Scalar<int> IntegerScalar;
+    typedef Scalar<float> FloatScalar;
+    typedef Scalar<bool> BooleanScalar;
+    typedef Scalar<char> CharScalar;
+    typedef Scalar<short> ShortScalar;
+    typedef Scalar<ushort> UShortScalar;
+
+    template <typename T>
+    class Scalar : public Tensor
+    {
+        PIXELPIPES_RTTI(Scalar<T>, Tensor)
+
+    public:
+        Scalar(const T &value) : _value(value)
+        {
+            static_assert(std::is_fundamental_v<T>, "Not a primitive type");
+        }
+
+        virtual ~Scalar() = default;
+
+        virtual Shape shape() const override
+        {
+            return Shape(GetType<T>(), SizeSequence({1}));
+        }
+
+        T get() const { return _value; }
+
+        virtual size_t length() const override
+        {
+            return 1;
+        }
+
+        virtual void describe(std::ostream &os) const override
+        {
+            os << "[Scalar of " << details::TypeName<T>() << ": " << _value << "]";
+        }
+
+        virtual size_t size() const override
+        {
+            return sizeof(T);
+        }
+
+        virtual size_t cell_size() const override
+        {
+            return sizeof(T);
+        }
+
+        virtual Type cell_type() const override
+        {
+            return GetType<T>();
+        }
+
+        virtual TokenReference get(const Sizes &index) const override
+        {
+            VERIFY(index.size() == 1, "Rank mismatch");
+            VERIFY(index[0] == 0, "Index out of bounds");
+            return create<Scalar<T>>(_value);
+        }
+
+        virtual TokenReference get(size_t i) const override
+        {
+            VERIFY(i == 0, "Index out of bounds");
+            return create<Scalar<T>>(_value);
+        }
+
+        virtual ReadonlySliceIterator read_slices() const override
+        {
+            return ReadonlySliceIterator(const_data());
+        }
+
+        virtual WriteableSliceIterator write_slices() override
+        {
+            return WriteableSliceIterator(data());
+        }
+
+        virtual ByteView const_data() const override
+        {
+            return ByteView((uchar *)&_value, sizeof(T));
+        }
+
+        virtual SizeSequence strides() const override
+        {
+            return SizeSequence({sizeof(T)});
+        }
+
+        virtual ByteSpan data() override
+        {
+            return ByteSpan((uchar *)&_value, sizeof(T));
+        }
+
+    protected:
+        T _value;
+    };
 
     class PIXELPIPES_API TensorView : public Tensor
     {
@@ -80,7 +180,7 @@ namespace pixelpipes
             _strides = SizeSequence(strides);
 
             _cell_size = sizeof(T);
-            _cell_type = GetTypeIdentifier<T>();
+            _cell_type = GetType<T>();
 
             _size = std::accumulate(shape.begin(), shape.end(), 1, std::multiplies<size_t>()) * _cell_size;
 
@@ -107,7 +207,7 @@ namespace pixelpipes
 
         virtual size_t cell_size() const override;
 
-        virtual TypeIdentifier cell_type() const override;
+        virtual Type cell_type() const override;
 
         virtual TokenReference get(const Sizes &index) const override;
 
@@ -143,15 +243,15 @@ namespace pixelpipes
         {
             switch (cell_type())
             {
-            case CharIdentifier:
+            case CharType:
                 return create<CharScalar>(_data.at<uchar>(offset));
-            case ShortIdentifier:
+            case ShortType:
                 return create<ShortScalar>(_data.at<short>(offset));
-            case UShortIdentifier:
+            case UnsignedShortType:
                 return create<UShortScalar>(_data.at<ushort>(offset));
-            case IntegerIdentifier:
+            case IntegerType:
                 return create<IntegerScalar>(_data.at<int>(offset));
-            case FloatIdentifier:
+            case FloatType:
                 return create<FloatScalar>(_data.at<float>(offset));
             default:
                 return empty();
@@ -163,17 +263,162 @@ namespace pixelpipes
         SizeSequence _shape;
         SizeSequence _strides;
 
-        TypeIdentifier _cell_type;
+        Type _cell_type;
         size_t _cell_size;
 
         void *_owner = nullptr;
         owner_cleanup _cleanup = nullptr;
     };
 
+    template <>
+    inline TokenReference wrap(const int v)
+    {
+        return create<IntegerScalar>(v);
+    }
+
+    template <>
+    inline TokenReference wrap(const short v)
+    {
+        return create<ShortScalar>(v);
+    }
+
+    template <>
+    inline TokenReference wrap(const ushort v)
+    {
+        return create<UShortScalar>(v);
+    }
+
+    template <>
+    inline TokenReference wrap(const bool v)
+    {
+        return create<BooleanScalar>(v);
+    }
+
+    template <>
+    inline TokenReference wrap(const char v)
+    {
+        return create<CharScalar>(v);
+    }
+
+    template <>
+    inline TokenReference wrap(const float v)
+    {
+        return create<FloatScalar>(v);
+    }
+
     template <typename T>
-    class Vector;
-    template <typename T>
-    class Matrix;
+    inline bool _extract_scalar(const TokenReference &v, T *value)
+    {
+        if (v->is<Scalar<T>>())
+        {
+            *value = v->cast<Scalar<T>>()->get();
+            return true;
+        }
+        if (v->is<ContainerToken<T>>())
+        {
+            *value = v->cast<ContainerToken<T>>()->get();
+            return true;
+        }
+        if (v->is<Tensor>())
+        {
+            auto t = v->cast<Tensor>();
+            if (t->shape().is_scalar() && t->shape().element() == GetType<T>())
+            {
+                *value = t->data().reinterpret<T>()[0];
+                return true;
+            }
+        }
+        return false;
+    }
+
+#define EXTRACT_SCALAR(V, T, O)              \
+    {                                        \
+        T value;                             \
+        if (_extract_scalar<T>((V), &value)) \
+        {                                    \
+            return static_cast<O>(value);    \
+        }                                    \
+    }
+
+    template <>
+    inline int extract(const TokenReference &v)
+    {
+        VERIFY((bool)v, "Uninitialized token");
+
+        EXTRACT_SCALAR(v, int, int);
+        EXTRACT_SCALAR(v, short, int);
+        EXTRACT_SCALAR(v, ushort, int);
+        EXTRACT_SCALAR(v, char, int);
+        EXTRACT_SCALAR(v, bool, int);
+
+        throw TypeException("Unexpected token type: expected int, got " + v->describe());
+    }
+
+    template <>
+    inline short extract(const TokenReference &v)
+    {
+        VERIFY((bool)v, "Uninitialized token");
+
+        EXTRACT_SCALAR(v, short, short);
+        EXTRACT_SCALAR(v, ushort, short);
+        EXTRACT_SCALAR(v, char, short);
+        EXTRACT_SCALAR(v, bool, short);
+
+        throw TypeException("Unexpected token type: expected short, got " + v->describe());
+    }
+
+    template <>
+    inline ushort extract(const TokenReference &v)
+    {
+        VERIFY((bool)v, "Uninitialized token");
+
+        EXTRACT_SCALAR(v, ushort, ushort);
+        EXTRACT_SCALAR(v, char, ushort);
+        EXTRACT_SCALAR(v, bool, ushort);
+
+        throw TypeException("Unexpected token type: expected ushort, got " + v->describe());
+    }
+
+    template <>
+    inline bool extract(const TokenReference &v)
+    {
+        VERIFY((bool)v, "Uninitialized token");
+
+        EXTRACT_SCALAR(v, bool, bool);
+        EXTRACT_SCALAR(v, char, bool);
+        EXTRACT_SCALAR(v, int, bool);
+        EXTRACT_SCALAR(v, short, bool);
+        EXTRACT_SCALAR(v, ushort, bool);
+        EXTRACT_SCALAR(v, float, bool);
+
+        throw TypeException("Unexpected token type: expected bool, got " + v->describe());
+    }
+
+    template <>
+    inline char extract(const TokenReference &v)
+    {
+        VERIFY((bool)v, "Uninitialized token");
+
+        EXTRACT_SCALAR(v, char, char);
+        EXTRACT_SCALAR(v, bool, char);
+
+        throw TypeException("Unexpected token type: expected char, got " + v->describe());
+    }
+
+    template <>
+    inline float extract(const TokenReference &v)
+    {
+        VERIFY((bool)v, "Uninitialized token");
+
+        EXTRACT_SCALAR(v, float, float);
+        EXTRACT_SCALAR(v, int, float);
+        EXTRACT_SCALAR(v, short, float);
+        EXTRACT_SCALAR(v, ushort, float);
+        EXTRACT_SCALAR(v, char, float);
+        EXTRACT_SCALAR(v, bool, float);
+
+        throw TypeException("Unexpected token type: expected float, got " + v->describe());
+    }
 
     template <typename T, size_t N>
     class ArrayTensor : public Tensor
@@ -231,7 +476,7 @@ namespace pixelpipes
 
         virtual Shape shape() const override
         {
-            return Shape(GetTypeIdentifier<T>(), _shape);
+            return Shape(GetType<T>(), _shape);
         }
 
         virtual size_t length() const override
@@ -261,15 +506,15 @@ namespace pixelpipes
             return sizeof(T);
         }
 
-        virtual TypeIdentifier cell_type() const override
+        virtual Type cell_type() const override
         {
-            return GetTypeIdentifier<T>();
+            return GetType<T>();
         }
 
         virtual TokenReference get(const Sizes &index) const override
         {
             size_t o = get_offset(index);
-            return create<ScalarToken<T>>(_data.at<T>(o));
+            return create<Scalar<T>>(_data.at<T>(o));
         }
 
         virtual TokenReference get(size_t i) const override
@@ -277,7 +522,7 @@ namespace pixelpipes
 
             if constexpr (N == 1)
             {
-                return create<ScalarToken<T>>(_data.at<T>(i * sizeof(T)));
+                return create<Scalar<T>>(_data.at<T>(i * sizeof(T)));
             }
             else
             {
@@ -381,10 +626,12 @@ namespace pixelpipes
     template <typename T>
     inline TensorReference create_tensor(const Sizes &s)
     {
-
         if (s.size() == 1)
         {
-            return create<Vector<T>>(s[0]);
+            if (s[0] == 1)
+                return create<Scalar<T>>(0);
+            else
+                return create<Vector<T>>(s[0]);
         }
         else if (s.size() == 2)
         {
@@ -410,7 +657,7 @@ namespace pixelpipes
         throw TypeException((Formatter() << "Unsupported tensor rank: " << s.size()).str());
     }
 
-    TensorReference PIXELPIPES_API create_tensor(TypeIdentifier element, Sizes sizes);
+    TensorReference PIXELPIPES_API create_tensor(Type element, Sizes sizes);
 
     TensorReference PIXELPIPES_API create_tensor(Shape s);
 
@@ -499,7 +746,7 @@ namespace pixelpipes
         }
 
         if (shape.rank() != 1 ||
-            shape.element() != GetTypeIdentifier<bool>())
+            shape.element() != GetType<bool>())
         {
             throw TypeException(
                 "Unexpected token type: expected list of booleans, got " + v->describe());
@@ -604,7 +851,7 @@ namespace pixelpipes
             if (!s.is_fixed())
                 throw TypeException("Cannot convert to tensorr");
 
-            if (s.element() == CharIdentifier || s.element() == ShortIdentifier || s.element() == UShortIdentifier || s.element() == IntegerIdentifier || s.element() == FloatIdentifier)
+            if (s.element() == CharType || s.element() == ShortType || s.element() == UnsignedShortType || s.element() == IntegerType || s.element() == FloatType)
             {
 
                 // TODO: convert
@@ -621,47 +868,54 @@ namespace pixelpipes
 #ifdef XTENSOR_TENSOR_HPP
 
     template <typename T>
-    xt::xarray_adaptor<xt::xbuffer_adaptor<T*, xt::no_ownership>, xt::layout_type::dynamic, std::vector<size_t> >
-    wrap_xtensor(const TensorReference& tr)
+    xt::xarray_adaptor<xt::xbuffer_adaptor<T *, xt::no_ownership>, xt::layout_type::dynamic, std::vector<size_t>>
+    wrap_xtensor(const TensorReference &tr)
     {
         // TODO: deterine if tensor is contiguous, change adapt call in this case
         auto ts = tr->shape();
 
         std::vector<size_t> _shape(ts.rank());
         std::vector<size_t> _strides(ts.rank());
-        for (size_t i = 0; i < ts.rank(); i++) { 
+        for (size_t i = 0; i < ts.rank(); i++)
+        {
             _shape[i] = ts[i];
             _strides[i] = tr->strides()[i] / sizeof(T);
         }
 
         if constexpr (std::is_same_v<T, uchar>)
         {
-            if (GetTypeIdentifier<char>() != tr->cell_type()) throw TypeException("Tensor type mismatch, use casting");
+            if (GetType<char>() != tr->cell_type())
+                throw TypeException("Tensor type mismatch, use casting");
             return xt::adapt(tr->data().reinterpret<uchar>().data(), ts.size(), xt::no_ownership(), _shape, _strides);
         }
         else if constexpr (std::is_same_v<T, short>)
         {
-            if (GetTypeIdentifier<short>() != tr->cell_type()) throw TypeException("Tensor type mismatch, use casting");
+            if (GetType<short>() != tr->cell_type())
+                throw TypeException("Tensor type mismatch, use casting");
             return xt::adapt(tr->data().reinterpret<short>().data(), ts.size(), xt::no_ownership(), _shape, _strides);
         }
         else if constexpr (std::is_same_v<T, ushort>)
         {
-            if (GetTypeIdentifier<ushort>() != tr->cell_type()) throw TypeException("Tensor type mismatch, use casting");
+            if (GetType<ushort>() != tr->cell_type())
+                throw TypeException("Tensor type mismatch, use casting");
             return xt::adapt(tr->data().reinterpret<ushort>().data(), ts.size(), xt::no_ownership(), _shape, _strides);
         }
         else if constexpr (std::is_same_v<T, int>)
         {
-            if (GetTypeIdentifier<int>()  != tr->cell_type()) throw TypeException("Tensor type mismatch, use casting");
+            if (GetType<int>() != tr->cell_type())
+                throw TypeException("Tensor type mismatch, use casting");
             return xt::adapt(tr->data().reinterpret<int>().data(), ts.size(), xt::no_ownership(), _shape, _strides);
         }
         else if constexpr (std::is_same_v<T, float>)
         {
-            if (GetTypeIdentifier<float>()  != tr->cell_type()) throw TypeException("Tensor type mismatch, use casting");
+            if (GetType<float>() != tr->cell_type())
+                throw TypeException("Tensor type mismatch, use casting");
             return xt::adapt(tr->data().reinterpret<float>().data(), ts.size(), xt::no_ownership(), _shape, _strides);
         }
         else if constexpr (std::is_same_v<T, bool>)
         {
-            if (GetTypeIdentifier<bool>()  != tr->cell_type()) throw TypeException("Tensor type mismatch, use casting");
+            if (GetType<bool>() != tr->cell_type())
+                throw TypeException("Tensor type mismatch, use casting");
             return xt::adapt(tr->data().reinterpret<bool>().data(), ts.size(), xt::no_ownership(), _shape, _strides);
         }
         else

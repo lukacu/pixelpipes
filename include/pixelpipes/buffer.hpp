@@ -6,7 +6,7 @@
 #include <vector>
 
 #include <pixelpipes/type.hpp>
-#include <pixelpipes/operation.hpp>
+#include <pixelpipes/token.hpp>
 
 namespace pixelpipes
 {
@@ -226,7 +226,7 @@ namespace pixelpipes
 
             Shape shape = v->shape();
 
-            if (shape.rank() != 1 || shape.element() != CharIdentifier)
+            if (shape.rank() != 1 || shape.element() != CharType)
             {
                 throw TypeException("Unexpected token type: expected list of chars, got " + v->describe());
             }

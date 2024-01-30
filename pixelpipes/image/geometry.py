@@ -19,9 +19,6 @@ class Scale(Operation):
     def operation(self):
         return "opencv:rescale",
 
-    def infer(self, source, scale, interpolation):
-        return types.Image(None, None, source[2], depth=source.element)
-
 class Transpose(Operation):
     """Transposes image, switching width for height
     """
@@ -30,9 +27,6 @@ class Transpose(Operation):
 
     def operation(self):
         return "opencv:transpose",
-
-    def infer(self, source):
-        return types.Image(source[0], source[1], source[2], source.element)
 
 class Rotate90(Operation):
     """Rotate an image 90, -90 or 180 degrees.
@@ -44,10 +38,6 @@ class Rotate90(Operation):
     def operation(self):
         return "opencv:rotate90",
 
-    def infer(self, source, clockwise):
-        return types.Image(None, None, source[2], source.element)
-
-
 class Flip(Operation):
     """Flips image around vertical, horizontal, or both axes.
     """
@@ -58,9 +48,6 @@ class Flip(Operation):
 
     def operation(self):
         return "opencv:flip",
-
-    def infer(self, source, horizontal, vertical):
-        return types.Image(source[1], source[0], source[2], source.element)
 
 class Resize(Operation):
     """ Resize image to given width and height."""
@@ -74,9 +61,6 @@ class Resize(Operation):
     def operation(self):
         return "opencv:resize",
 
-    def infer(self, source, width, height, interpolation):
-        return types.Image(None, None, source[2], depth=source.element)
-
 class MaskBoundingBox(Operation):
     """Compute a bounding box of non-zero pixels in a single-channel image and returns bounding box.
     """
@@ -86,9 +70,6 @@ class MaskBoundingBox(Operation):
     def operation(self):
         return "opencv:mask_bounds",
 
-    def infer(self, source):
-        return types.Rectangle()
-
 class ImageCrop(Operation):
     """Crops an image to a given rectangle"""
 
@@ -97,9 +78,6 @@ class ImageCrop(Operation):
 
     def operation(self):
         return "opencv:crop",
-
-    def infer(self, source, region):
-        return types.Image(None, None, source[2], source.element)
 
 class RandomPatchView(Macro):
     """Returns a view that focuses on a random patch in an image"""
@@ -134,11 +112,6 @@ class ViewImage(Operation):
     def operation(self):
         return "opencv:view", 
 
-    def validate(self, **inputs):
-        source = inputs["source"]
-        return types.Image(None, None, source[2], source.element)
-
-
 class ImageRemap(Operation):
     """Remap image pixels based on given X any Y map using interpoation.
     """
@@ -151,7 +124,3 @@ class ImageRemap(Operation):
 
     def operation(self):
         return "opencv:remap",
-
-    def validate(self, source, x, y, interpolation, border):
-        dest = x.common(y)
-        return types.Image(dest[1], dest[0], source[2], source.element)

@@ -10,7 +10,7 @@ namespace pixelpipes
 
     Shape FlatBuffer::shape() const
     {
-        return ListType(CharIdentifier, size());
+        return ListType(CharType, size());
     }
 
     void Buffer::describe(std::ostream &os) const
@@ -108,12 +108,12 @@ namespace pixelpipes
 
     TokenReference StringList::get(size_t index) const { return create<String>(_list[index]); }
 
-    PIXELPIPES_REGISTER_SERIALIZER(GetTypeIdentifier<String>(), "string",
+    PIXELPIPES_REGISTER_SERIALIZER(GetType<String>(), "string",
         [](std::istream &source) -> TokenReference { return create<String>(read_t<std::string>(source)); },
         [](const TokenReference& v, std::ostream &drain) { write_t(drain, extract<std::string>(v)); }
     );
 
-    PIXELPIPES_REGISTER_SERIALIZER(GetTypeIdentifier<StringList>(), "string_list",
+    PIXELPIPES_REGISTER_SERIALIZER(GetType<StringList>(), "string_list",
         [](std::istream &source) -> TokenReference { return create<StringList>(read_sequence<std::string>(source)); },
         [](const TokenReference& v, std::ostream &drain) { write_sequence(drain, extract<StringListReference>(v)->get()); }
     );
@@ -136,7 +136,7 @@ namespace pixelpipes
         return data;
     }
 
-    PIXELPIPES_REGISTER_SERIALIZER(GetTypeIdentifier<FlatBuffer>(), "buffer",
+    PIXELPIPES_REGISTER_SERIALIZER(GetType<FlatBuffer>(), "buffer",
         [](std::istream &source) -> TokenReference { return create<FlatBuffer>(read_buffer(source)); },
         [](const TokenReference& v, std::ostream &drain) { write_buffer(std::move(extract<BufferReference>(v)), drain); }
     );

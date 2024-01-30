@@ -48,9 +48,6 @@ class FileList(Operation):
 
     list = List(String())
 
-    def infer(self):
-        return types.Token("char", len(self.list), None)
-
     def operation(self):
         return "file_list", list(self.list)
 
@@ -64,9 +61,6 @@ class SublistSelect(Operation):
     begin = Input(types.Integer(), description="Start index")
     end = Input(types.Integer(), description="End index")
 
-    def infer(self, parent, begin, end):
-        return types.List(parent.element)
-
     def operation(self):
         return "list_sublist",
 
@@ -78,9 +72,6 @@ class ListAsTable(Operation):
     parent = Input(types.List(), description="Source list")
     row = Input(types.Integer(),
                 description="Row size, total length of list must be its multiple")
-
-    def infer(self, parent, row):
-        return types.List(parent.element)
 
     def operation(self):
         return "list_table",
@@ -104,23 +95,6 @@ class Concatenate(Operation):
             config["inputs"][i] = v
         return self.__class__(_origin=_origin, **config)
 
-    def infer(self, **inputs):
-        length = 0
-        common = inputs["0"].type
-
-        for l in inputs.values():
-            common = common.common(l)
-            if l.length is None:
-                length = None
-                return
-            else:
-                length += l.length
-
-        if isinstance(common, types.Anything):
-            raise ValidationException("Incompatible elements")
-
-        return common.push(length)
-
     def operation(self):
         return "list_concatenate",
 
@@ -131,10 +105,6 @@ class FilterSelect(Operation):
 
     parent = Input(Wildlist())
     filter = Input(types.IntegerList())
-
-    def infer(self, parent, filter):
-        return parent
-
     def operation(self):
         return "list_filter",
 
@@ -146,10 +116,6 @@ class Remap(Operation):
 
     source = Input(Wildlist())
     indices = Input(types.IntegerList())
-
-    def validate(self, **inputs):
-        super().validate(**inputs)
-        return types.List(inputs["parent"].element)
 
     def operation(self):
         return "list_remap",
@@ -165,12 +131,8 @@ class Range(Operation):
     length = Input(types.Integer())
     round = Input(types.Boolean(), default=False)
 
-    def validate(self, start, end, length, round):
-        return types.FloatList()
-
     def operation(self):
         return "list_range",
-
 
 class Permute(Operation):
     """
@@ -179,9 +141,6 @@ class Permute(Operation):
 
     source = Input(Wildlist(), description="Input list")
     seed = SeedInput()
-
-    def infer(self, source, seed):
-        return source
 
     def operation(self):
         return "list_permute",
@@ -192,9 +151,6 @@ class Permutation(Operation):
 
     length = Input(types.Integer())
     seed = SeedInput()
-
-    def infer(self, length):
-        return types.List("int")
 
     def operation(self):
         return "list_permutation",
@@ -208,9 +164,6 @@ class GetElement(Operation):
     parent = Input(Wildlist())
     index = Input(types.Integer())
 
-    def infer(self, parent, index):
-        return parent.pop()
-
     def operation(self):
         return "list_element",
 
@@ -222,9 +175,6 @@ class Length(Operation):
     """
 
     parent = Input(Wildlist())
-
-    def infer(self, parent):
-        return types.Integer()
 
     def operation(self):
         return "list_length",
@@ -253,12 +203,6 @@ class MakeList(Operation):
             config["inputs"][i] = v
         return self.__class__(_origin=_origin, **config)
 
-    def infer(self, **inputs):
-        common = types.Anything()
-        for _, v in inputs.items():
-            common = common.common(v)
-        return common.push()
-
     def operation(self):
         return "list_build",
 
@@ -270,12 +214,8 @@ class Repeat(Operation):
     source = Input(types.Wildcard(), description="Element to repeat")
     length = Input(types.Integer(), description="Number of repetitions")
 
-    def infer(self, source, length):
-        return source.push()
-
     def operation(self):
         return "list_repeat",
-
 
 class GetRandom(Macro):
 

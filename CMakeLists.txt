@@ -75,7 +75,8 @@ SET(CORE_SOURCE
     src/module.cpp
     src/operation.cpp
     src/pipeline.cpp
-    src/numbers.cpp
+    src/random.cpp
+    src/arithmetic.cpp
     src/buffer.cpp
     src/tensor.cpp
     src/geometry.cpp    

@@ -68,52 +68,8 @@ namespace pixelpipes
 	IllegalStateException::IllegalStateException(std::string reason) : BaseException(reason) {}
 
 	TypeException::TypeException(std::string reason) : BaseException(reason) {}
-	/*
-		struct String::Data
-		{
-		public:
-			~Data()
-			{
-				delete text;
-			}
-
-			Data(char const *const text, size_t len) : len(len) 	//: text(std::strdup(text))
-			{
-				this->text = new char[len];
-				std::copy_n(text, len, this->text);
-			}
-
-			Data *clone() const
-			{
-				return new Data(text, len);
-			}
-
-			char const * text = nullptr;
-			const size_t len = 0;
-		};
-
-		String::String(char const *const text)
-			: data(text)
-		{
-		}
-
-		String::String(String const &other)
-			: data(data->text)
-		{
-		}
-
-		String &String::operator=(char const *const text)
-		{
-			return *this = String(text);
-		}
-
-		const char *String::get() const
-		{
-			return data->text;
-		}
-	*/
-
-#define IS_UNKNOWN(S) (S == (unknown))
+	
+	#define IS_UNKNOWN(x) (x == unknown)
 
 	Size Size::operator+(const Size &other) const
 	{
@@ -172,29 +128,29 @@ namespace pixelpipes
     /**
      * The type identifier for anything, only used for placeholders, denotes any type as well as any shape.
     */
-    constexpr static TypeIdentifier Anything = 1;
+    constexpr static Type Anything = 1;
 
 	Shape::Shape() : Shape(AnyType)
 	{
 	}
 
-	Shape::Shape(TypeIdentifier element) : Shape(element, SizeSpan{})
+	Shape::Shape(Type element) : Shape(element, SizeSpan{})
 	{
 	}
 
-	Shape::Shape(TypeIdentifier element, const std::initializer_list<Size>& shape) : _element(element), _shape(shape)
+	Shape::Shape(Type element, const std::initializer_list<Size>& shape) : _element(element), _shape(shape)
 	{
 	}
 
-	Shape::Shape(TypeIdentifier element, const View<Size>& shape) : _element(element), _shape(shape)
+	Shape::Shape(Type element, const View<Size>& shape) : _element(element), _shape(shape)
 	{
 	}
 
-	Shape::Shape(TypeIdentifier element, const Sizes& shape) : _element(element), _shape(SizeSequence(shape))
+	Shape::Shape(Type element, const Sizes& shape) : _element(element), _shape(SizeSequence(shape))
 	{
 	}
 
-	TypeIdentifier Shape::element() const
+	Type Shape::element() const
 	{
 		if (is_anything())
 			return AnyType;
@@ -240,6 +196,9 @@ namespace pixelpipes
 
 	bool Shape::is_scalar() const
 	{
+		if (_element != IntegerType && _element != FloatType && _element != BooleanType && _element != CharType && _element != ShortType && _element != UnsignedShortType)
+			return false;
+
 		bool scalar = true;
 		for (auto d : std::as_const(_shape))
 		{
@@ -253,7 +212,7 @@ namespace pixelpipes
 		return _element == Anything;
 	}
 
-	Shape Shape::cast(TypeIdentifier t) const
+	Shape Shape::cast(Type t) const
 	{
 		return Shape(t, _shape);
 	}
@@ -292,7 +251,7 @@ namespace pixelpipes
 
 		std::vector<Size> _s;
 
-		TypeIdentifier e = (other.element() == element()) ? element() : AnyType;
+		Type e = (other.element() == element()) ? element() : AnyType;
 
 		size_t _d = MAX(rank(), other.rank());
 
@@ -309,6 +268,8 @@ namespace pixelpipes
 	bool Shape::operator==(const Shape &other) const
 	{
 		// TODO: what to do with Anything?
+		if (is_anything() || other.is_anything())
+			return true;
 		
 		if (element() != other.element())
 			return false;
@@ -326,7 +287,7 @@ namespace pixelpipes
 	}
 
 
-    Shape AnythingType()
+    Shape AnythingShape()
     {
         return Shape(Anything);
     }
@@ -364,6 +325,31 @@ namespace pixelpipes
 			DEBUGMSG("Adding enumeration %s\n", name.c_str());
 			_enum_registry().insert(std::pair<std::string, EnumerationMap>(name, mapping));
 		}
+	}
+
+	const char* type_name(const Type t)
+	{
+		
+		switch (t)
+		{
+		case BooleanType:
+			return "boolean";
+		case IntegerType:
+			return "integer";
+		case FloatType:
+			return "float";
+		case CharType:
+			return "char";
+		case ShortType:
+			return "short";
+		case UnsignedShortType:
+			return "ushort";
+		case AnyType:
+			return "any";
+		default:
+			return "unknown";
+		}
+				
 	}
 
 }

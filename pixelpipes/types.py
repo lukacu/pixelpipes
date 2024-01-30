@@ -112,6 +112,9 @@ class Token(Data):
 
     def __init__(self, element = None, *shape):
         self._element = convert_element(element)
+        # Truncate trailing ones
+        while len(shape) > 0 and shape[-1] == 1:
+            shape = shape[:-1]
         self._shape = shape
 
     @property

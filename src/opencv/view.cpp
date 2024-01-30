@@ -6,6 +6,8 @@
 namespace pixelpipes
 {
 
+    #define _constant_shape_view2d constant_shape<float, 3, 3>
+
     cv::Matx33f translate_view2d(float x, float y)
     {
 
@@ -16,7 +18,7 @@ namespace pixelpipes
         return m;
     }
 
-    PIXELPIPES_OPERATION_AUTO("translate_view2d", translate_view2d);
+    PIXELPIPES_UNIT_OPERATION_AUTO("translate_view2d", translate_view2d, _constant_shape_view2d);
 
     cv::Matx33f rotate_view2d(float r)
     {
@@ -28,7 +30,7 @@ namespace pixelpipes
         return m;
     }
 
-    PIXELPIPES_OPERATION_AUTO("rotate_view2d", rotate_view2d);
+    PIXELPIPES_UNIT_OPERATION_AUTO("rotate_view2d", rotate_view2d, _constant_shape_view2d);
 
     cv::Matx33f scale_view2d(float x, float y)
     {
@@ -40,7 +42,7 @@ namespace pixelpipes
         return m;
     }
 
-    PIXELPIPES_OPERATION_AUTO("scale_view2d", scale_view2d);
+    PIXELPIPES_UNIT_OPERATION_AUTO("scale_view2d", scale_view2d, _constant_shape_view2d);
 
     cv::Matx33f identity_view2d()
     {
@@ -52,7 +54,7 @@ namespace pixelpipes
         return m;
     }
 
-    PIXELPIPES_OPERATION_AUTO("identity_view2d", identity_view2d);
+    PIXELPIPES_UNIT_OPERATION_AUTO("identity_view2d", identity_view2d, _constant_shape_view2d);
 
     TokenReference chain_view2d(const TokenList &inputs)
     {
@@ -73,7 +75,7 @@ namespace pixelpipes
         return wrap(m);
     }
 
-    PIXELPIPES_OPERATION("chain_view2d", chain_view2d);
+    PIXELPIPES_UNIT_OPERATION("chain_view2d", chain_view2d, _constant_shape_view2d);
 
     std::vector<cv::Point2f> view_points2d(const std::vector<cv::Point2f> &points, const cv::Matx33f &transform)
     {
@@ -82,7 +84,7 @@ namespace pixelpipes
         return points2;
     }
 
-    PIXELPIPES_OPERATION_AUTO("view_points2d", view_points2d);
+    PIXELPIPES_UNIT_OPERATION_AUTO("view_points2d", view_points2d, forward_shape<0>);
 
     /**
      * @brief Returns a view that centers to a bounding box.
@@ -97,7 +99,7 @@ namespace pixelpipes
         return m;
     }
 
-    PIXELPIPES_OPERATION_AUTO("center_view2d", center_view2d);
+    PIXELPIPES_UNIT_OPERATION_AUTO("center_view2d", center_view2d, _constant_shape_view2d);
 
     /**
      * @brief Returns a view that scales space in a way that to a given bounding box
@@ -114,6 +116,6 @@ namespace pixelpipes
         return m;
     }
 
-    PIXELPIPES_OPERATION_AUTO("focus_view2d", focus_view2d);
+    PIXELPIPES_UNIT_OPERATION_AUTO("focus_view2d", focus_view2d, _constant_shape_view2d);
 
 }

@@ -32,7 +32,7 @@ namespace pixelpipes
 
         double maxin = maximum_value(image);
         int dtype = -1;
-        TypeIdentifier ti;
+        Type ti;
         double maxout = 1;
 
         switch (depth)
@@ -40,27 +40,27 @@ namespace pixelpipes
         case ImageDepth::Char:
             dtype = CV_8U;
             maxout = std::numeric_limits<uchar>::max();
-            ti = CharIdentifier;
+            ti = CharType;
             break;
         case ImageDepth::Short:
             dtype = CV_16S;
             maxout = std::numeric_limits<short>::max();
-            ti = ShortIdentifier;
+            ti = ShortType;
             break;
         case ImageDepth::UShort:
             dtype = CV_16U;
             maxout = std::numeric_limits<ushort>::max();
-            ti = UShortIdentifier;
+            ti = UnsignedShortType;
             break;
         case ImageDepth::Integer:
             dtype = CV_32S;
             maxout = std::numeric_limits<int>::max();
-            ti = IntegerIdentifier;
+            ti = IntegerType;
             break;
         case ImageDepth::Float:
             dtype = CV_32F;
             maxout = 1;
-            ti = FloatIdentifier;
+            ti = FloatType;
             break;
         }
 
@@ -117,7 +117,7 @@ namespace pixelpipes
         return result;
     }
 
-    PIXELPIPES_OPERATION_AUTO("invert", invert);
+    PIXELPIPES_COMPUTE_OPERATION_AUTO("invert", invert, forward_shape<0>);
 
     /**
      * @brief Calculates image moments.
@@ -340,7 +340,7 @@ namespace pixelpipes
         return result;
     }
 
-    PIXELPIPES_OPERATION_AUTO("coarse_dropout", coarse_dropout);
+    PIXELPIPES_COMPUTE_OPERATION_AUTO("coarse_dropout", coarse_dropout, forward_shape<0>);
 
     /**
      * @brief Cuts region form an image defined by the bounding box.
@@ -418,7 +418,7 @@ namespace pixelpipes
 
         VERIFY(image.channels() == 1, "Image has more than one channel");
 
-        float max = (float)maximum_value(image);
+        float max = (float) maximum_value(image);
 
         cv::Mat result = image.clone();
 
@@ -456,6 +456,6 @@ namespace pixelpipes
         return result;
     }
 
-    PIXELPIPES_OPERATION_AUTO("solarize", solarize);
+    PIXELPIPES_COMPUTE_OPERATION_AUTO("solarize", solarize, forward_shape<0>);
 
 }

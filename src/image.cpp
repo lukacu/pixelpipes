@@ -21,15 +21,15 @@ namespace pixelpipes
 
         size_t depth = 0;
 
-        if (s.element() == IntegerIdentifier) {
+        if (s.element() == IntegerType) {
                 depth = sizeof(int);
-        } else if (s.element() == CharIdentifier) {
+        } else if (s.element() == CharType) {
                 depth = sizeof(uchar);
-        } else if (s.element() == ShortIdentifier) {
+        } else if (s.element() == ShortType) {
                 depth = sizeof(short);
-        } else if (s.element() == UShortIdentifier) {
+        } else if (s.element() == UnsignedShortType) {
                 depth = sizeof(ushort);
-        } else if (s.element() == FloatIdentifier) {
+        } else if (s.element() == FloatType) {
                 depth = sizeof(float);
         } else {
             throw TypeException("Unknown element type");

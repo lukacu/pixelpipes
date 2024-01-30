@@ -54,6 +54,8 @@ namespace pixelpipes
         return output;
     }
 
+    #define _view_shape given_shape<2, 3, FloatType>
+
     PIXELPIPES_OPERATION_AUTO("view", view);
 
     /**
@@ -134,7 +136,7 @@ namespace pixelpipes
         }
     }
 
-    PIXELPIPES_OPERATION_AUTO("mask_bounds", mask_bounds);
+    PIXELPIPES_COMPUTE_OPERATION_AUTO("mask_bounds", mask_bounds, rect_shape_int);
 
     /**
      * @brief Performs image resize.

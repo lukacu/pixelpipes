@@ -2,10 +2,10 @@
 from attributee.primitives import Integer
 
 from .geometry import ImageRemap, Resize
-from ..numbers import Round, TensorAdd
+from ..numbers import Round, Add
 from ..graph import Macro, Input, SeedInput, types
 from . import GetImageProperties, ConvertDepth
-from .render import LinearImage, NormalNoise, UniformNoise
+from .render import LinearImage, GaussianNoise, UniformNoise
 
 
 class ImageNoise(Macro):
@@ -18,8 +18,8 @@ class ImageNoise(Macro):
 
     def expand(self, source, amount, seed):
         properties = GetImageProperties(source)
-        noise = NormalNoise(width=properties["width"], height=properties["height"], mean=0, std=amount, seed=seed)
-        return ConvertDepth(TensorAdd(ConvertDepth(source, "Float"), noise), depth="Char")
+        noise = GaussianNoise(width=properties["width"], height=properties["height"], mean=0, std=amount, seed=seed)
+        return ConvertDepth(Add(ConvertDepth(source, "Float"), noise), depth="Char")
 
 
 class ImageBrightness(Macro):
@@ -30,7 +30,7 @@ class ImageBrightness(Macro):
     amount = Input(types.Float())
 
     def expand(self, source, amount):
-        return TensorAdd(source, Round(amount), saturate=True)
+        return Add(source, Round(amount), saturate=True)
 
 class ImagePiecewiseAffine(Macro):
     """Piecewise affine transformation of image. This augmentation creates a grid of random perturbations and

@@ -134,6 +134,8 @@ namespace pixelpipes
 
     PIXELPIPES_COMPUTE_OPERATION_AUTO("random_points2d", random_points2d, (constant_shape<float, unknown, 2>));
 
+/*
+
     Point2D point2d_add(const Point2D &point0, const Point2D &point1)
     {
         Point2D result;
@@ -232,5 +234,5 @@ namespace pixelpipes
 
 #define points2d_power points2d_elementwise_binary<point2d_power>
     PIXELPIPES_OPERATION_AUTO("points2d_power", points2d_power);
-
+*/
 }

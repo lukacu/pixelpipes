@@ -27,7 +27,7 @@ namespace pixelpipes
     SerializationException::SerializationException(std::string reason) : BaseException(reason) {}
 
     typedef std::tuple<std::string, TokenReader, TokenWriter, ModuleReference> SerializatorData;
-    typedef std::map<TypeIdentifier, SerializatorData> SerializatorMap;
+    typedef std::map<Type, SerializatorData> SerializatorMap;
 
     static SerializatorMap &handlers()
     {
@@ -35,33 +35,33 @@ namespace pixelpipes
         return data;
     }
 
-    inline char type_to_char(TypeIdentifier t)
+    inline char type_to_char(Type t)
     {
-        if (t == GetTypeIdentifier<int>())
+        if (t == GetType<int>())
         {
             return 'i';
         }
-        else if (t == GetTypeIdentifier<float>())
+        else if (t == GetType<float>())
         {
             return 'f';
         }
-        else if (t == GetTypeIdentifier<char>())
+        else if (t == GetType<char>())
         {
             return 'c';
         }
-        else if (t == GetTypeIdentifier<bool>())
+        else if (t == GetType<bool>())
         {
             return 'b';
         }
-        else if (t == GetTypeIdentifier<short>())
+        else if (t == GetType<short>())
         {
             return 's';
         }
-        else if (t == GetTypeIdentifier<ushort>())
+        else if (t == GetType<ushort>())
         {
             return 'S';
         }
-        else if (t == GetTypeIdentifier<uchar>())
+        else if (t == GetType<uchar>())
         {
             return 'C';
         }
@@ -69,35 +69,35 @@ namespace pixelpipes
         return 'x';
     }
 
-    inline TypeIdentifier char_to_type(char c)
+    inline Type char_to_type(char c)
     {
         if (c == 'i')
         {
-            return GetTypeIdentifier<int>();
+            return GetType<int>();
         }
         else if (c == 'f')
         {
-            return GetTypeIdentifier<float>();
+            return GetType<float>();
         }
         else if (c == 'c')
         {
-            return GetTypeIdentifier<char>();
+            return GetType<char>();
         }
         else if (c == 'C')
         {
-            return GetTypeIdentifier<uchar>();
+            return GetType<uchar>();
         }
         else if (c == 'b')
         {
-            return GetTypeIdentifier<bool>();
+            return GetType<bool>();
         }
         else if (c == 's')
         {
-            return GetTypeIdentifier<short>();
+            return GetType<short>();
         }
         else if (c == 'S')
         {
-            return GetTypeIdentifier<ushort>();
+            return GetType<ushort>();
         }
         return AnyType;
     }
@@ -235,17 +235,17 @@ namespace pixelpipes
         {
             switch (char_to_type(prefix))
             {
-            case IntegerIdentifier:
+            case IntegerType:
                 return create<IntegerScalar>(read_t<int>(source));
-            case CharIdentifier:
+            case CharType:
                 return create<CharScalar>(read_t<uchar>(source));
-            case ShortIdentifier:
+            case ShortType:
                 return create<ShortScalar>(read_t<short>(source));
-            case UShortIdentifier:
+            case UnsignedShortType:
                 return create<ShortScalar>(read_t<ushort>(source));
-            case FloatIdentifier:
+            case FloatType:
                 return create<FloatScalar>(read_t<float>(source));
-            case BooleanIdentifier:
+            case BooleanType:
                 return create<BooleanScalar>(read_t<bool>(source));
             }
         }
@@ -298,32 +298,32 @@ namespace pixelpipes
             {
                 write_t(drain, type_to_char(shape.element()));
 
-                if (shape.element() == IntegerIdentifier)
+                if (shape.element() == IntegerType)
                 {
                     write_t(drain, extract<int>(token));
                     return;
                 }
-                else if (shape.element() == CharIdentifier)
+                else if (shape.element() == CharType)
                 {
                     write_t(drain, extract<char>(token));
                     return;
                 }
-                else if (shape.element() == ShortIdentifier)
+                else if (shape.element() == ShortType)
                 {
                     write_t(drain, extract<short>(token));
                     return;
                 }
-                else if (shape.element() == UShortIdentifier)
+                else if (shape.element() == UnsignedShortType)
                 {
                     write_t(drain, extract<ushort>(token));
                     return;
                 }
-                else if (shape.element() == BooleanIdentifier)
+                else if (shape.element() == BooleanType)
                 {
                     write_t(drain, extract<bool>(token));
                     return;
                 }
-                else if (shape.element() == FloatIdentifier)
+                else if (shape.element() == FloatType)
                 {
                     write_t(drain, extract<float>(token));
                     return;
@@ -351,9 +351,9 @@ namespace pixelpipes
             return value.reborrow();
         }
 
-        virtual TypeIdentifier type() const override
+        virtual Type type() const override
         {
-            return GetTypeIdentifier<FileList>();
+            return GetType<FileList>();
         }
 
         virtual void describe(std::ostream &os) const
@@ -427,7 +427,7 @@ namespace pixelpipes
         return create<StringList>(make_span(absolute));
     }
 
-    void type_register_serializer(TypeIdentifier identifier, std::string_view uid, TokenReader reader, TokenWriter writer)
+    void type_register_serializer(Type identifier, std::string_view uid, TokenReader reader, TokenWriter writer)
     {
 
         if (handlers().find(identifier) != handlers().end())
@@ -450,7 +450,7 @@ namespace pixelpipes
         std::vector<OperationData> operations;
 
         std::set<ModuleReference, pointer_comparator<Module>> used_modules;
-        std::set<TypeIdentifier> used_types;
+        std::set<Type> used_types;
 
         PipelineData(const Pipeline &pipeline, const std::string &origin)
         {
@@ -478,7 +478,7 @@ namespace pixelpipes
 
                     TokenReference token = arg->reborrow();
 
-                    if (op.operation->type() == GetTypeIdentifier<FileList>() && (*arg)->is<StringList>())
+                    if (op.operation->type() == GetType<FileList>() && (*arg)->is<StringList>())
                     {
                         token = make_relative(extract<ListReference>(*arg), origin);
                     }

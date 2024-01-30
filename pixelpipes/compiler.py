@@ -93,8 +93,10 @@ def infer_type(node: typing.Union[Reference, str], graph: Graph = None, type_cac
 
     node = graph[name]
 
-    if not hasattr(node, "validate"):
-        return None
+    if not hasattr(node, "evaluate"):
+        raise ValidationException(
+            "Node {} does not implement evaluate method".format(node))
+        #return None
 
     input_types = {}
     for k, i in zip(node.input_names(), node.input_values()):
@@ -103,7 +105,7 @@ def infer_type(node: typing.Union[Reference, str], graph: Graph = None, type_cac
             return None
         input_types[k] = typ
 
-    output_type = node.validate(**input_types)
+    output_type = node.evaluate(**input_types)
 
     if type_cache is not None and output_type is not None:
         type_cache[name] = output_type
@@ -278,7 +280,7 @@ class Compiler(object):
                 return False
 
             try:
-                node.validate(**{k: v.type for k, v in inputs.items()})
+                #node.evaluate(**{k: v.type for k, v in inputs.items()})
                 # Expand the macro subgraph
                 with graph.subgraph(prefix=Reference(name)) as macro_builder:
                     output = node.expand(**inputs)

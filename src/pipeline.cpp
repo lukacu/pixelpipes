@@ -69,9 +69,9 @@ namespace pixelpipes
             return OperationTrait::Unit;
         }
 
-        virtual TypeIdentifier type() const override
+        virtual Type type() const override
         {
-            return GetTypeIdentifier<Output>();
+            return GetType<Output>();
         }
 
         virtual Sequence<TokenReference> serialize() { return Sequence<TokenReference>({wrap(label)}); }
@@ -115,9 +115,9 @@ namespace pixelpipes
             return OperationTrait::Unit;
         }
 
-        virtual TypeIdentifier type() const override
+        virtual Type type() const override
         {
-            return GetTypeIdentifier<Constant>();
+            return GetType<Constant>();
         }
 
         virtual Sequence<TokenReference> serialize() { return Sequence<TokenReference>({_value.reborrow()}); }
@@ -163,9 +163,9 @@ namespace pixelpipes
             return OperationTrait::Unit;
         }
 
-        virtual TypeIdentifier type() const override
+        virtual Type type() const override
         {
-            return GetTypeIdentifier<Conditional>();
+            return GetType<Conditional>();
         }
 
         virtual Sequence<TokenReference> serialize() { return Sequence<TokenReference>(); }
@@ -209,9 +209,9 @@ namespace pixelpipes
             return query;
         }
 
-        virtual TypeIdentifier type() const override
+        virtual Type type() const override
         {
-            return GetTypeIdentifier<ContextQuery>();
+            return GetType<ContextQuery>();
         }
 
         virtual Sequence<TokenReference> serialize() { return Sequence<TokenReference>({wrap(query)}); }
@@ -253,9 +253,9 @@ namespace pixelpipes
             return OperationTrait::Unit;
         }
 
-        virtual TypeIdentifier type() const override
+        virtual Type type() const override
         {
-            return GetTypeIdentifier<DebugOutput>();
+            return GetType<DebugOutput>();
         }
 
         virtual Sequence<TokenReference> serialize() { return Sequence<TokenReference>({wrap(prefix)}); }
@@ -483,7 +483,7 @@ namespace pixelpipes
             if (state->cache[i])
             {
                 context[i] = state->cache[i].reborrow();
-                if ((state->operations[i].operation->type()) == GetTypeIdentifier<Output>())
+                if ((state->operations[i].operation->type()) == GetType<Output>())
                 {
                     result.push_back(state->cache[i].reborrow());
                 }
@@ -506,7 +506,7 @@ namespace pixelpipes
                 auto output = state->operations[i].operation->run(make_span(local));
                 auto operation_end = high_resolution_clock::now();
 
-                if ((state->operations[i].operation->type()) == GetTypeIdentifier<ContextQuery>())
+                if ((state->operations[i].operation->type()) == GetType<ContextQuery>())
                 {
                     switch ((state->operations[i].operation.get_as<ContextQuery>())->get_query())
                     {
@@ -533,7 +533,7 @@ namespace pixelpipes
                 state->stats[i].count++;
                 state->stats[i].elapsed += (unsigned long)duration_cast<microseconds>(operation_end - operation_start).count();
 
-                if ((state->operations[i].operation)->type() == GetTypeIdentifier<Output>())
+                if ((state->operations[i].operation)->type() == GetType<Output>())
                 {
                     for (auto x = local.begin(); x != local.end(); x++)
                     {
@@ -555,7 +555,7 @@ namespace pixelpipes
                     state->cache[i] = context[i].reborrow();
                 }
 
-                if ((state->operations[i].operation)->type() == GetTypeIdentifier<Jump>())
+                if ((state->operations[i].operation)->type() == GetType<Jump>())
                 {
                     size_t jump = (size_t)extract<int>(context[i]);
 

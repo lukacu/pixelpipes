@@ -63,7 +63,7 @@ class TypesTests(TestBase):
 
     def test_modifiers(self):
 
-        self.assertEqual(Integer().push(1).rank, 1)
+        self.assertEqual(Integer().push(1).rank, 0)
         self.assertEqual(Integer().push(1)[1], 1)
         self.assertEqual(IntegerList().pop().rank, 0)
         self.assertEqual(IntegerList().push().rank, 2)
@@ -219,17 +219,16 @@ class NumbersTests(TestBase):
 class ListTests(TestBase):
 
     def test_list_range(self):
-
         with Graph() as graph:
-            r1 = Range(0, 10, 10, True)
+            r1 = Range(0, 6, 6, True)
             r2 = Range(0, 5, 10, False)
             outputs(r1, r2)
 
-        pipeline = Compiler.build_graph(graph)
+        pipeline = Compiler().build(graph)
         sample = pipeline.run(1)
 
         np.testing.assert_array_equal(
-            sample[0], np.array(range(0, 10, 1), dtype=np.int32))
+            sample[0], np.array(range(0, 6, 1), dtype=np.int32))
         np.testing.assert_array_equal(sample[1], np.array(
             range(0, 10, 1), dtype=np.float32) / 2)
 

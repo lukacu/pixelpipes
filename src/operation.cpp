@@ -45,7 +45,7 @@ namespace pixelpipes
         }
     }
 
-    TypeIdentifier Operation::type() const
+    Type Operation::type() const
     {
         return AnyType;
     }
@@ -60,7 +60,7 @@ namespace pixelpipes
         return make_generator((uint32_t)seed);
     }
 
-    typedef std::tuple<TypeIdentifier, OperationConstructor, OperationDescriber, ModuleReference> Factory;
+    typedef std::tuple<Type, OperationConstructor, OperationDescriber, ModuleReference> Factory;
     typedef std::map<std::string, Factory> RegistryMap;
 
     RegistryMap &_registry()

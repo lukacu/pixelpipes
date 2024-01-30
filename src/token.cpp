@@ -26,6 +26,15 @@ namespace pixelpipes
     {
     }
 
+    Placeholder::Placeholder(const Placeholder &that) : _shape{that._shape} 
+    {
+
+    }
+
+    Placeholder::Placeholder(const Type &type, const Sizes &shape) : _shape{type, shape}
+    {
+    }
+
     Placeholder::~Placeholder() = default;
 
     void Placeholder::describe(std::ostream &os) const
@@ -41,9 +50,9 @@ namespace pixelpipes
     TokenReference Placeholder::dummy() const
     {
         if (_shape.is_scalar()) {
-            if (_shape.element() == IntegerIdentifier) {
+            if (_shape.element() == IntegerType) {
                 return create<IntegerScalar>(0);
-            } else if (_shape.element() == FloatIdentifier) {
+            } else if (_shape.element() == FloatType) {
                 return create<FloatScalar>(0.0f);
             } else {
                 return create<CharScalar>(0);

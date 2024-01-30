@@ -75,9 +75,9 @@ namespace pixelpipes
         return create<IntegerScalar>(offset);
     }
 
-    TypeIdentifier Jump::type()
+    Type Jump::type()
     {
-        return GetTypeIdentifier<Jump>();
+        return GetType<Jump>();
     }
 
     ConditionalJump::ConditionalJump(DNF condition, int offset) : Jump(offset), condition(condition)
@@ -99,9 +99,9 @@ namespace pixelpipes
         }
     }
 
-    TypeIdentifier ConditionalJump::type()
+    Type ConditionalJump::type()
     {
-        return GetTypeIdentifier<ConditionalJump>();
+        return GetType<ConditionalJump>();
     }
 
     Sequence<TokenReference> ConditionalJump::serialize() { throw PipelineException("Serialization of jumps supported"); }

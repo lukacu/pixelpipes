@@ -9,7 +9,7 @@ from .processing import ImageBlend, ImageCoarseDropout, ImageCut, ImageDropout, 
 from .geometry import Flip, MaskBoundingBox, Resize, Rotate90, Scale, ImageCrop
 from .augmentation import ImageBrightness, ImageNoise, ImagePiecewiseAffine
 from .filter import AverageFilter, BilateralFilter, GaussianFilter, LinearFilter, MedianBlur
-from .render import LinearImage, NormalNoise, UniformNoise
+from .render import LinearImage, GaussianNoise, UniformNoise
 from ..geometry.rectangle import MakeRectangle
 
 np.random.seed(0)
@@ -654,7 +654,7 @@ class TestsRender(unittest.TestCase):
     def test_normal_noise(self):
 
         with Graph() as graph:
-            o0 = NormalNoise(width=10, height=10, mean=0.5, std=0.05)  
+            o0 = GaussianNoise(width=10, height=10, mean=0.5, std=0.05)  
             outputs(o0)
 
         pipeline = Compiler().build(graph)

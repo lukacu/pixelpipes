@@ -105,12 +105,12 @@ namespace pixelpipes
 
     }
 
-    using TypeIdentifier = pixelpipes::details::TypeIdentifier;
+    using Type = pixelpipes::details::Type;
 
     /**
      * The type identifier for any type.
     */
-    constexpr static TypeIdentifier AnyType = 0;
+    constexpr static Type AnyType = 0;
 
     /**
      * The function that returns the type id.
@@ -119,7 +119,7 @@ namespace pixelpipes
      * Altough the value is not predictible, it's stable (I hope).
      */
     template <typename T>
-    constexpr TypeIdentifier PIXELPIPES_TYPE_API GetTypeIdentifier() noexcept
+    constexpr Type PIXELPIPES_TYPE_API GetType() noexcept
     {
         return details::TypeInfo<T>::Id();
     }
@@ -133,8 +133,16 @@ namespace pixelpipes
         TypeException(const TypeException& e) = default;
     };
 
+#define IntegerType GetType<int>()
+#define ShortType GetType<short>()
+#define FloatType GetType<float>()
+#define BooleanType GetType<bool>()
+#define CharType GetType<char>()
+#define UnsignedShortType GetType<ushort>()
 
-    // Size cannot be determined
+	const char* type_name(Type t);
+
+    // Special valu - size cannot be determined
     constexpr size_t unknown = ~0L;
 
     struct PIXELPIPES_API Size
@@ -262,15 +270,15 @@ namespace pixelpipes
         Shape(const Shape &) = default;
         Shape(Shape &&s) = default;
 
-        Shape(TypeIdentifier element, const std::initializer_list<Size>& shape);
-        Shape(TypeIdentifier element, const View<Size>& shape);
-        Shape(TypeIdentifier element, const Sizes& shape);
+        Shape(Type element, const std::initializer_list<Size>& shape);
+        Shape(Type element, const View<Size>& shape);
+        Shape(Type element, const Sizes& shape);
 
-        Shape(TypeIdentifier element);
+        Shape(Type element);
 
         virtual ~Shape() = default;
 
-        TypeIdentifier element() const;
+        Type element() const;
 
         value_type operator[](size_t index) const;
 
@@ -284,7 +292,7 @@ namespace pixelpipes
 
         bool is_anything() const;
 
-        Shape cast(TypeIdentifier t) const;
+        Shape cast(Type t) const;
 
         Shape push(Size s) const;
 
@@ -307,15 +315,57 @@ namespace pixelpipes
 
     private:
     
-        TypeIdentifier _element;
+        Type _element;
         Sequence<Size> _shape;
     };
 
+    // Convert a shape to a string
+    template <typename T>
+    inline std::string to_string(const T& s)
+    {
+        std::stringstream ss;
+        ss << s;
+        return ss.str();
+    }
+
+    inline std::string to_string(const Size& t)
+    {
+        if (!(t))
+            return "unknown";
+        else
+            return std::to_string(static_cast<size_t>(t));
+    }
+
+    inline std::string to_string(const Type& t)
+    {
+        return type_name(t);
+    }
+
+    inline std::ostream& operator<<(std::ostream& os, const Sizes& s)
+    {
+        auto t = s.begin();
+        if (t != s.end()) {
+            os << to_string(*t);
+            for (t++; t != s.end(); t++)
+                os << " x " << to_string(*t);
+        }
+        return os;
+    }
+
     inline std::ostream& operator<<(std::ostream& os, const Shape& s)
     {
-        os << " [ ";
-        for (auto t = s.begin(); t != s.end(); t++)
-            os << static_cast<size_t>(*t) << ", ";
+        if (s.is_anything()) {
+            os << "[ anything ]";
+            return os;
+        }
+
+        os << " [ " << to_string(s.element());
+        auto t = s.begin();
+        if (t != s.end()) {
+            os << " - " << to_string(*t);
+            for (t++; t != s.end(); t++)
+                os << " x " << to_string( *t);
+        }
         os << " ] ";
         return os;
     }
@@ -333,28 +383,28 @@ namespace pixelpipes
             _s.push_back(Size(t));
         }
 
-        return Shape(GetTypeIdentifier<T>(), make_span(_s));
+        return Shape(GetType<T>(), make_span(_s));
     }
 
-    inline size_t type_size(TypeIdentifier t)
+    inline size_t type_size(Type t)
     {
-        if (t == GetTypeIdentifier<int>())
+        if (t == GetType<int>())
         {
             return sizeof(int);
         }
-        else if (t == GetTypeIdentifier<float>())
+        else if (t == GetType<float>())
         {
             return sizeof(float);
         }
-        else if (t == GetTypeIdentifier<uchar>() || t == GetTypeIdentifier<char>())
+        else if (t == GetType<uchar>() || t == GetType<char>())
         {
             return sizeof(char);
         }
-        else if (t == GetTypeIdentifier<bool>())
+        else if (t == GetType<bool>())
         {
             return sizeof(bool);
         }
-        else if (t == GetTypeIdentifier<ushort>() || t == GetTypeIdentifier<short>())
+        else if (t == GetType<ushort>() || t == GetType<short>())
         {
             return sizeof(short);
         }
@@ -365,31 +415,31 @@ namespace pixelpipes
     template <typename T>
     inline Shape ScalarType()
     {
-        return Shape(GetTypeIdentifier<T>());
+        return Shape(GetType<T>());
     }
 
     template <typename T>
     inline Shape ListType(Size length)
     {
-        return Shape(GetTypeIdentifier<T>(), Sequence<Size>({length}));
+        return Shape(GetType<T>(), Sequence<Size>({length}));
     }
 
-    inline Shape ListType(TypeIdentifier element, Size length)
+    inline Shape ListType(Type element, Size length)
     {
         return Shape(element, Sequence<Size>({length}));
     }
 
-    inline Shape MatrixType(TypeIdentifier element, Size width, Size height)
+    inline Shape MatrixType(Type element, Size width, Size height)
     {
         return Shape(element, Sequence<Size>({width, height}));
     }
 
-    inline Shape ImageType(TypeIdentifier element, Size width, Size height, Size channels)
+    inline Shape ImageType(Type element, Size width, Size height, Size channels)
     {
         return Shape(element, Sequence<Size>({width, height, channels}));
     }
 
-    Shape PIXELPIPES_API AnythingType();
+    Shape PIXELPIPES_API AnythingShape();
 
     typedef std::map<std::string, int> EnumerationMap;
 

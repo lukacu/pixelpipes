@@ -5,7 +5,6 @@
 
 namespace pixelpipes
 {
-
     /**
      * @brief Draw a polygon to a canvas of a given size.
      *
@@ -31,7 +30,8 @@ namespace pixelpipes
         }
     }
 
-    PIXELPIPES_OPERATION_AUTO("polygon_mask", polygon_mask);
+    #define _evaluate_mask given_shape<1, 2, CharType>
+    PIXELPIPES_COMPUTE_OPERATION_AUTO("polygon_mask", polygon_mask, _evaluate_mask);
 
     /*
     NOISE GENERATION
@@ -41,7 +41,7 @@ namespace pixelpipes
      * @brief Creates a single channel image with values sampled from normal distribution.
      *
      */
-    TokenReference normal_noise(int width, int height, float mean, float std, int seed) noexcept(false)
+    TokenReference gaussian_noise(int width, int height, float mean, float std, int seed) noexcept(false)
     {
 
         cv::RNG generator(seed);
@@ -51,7 +51,8 @@ namespace pixelpipes
         return wrap(noise);
     }
 
-    PIXELPIPES_OPERATION_AUTO("normal_noise", normal_noise);
+    #define _evaluate_noise given_shape<0, 1, FloatType>
+    PIXELPIPES_COMPUTE_OPERATION_AUTO("gaussian_noise", gaussian_noise, _evaluate_noise);
 
     /**
      * @brief Creates a single channel image with values sampled from uniform distribution.
@@ -67,7 +68,7 @@ namespace pixelpipes
         return wrap(noise);
     }
 
-    PIXELPIPES_OPERATION_AUTO("uniform_noise", uniform_noise);
+    PIXELPIPES_COMPUTE_OPERATION_AUTO("uniform_noise", uniform_noise, _evaluate_noise);
 
     cv::Mat linear_image(int width, int height, float min, float max, bool flip) noexcept(false)
     {
@@ -104,7 +105,7 @@ namespace pixelpipes
         return result;
     }
 
-    PIXELPIPES_OPERATION_AUTO("linear_image", linear_image);
+    PIXELPIPES_COMPUTE_OPERATION_AUTO("linear_image", linear_image, _evaluate_noise);
 
 
 

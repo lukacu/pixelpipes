@@ -88,6 +88,10 @@ class TestRectangle(unittest.TestCase):
         pipeline = Compiler().build(graph)
         output = pipeline.run(1)
 
-        # TODO: calculate transform manually, compare matrices
-        #np.testing.assert_equal(output[0], np.array([0]))
+        # TODO: calculate transform manually (translate, rotate), compare matrices
+
+        reference = np.array([[0, 1], [1, 0], [0, 1], [1, 0]]) 
+
+
+                #np.testing.assert_equal(output[0], np.array([0]))
 

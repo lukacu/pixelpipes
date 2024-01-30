@@ -22,9 +22,6 @@ class MakeRectangle(Operation):
     def operation(self):
         return "make_rectangle",
 
-    def infer(self, **inputs):
-        return types.Rectangle()
-
 class ResizeRectangle(Macro):
     """
     Scales existing rectangle by a factor.

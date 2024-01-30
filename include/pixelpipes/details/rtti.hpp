@@ -126,7 +126,7 @@ namespace pixelpipes
         }
 
         /// TypeId type definition
-        using TypeIdentifier = std::uint32_t;
+        using Type = std::uint32_t;
 
         /// Forward declaration of the RTTI base.
         struct RTTI;
@@ -160,7 +160,7 @@ namespace pixelpipes
              * Returns the type identifier of the type T.
              * @returns Type identifier
              */
-            [[nodiscard]] static constexpr TypeIdentifier Id() noexcept
+            [[nodiscard]] static constexpr Type Id() noexcept
             {
                 return FNV1a(Name());
             }
@@ -170,7 +170,7 @@ namespace pixelpipes
              * @tparam The type to compare the identifier with.
              * @returns True in case a match was found.
              */
-            [[nodiscard]] static constexpr bool Is(TypeIdentifier typeId) noexcept
+            [[nodiscard]] static constexpr bool Is(Type typeId) noexcept
             {
                 return (Id() == typeId) || (... || (Parents::TypeInfo::Is(typeId)));
             }
@@ -186,7 +186,7 @@ namespace pixelpipes
              * the value returned is a nullptr.
              */
             template <typename T>
-            [[nodiscard]] static void const *DynamicCast(TypeIdentifier typeId, T const *ptr) noexcept
+            [[nodiscard]] static void const *DynamicCast(Type typeId, T const *ptr) noexcept
             {
                 // Check whether the current type matches the requested type.
                 if (Id() == typeId)
@@ -229,7 +229,7 @@ namespace pixelpipes
              * Returns the type identifier of the object.
              * @returns Type identifier
              */
-            [[nodiscard]] virtual TypeIdentifier typeId() const noexcept = 0;
+            [[nodiscard]] virtual Type typeId() const noexcept = 0;
 
             /**
              * Checks whether the object is a direct or derived instance of
@@ -237,7 +237,7 @@ namespace pixelpipes
              * @tparam The identifier to compare with.
              * @returns True in case a match was found.
              */
-            [[nodiscard]] virtual bool isById(TypeIdentifier typeId) const noexcept = 0;
+            [[nodiscard]] virtual bool isById(Type typeId) const noexcept = 0;
 
             /**
              * Checks whether the object is an instance of child instance of
@@ -286,7 +286,7 @@ namespace pixelpipes
              * direct descendance of the type identified by the passed type id. Otherwise
              * the value returned is a nullptr.
              */
-            [[nodiscard]] virtual void const *_cast(TypeIdentifier typeId) const noexcept = 0;
+            [[nodiscard]] virtual void const *_cast(Type typeId) const noexcept = 0;
         };
 
     }
@@ -302,17 +302,17 @@ namespace pixelpipes
 #define PIXELPIPES_RTTI(...)                                                                                    \
 public:                                                                                                         \
     using TypeInfo = pixelpipes::details::TypeInfo<__VA_ARGS__>;                                                \
-    [[nodiscard]] virtual pixelpipes::details::TypeIdentifier typeId() const noexcept override                  \
+    [[nodiscard]] virtual pixelpipes::details::Type typeId() const noexcept override                  \
     {                                                                                                           \
         return TypeInfo::Id();                                                                                  \
     }                                                                                                           \
-    [[nodiscard]] virtual bool isById(pixelpipes::details::TypeIdentifier typeId) const noexcept override       \
+    [[nodiscard]] virtual bool isById(pixelpipes::details::Type typeId) const noexcept override       \
     {                                                                                                           \
         return TypeInfo::Is(typeId);                                                                            \
     }                                                                                                           \
                                                                                                                 \
 protected:                                                                                                      \
-    [[nodiscard]] virtual void const *_cast(pixelpipes::details::TypeIdentifier typeId) const noexcept override \
+    [[nodiscard]] virtual void const *_cast(pixelpipes::details::Type typeId) const noexcept override \
     {                                                                                                           \
         return TypeInfo::Is(typeId) ? TypeInfo::DynamicCast(typeId, this) : nullptr;                            \
     }

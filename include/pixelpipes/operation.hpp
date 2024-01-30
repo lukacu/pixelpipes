@@ -9,6 +9,7 @@
 
 #include <pixelpipes/token.hpp>
 #include <pixelpipes/module.hpp>
+#include <pixelpipes/tensor.hpp>
 
 namespace pixelpipes
 {
@@ -65,8 +66,6 @@ namespace pixelpipes
     PIXELPIPES_CONVERT_ENUM(LogicalOperation)
     PIXELPIPES_CONVERT_ENUM(ComparisonOperation)
 
-    typedef View<TokenReference> TokenList;
-
     inline bool any_placeholder(const TokenList& tokens)
     {
         for (size_t i = 0; i < tokens.size(); i++) {
@@ -98,14 +97,14 @@ namespace pixelpipes
 
         virtual TokenReference evaluate(const TokenList& input);
 
-        virtual TypeIdentifier type() const;
+        virtual Type type() const;
 
         virtual OperationTrait trait() const;
 
         template <typename T>
         bool is()
         {
-            return type() == GetTypeIdentifier<T>();
+            return type() == GetType<T>();
         }
 
         virtual Sequence<TokenReference> serialize() = 0;
@@ -316,20 +315,20 @@ namespace pixelpipes
             return o_trait;
         }
 
-        virtual TypeIdentifier type() const override
+        virtual Type type() const override
         {
-            return GetTypeIdentifier<OperationType>();
+            return GetType<OperationType>();
         }
 
         virtual Sequence<TokenReference> serialize() { return Sequence<TokenReference>(); }
 
     };
 
-    typedef Sequence<TypeIdentifier> OperationArguments;
+    typedef Sequence<Type> OperationArguments;
 
     struct OperationDescription
     {
-        TypeIdentifier identifier;
+        Type identifier;
         OperationArguments arguments;
     };
 
@@ -339,7 +338,7 @@ namespace pixelpipes
 
         static OperationDescription describe()
         {
-            return OperationDescription{GetTypeIdentifier<OperationClass>(), OperationArguments{GetTypeIdentifier<Args>()...}};
+            return OperationDescription{GetType<OperationClass>(), OperationArguments{GetType<Args>()...}};
         }
 
         static OperationReference new_instance(TokenList inputs)
@@ -397,7 +396,7 @@ namespace pixelpipes
     TokenReference constant_shape(const TokenList& inputs)
     {
         UNUSED(inputs);
-        return create<Placeholder>(Shape(GetTypeIdentifier<T>(), {S...}));
+        return create<Placeholder>(Shape(GetType<T>(), {S...}));
     }
 
 #define PIXELPIPES_COMPUTE_OPERATION_AUTO(NAME, RUN, EVAL) static AddModuleInitializer CONCAT(__operation_add_, __COUNTER__)([]() { register_operation_auto<decltype(&(RUN)), (RUN), (EVAL), OperationTrait::Compute>(NAME); })

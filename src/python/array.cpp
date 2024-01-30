@@ -35,32 +35,32 @@ public:
 
         if (py::isinstance<py::array_t<int8_t>>(data))
         {
-            _element = CharIdentifier;
+            _element = CharType;
             _bytes = sizeof(uchar);
         }
         else if (py::isinstance<py::array_t<uint8_t>>(data))
         {
-            _element = CharIdentifier;
+            _element = CharType;
             _bytes = sizeof(uchar);
         }
         else if (py::isinstance<py::array_t<uint16_t>>(data))
         {
-            _element = UShortIdentifier;
+            _element = UnsignedShortType;
             _bytes = sizeof(ushort);
         }
         else if (py::isinstance<py::array_t<int16_t>>(data))
         {
-            _element = ShortIdentifier;
+            _element = ShortType;
             _bytes = sizeof(short);
         }
         else if (py::isinstance<py::array_t<int32_t>>(data))
         {
-            _element = IntegerIdentifier;
+            _element = IntegerType;
             _bytes = sizeof(int);
         }
         else if (py::isinstance<py::array_t<float>>(data))
         {
-            _element = FloatIdentifier;
+            _element = FloatType;
             _bytes = sizeof(float);
         }
 
@@ -149,14 +149,14 @@ public:
         return _bytes;
     }
 
-    virtual TypeIdentifier cell_type() const
+    virtual Type cell_type() const
     {
         return _element;
     }
 
 private:
     py::array _array;
-    TypeIdentifier _element;
+    Type _element;
     SizeSequence _shape;
     SizeSequence _strides;
     size_t _bytes;
@@ -219,27 +219,27 @@ py::object extract_tensor(const TokenReference& src)
         pystrides[i] = static_cast<ssize_t>(strides[i]);
     }
 
-    if (shape.element() == CharIdentifier)
+    if (shape.element() == CharType)
     {
         return py::array(std::move(pydimensions), std::move(pystrides), (uint8_t *)tensor->data().data(), capsule);
     }
-    if (shape.element() == IntegerIdentifier)
+    if (shape.element() == IntegerType)
     {
         return py::array(std::move(pydimensions), std::move(pystrides), (int32_t *)tensor->data().data(), capsule);
     }
-    if (shape.element() == ShortIdentifier)
+    if (shape.element() == ShortType)
     {
         return py::array(std::move(pydimensions), std::move(pystrides), (int16_t *)tensor->data().data(), capsule);
     }
-    if (shape.element() == UShortIdentifier)
+    if (shape.element() == UnsignedShortType)
     {
         return py::array(std::move(pydimensions), std::move(pystrides), (uint16_t *)tensor->data().data(), capsule);
     }
-    if (shape.element() == FloatIdentifier)
+    if (shape.element() == FloatType)
     {
         return py::array(std::move(pydimensions), std::move(pystrides), (float *)tensor->data().data(), capsule);
     }
-    if (shape.element() == BooleanIdentifier)
+    if (shape.element() == BooleanType)
     {
         return py::array(std::move(pydimensions), std::move(pystrides), (bool *)tensor->data().data(), capsule);
     }

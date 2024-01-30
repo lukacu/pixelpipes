@@ -13,9 +13,6 @@ class GaussianKernel(Operation):
     def operation(self):
         return "opencv:gaussian_kernel",
 
-    def infer(self, size):
-        return types.Image(channels=1, depth="float")
-
 class UniformKernel(Operation):
     """Generate a uniform kernel
 
@@ -31,9 +28,6 @@ class UniformKernel(Operation):
     def operation(self):
         return "opencv:uniform_kernel",
 
-    def infer(self, size):
-        return types.Image(channels=1, depth="float")
-
 class MedianBlur(Operation):
     """Blurs an image using a median filter."""
 
@@ -42,9 +36,6 @@ class MedianBlur(Operation):
     
     def operation(self):
         return "opencv:median_blur",
-
-    def infer(self, source, size):
-        return types.Image(depth = source.element)
 
 class BilateralFilter(Operation):
     """Applies the bilateral filter to an image.
@@ -57,10 +48,6 @@ class BilateralFilter(Operation):
     
     def operation(self):
         return "opencv:bilateral_filter",
-
-    def infer(self, **inputs):
-        source = inputs["source"]
-        return types.Image(depth = source.element)
 
 class LinearFilter(Operation):
     """Linear filter
@@ -80,10 +67,7 @@ class LinearFilter(Operation):
     border = EnumerationInput(BorderStrategy, default="Reflect", description="Border handling strategy")
 
     def operation(self):
-        return "opencv:linear_filter", 
-
-    def infer(self,source, kernel, border):
-        return types.Image(depth = source.element)
+        return "opencv:linear_filter",
 
 class GaussianFilter(Macro):
     """
@@ -100,7 +84,6 @@ class GaussianFilter(Macro):
         kernel_y = Transpose(GaussianKernel(size_y))
         tmp = LinearFilter(source, kernel_x, border=border)
         return LinearFilter(tmp, kernel_y, border=border)
-
 
 class AverageFilter(Macro):
     """

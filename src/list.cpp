@@ -394,6 +394,7 @@ namespace pixelpipes
     {
         VERIFY(length >= 1, "List length should be 1 or more");
 
+
         if (round)
         {
             std::vector<int> data;
@@ -565,7 +566,7 @@ namespace pixelpipes
 
         VERIFY(inputs.size() > 0, "No inputs");
 
-        if (inputs[0]->shape().element() == IntegerIdentifier)
+        if (inputs[0]->shape().element() == IntegerType)
         {
 
             std::vector<int> result;

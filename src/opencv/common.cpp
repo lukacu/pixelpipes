@@ -47,7 +47,7 @@ namespace pixelpipes
         }
     }
 
-    TypeIdentifier decode_ocvtype(int cvtype)
+    Type decode_ocvtype(int cvtype)
     {
 
         int depth = CV_MAT_DEPTH(cvtype);
@@ -57,23 +57,23 @@ namespace pixelpipes
         case CV_8U:
         case CV_8S:
         {
-            return CharIdentifier;
+            return CharType;
         }
         case CV_16U:
         {
-            return UShortIdentifier;
+            return UnsignedShortType;
         }
         case CV_16S:
         {
-            return ShortIdentifier;
+            return ShortType;
         }
         case CV_32S:
         {
-            return IntegerIdentifier;
+            return IntegerType;
         }
         case CV_32F:
         {
-            return FloatIdentifier;
+            return FloatType;
         }
         default:
         {
@@ -82,27 +82,27 @@ namespace pixelpipes
         }
     }
 
-    int encode_ocvtype(TypeIdentifier dtype)
+    int encode_ocvtype(Type dtype)
     {
         switch (dtype)
         {
-        case CharIdentifier:
+        case CharType:
         {
             return CV_8U;
         }
-        case IntegerIdentifier:
+        case IntegerType:
         {
             return CV_32S;
         }
-        case UShortIdentifier:
+        case UnsignedShortType:
         {
             return CV_16U;
         }
-        case ShortIdentifier:
+        case ShortType:
         {
             return CV_16S;
         }
-        case FloatIdentifier:
+        case FloatType:
         {
             return CV_32F;
         }
@@ -299,15 +299,15 @@ namespace pixelpipes
 
         switch (_element)
         {
-        case CharIdentifier:
+        case CharType:
             return create<CharScalar>(_mat.at<uchar>((const int *)i.data()));
-        case ShortIdentifier:
+        case ShortType:
             return create<ShortScalar>(_mat.at<short>((const int *)i.data()));
-        case UShortIdentifier:
+        case UnsignedShortType:
             return create<UShortScalar>(_mat.at<ushort>((const int *)i.data()));
-        case IntegerIdentifier:
+        case IntegerType:
             return create<IntegerScalar>(_mat.at<int>((const int *)i.data()));
-        case FloatIdentifier:
+        case FloatType:
             return create<FloatScalar>(_mat.at<float>((const int *)i.data()));
         }
 
@@ -339,7 +339,7 @@ namespace pixelpipes
         return _mat.elemSize1();
     }
 
-    TypeIdentifier MatImage::cell_type() const
+    Type MatImage::cell_type() const
     {
         return _element;
     }
