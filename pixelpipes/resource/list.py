@@ -8,10 +8,9 @@ import numpy as np
 from attributee.object import class_fullname
 
 from ..list import GetElement, Permutation, Remap, Repeat, SublistSelect
-from ..numbers import Round, SampleUnform
-from ..types import Data, Integer, TypeException
+from ..numbers import Integer, SampleUnform
 from ..graph import Constant, Macro, Input, Node, NodeOperation, Copy, SeedInput, ValidationException, hidden
-from . import Resource, ResourceField, ResourceProxy, TokenField, real_field
+from . import Resource, ResourceField, ResourceProxy, TokenField, real_field, types
 from ..utilities import PersistentDict
 from ..list import FileList as FileListConstant
 
@@ -34,10 +33,10 @@ def make_hash(o):
 
     return sha1.hexdigest()
 
-def is_resource_list(typ: Data):
+def is_resource_list(typ: types.Data):
     return isinstance(typ, Resource) and "__list_length" in typ
 
-def is_segmented_resource_list(typ: Data):
+def is_segmented_resource_list(typ: types.Data):
     return is_resource_list(typ) and "__list_seg_length" in typ
 
 def ResourceList(**fields: typing.Mapping[str, ResourceField]):
@@ -133,7 +132,7 @@ class SegmentedResourceListSource(ResourceListSource):
                 beginnings.append(endings[-1]+1)
                 endings.append(endings[-1]+l)
         else:
-            raise TypeException("Must include segment information")
+            raise types.TypeException("Must include segment information")
 
         fields, forward = super()._generate(data)
 
@@ -160,7 +159,7 @@ Node.register_operation(NodeOperation.LENGTH, GetResourceListLength, ResourceLis
 class GetResource(Macro):
     
     resources = Input(ResourceList())
-    index = Input(Integer())
+    index = Input(types.Integer())
 
     def expand(self, resources, index):
 
@@ -182,13 +181,13 @@ class GetResource(Macro):
 
         return ResourceProxy(_fields=fields, **forward)
 
-Node.register_operation(NodeOperation.INDEX, GetResource, ResourceList(), Integer())
+Node.register_operation(NodeOperation.INDEX, GetResource, ResourceList(), types.Integer())
 
 class RepeatResource(Macro):
     """Returns a list of resources where an input resource is repeated a number of times"""
 
     resource = Input(Resource(), description="Resource to repeat")
-    length = Input(Integer(), description="Number of repetitions")
+    length = Input(types.Integer(), description="Number of repetitions")
 
     def expand(self, resource, length):
 
@@ -231,7 +230,7 @@ class RandomResource(Macro):
         length = GetResourceListLength(resources)
         generator = SampleUnform(0, length-1, seed=self.seed)
 
-        index = Round(generator)
+        index = Integer(generator)
         
         return GetResource(resources, index)
 
@@ -267,8 +266,8 @@ class PermuteResources(Macro):
 class ListInterval(Macro):
     
     resources = Input(ResourceList())
-    begin = Input(Integer())
-    end = Input(Integer())
+    begin = Input(types.Integer())
+    end = Input(types.Integer())
 
     def expand(self, resources, begin, end):
 
@@ -300,7 +299,7 @@ class SegmentCount(Macro):
 class ResourceSegment(Macro):
     
     resources = Input(SegmentedResourceList())
-    index = Input(Integer())
+    index = Input(types.Integer())
 
     def expand(self, resources, index):
 
@@ -318,7 +317,7 @@ class RandomResourceSegment(Macro):
 
     def expand(self, resources, seed):
 
-        index = Round(SampleUnform(0, SegmentCount(resources) - 1, seed=seed))
+        index = Integer(SampleUnform(0, SegmentCount(resources) - 1, seed=seed))
         return ResourceSegment(resources, index)
 
 class PermuteResourceSegments(Macro):

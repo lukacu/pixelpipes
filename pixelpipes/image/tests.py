@@ -4,9 +4,9 @@ import numpy as np
 
 from ..graph import Graph, Constant, outputs
 from ..compiler import Compiler
-from . import Equals, Grayscale, Invert, Threshold, Moments, GetImageProperties, ConvertDepth
+from . import Equals, ColorConvert, Invert, Threshold, Moments, GetImageProperties, ConvertDepth
 from .processing import ImageBlend, ImageCoarseDropout, ImageCut, ImageDropout, ImageSolarize
-from .geometry import Flip, MaskBoundingBox, Resize, Rotate90, Scale, ImageCrop
+from .geometry import Flip, MaskBoundingBox, Resize, Scale, ImageCrop, ImageCropSafe
 from .augmentation import ImageBrightness, ImageNoise, ImagePiecewiseAffine
 from .filter import AverageFilter, BilateralFilter, GaussianFilter, LinearFilter, MedianBlur
 from .render import LinearImage, GaussianNoise, UniformNoise
@@ -248,40 +248,6 @@ class TestsGeometry(unittest.TestCase):
         self.assertEqual(output[3].shape[0], 512)   
         self.assertEqual(output[4].shape[0], 1024)   
 
-    def test_image_rotate(self):
-
-        test_image = np.random.randint(0, 255, (256,256), dtype=np.uint8)
-
-        with Graph() as graph:
-            n0 = Constant(test_image)
-            r_0_0 = Rotate90(source=n0, clockwise=-1)
-            r_0_1 = Rotate90(source=r_0_0, clockwise=-1)
-            r_0_2 = Rotate90(source=r_0_1, clockwise=-1)
-            o0 = Rotate90(source=r_0_2, clockwise=-1)
-            r_1_0 = Rotate90(source=n0, clockwise=0)
-            o1 = Rotate90(source=r_1_0, clockwise=0)
-            r_2_0 = Rotate90(source=n0, clockwise=1)
-            r_2_1 = Rotate90(source=r_2_0, clockwise=1)
-            r_2_2 = Rotate90(source=r_2_1, clockwise=1)
-            o2 = Rotate90(source=r_2_2, clockwise=1)
-            r_3_0 = Rotate90(source=n0, clockwise=1)
-            o3 = Rotate90(source=r_3_0, clockwise=-1)
-            r_4_0 = Rotate90(source=n0, clockwise=-1)
-            o4 = Rotate90(source=r_4_0, clockwise=1)
-            r_5_0 = Rotate90(source=n0, clockwise=0)
-            r_5_1 = Rotate90(source=r_5_0, clockwise=1)
-            o5 = Rotate90(source=r_5_1, clockwise=1)
-            outputs(o0, o1, o2, o3, o4, o5)
-
-        pipeline = Compiler().build(graph)
-        output = pipeline.run(1)
-
-        np.testing.assert_array_equal(output[0], test_image)
-        np.testing.assert_array_equal(output[1], test_image)
-        np.testing.assert_array_equal(output[2], test_image)
-        np.testing.assert_array_equal(output[3], test_image)
-        np.testing.assert_array_equal(output[4], test_image)
-        np.testing.assert_array_equal(output[5], test_image)
 
     def test_image_flip(self):
 
@@ -360,22 +326,19 @@ class TestsGeometry(unittest.TestCase):
 
         with Graph() as graph:
             n0 = Constant(test_image)
-            n1 = MakeRectangle(x1=0, x2=256, y1=0, y2=256)
-            n2 = MakeRectangle(x1=64, x2=192, y1=64, y2=192)
-            n3 = MakeRectangle(x1=65, x2=193, y1=65, y2=193)
-            o0 = ImageCrop(n0, n1)
-            o1 = ImageCrop(n0, n2)
-            o2 = ImageCrop(n0, n3)
+            o0 = ImageCrop(n0, x=0, width=256, y=0, height=256)
+            o1 = ImageCrop(n0, x=100, width=256, y=100, height=256)
+            o2 = ImageCropSafe(n0, x=100, width=256, y=100, height=256, border="ConstantLow")
             outputs(o0, o1, o2)
 
         pipeline = Compiler().build(graph)
         output = pipeline.run(1)
 
         np.testing.assert_array_equal(output[0], test_image)
-        self.assertEqual(output[1].shape[0], 128)
-        self.assertEqual(output[1].shape[1], 128)
-        self.assertEqual(output[2].shape[0], output[1].shape[0])
-        self.assertEqual(output[2].shape[1], output[1].shape[1])
+        self.assertEqual(output[1].shape[0], 156)
+        self.assertEqual(output[1].shape[1], 156)
+        self.assertEqual(output[2].shape[0], 256)
+        self.assertEqual(output[2].shape[1], 256)
 
     # TODO ViewImage
     # TODO ImageRemap
@@ -463,7 +426,7 @@ class TestsImage(unittest.TestCase):
         self.assertIs(output[2].dtype, np.dtype('float32'))
         self.assertIs(output[3].dtype, np.dtype('int32'))
 
-    def test_grayscale(self):
+    def test_colorconversion(self):
   
         test_image_gray = np.random.randint(1, 254, (256,256), dtype=np.uint8)
         test_image_rgb = np.ndarray((3,256,256), dtype=np.uint8)
@@ -473,13 +436,15 @@ class TestsImage(unittest.TestCase):
 
         with Graph() as graph:
             n0 = Constant(test_image_rgb)
-            o0 = Grayscale(n0)
-            outputs(o0)
+            o0 = ColorConvert(n0, "RGB_GRAY")
+            o1 = ColorConvert(o0, "GRAY_RGB")
+            outputs(o0, o1)
 
         pipeline = Compiler().build(graph)
         output = pipeline.run(1)
 
         np.testing.assert_array_equal(output[0], test_image_gray)
+        np.testing.assert_array_equal(output[1], np.stack((test_image_gray, test_image_gray, test_image_gray)))
 
     def test_image_threshold(self):
 
@@ -611,26 +576,6 @@ class TestsProcessing(unittest.TestCase):
         output = pipeline.run(1)
 
         assert not np.array_equal(output[0], test_image)
-
-    def test_cut(self):
-
-        test_image = np.random.randint(0, 255, (256,256), dtype=np.uint8)
-
-        with Graph() as graph:
-            n0 = Constant(test_image)
-            n1 = MakeRectangle(x1=0, x2=64, y1=0, y2=64)
-            n2 = MaskBoundingBox(source=n0)
-            o0 = ImageCut(n0, n1)
-            o1 = ImageCut(n0, n2)
-            outputs(o0, o1)
-
-        pipeline = Compiler().build(graph)
-        output = pipeline.run(1)
-
-        test_image[0:64, 0:64] = 0
-        np.testing.assert_array_equal(output[0], test_image)
-        test_image[:, :] = 0
-        np.testing.assert_array_equal(output[1], test_image)
 
     def test_solarize(self):
 

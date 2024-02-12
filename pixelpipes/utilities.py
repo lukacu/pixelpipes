@@ -196,9 +196,14 @@ def pipeline(variables=None, fixedout=False, debug=False):
     return inner
 
 def collage(pipeline: Pipeline, index: int, rows: int, columns: int, offset: typing.Optional[int] = 0) -> np.ndarray:
+    outputs = pipeline.outputs
+
     assert rows > 0 and columns > 0
     assert offset >= 0
-    assert index >= 0 and index < len(pipeline.outputs)
+    assert index >= 0 and index < len(outputs)
+
+    for label, shape in outputs:
+        print(label, shape)
 
     image = None
     for i in range(rows):

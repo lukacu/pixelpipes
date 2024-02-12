@@ -12,6 +12,9 @@
 
 namespace pixelpipes
 {
+
+    PIXELPIPES_REGISTER_ENUM("datatype", DataType);
+
     struct TensorGuard
     {
         TensorReference guard;
@@ -34,7 +37,7 @@ namespace pixelpipes
         _strides = SizeSequence(strides);
 
         _cell_size = source->cell_size();
-        _cell_type = source->cell_type();
+        _cell_type = source->datatype();
 
         _size = std::accumulate(shape.begin(), shape.end(), 1, std::multiplies<size_t>()) * _cell_size;
 
@@ -55,7 +58,7 @@ namespace pixelpipes
 
     Shape TensorView::shape() const
     {
-        return Shape(cell_type(), _shape);
+        return Shape(datatype(), _shape);
     }
 
     size_t TensorView::length() const
@@ -68,7 +71,7 @@ namespace pixelpipes
         return _cell_size;
     }
 
-    Type TensorView::cell_type() const
+    Type TensorView::datatype() const
     {
         return _cell_type;
     }

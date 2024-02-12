@@ -9,23 +9,72 @@ namespace pixelpipes
     // TODO: make all element type specific loops templated
 
     /**
-     * @brief Converts color image to grayscale image.
+     * @brief Converts images between color spaces
      *
      */
-    cv::Mat grayscale(const cv::Mat &image) noexcept(false)
+    cv::Mat convert_color_run(const cv::Mat &image, ColorConversion convert) noexcept(false)
     {
+        int code = -1;
+        switch (convert)
+        {
+        case ColorConversion::RGB_GRAY:
+            code = cv::COLOR_RGB2GRAY;
+            break;
+        case ColorConversion::GRAY_RGB:
+            code = cv::COLOR_GRAY2RGB;
+            break;
+        case ColorConversion::RGB_HSV:
+            code = cv::COLOR_RGB2HSV;
+            break;
+        case ColorConversion::HSV_RGB:
+            code = cv::COLOR_HSV2RGB;
+            break;
+        case ColorConversion::RGB_YCRCB:
+            code = cv::COLOR_RGB2YCrCb;
+            break;
+        case ColorConversion::YCRCB_RGB:
+            code = cv::COLOR_YCrCb2RGB;
+            break;
+        }
+
         cv::Mat result;
-        cv::cvtColor(image, result, cv::COLOR_BGR2GRAY);
+        cv::cvtColor(image, result, code);
         return result;
     }
 
-    PIXELPIPES_OPERATION_AUTO("grayscale", grayscale);
+    TokenReference convert_color_eval(const TokenList& inputs) noexcept(false)
+    {
+        VERIFY(inputs.size() == 2, "Color conversion requires two inputs");
+
+        auto shape = inputs[0]->shape();
+        auto convert = extract<ColorConversion>(inputs[1]);
+
+        switch (convert)
+        {
+        case ColorConversion::RGB_GRAY:
+            return create<Placeholder>(Shape(shape.element(), {shape[0], shape[1]}));
+        case ColorConversion::GRAY_RGB:
+            return create<Placeholder>(Shape(shape.element(), {3, shape[0], shape[1]}));
+        case ColorConversion::RGB_HSV:
+            return create<Placeholder>(shape);
+        case ColorConversion::HSV_RGB:
+            return create<Placeholder>(shape);
+        case ColorConversion::RGB_YCRCB:
+            return create<Placeholder>(shape);
+        case ColorConversion::YCRCB_RGB:
+            return create<Placeholder>(shape);
+        }
+
+        throw TypeException("Unknown color space conversion");
+    }
+
+    PIXELPIPES_COMPUTE_OPERATION_AUTO("color", convert_color_run, convert_color_eval);
 
     /**
      * @brief Converts depth of an image, scaling values in the process
      *
      */
-    TokenReference convert_depth(const TensorReference &input, ImageDepth depth) noexcept(false)
+    TokenReference convert_depth_run(const TensorReference &input, ImageDepth depth) noexcept(false)
     {
 
         cv::Mat image = wrap_tensor(input);
@@ -79,13 +128,37 @@ namespace pixelpipes
         return result;
     }
 
-    PIXELPIPES_OPERATION_AUTO("convert_depth", convert_depth);
+    TokenReference convert_depth_eval(const TokenList& inputs) noexcept(false)
+    {
+        VERIFY(inputs.size() == 2, "Depth conversion requires two inputs");
+
+        auto shape = inputs[0]->shape();
+        auto depth = extract<ImageDepth>(inputs[1]);
+
+        switch (depth)
+        {
+        case ImageDepth::Char:
+            return create<Placeholder>(shape.cast(CharType));
+        case ImageDepth::Short:
+            return create<Placeholder>(shape.cast(ShortType));
+        case ImageDepth::UShort:
+            return create<Placeholder>(shape.cast(UnsignedShortType));
+        case ImageDepth::Integer:
+            return create<Placeholder>(shape.cast(IntegerType));
+        case ImageDepth::Float:
+            return create<Placeholder>(shape.cast(FloatType));
+        }
+
+        throw TypeException("Unknown depth type conversion");
+    }
+
+    PIXELPIPES_COMPUTE_OPERATION_AUTO("convert_depth", convert_depth_run, convert_depth_eval);
 
     /**
      * @brief Thresholds an image.
      *
      */
-    TokenReference image_threshold(const cv::Mat &image, float threshold) noexcept(false)
+    TokenReference threshold(const cv::Mat &image, float threshold) noexcept(false)
     {
         VERIFY(image.channels() == 1, "Image has more than one channel");
         float maxval = maximum_value(image);
@@ -98,7 +171,7 @@ namespace pixelpipes
         return result;
     }
 
-    PIXELPIPES_OPERATION_AUTO("threshold", image_threshold);
+    PIXELPIPES_COMPUTE_OPERATION_AUTO("threshold", threshold, (forward_shape<0>));
 
     /**
      * @brief Inverts image pixel values.
@@ -134,7 +207,7 @@ namespace pixelpipes
         return data;
     }
 
-    PIXELPIPES_OPERATION_AUTO("moments", moments);
+    PIXELPIPES_COMPUTE_OPERATION_AUTO("moments", moments, (constant_shape<float, 4>));
 
     /**
      * @brief Blends two images using alpha.
@@ -149,7 +222,7 @@ namespace pixelpipes
         return result;
     }
 
-    PIXELPIPES_OPERATION_AUTO("blend", blend);
+    PIXELPIPES_COMPUTE_OPERATION_AUTO("blend", blend, (forward_shape<0>));
 
     TokenReference normalize(const cv::Mat &image)
     {
@@ -167,7 +240,7 @@ namespace pixelpipes
         return result;
     }
 
-    PIXELPIPES_OPERATION_AUTO("normalize", normalize);
+    PIXELPIPES_COMPUTE_OPERATION_AUTO("normalize", normalize, (forward_shape<0>));
 
     /**
      * @brief Sets image pixels to zero with probability P.
@@ -240,7 +313,7 @@ namespace pixelpipes
         return result;
     }
 
-    PIXELPIPES_OPERATION_AUTO("dropout", dropout);
+    PIXELPIPES_COMPUTE_OPERATION_AUTO("dropout", dropout, (forward_shape<0>));
 
     /**
      * @brief Divides image to pacthes and sets patch pixels to zero with probability P.
@@ -407,7 +480,7 @@ namespace pixelpipes
         return result;
     }
 
-    PIXELPIPES_OPERATION_AUTO("cut", cut);
+    //PIXELPIPES_OPERATION_AUTO("cut", cut);
 
     /**
      * @brief Inverts all values above a threshold in image.

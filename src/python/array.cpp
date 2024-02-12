@@ -149,7 +149,7 @@ public:
         return _bytes;
     }
 
-    virtual Type cell_type() const
+    virtual Type datatype() const
     {
         return _element;
     }

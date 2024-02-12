@@ -285,7 +285,21 @@ namespace pixelpipes
         return create<Sublist>(list, begin, end);
     }
 
-    PIXELPIPES_OPERATION_AUTO("list_sublist", sublist_select);
+    TokenReference _sublist_select_eval(const TokenList &inputs)
+    {
+        VERIFY(inputs.size() == 3, "Incorrect number of parameters");
+
+        auto list = inputs[0]->shape();
+        auto begin = get_size(inputs[1]);
+        auto end = get_size(inputs[2]);
+
+        if (list[0] == unknown || begin == unknown || end == unknown)
+            return create<Placeholder>(list.pop().push(unknown));
+
+        return create<Placeholder>(list.pop().push(end - begin + 1));
+    }
+
+    PIXELPIPES_UNIT_OPERATION_AUTO("list_sublist", sublist_select, _sublist_select_eval);
 
     /**
      * @brief Returns a view of the list where every element is a row.
@@ -296,7 +310,22 @@ namespace pixelpipes
         return create<Table>(list, row);
     }
 
-    PIXELPIPES_OPERATION_AUTO("list_table", list_table);
+    TokenReference _list_table_eval(const TokenList &inputs)
+    {
+        VERIFY(inputs.size() == 2, "Incorrect number of parameters");
+
+        auto list = inputs[0]->shape();
+        auto row = get_size(inputs[1]);
+
+        if (list[0] == unknown || row == unknown)
+            return create<Placeholder>(list.push(unknown));
+
+        VERIFY(list[0] % row == 0, "List length should be a multiple of row size");
+
+        return create<Placeholder>(list.pop().push(row).push(list[0] / row));
+    }
+
+    PIXELPIPES_UNIT_OPERATION_AUTO("list_table", list_table, _list_table_eval);
 
     /**
      * @brief Returns a concatenation of given input lists.
@@ -317,7 +346,23 @@ namespace pixelpipes
         return create<CompositeList>(make_span(lists));
     }
 
-    PIXELPIPES_OPERATION("list_concatenate", list_concatenate);
+    TokenReference _list_concatenate_eval(const TokenList &inputs)
+    {
+        VERIFY(inputs.size() > 1, "Incorrect number of parameters");
+
+        Size length = 0;
+        Shape inner_shape = inputs[0]->shape();
+
+        for (size_t i = 1; i < inputs.size(); i++)
+        {
+            inner_shape = inner_shape & inputs[i]->shape().pop();
+            length = length + inputs[i]->shape()[0];
+        }
+
+        return create<Placeholder>(inner_shape.push(length));
+    }
+
+    PIXELPIPES_COMPUTE_OPERATION("list_concatenate", list_concatenate, _list_concatenate_eval);
 
     /**
      * @brief Filters a list with another list used as a mask.
@@ -339,7 +384,22 @@ namespace pixelpipes
         return create<MappedList>(list, remap);
     }
 
-    PIXELPIPES_OPERATION_AUTO("list_filter", list_filter);
+    TokenReference _list_filter_eval(const TokenList &inputs)
+    {
+        VERIFY(inputs.size() == 2, "Incorrect number of parameters");
+
+        auto list = inputs[0]->shape();
+        auto mask = inputs[1]->shape();
+
+        if (list[0] == unknown || mask[0] == unknown)
+            return create<Placeholder>(list.push(unknown));
+
+        VERIFY(list[0] == mask[0], "List length should be equal to mask length");
+
+        return create<Placeholder>(list);
+    }
+
+    PIXELPIPES_COMPUTE_OPERATION_AUTO("list_filter", list_filter, _list_filter_eval);
 
     /**
      * @brief Maps elements from a list to another list using a list of indices.
@@ -361,7 +421,20 @@ namespace pixelpipes
         return create<MappedList>(list, remap);
     }
 
-    PIXELPIPES_OPERATION_AUTO("list_remap", list_remap);
+    TokenReference _list_remap_eval(const TokenList &inputs)
+    {
+        VERIFY(inputs.size() == 2, "Incorrect number of parameters");
+
+        auto list = inputs[0]->shape();
+        auto map = inputs[1]->shape();
+
+        if (list[0] == unknown || map[0] == unknown)
+            return create<Placeholder>(list.pop().push(unknown));
+
+        return create<Placeholder>(list.pop().push(map[0]));
+    }
+
+    PIXELPIPES_COMPUTE_OPERATION_AUTO("list_remap", list_remap, _list_remap_eval);
 
     /**
      * @brief Returns an element from a given list.
@@ -372,7 +445,14 @@ namespace pixelpipes
         return list->get(index);
     }
 
-    PIXELPIPES_OPERATION_AUTO("list_element", list_element);
+    TokenReference _list_element_eval(const TokenList &inputs)
+    {
+        VERIFY(inputs.size() == 2, "Incorrect number of parameters");
+        auto list = inputs[0]->shape();
+        return create<Placeholder>(list.pop());
+    }
+
+    PIXELPIPES_UNIT_OPERATION_AUTO("list_element", list_element, _list_element_eval);
 
     /**
      * @brief Returns a virtual list with the given variable replicated a given number of times.
@@ -384,7 +464,14 @@ namespace pixelpipes
         return create<ConstantList>(value, length);
     }
 
-    PIXELPIPES_OPERATION_AUTO("list_repeat", repeat_element);
+    TokenReference _repeat_element_eval(const TokenList &inputs)
+    {
+        VERIFY(inputs.size() == 2, "Incorrect number of parameters");
+        auto value = inputs[0]->shape();
+        return create<Placeholder>(value.push(get_size(inputs[1])));
+    }
+
+    PIXELPIPES_UNIT_OPERATION_AUTO("list_repeat", repeat_element, _repeat_element_eval);
 
     /**
      * @brief Returns a list from start to end with linear progression over length elements.
@@ -418,7 +505,19 @@ namespace pixelpipes
         }
     }
 
-    PIXELPIPES_OPERATION_AUTO("list_range", list_range);
+    TokenReference _list_range_eval(const TokenList &inputs)
+    {
+        VERIFY(inputs.size() == 4, "Incorrect number of parameters");
+        auto length = get_size(inputs[2]);
+        auto round = get_size(inputs[3]);
+
+        if (round)
+            return create<Placeholder>(Shape(IntegerType, {length}));
+        else
+            return create<Placeholder>(Shape(FloatType, {length}));
+    }
+
+    PIXELPIPES_COMPUTE_OPERATION_AUTO("list_range", list_range, _list_range_eval);
 
     /**
      * @brief Creates a permutation mapping.
@@ -438,7 +537,14 @@ namespace pixelpipes
         return create<MappedList>(list, indices);
     }
 
-    PIXELPIPES_OPERATION_AUTO("list_permute", list_permute);
+    TokenReference _list_permute_eval(const TokenList &inputs)
+    {
+        VERIFY(inputs.size() == 2, "Incorrect number of parameters");
+        auto list = inputs[0]->shape();
+        return create<Placeholder>(list);
+    }
+
+    PIXELPIPES_COMPUTE_OPERATION_AUTO("list_permute", list_permute, _list_permute_eval);
 
     /**
      * @brief Creates a random permutation of indices from 0 to length.
@@ -457,7 +563,14 @@ namespace pixelpipes
         return create<IntegerVector>(make_span(indices));
     }
 
-    PIXELPIPES_OPERATION_AUTO("list_permutation", make_permutation);
+    TokenReference _make_permutation_eval(const TokenList &inputs)
+    {
+        VERIFY(inputs.size() == 2, "Incorrect number of parameters");
+        auto length = get_size(inputs[0]);
+        return create<Placeholder>(Shape(IntegerType, {length}));
+    }
+
+    PIXELPIPES_COMPUTE_OPERATION_AUTO("list_permutation", make_permutation, _make_permutation_eval);
 
     /**
      * @brief Returns a scalar length of an input list.
@@ -469,97 +582,7 @@ namespace pixelpipes
     }
 
     PIXELPIPES_UNIT_OPERATION_AUTO("list_length", list_length, constant_shape<int>);
-/*
-    template <typename Op, typename F, typename R>
-    TokenReference list_elementwise_binary(const Sequence<F> &a, const Sequence<F> &b)
-    {
-        Op operation;
 
-        if (a.size() != b.size())
-        {
-            if (a.size() == 1)
-            {
-                Sequence<R> result(b.size());
-                for (size_t i = 0; i < b.size(); i++)
-                    result[i] = (operation(a[0], b[i]));
-                return wrap(result);
-            }
-            else if (b.size() == 1)
-            {
-                Sequence<R> result(a.size());
-                for (size_t i = 0; i < a.size(); i++)
-                    result[i] = (operation(a[i], b[0]));
-                return wrap(result);
-            }
-            else
-            {
-                throw TypeException("List length mismatch");
-            }
-        }
-        else
-        {
-            Sequence<R> result(a.size());
-
-            for (size_t i = 0; i < a.size(); i++)
-                result[i] = (operation(a[i], b[i]));
-
-            return wrap(result);
-        }
-    }
-
-#define list_modulus list_elementwise_binary<std::modulus<int>, int, int>
-    PIXELPIPES_OPERATION_AUTO("list_modulus", list_modulus);
-
-#define list_compare_equal list_elementwise_binary<std::equal_to<float>, float, bool>
-    PIXELPIPES_OPERATION_AUTO("list_compare_equal", list_compare_equal);
-
-#define list_compare_not_equal list_elementwise_binary<std::not_equal_to<float>, float, bool>
-    PIXELPIPES_OPERATION_AUTO("list_compare_not_equal", list_compare_not_equal);
-
-#define list_compare_greater list_elementwise_binary<std::greater<float>, float, bool>
-    PIXELPIPES_OPERATION_AUTO("list_compare_greater", list_compare_greater);
-
-#define list_compare_less list_elementwise_binary<std::less<float>, float, bool>
-    PIXELPIPES_OPERATION_AUTO("list_compare_less", list_compare_less);
-
-#define list_compare_greater_equal list_elementwise_binary<std::greater_equal<float>, float, bool>
-    PIXELPIPES_OPERATION_AUTO("list_compare_greater_equal", list_compare_greater_equal);
-
-#define list_compare_less_equal list_elementwise_binary<std::less_equal<float>, float, bool>
-    PIXELPIPES_OPERATION_AUTO("list_compare_less_equal", list_compare_less_equal);
-
-#define list_logical_and list_elementwise_binary<std::logical_and<bool>, bool, bool>
-    PIXELPIPES_OPERATION_AUTO("list_logical_and", list_logical_and);
-
-    TokenReference list_logical_or(const Sequence<bool> &a, const Sequence<bool> &b)
-    {
-        if (a.size() != b.size())
-            throw TypeException("List length mismatch");
-
-        Sequence<bool> result(a.size());
-        for (size_t i = 0; i < a.size(); i++)
-        {
-            result[i] = (a[i] || b[i]);
-        }
-
-        return wrap(result);
-    }
-
-    PIXELPIPES_OPERATION_AUTO("list_logical_or", list_logical_or);
-
-    TokenReference list_logical_not(const Sequence<bool> &a)
-    {
-        Sequence<bool> result(a.size());
-        for (size_t i = 0; i < a.size(); i++)
-        {
-            result[i] = (!a[i]);
-        }
-
-        return wrap(result);
-    }
-
-    PIXELPIPES_OPERATION_AUTO("list_logical_not", list_logical_not);
-*/
     // TODO: better detecton of integer lists vs float
     TokenReference list_build(const TokenList &inputs)
     {

@@ -520,6 +520,25 @@ namespace pixelpipes
         }
     }
 
+    // Determine the statelss operation output
+    std::vector<TokenReference> stateless_pass(std::vector<OperationData> &operations)
+    {
+        std::vector<TokenReference> stateless;
+        stateless.resize(operations.size());
+
+        for (size_t i = 0; i < operations.size(); i++)
+        {
+            std::vector<TokenReference> _inputs;
+            for (int j : operations[i].inputs)
+            {
+                _inputs.push_back(stateless[j].reborrow());
+            }
+            stateless[i] = operations[i].operation->evaluate(make_view(_inputs));
+        }
+
+        return stateless;
+    }
+
     std::vector<OperationData> optimize_pipeline(std::vector<OperationData> &operations, bool predictive, bool prune)
     {
 
@@ -539,11 +558,9 @@ namespace pixelpipes
 
         for (size_t i = 0; i < operations.size(); i++)
         {
-            // Determine the statelss operation output
-            // Note: this at the moment assumes that the operations are already topologically sorted
-            
-            std::vector<TokenReference> _inputs;
 
+            // Note: this at the moment assumes that the operations are already topologically sorted
+  
             // Collect special operations: outputs, context, conditionals
             if (is_output(operations[i].operation))
             {
@@ -561,13 +578,6 @@ namespace pixelpipes
             {
                 dependencies[i].insert(j);
             }
-
-            for (int j : operations[i].inputs)
-            {
-                _inputs.push_back(stateless[j].reborrow());
-            }
-    
-            stateless[i] = operations[i].operation->evaluate(make_view(_inputs));
         }
 
         branches.resize(operations.size(), BranchSet(conditions.size()));

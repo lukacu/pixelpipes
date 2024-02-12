@@ -365,7 +365,7 @@ namespace pixelpipes
 
         virtual OperationTrait trait() const override
         {
-            return OperationTrait::Unit;
+            return OperationTrait::Critical;
         }
 
         virtual TokenReference evaluate(const TokenList &inputs) override

@@ -140,7 +140,7 @@ namespace pixelpipes
 #define CharType GetType<char>()
 #define UnsignedShortType GetType<ushort>()
 
-	const char* type_name(Type t);
+	PIXELPIPES_API const char* type_name(Type t);
 
     // Special valu - size cannot be determined
     constexpr size_t unknown = ~0L;
@@ -167,7 +167,7 @@ namespace pixelpipes
         {
             if (data == unknown)
                 return unknown;
-            return data + (size_t)other;
+            return (size_t) ((size_t)data + other);
         }
 
         template <typename T>
@@ -175,7 +175,7 @@ namespace pixelpipes
         {
             if (data == unknown)
                 return unknown;
-            return data - (size_t)other;
+            return (size_t) ((size_t)data - other);
         }
 
         template <typename T>
@@ -183,7 +183,7 @@ namespace pixelpipes
         {
             if (data == unknown)
                 return unknown;
-            return data * (size_t)other;
+            return (size_t) ((size_t)data * other);
         }
 
         template <typename T>
@@ -191,7 +191,7 @@ namespace pixelpipes
         {
             if (data == unknown)
                 return unknown;
-            return data / (size_t)other;
+            return (size_t) ((size_t)data / other);
         }
 
         template <typename T>
@@ -199,7 +199,7 @@ namespace pixelpipes
         {
             if (data == unknown)
                 return unknown;
-            return data % (size_t)other;
+            return (size_t) ((size_t)data % other);
         }
 
         template <typename T>
@@ -308,7 +308,10 @@ namespace pixelpipes
             return _shape.end();
         }
 
+        Shape common(Shape &other) const;
+
         Shape operator&(const Shape &other) const;
+        Shape operator|(const Shape &other) const;
         bool operator==(const Shape &other) const;
         Shape &operator=(const Shape &s) = default;
         Shape &operator=(Shape &&s) = default;

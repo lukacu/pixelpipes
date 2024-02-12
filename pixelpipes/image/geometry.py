@@ -28,16 +28,6 @@ class Transpose(Operation):
     def operation(self):
         return "opencv:transpose",
 
-class Rotate90(Operation):
-    """Rotate an image 90, -90 or 180 degrees.
-    """
-
-    source = Input(types.Image(), description="Input Image")
-    clockwise = Input(types.Integer(), description="1 is clockwise, -1 is counter clockwise, 0 is vertical flip")
-
-    def operation(self):
-        return "opencv:rotate90",
-
 class Flip(Operation):
     """Flips image around vertical, horizontal, or both axes.
     """
@@ -74,10 +64,26 @@ class ImageCrop(Operation):
     """Crops an image to a given rectangle"""
 
     source = Input(types.Image(), description="Input image")
-    region = Input(types.Rectangle(), description="Crop region")
+    x = Input(types.Integer(), description="X coordinate of the top-left corner")
+    y = Input(types.Integer(), description="Y coordinate of the top-left corner")
+    width = Input(types.Integer(), description="Width of the rectangle")
+    height = Input(types.Integer(), description="Height of the rectangle")
 
     def operation(self):
         return "opencv:crop",
+
+class ImageCropSafe(Operation):
+    """Crops an image to a given rectangle"""
+
+    source = Input(types.Image(), description="Input image")
+    x = Input(types.Integer(), description="X coordinate of the top-left corner")
+    y = Input(types.Integer(), description="Y coordinate of the top-left corner")
+    width = Input(types.Integer(), description="Width of the rectangle")
+    height = Input(types.Integer(), description="Height of the rectangle")
+    border = EnumerationInput(BorderStrategy, default="ConstantLow")
+
+    def operation(self):
+        return "opencv:crop_safe",
 
 class RandomPatchView(Macro):
     """Returns a view that focuses on a random patch in an image"""

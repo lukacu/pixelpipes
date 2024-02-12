@@ -204,7 +204,7 @@ namespace pixelpipes
 
         virtual size_t cell_size() const override;
 
-        virtual Type cell_type() const override;
+        virtual Type datatype() const override;
 
     private:
         cv::Mat _mat;
@@ -286,9 +286,24 @@ namespace pixelpipes
 
     TokenReference forward_image_type(const TokenList &inputs);
 
-    inline Size get_size(const TokenReference &token) {
+    inline Size get_width(const TokenReference &token) {
         if (_IS_PLACEHOLDER(token)) return unknown;
-        return extract<int>(token);
+        return extract<cv::Rect>(token).width;
+    }
+
+    inline Size get_height(const TokenReference &token) {
+        if (_IS_PLACEHOLDER(token)) return unknown;
+        return extract<cv::Rect>(token).height;
+    }
+
+    inline Size min(Size a, Size b) {
+        if (a == unknown || b == unknown) return unknown;
+        return std::min((size_t)a, (size_t)b);
+    }
+
+    inline Size max(Size a, Size b) {
+        if (a == unknown || b == unknown) return unknown;
+        return std::max((size_t)a, (size_t)b);
     }
 
     template <int W, int H, Type T>
@@ -317,6 +332,17 @@ namespace pixelpipes
     {
         VERIFY(inputs.size() >= W && inputs.size() >= H && inputs.size() >= I, "Incorrect number of parameters");
         return create<Placeholder>(Shape(inputs[I]->shape().element(), {get_size(inputs[H]), get_size(inputs[W])}));
+    }
+
+    template <int I1, int I2>
+    TokenReference common_shape(const TokenList &inputs) noexcept(false)
+    {
+        VERIFY(inputs.size() >= I1 && inputs.size() >= I2, "Incorrect number of parameters");
+
+        auto s1 = inputs[I1]->shape();
+        auto s2 = inputs[I2]->shape();
+
+        return create<Placeholder>(s1 & s2);
     }
 
     #define rect_shape_int constant_shape<int, 4>

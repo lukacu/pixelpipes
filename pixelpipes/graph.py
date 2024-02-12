@@ -164,7 +164,7 @@ class EnumerationInput(Input):
             return value
 
         if value not in self._mapping:
-            raise AttributeException("Illegal value: {}".format(value))
+            raise AttributeException("Illegal value '{}', valid options: '{}'".format(value, "', '".join(self._mapping.keys())))
 
         return self._mapping[value]
 

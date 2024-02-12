@@ -187,6 +187,20 @@ class NumbersTests(TestBase):
         self.assertEqual(output[5], 0)
         self.assertEqual(output[6], -6)
 
+    def test_trigonometry(self):
+        from pixelpipes.numbers import Sin, Cos, Tan, ArcCos, ArcSin, ArcTan
+
+        with Graph() as graph:
+            n1 = Constant(value=0.5)
+            outputs(Sin(n1), Cos(n1), Tan(n1), ArcCos(n1), ArcSin(n1), ArcTan(n1))
+
+        pipeline = Compiler().build(graph)
+        output = pipeline.run(1)
+
+        self.assertAlmostEqual(output[0], np.sin(0.5))
+        self.assertAlmostEqual(output[1], np.cos(0.5))
+        self.assertAlmostEqual(output[2], np.tan(0.5))
+
     def test_sampling(self):
         a = 0
         b = 4
@@ -485,3 +499,37 @@ class TestTensor(TestBase):
         np.testing.assert_array_equal(output[1], test_image[0, ...])
         np.testing.assert_array_equal(output[2], output[3])
         np.testing.assert_array_equal(output[0], test_image)
+
+if __name__ == "__main__":
+    # Special entrypoint for running tests and determining operation coverage afterwards
+    from collections import Counter
+    from pixelpipes import list_operations
+
+    ignore_operations = ["debug"]
+
+    # Monkey patch the compiler to track operations
+    Compiler._operations = []
+    Compiler._compile = Compiler.compile
+
+    def compile(self, *args, **kwargs):
+        operations = self._compile(*args, **kwargs)
+        Compiler._operations.extend([o.name for o in operations])
+        return operations
+    
+    Compiler.compile = compile
+    
+    unittest.main(exit=False, module=None)
+
+    # Count appearances of unique operations
+
+    used_operations = Counter(Compiler._operations)
+    supported_operations = list_operations()
+
+    unused = []
+    for op in supported_operations:
+        if op not in used_operations and op not in ignore_operations:
+            unused.append(op)
+
+    if unused:
+        print("\nUntested operations:", ",".join(unused))
+

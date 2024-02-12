@@ -69,12 +69,10 @@ add_compile_definitions(XTENSOR_USE_XSIMD)
 #add_compile_options(-march=native)
 
 SET(CORE_SOURCE
-    src/queue.cpp
     src/type.cpp
     src/token.cpp    
     src/module.cpp
     src/operation.cpp
-    src/pipeline.cpp
     src/random.cpp
     src/arithmetic.cpp
     src/buffer.cpp
@@ -83,7 +81,9 @@ SET(CORE_SOURCE
     src/image.cpp
     src/io.cpp 
     src/list.cpp
-    src/compiler/optimization.cpp
+    src/pipeline/queue.cpp
+    src/pipeline/optimization.cpp
+    src/pipeline/pipeline.cpp
     src/serialization/compression.cpp
     src/serialization/serialization.cpp
 )
@@ -99,7 +99,6 @@ ADD_LIBRARY(pixelpipes SHARED ${CORE_SOURCE})
 ADD_DEPENDENCIES(pixelpipes ${XTENSOR_TARGET})
 TARGET_LINK_LIBRARIES(pixelpipes ${CMAKE_DL_LIBS} lodepng ${ZLIB_LIBS})
 target_compile_definitions(pixelpipes PRIVATE PIXELPIPES_BUILD_CORE)
-
 
 ADD_LIBRARY(pixelpipes_opencv SHARED 
     src/opencv/common.cpp

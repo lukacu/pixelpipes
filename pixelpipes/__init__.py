@@ -39,6 +39,16 @@ def link_dirs() -> List[str]:
     """
     return [os.path.join(os.path.dirname(__file__))]
 
+def list_operations() -> List[str]:
+    """Returns a list of all available operations.
+    
+    Returns:
+        List[str]: List of operation names.
+    """
+
+    from . import pypixelpipes
+    return pypixelpipes.operations()
+
 class LazyLoadEnum(Mapping):
     """Special enum class used to load mappings from the core library when they are needed for the first time.
     """
@@ -71,6 +81,7 @@ ContextFields = LazyLoadEnum("context")
 ComparisonOperations = LazyLoadEnum("comparison")
 LogicalOperations = LazyLoadEnum("logical")
 ArithmeticOperations = LazyLoadEnum("arithmetic")
+DataType = LazyLoadEnum("datatype")
 
 PipelineOperation = namedtuple("PipelineOperation", ["id", "name", "arguments", "inputs"])
 
@@ -138,10 +149,14 @@ class Pipeline(object):
         return _PipelineMetadata(self._pipeline)
 
     @property
-    def outputs(self) -> List[str]:
-        """Returns labels for individual elements of the output tuple.
+    def outputs(self) -> List[Tuple[str, "pixelpipes.types.Token"]]:
+        """Returns description of the pipeline outputs.
+
+        Returns:
+            List[Tuple[str, "pixelpipes.types.Token"]]: List of tuples with output name and inferred type.
         """
-        return self._pipeline.labels()
+        from pixelpipes import types
+        return [(label, types.Token(shape[0], *shape[1:])) for label, shape in self._pipeline.outputs()]
 
     def _stats(self):
         # TODO: remove this
@@ -194,5 +209,5 @@ def evaluate_operation(name: str, inputs, arguments):
         out._native = output
         return out
 
-    return _wrap(pypixelpipes.evaluate_operation(name, [_unwrap(input) for input in inputs], arguments))
+    return _wrap(pypixelpipes.evaluate(name, [_unwrap(input) for input in inputs], arguments))
     

@@ -17,7 +17,7 @@
 #include <pixelpipes/serialization.hpp>
 #include <pixelpipes/operation.hpp>
 
-#include "compiler/optimization.hpp"
+#include "optimization.hpp"
 
 using namespace std;
 using namespace std::chrono;
@@ -66,7 +66,7 @@ namespace pixelpipes
 
         virtual OperationTrait trait() const override
         {
-            return OperationTrait::Unit;
+            return OperationTrait::Default;
         }
 
         virtual Type type() const override
@@ -112,7 +112,7 @@ namespace pixelpipes
 
         virtual OperationTrait trait() const override 
         {
-            return OperationTrait::Unit;
+            return OperationTrait::Critical;
         }
 
         virtual Type type() const override
@@ -160,7 +160,7 @@ namespace pixelpipes
 
         virtual OperationTrait trait() const override
         {
-            return OperationTrait::Unit;
+            return OperationTrait::Default;
         }
 
         virtual Type type() const override
@@ -201,7 +201,7 @@ namespace pixelpipes
 
         virtual OperationTrait trait() const override
         {
-            return OperationTrait::Unit;
+            return OperationTrait::Stateful;
         }
 
         ContextData get_query()
@@ -250,7 +250,7 @@ namespace pixelpipes
 
         virtual OperationTrait trait() const override
         {
-            return OperationTrait::Unit;
+            return OperationTrait::Default;
         }
 
         virtual Type type() const override
@@ -334,7 +334,7 @@ namespace pixelpipes
 
         std::vector<OperationStats> stats;
 
-        std::vector<std::string> labels;
+        std::vector<OutputDescription> outputs;
 
         Metadata metadata;
     };
@@ -372,9 +372,13 @@ namespace pixelpipes
 
         state->operations = optimize_pipeline(state->operations, optimize);
 
+        auto tokens = stateless_pass(state->operations);
+
         state->cache.resize(state->operations.size());
         state->stats.resize(state->operations.size());
         state->constants.resize(state->operations.size());
+
+        int output_position = 0;
 
         for (size_t i = 0; i < state->stats.size(); i++)
         {
@@ -399,7 +403,17 @@ namespace pixelpipes
                 constant = false;
 
             state->constants[i] = constant;
+
+            // If the operation is an output, we need to store the inferred stateless shape
+            if (is_output(state->operations[i].operation))
+            {
+                auto label = (state->operations[i].operation.get_as<Output>())->get_label();
+                state->outputs[output_position].shape = tokens[i]->shape();
+                output_position++;
+            }
         }
+
+
     }
 
     int Pipeline::append(std::string name, const TokenList &args, const Span<int> &inputs, const Metadata& metadata)
@@ -427,19 +441,19 @@ namespace pixelpipes
         {
             auto label = (state->operations.back().operation.get_as<Output>())->get_label();
             for (size_t i = 0; i < inputs.size(); i++)
-                state->labels.push_back(label);
+                state->outputs.push_back({label, AnythingShape()});
         }
 
         return (int)(state->operations.size() - 1);
     }
 
-    Sequence<std::string> Pipeline::get_labels() const
+    Sequence<OutputDescription> Pipeline::outputs() const
     {
 
         if (!state->finalized)
             throw PipelineException("Pipeline not finalized");
 
-        return Sequence<std::string>(state->labels);
+        return Sequence<OutputDescription>(state->outputs);
     }
 
     size_t Pipeline::size() const
@@ -589,7 +603,7 @@ namespace pixelpipes
             i++;
         }
 
-        VERIFY(result.size() == state->labels.size(), "Output mismatch");
+        VERIFY(result.size() == state->outputs.size(), "Output mismatch");
 
         auto r = Sequence<TokenReference>(result);
 

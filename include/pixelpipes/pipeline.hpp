@@ -25,6 +25,13 @@ namespace pixelpipes
 
     bool PIXELPIPES_API is_context(OperationReference &op);
 
+    // Output description struct
+    typedef struct OutputDescription
+    {
+        std::string label;
+        Shape shape;
+    } OutputDescription;
+
     class PIXELPIPES_API Metadata
     {
     public:
@@ -85,7 +92,7 @@ namespace pixelpipes
 
         OperationData get(size_t i) const;
 
-        virtual Sequence<std::string> get_labels() const;
+        virtual Sequence<OutputDescription> outputs() const;
 
         std::vector<float> operation_time();
 

@@ -22,7 +22,7 @@ namespace pixelpipes
         return result;
     }
 
-    PIXELPIPES_OPERATION_AUTO("median_blur", median_blur);
+    PIXELPIPES_COMPUTE_OPERATION_AUTO("median_blur", median_blur, (forward_shape<0>));
 
     /**
      * @brief Convolving an image with a normalized box filter.
@@ -35,7 +35,7 @@ namespace pixelpipes
         return result;
     }
 
-    PIXELPIPES_OPERATION_AUTO("average_blur", average_blur);
+    PIXELPIPES_COMPUTE_OPERATION_AUTO("average_blur", average_blur, (forward_shape<0>));
 
     /**
      * @brief Applies the bilateral filter to an image.
@@ -48,7 +48,7 @@ namespace pixelpipes
         return result;
     }
 
-    PIXELPIPES_OPERATION_AUTO("bilateral_filter", bilateral_filter);
+    PIXELPIPES_COMPUTE_OPERATION_AUTO("bilateral_filter", bilateral_filter, (forward_shape<0>));
 
     /**
      * @brief Convolves an image with custom kernel.
@@ -68,7 +68,7 @@ namespace pixelpipes
         return result;
     }
 
-    PIXELPIPES_OPERATION_AUTO("linear_filter", linear_filter);
+    PIXELPIPES_COMPUTE_OPERATION_AUTO("linear_filter", linear_filter, (forward_shape<0>));
 
     /**
      * @brief Convolves an image with custom kernel.
@@ -84,7 +84,7 @@ namespace pixelpipes
         return result;
     }
 
-    PIXELPIPES_OPERATION_AUTO("gaussian_kernel", gaussian_kernel);
+    PIXELPIPES_COMPUTE_OPERATION_AUTO("gaussian_kernel", gaussian_kernel, (forward_shape<0>));
 
     cv::Mat uniform_kernel(int size) noexcept(false)
     {
@@ -95,6 +95,6 @@ namespace pixelpipes
         return result;
     }
 
-    PIXELPIPES_OPERATION_AUTO("uniform_kernel", uniform_kernel);
+    PIXELPIPES_COMPUTE_OPERATION_AUTO("uniform_kernel", uniform_kernel, (forward_shape<0>));
 
 }

@@ -61,6 +61,13 @@ namespace pixelpipes
     };
 
     /**
+     * The function evaluates the results of individual operations in a stateless manner. This can be used to
+     * optimize the pipeline by removing operations that are fixed and can be precomputed. It can also be used
+     * to determine shapes of the outputs of the operations.
+    */
+    std::vector<TokenReference> stateless_pass(std::vector<Pipeline::OperationData> &operations);
+
+    /**
      * The main function that optimizes a pipeline and returns a new set of operations. The optimization can be 
      * just ordering, it can add predictive jumps and preexecute certain (deterministic) parts of pipeline and compact them
      * to constants.

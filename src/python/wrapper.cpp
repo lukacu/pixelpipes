@@ -150,13 +150,13 @@ py::tuple shape_to_tuple(const Shape &shape)
 
     for (size_t i = 0; i < shape.rank(); i++)
     {
-        if (shape[i] == unknown)
+        if (!shape[i])
         {
             result[i + 1] = py::none();
         }
         else
         {
-            result[i + 1] = (size_t) shape[i];
+            result[i + 1] = (size_t)shape[i];
         }
     }
 
@@ -303,9 +303,9 @@ TokenReference python_to_token(py::object src)
     {
         throw py::value_error("Unable to convert Python data");
     }
- 
+
     if (py::bool_::check_(src))
-    { 
+    {
         py::bool_ value(src);
         return create<BooleanScalar>(value);
     }
@@ -513,10 +513,16 @@ PYBIND11_MODULE(pypixelpipes, m)
         .def(py::init<>())
         .def("finalize", &Pipeline::finalize, "Finalize pipeline", py::arg("optimize") = true)
         .def(
-            "labels", [](Pipeline &p)
+            "outputs", [](Pipeline &p)
             {
-                auto labels = p.get_labels();
-                return std::vector<std::string>(labels.begin(), labels.end()); },
+                auto outputs = p.outputs();
+                std::vector<std::tuple<std::string, py::object>> result;
+                for (auto &output : outputs)
+                {
+                    result.push_back(std::make_tuple(output.label, shape_to_tuple(output.shape)));
+                }
+
+                return result; },
             "Get output labels as a list")
         .def(
             "append", [](Pipeline &p, std::string &name, py::tuple args, std::vector<int> inputs, py::dict meta)
@@ -573,18 +579,21 @@ PYBIND11_MODULE(pypixelpipes, m)
     /*py::class_<PipelineCallback, PyPipelineCallback, std::shared_ptr<PipelineCallback>>(m, "PipelineCallback")
         .def(py::init());*/
 
-    m.def("evaluate_operation", [](std::string &name, std::vector<PyToken> inputs, py::tuple args)
-          { 
-            std::vector<TokenReference> token_inputs(inputs.size());
-            for (size_t i = 0; i < inputs.size(); i++)
-            {
-                token_inputs[i] = inputs[i].get();
-            }
+    m.def("evaluate", [](std::string &name, std::vector<PyToken> inputs, py::tuple args)
+          {
+              std::vector<TokenReference> token_inputs(inputs.size());
+              for (size_t i = 0; i < inputs.size(); i++)
+              {
+                  token_inputs[i] = inputs[i].get();
+              }
 
-            TokenReference r = _evaluate_operation(name, make_view(token_inputs), args);
-            return PyToken(r);
-           
-           });
+              TokenReference r = _evaluate_operation(name, make_view(token_inputs), args);
+              return PyToken(r); });
+
+    m.def("operations", []()
+          { auto list = list_operations();
+            std::vector<std::string> result(list.begin(), list.end());
+            return result; });
 
     m.def("enum", [](std::string &name)
           { return describe_enumeration(name); });

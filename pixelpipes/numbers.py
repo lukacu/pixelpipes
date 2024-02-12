@@ -1,8 +1,8 @@
 
 from attributee import Boolean, List
 
-from . import types
-from .graph import Macro, Operation, Node, Input, SeedInput, NodeOperation, Constant, NodeException
+from . import types, DataType
+from .graph import Macro, Operation, Node, Input, SeedInput, NodeOperation, Constant, NodeException, EnumerationInput
 
 class SampleUnform(Operation):
     """Samples random value between min and max value."""
@@ -202,7 +202,7 @@ Node.register_operation(NodeOperation.NOT_EQUAL, NotEqual, types.Wildcard(), typ
 # Rounding
 
 class Round(Operation):
-    """Round number to closest integer and convert to integer type."""
+    """Round number to closest integer."""
 
     source = Input(types.Wildcard(), description="Number to be rounded")
 
@@ -210,7 +210,7 @@ class Round(Operation):
         return "round",
 
 class Floor(Operation):
-    """Floor number and convert to integer."""
+    """Floor number to closest integer."""
 
     source = Input(types.Wildcard(), description="Number to be rounded")
 
@@ -218,7 +218,7 @@ class Floor(Operation):
         return "floor",
 
 class Ceil(Operation):
-    """Ceil number and convert to integer.
+    """Ceil number to closest integer.
     """
 
     source = Input(types.Wildcard(), description="Number on which ceil operation is performed")
@@ -326,3 +326,41 @@ class Stack(Operation):
 
     def operation(self):
         return "stack",
+
+class Convert(Operation):
+    """Converts input to different primitive data type.
+    """
+
+    source = Input(types.Wildcard(), description="Input value")
+    dtype = EnumerationInput(DataType, default="Integer", description="Desired data type")
+
+    def operation(self):
+        return "convert",
+
+class Float(Macro):
+    """Converts input to float. A utility macro for Convert operation.
+    """
+
+    source = Input(types.Wildcard(), description="Input value")
+
+    def expand(self, source):
+        return Convert(source, "Float")
+
+class Integer(Macro):
+    """Converts input to integer. A utility macro for Convert operation.
+    """
+
+    source = Input(types.Wildcard(), description="Input value")
+
+    def expand(self, source):
+        return Convert(source, "Integer")
+    
+class Boolean(Macro):
+    """Converts input to boolean. A utility macro for Convert operation.
+
+    """
+    source = Input(types.Wildcard(), description="Input value")
+
+    def expand(self, source):
+        return Convert(source, "Boolean")
+    

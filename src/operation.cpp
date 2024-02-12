@@ -32,7 +32,7 @@ namespace pixelpipes
 
     OperationTrait Operation::trait() const
     {
-        return OperationTrait::Unit;
+        return OperationTrait::Default;
     }
 
     TokenReference Operation::evaluate(const TokenList &inputs)
@@ -165,4 +165,16 @@ namespace pixelpipes
         return std::string();
     }
 
+    Sequence<std::string> PIXELPIPES_API list_operations()
+    {
+        Sequence<std::string> result(_registry().size());
+
+        size_t i = 0;
+        for (auto x = _registry().begin(); x != _registry().end(); x++)
+        {
+            result[i++] = x->first;
+        }
+
+        return result;
+    }
 }

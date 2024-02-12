@@ -7,6 +7,7 @@ ImageChannels = LazyLoadEnum("channels")
 ImageDepth = LazyLoadEnum("depth")
 InterpolationMode = LazyLoadEnum("interpolation")
 BorderStrategy = LazyLoadEnum("border")
+ColorConvert = LazyLoadEnum("color")
 
 from pixelpipes.graph import Operation, Input, Macro, hidden, EnumerationInput
 
@@ -70,13 +71,14 @@ class ConvertDepth(Operation):
     def operation(self):
         return "opencv:convert_depth",
 
-class Grayscale(Operation):
-    """Converts image to grayscale."""
+class ColorConvert(Operation):
+    """Converts image between color spaces."""
 
     source = Input(types.Image(), description="Input image")
+    convert = EnumerationInput(ColorConvert, description="Conversion type")
 
     def operation(self):
-        return "opencv:grayscale",
+        return "opencv:color",
 
 class Threshold(Operation):
     """Sets pixels with values above threshold to zero. Returns a binary image"""

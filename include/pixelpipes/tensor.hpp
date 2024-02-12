@@ -11,6 +11,16 @@
 namespace pixelpipes
 {
 
+    enum class DataType
+    {
+        Boolean,
+        Char,
+        Short,
+        UnsignedShort,
+        Integer,
+        Float
+    };
+
     inline SizeSequence generate_strides(const Sizes &shape, size_t element)
     {
 
@@ -39,7 +49,7 @@ namespace pixelpipes
 
         virtual size_t cell_size() const = 0;
 
-        virtual Type cell_type() const = 0;
+        virtual Type datatype() const = 0;
 
         virtual TokenReference get(size_t i) const override = 0;
 
@@ -112,7 +122,7 @@ namespace pixelpipes
             return sizeof(T);
         }
 
-        virtual Type cell_type() const override
+        virtual Type datatype() const override
         {
             return GetType<T>();
         }
@@ -207,7 +217,7 @@ namespace pixelpipes
 
         virtual size_t cell_size() const override;
 
-        virtual Type cell_type() const override;
+        virtual Type datatype() const override;
 
         virtual TokenReference get(const Sizes &index) const override;
 
@@ -241,7 +251,7 @@ namespace pixelpipes
 
         inline TokenReference get_scalar(size_t offset) const
         {
-            switch (cell_type())
+            switch (datatype())
             {
             case CharType:
                 return create<CharScalar>(_data.at<uchar>(offset));
@@ -506,7 +516,7 @@ namespace pixelpipes
             return sizeof(T);
         }
 
-        virtual Type cell_type() const override
+        virtual Type datatype() const override
         {
             return GetType<T>();
         }
@@ -865,6 +875,11 @@ namespace pixelpipes
         throw TypeException("Not a tensor");
     }
 
+    inline Size get_size(const TokenReference &token) {
+        if (_IS_PLACEHOLDER(token)) return unknown;
+        return extract<int>(token);
+    }
+
 #ifdef XTENSOR_TENSOR_HPP
 
     template <typename T>
@@ -884,37 +899,37 @@ namespace pixelpipes
 
         if constexpr (std::is_same_v<T, uchar>)
         {
-            if (GetType<char>() != tr->cell_type())
+            if (GetType<char>() != tr->datatype())
                 throw TypeException("Tensor type mismatch, use casting");
             return xt::adapt(tr->data().reinterpret<uchar>().data(), ts.size(), xt::no_ownership(), _shape, _strides);
         }
         else if constexpr (std::is_same_v<T, short>)
         {
-            if (GetType<short>() != tr->cell_type())
+            if (GetType<short>() != tr->datatype())
                 throw TypeException("Tensor type mismatch, use casting");
             return xt::adapt(tr->data().reinterpret<short>().data(), ts.size(), xt::no_ownership(), _shape, _strides);
         }
         else if constexpr (std::is_same_v<T, ushort>)
         {
-            if (GetType<ushort>() != tr->cell_type())
+            if (GetType<ushort>() != tr->datatype())
                 throw TypeException("Tensor type mismatch, use casting");
             return xt::adapt(tr->data().reinterpret<ushort>().data(), ts.size(), xt::no_ownership(), _shape, _strides);
         }
         else if constexpr (std::is_same_v<T, int>)
         {
-            if (GetType<int>() != tr->cell_type())
+            if (GetType<int>() != tr->datatype())
                 throw TypeException("Tensor type mismatch, use casting");
             return xt::adapt(tr->data().reinterpret<int>().data(), ts.size(), xt::no_ownership(), _shape, _strides);
         }
         else if constexpr (std::is_same_v<T, float>)
         {
-            if (GetType<float>() != tr->cell_type())
+            if (GetType<float>() != tr->datatype())
                 throw TypeException("Tensor type mismatch, use casting");
             return xt::adapt(tr->data().reinterpret<float>().data(), ts.size(), xt::no_ownership(), _shape, _strides);
         }
         else if constexpr (std::is_same_v<T, bool>)
         {
-            if (GetType<bool>() != tr->cell_type())
+            if (GetType<bool>() != tr->datatype())
                 throw TypeException("Tensor type mismatch, use casting");
             return xt::adapt(tr->data().reinterpret<bool>().data(), ts.size(), xt::no_ownership(), _shape, _strides);
         }
@@ -925,5 +940,7 @@ namespace pixelpipes
     }
 
 #endif
+
+    PIXELPIPES_CONVERT_ENUM(DataType)
 
 }

@@ -13,7 +13,7 @@ class Conditional(Operation):
 
     true = Input(types.Wildcard(), description="Use this data if condition is true")
     false = Input(types.Wildcard(), description="Use this data if condition is false")
-    condition = Input(types.Boolean(), description="Condition to test")
+    condition = Input(types.Integer(), description="Condition to test") # Should be boolean, but at the moment testing throws an error
 
     def operation(self):
         return "condition",

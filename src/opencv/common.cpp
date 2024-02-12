@@ -25,6 +25,7 @@ namespace pixelpipes
     PIXELPIPES_REGISTER_ENUM("border", BorderStrategy);
     PIXELPIPES_REGISTER_ENUM("depth", ImageDepth);
     PIXELPIPES_REGISTER_ENUM("channels", ImageChannels);
+    PIXELPIPES_REGISTER_ENUM("color", ColorConversion);
 
     int ocv_border_type(BorderStrategy b, int *value)
     {
@@ -339,7 +340,7 @@ namespace pixelpipes
         return _mat.elemSize1();
     }
 
-    Type MatImage::cell_type() const
+    Type MatImage::datatype() const
     {
         return _element;
     }

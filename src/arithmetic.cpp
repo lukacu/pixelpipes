@@ -13,7 +13,7 @@
 
 namespace pixelpipes
 {
-   TensorReference create_tensor(Type element, Sizes sizes)
+    TensorReference create_tensor(Type element, Sizes sizes)
     {
 
         if (element == IntegerType)
@@ -48,7 +48,7 @@ namespace pixelpipes
 
     TensorReference create_tensor(Shape s)
     {
-
+        // Not the nicest way to do this, but it works (optimization is not a priority here)
         return create_tensor(s.element(), SizeSequence(std::vector<size_t>(s.begin(), s.end())));
     }
 
@@ -87,7 +87,6 @@ namespace pixelpipes
         {
             throw TypeException("Unsupported format");
         }
-
     }
 
     template <typename A, typename B>
@@ -132,7 +131,7 @@ namespace pixelpipes
     template <typename TIN>
     inline void _execute_xtensor_cast(TIN &&ain, const TensorReference &out)
     {
-        auto t = out->cell_type();
+        auto t = out->datatype();
 
         if (t == CharType)
         {
@@ -173,9 +172,9 @@ namespace pixelpipes
     void copy_tensor(const TensorReference &in, const TensorReference &out)
     {
 
-        auto tin = in->cell_type();
+        auto tin = in->datatype();
 
-        if (tin == out->cell_type())
+        if (tin == out->datatype())
         {
             if (tin == CharType)
             {
@@ -194,7 +193,6 @@ namespace pixelpipes
                 auto aout = wrap_xtensor<ushort>(out);
                 auto ain = wrap_xtensor<ushort>(in);
                 aout = xt::eval(ain);
-                
             }
             else if (tin == IntegerType)
             {
@@ -218,8 +216,6 @@ namespace pixelpipes
             {
                 throw TypeException("Unsupported tensor type");
             }
-
-
         }
         else
         {
@@ -258,13 +254,13 @@ namespace pixelpipes
     inline SizeSequence _broadcasting_strides(const Shape &original, const SizeSequence &desired, const SizeSequence &strides)
     /**
      * @brief Computes strides for broadcasting a tensor
-     * 
+     *
      * @param original Original shape
      * @param desired Desired shape
      * @param strides Strides of the original tensor
-     * 
+     *
      * @return Strides for the broadcasted tensor
-    */
+     */
     {
         auto bstrides = SizeSequence::repeat(desired.size(), (size_t)original[original.rank() - 1]);
 
@@ -303,22 +299,18 @@ namespace pixelpipes
         return b;
     }
 
-    TokenReference _determine_shape_binary(const TokenList& inputs) {
-
-        VERIFY(inputs.size() == 2, "At least two tokens expected");
-
-        Shape sa = inputs[0]->shape();
-        Shape sb = inputs[1]->shape();
+    Shape _infer_common_shape(const Shape& sa, const Shape& sb) 
+    {
 
         size_t outdim = std::max(sa.rank(), sb.rank());
         SizeSequence outsize(outdim);
 
         for (size_t i = 0; i < outdim; i++)
         {
-            if (!(sa[i]) || !(sb[i])) {
+            if (!(sa[i]) || !(sb[i]))
+            {
                 outsize[i] = unknown;
-            
-            } 
+            }
             else if (sa[i] == 1)
             {
                 outsize[i] = sb[i];
@@ -331,24 +323,65 @@ namespace pixelpipes
             {
                 outsize[i] = sa[i];
             }
-            else {
-                throw TypeException(std::string("Shape dimension mismatch:" ) + to_string(sa) + " != " + to_string(sb));
+            else
+            {
+                throw TypeException(std::string("Shape dimension mismatch:") + to_string(sa) + " != " + to_string(sb));
             }
         }
 
-        if (sa.element() == AnyType || sb.element() == AnyType)
-            return create<Placeholder>(AnyType, outsize);
+        return Shape(AnyType, outsize);
 
-        return create<Placeholder>(_promote_type(sa.element(), sb.element()), outsize);
     }
 
-    TokenReference _determine_shape_unary(const TokenList& inputs) {
+
+    TokenReference _determine_shape_binary(const TokenList &inputs)
+    {
+
+        VERIFY(inputs.size() == 2, "At least two tokens expected");
+
+        Shape sa = inputs[0]->shape();
+        Shape sb = inputs[1]->shape();
+
+        Shape common_shape = _infer_common_shape(sa, sb);
+
+        if (sa.element() == AnyType || sb.element() == AnyType)
+            return create<Placeholder>(common_shape);
+
+        return create<Placeholder>(common_shape.cast(_promote_type(sa.element(), sb.element())));
+    }
+
+    template <typename T>
+    TokenReference _determine_shape_binary_cast(const TokenList &inputs)
+    {
+        VERIFY(inputs.size() == 2, "At least two tokens expected");
+
+        Shape sa = inputs[0]->shape();
+        Shape sb = inputs[1]->shape();
+
+        Shape common_shape = _infer_common_shape(sa, sb);
+
+        return create<Placeholder>(common_shape.cast(GetType<T>()));
+    }
+
+    TokenReference _determine_shape_unary(const TokenList &inputs)
+    {
 
         VERIFY(inputs.size() == 1, "One token expected");
 
         Shape sa = inputs[0]->shape();
 
         return create<Placeholder>(sa);
+    }
+
+    template <typename T>
+    TokenReference _determine_shape_unary_cast(const TokenList &inputs)
+    {
+
+        VERIFY(inputs.size() == 1, "One token expected");
+
+        Shape sa = inputs[0]->shape();
+
+        return create<Placeholder>(sa.cast(GetType<T>()));
     }
 
     template <class T, template <typename, typename> class C>
@@ -487,9 +520,9 @@ namespace pixelpipes
         }
     }
 
-    TokenReference common_shape(const TokenList& inputs)
+    TokenReference common_shape(const TokenList &inputs)
     {
-        
+
         VERIFY(inputs.size() > 0, "At least one tensor expected");
 
         TensorReference t0 = extract<TensorReference>(inputs[0]);
@@ -587,8 +620,7 @@ namespace pixelpipes
         return result;
     }
 
-
-// Arithmetic operations on tensors
+    // Arithmetic operations on tensors
 
 #define _add _elementwise_binary<xt::detail::plus, nonsaturate_cast>
     PIXELPIPES_COMPUTE_OPERATION_AUTO("add", _add, _determine_shape_binary);
@@ -614,142 +646,138 @@ namespace pixelpipes
 #define _divide_saturate _elementwise_binary<xt::detail::divides, saturate_cast>
     PIXELPIPES_COMPUTE_OPERATION_AUTO("divide_saturate", _divide_saturate, _determine_shape_binary);
 
-
-// Functor operations for power, modulo, sqrt
+    // Functor operations for power, modulo, sqrt
 
 #define XTENSOR_FUNCTOR_UNARY(name, op) \
-    struct name \
-    { \
-        template <typename T1> \
-        inline auto operator()(T1 &a) \
-        { \
-            return op(a); \
-        } \
+    struct name                         \
+    {                                   \
+        template <typename T1>          \
+        inline auto operator()(T1 &a)   \
+        {                               \
+            return op(a);               \
+        }                               \
     };
 
-#define XTENSOR_FUNCTOR_BINARY(name, op) \
-    struct name \
-    { \
-        template <typename T1, typename T2> \
+#define XTENSOR_FUNCTOR_BINARY(name, op)     \
+    struct name                              \
+    {                                        \
+        template <typename T1, typename T2>  \
         inline auto operator()(T1 &a, T2 &b) \
-        { \
-            return op(a, b); \
-        } \
+        {                                    \
+            return op(a, b);                 \
+        }                                    \
     };
 
-
-struct tensor_modulo_functor
-{ 
-    template <typename T1, typename T2> 
-    inline auto operator()(T1 &a, T2 &b) 
-    { 
-        // Switch between floating point and integer modulo
-        if constexpr (std::is_integral<T1>::value && std::is_integral<T2>::value)
+    struct tensor_modulo_functor
+    {
+        template <typename T1, typename T2>
+        inline auto operator()(T1 &a, T2 &b)
         {
-            return a % b;
-        } else {
-            return xt::fmod(a, b);
+            // Switch between floating point and integer modulo
+            if constexpr (std::is_integral<T1>::value && std::is_integral<T2>::value)
+            {
+                return a % b;
+            }
+            else
+            {
+                return xt::fmod(a, b);
+            }
         }
-    } 
-};
+    };
 
 #define _modulo _elementwise_binary<tensor_modulo_functor, nonsaturate_cast>
-    PIXELPIPES_OPERATION_AUTO("modulo", _modulo);
+    PIXELPIPES_COMPUTE_OPERATION_AUTO("modulo", _modulo, _determine_shape_binary);
 
-XTENSOR_FUNCTOR_BINARY(tensor_power_functor, xt::pow)
+    XTENSOR_FUNCTOR_BINARY(tensor_power_functor, xt::pow)
 
 #define _power _elementwise_binary<tensor_power_functor, nonsaturate_cast>
-    PIXELPIPES_OPERATION_AUTO("power", _power);
+    PIXELPIPES_COMPUTE_OPERATION_AUTO("power", _power, _determine_shape_binary_cast<float>);
 
-XTENSOR_FUNCTOR_UNARY(tensor_sqrt_functor, xt::sqrt)
+    XTENSOR_FUNCTOR_UNARY(tensor_sqrt_functor, xt::sqrt)
 
 #define _sqrt _elementwise_unary<tensor_sqrt_functor, nonsaturate_cast>
-    PIXELPIPES_OPERATION_AUTO("sqrt", _sqrt);
+    PIXELPIPES_COMPUTE_OPERATION_AUTO("sqrt", _sqrt, _determine_shape_binary_cast<float>);
 
-// Trigonometric operations on tensors
+    // Trigonometric operations on tensors
 
-
-XTENSOR_FUNCTOR_UNARY(xtensor_sin_functor, xt::sin)
+    XTENSOR_FUNCTOR_UNARY(xtensor_sin_functor, xt::sin)
 
 #define _sin _elementwise_unary<xtensor_sin_functor, nonsaturate_cast>
-    PIXELPIPES_OPERATION_AUTO("sin", _sin);
+    PIXELPIPES_COMPUTE_OPERATION_AUTO("sin", _sin, _determine_shape_unary_cast<float>);
 
-XTENSOR_FUNCTOR_UNARY(xtensor_cos_functor, xt::cos)
+    XTENSOR_FUNCTOR_UNARY(xtensor_cos_functor, xt::cos)
 
 #define _cos _elementwise_unary<xtensor_cos_functor, nonsaturate_cast>
-    PIXELPIPES_OPERATION_AUTO("cos", _cos);
+    PIXELPIPES_COMPUTE_OPERATION_AUTO("cos", _cos, _determine_shape_unary_cast<float>);
 
-XTENSOR_FUNCTOR_UNARY(xtensor_tan_functor, xt::tan)
+    XTENSOR_FUNCTOR_UNARY(xtensor_tan_functor, xt::tan)
 
 #define _tan _elementwise_unary<xtensor_tan_functor, nonsaturate_cast>
-    PIXELPIPES_OPERATION_AUTO("tan", _tan);
+    PIXELPIPES_COMPUTE_OPERATION_AUTO("tan", _tan, _determine_shape_unary_cast<float>);
 
-XTENSOR_FUNCTOR_UNARY(xtensor_asin_functor, xt::asin)
+    XTENSOR_FUNCTOR_UNARY(xtensor_asin_functor, xt::asin)
 
 #define _asin _elementwise_unary<xtensor_asin_functor, nonsaturate_cast>
-    PIXELPIPES_OPERATION_AUTO("asin", _asin);
+    PIXELPIPES_COMPUTE_OPERATION_AUTO("asin", _asin, _determine_shape_unary_cast<float>);
 
-XTENSOR_FUNCTOR_UNARY(xtensor_acos_functor, xt::acos)
+    XTENSOR_FUNCTOR_UNARY(xtensor_acos_functor, xt::acos)
 
 #define _acos _elementwise_unary<xtensor_acos_functor, nonsaturate_cast>
-    PIXELPIPES_OPERATION_AUTO("acos", _acos);
+    PIXELPIPES_COMPUTE_OPERATION_AUTO("acos", _acos, _determine_shape_unary_cast<float>);
 
-XTENSOR_FUNCTOR_UNARY(xtensor_atan_functor, xt::atan)
+    XTENSOR_FUNCTOR_UNARY(xtensor_atan_functor, xt::atan)
 
-#define tensor_atan _elementwise_unary<xtensor_atan_functor, nonsaturate_cast>
-    PIXELPIPES_OPERATION_AUTO("atan", tensor_atan);
+#define _atan _elementwise_unary<xtensor_atan_functor, nonsaturate_cast>
+    PIXELPIPES_COMPUTE_OPERATION_AUTO("atan", _atan, _determine_shape_unary_cast<float>);
 
-// Rounding operations
+    // Rounding operations
 
-XTENSOR_FUNCTOR_UNARY(xtensor_ceil_functor, xt::ceil)
-    
+    XTENSOR_FUNCTOR_UNARY(xtensor_ceil_functor, xt::ceil)
+
 #define _ceil _elementwise_unary<xtensor_ceil_functor, nonsaturate_cast>
-    PIXELPIPES_OPERATION_AUTO("ceil", _ceil);
+    PIXELPIPES_COMPUTE_OPERATION_AUTO("ceil", _ceil, _determine_shape_unary);
 
-XTENSOR_FUNCTOR_UNARY(xtensor_floor_functor, xt::floor)
+    XTENSOR_FUNCTOR_UNARY(xtensor_floor_functor, xt::floor)
 
 #define _floor _elementwise_unary<xtensor_floor_functor, nonsaturate_cast>
-    PIXELPIPES_OPERATION_AUTO("floor", _floor);
+    PIXELPIPES_COMPUTE_OPERATION_AUTO("floor", _floor, _determine_shape_unary);
 
-XTENSOR_FUNCTOR_UNARY(xtensor_round_functor, xt::round)
+    XTENSOR_FUNCTOR_UNARY(xtensor_round_functor, xt::round)
 
 #define _round _elementwise_unary<xtensor_round_functor, nonsaturate_cast>
-    PIXELPIPES_OPERATION_AUTO("round", _round);
+    PIXELPIPES_COMPUTE_OPERATION_AUTO("round", _round, _determine_shape_unary);
 
-// Min and max operations
+    // Min and max operations
 
-XTENSOR_FUNCTOR_BINARY(xtensor_min_functor, xt::minimum)
-
+    XTENSOR_FUNCTOR_BINARY(xtensor_min_functor, xt::minimum)
 #define _minimum _elementwise_binary<xtensor_min_functor, nonsaturate_cast>
-    PIXELPIPES_OPERATION_AUTO("min", _minimum);
+    PIXELPIPES_COMPUTE_OPERATION_AUTO("min", _minimum, _determine_shape_binary);
 
-XTENSOR_FUNCTOR_BINARY(xtensor_max_functor, xt::maximum)
-
+    XTENSOR_FUNCTOR_BINARY(xtensor_max_functor, xt::maximum)
 #define _maximum _elementwise_binary<xtensor_max_functor, nonsaturate_cast>
-    PIXELPIPES_OPERATION_AUTO("max", _maximum);
+    PIXELPIPES_COMPUTE_OPERATION_AUTO("max", _maximum, _determine_shape_binary);
 
-// Comparison operations on tensors
+    // Comparison operations on tensors
 
 #define _equal _elementwise_binary<xt::detail::equal_to, no_cast>
-    PIXELPIPES_OPERATION_AUTO("equal", _equal);
+    PIXELPIPES_COMPUTE_OPERATION_AUTO("equal", _equal, _determine_shape_binary_cast<bool>);
 
 #define _not_equal _elementwise_binary<xt::detail::not_equal_to, no_cast>
-    PIXELPIPES_OPERATION_AUTO("not_equal", _not_equal);
+    PIXELPIPES_COMPUTE_OPERATION_AUTO("not_equal", _not_equal, _determine_shape_binary_cast<bool>);
 
 #define _less _elementwise_binary<xt::detail::less, no_cast>
-    PIXELPIPES_OPERATION_AUTO("less", _less);
+    PIXELPIPES_COMPUTE_OPERATION_AUTO("less", _less, _determine_shape_binary_cast<bool>);
 
 #define _less_equal _elementwise_binary<xt::detail::less_equal, no_cast>
-    PIXELPIPES_OPERATION_AUTO("less_equal", _less_equal);
+    PIXELPIPES_COMPUTE_OPERATION_AUTO("less_equal", _less_equal, _determine_shape_binary_cast<bool>);
 
 #define _greater _elementwise_binary<xt::detail::greater, no_cast>
-    PIXELPIPES_OPERATION_AUTO("greater", _greater);
+    PIXELPIPES_COMPUTE_OPERATION_AUTO("greater", _greater, _determine_shape_binary_cast<bool>);
 
 #define _greater_equal _elementwise_binary<xt::detail::greater_equal, no_cast>
-    PIXELPIPES_OPERATION_AUTO("greater_equal", _greater_equal);
+    PIXELPIPES_COMPUTE_OPERATION_AUTO("greater_equal", _greater_equal, _determine_shape_binary_cast<bool>);
 
-
-// Logical operations on tensors
+    // Logical operations on tensors
 
     template <class T>
     TokenReference _logical_binary(const TokenReference &ta, const TokenReference &tb)
@@ -843,9 +871,8 @@ XTENSOR_FUNCTOR_BINARY(xtensor_max_functor, xt::maximum)
         auto a = wrap_xtensor<bool>(tva);
         auto b = wrap_xtensor<bool>(tvb);
         auto out = wrap_xtensor<bool>(result);
-        _execute_tensor_binary<T, no_cast<bool, bool> >(a, b, out);
+        _execute_tensor_binary<T, no_cast<bool, bool>>(a, b, out);
         return result;
-
     }
 
     template <typename T>
@@ -876,15 +903,14 @@ XTENSOR_FUNCTOR_BINARY(xtensor_max_functor, xt::maximum)
         return result;
     }
 
-
 #define _not _logical_unary<xt::detail::logical_not>
-    PIXELPIPES_OPERATION_AUTO("logical_not", _not);
+    PIXELPIPES_COMPUTE_OPERATION_AUTO("logical_not", _not, _determine_shape_unary_cast<bool>);
 
 #define _and _logical_binary<xt::detail::logical_and>
-    PIXELPIPES_OPERATION_AUTO("logical_and", _and);
+    PIXELPIPES_COMPUTE_OPERATION_AUTO("logical_and", _and, _determine_shape_binary_cast<bool>);
 
 #define _or _logical_binary<xt::detail::logical_or>
-    PIXELPIPES_OPERATION_AUTO("logical_or", _or);
+    PIXELPIPES_COMPUTE_OPERATION_AUTO("logical_or", _or, _determine_shape_binary_cast<bool>);
 
     class Stack : public Operation
     {
@@ -927,58 +953,77 @@ XTENSOR_FUNCTOR_BINARY(xtensor_max_functor, xt::maximum)
         }
 
         virtual Sequence<TokenReference> serialize() { return Sequence<TokenReference>(); }
-
     };
 
     PIXELPIPES_OPERATION_CLASS("stack", Stack);
 
     /**
      * @brief Converts depth of an image, scaling pixel values.
-     *
      */
-    /*
-    TokenReference convert(const TensorReference &tensor, ImageDepth depth) noexcept(false)
+    TokenReference convert_run(const TensorReference &input, DataType dtype) noexcept(false)
     {
-        double maxin = maximum_value(image);
-        int dtype = -1;
-        double maxout = 1;
+        Type rtype = AnyType;
 
-        switch (depth)
+        switch (dtype)
         {
-        case ImageDepth::Char:
-            dtype = CV_8U;
-            maxout = std::numeric_limits<uchar>::max();
+        case DataType::Boolean:
+            rtype = BooleanType;
             break;
-        case ImageDepth::Short:
-            dtype = CV_16S;
-            maxout = std::numeric_limits<short>::max();
+        case DataType::Char:
+            rtype = CharType;
             break;
-        case ImageDepth::UShort:
-            dtype = CV_16U;
-            maxout = std::numeric_limits<ushort>::max();
+        case DataType::Short:
+            rtype = ShortType;
             break;
-        case ImageDepth::Integer:
-            dtype = CV_32S;
-            maxout = std::numeric_limits<int>::max();
+        case DataType::UnsignedShort:
+            rtype = UnsignedShortType;
             break;
-        case ImageDepth::Float:
-            dtype = CV_32F;
-            maxout = 1;
+        case DataType::Integer:
+            rtype = IntegerType;
+            break;
+        case DataType::Float:
+            rtype = FloatType;
             break;
         }
 
-        if (image.depth() == dtype)
-        {
-            // No conversion required
-            return image;
-        }
+        TensorReference output = create_tensor(input->shape().cast(rtype));
 
-        cv::Mat result;
-        image.convertTo(result, dtype, maxout / maxin);
+        copy_tensor(input, output);
 
-        return result;
+        return output;
     }
 
-    PIXELPIPES_OPERATION_AUTO("convert", convert);
-*/
+    TokenReference convert_eval(const TokenList &inputs)
+    {
+        VERIFY(inputs.size() == 2, "Two tokens expected");
+
+        auto shape = inputs[0]->shape();
+
+        if (_IS_PLACEHOLDER(inputs[1])) {
+            return create<Placeholder>(shape.cast(AnyType));
+        }
+
+        DataType dtype = extract<DataType>(inputs[1]);
+
+        switch (dtype)
+        {
+        case DataType::Boolean:
+            return create<Placeholder>(shape.cast(BooleanType));
+        case DataType::Char:
+            return create<Placeholder>(shape.cast(CharType));
+        case DataType::Short:
+            return create<Placeholder>(shape.cast(ShortType));
+        case DataType::UnsignedShort:
+            return create<Placeholder>(shape.cast(UnsignedShortType));
+        case DataType::Integer:
+            return create<Placeholder>(shape.cast(IntegerType));
+        case DataType::Float:         
+            return create<Placeholder>(shape.cast(FloatType));  
+        }
+
+        throw TypeException("Unsupported data type");
+    }
+
+    PIXELPIPES_COMPUTE_OPERATION_AUTO("convert", convert_run, convert_eval);
+
 }

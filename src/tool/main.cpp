@@ -52,9 +52,9 @@ int main(int argc, const char *argv[])
 
                 std::cout << "Outputs:" << std::endl;
 
-                for (auto k : p.get_labels()) 
+                for (auto k : p.outputs()) 
                 {
-                    std::cout << k << std::endl;
+                    std::cout << k.label << " - " << k.shape << std::endl;
                 }
             }
 
