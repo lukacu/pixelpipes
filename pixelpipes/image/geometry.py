@@ -55,7 +55,7 @@ class MaskBoundingBox(Operation):
     """Compute a bounding box of non-zero pixels in a single-channel image and returns bounding box.
     """
 
-    source = Input(types.Image(channels=1), description="Input image")
+    source = Input(types.Image(), description="Input image")
 
     def operation(self):
         return "opencv:mask_bounds",

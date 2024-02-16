@@ -35,6 +35,10 @@ namespace pixelpipes
     {
     }
 
+    Placeholder::Placeholder(const Type &type) : _shape{type}
+    {
+    }
+
     Placeholder::~Placeholder() = default;
 
     void Placeholder::describe(std::ostream &os) const

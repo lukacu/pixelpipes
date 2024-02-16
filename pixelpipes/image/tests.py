@@ -19,7 +19,9 @@ test_image_rgb = np.random.randint(0, 255, (3,32,32), dtype=np.uint8)
 def clamp_uint8(image):
     return np.clip(image, 0, 255).astype(np.uint8)
 
-class TestsArithmetic(unittest.TestCase):
+from ..tests import TestBase
+
+class TestsArithmetic(TestBase):
 
     def test_image_constant(self):
 
@@ -113,7 +115,7 @@ class TestsAugmentation(unittest.TestCase):
         self.assertIsInstance(output[0], np.ndarray)
         assert not np.array_equal(output[0], test_image)
 
-class TestsFiltering(unittest.TestCase):
+class TestsFiltering(TestBase):
 
     def test_gaussian_filter(self):
 
@@ -218,12 +220,12 @@ class TestsFiltering(unittest.TestCase):
         pipeline = Compiler().build(graph)
         output = pipeline.run(1)
 
-        np.testing.assert_array_equal(output[0], test_image)
+        self.compare_arrays(output[0], test_image)
         assert not np.array_equal(output[1], test_image)
         assert not np.array_equal(output[2], test_image)
         assert not np.array_equal(output[3], test_image)
 
-class TestsGeometry(unittest.TestCase):
+class TestsGeometry(TestBase):
 
     def test_image_scale(self):
 
@@ -241,12 +243,12 @@ class TestsGeometry(unittest.TestCase):
         pipeline = Compiler().build(graph)
         output = pipeline.run(1)
 
-        self.assertEqual(output[0].shape[0], 64)   
-        self.assertEqual(output[1].shape[0], 128)  
-        self.assertEqual(output[2].shape[0], 256)   
-        np.testing.assert_array_equal(output[2], test_image)
-        self.assertEqual(output[3].shape[0], 512)   
-        self.assertEqual(output[4].shape[0], 1024)   
+        self.assertEqual(output[0].shape[1], 64)   
+        self.assertEqual(output[1].shape[1], 128)  
+        self.assertEqual(output[2].shape[1], 256)   
+        self.compare_arrays(output[2], test_image)
+        self.assertEqual(output[3].shape[1], 512)   
+        self.assertEqual(output[4].shape[1], 1024)   
 
 
     def test_image_flip(self):
@@ -266,9 +268,9 @@ class TestsGeometry(unittest.TestCase):
         pipeline = Compiler().build(graph)
         output = pipeline.run(1)
 
-        np.testing.assert_array_equal(output[0], test_image)
-        np.testing.assert_array_equal(output[1], test_image)
-        np.testing.assert_array_equal(output[2], test_image)
+        self.compare_arrays(output[0], test_image)
+        self.compare_arrays(output[1], test_image)
+        self.compare_arrays(output[2], test_image)
 
     def test_image_resize(self):
 
@@ -285,15 +287,15 @@ class TestsGeometry(unittest.TestCase):
         pipeline = Compiler().build(graph)
         output = pipeline.run(1)
 
-        np.testing.assert_array_equal(output[0], test_image)
-        self.assertEqual(output[0].shape[0], 256)
+        self.compare_arrays(output[0], test_image)
         self.assertEqual(output[0].shape[1], 256)
-        self.assertEqual(output[1].shape[0], 128)  
-        self.assertEqual(output[1].shape[1], 128)      
-        self.assertEqual(output[2].shape[0], 128)   
-        self.assertEqual(output[2].shape[1], 256) 
-        self.assertEqual(output[3].shape[0], 256)  
-        self.assertEqual(output[3].shape[1], 128)  
+        self.assertEqual(output[0].shape[2], 256)
+        self.assertEqual(output[1].shape[1], 128)  
+        self.assertEqual(output[1].shape[2], 128)      
+        self.assertEqual(output[2].shape[1], 128)   
+        self.assertEqual(output[2].shape[2], 256) 
+        self.assertEqual(output[3].shape[1], 256)  
+        self.assertEqual(output[3].shape[2], 128)  
 
     def test_image_mask_bounds(self):
 
@@ -316,9 +318,9 @@ class TestsGeometry(unittest.TestCase):
         pipeline = Compiler().build(graph)
         output = pipeline.run(1)
 
-        np.testing.assert_array_equal(output[0], output[1])
-        np.testing.assert_array_equal(output[2], output[3])
-        np.testing.assert_array_equal(output[4], output[5])
+        self.compare_arrays(output[0], output[1])
+        self.compare_arrays(output[2], output[3])
+        self.compare_arrays(output[4], output[5])
 
     def test_image_crop(self):
 
@@ -334,16 +336,15 @@ class TestsGeometry(unittest.TestCase):
         pipeline = Compiler().build(graph)
         output = pipeline.run(1)
 
-        np.testing.assert_array_equal(output[0], test_image)
-        self.assertEqual(output[1].shape[0], 156)
-        self.assertEqual(output[1].shape[1], 156)
-        self.assertEqual(output[2].shape[0], 256)
+        self.compare_arrays(output[0], test_image)
+        self.assertEqual(output[1].shape, (1, 156, 156))
         self.assertEqual(output[2].shape[1], 256)
+        self.assertEqual(output[2].shape[2], 256)
 
     # TODO ViewImage
     # TODO ImageRemap
 
-class TestsImage(unittest.TestCase):
+class TestsImage(TestBase):
 
     def test_constants(self):
 
@@ -400,11 +401,11 @@ class TestsImage(unittest.TestCase):
 
         pipeline = Compiler().build(graph)
         output = pipeline.run(1)
-
+    
         self.assertEqual(output[0], 256)        
         self.assertEqual(output[1], 256)
         self.assertEqual(output[2], 1)
-        self.assertEqual(output[3], 8)
+        self.assertEqual(output[3], 1)
 
     def test_image_depth(self):
 
@@ -443,8 +444,8 @@ class TestsImage(unittest.TestCase):
         pipeline = Compiler().build(graph)
         output = pipeline.run(1)
 
-        np.testing.assert_array_equal(output[0], test_image_gray)
-        np.testing.assert_array_equal(output[1], np.stack((test_image_gray, test_image_gray, test_image_gray)))
+        self.compare_arrays(output[0], test_image_gray)
+        self.compare_arrays(output[1], np.stack((test_image_gray, test_image_gray, test_image_gray)))
 
     def test_image_threshold(self):
 
@@ -465,8 +466,8 @@ class TestsImage(unittest.TestCase):
         temp_1 = np.copy(test_image)
         temp_1[temp_1>100] = 255
         temp_1[temp_1<=100] = 0
-        np.testing.assert_array_equal(output[0], temp_0)
-        np.testing.assert_array_equal(output[1], temp_1)
+        self.compare_arrays(output[0], temp_0)
+        self.compare_arrays(output[1], temp_1)
 
     def test_image_invert(self):
 
@@ -480,7 +481,7 @@ class TestsImage(unittest.TestCase):
         pipeline = Compiler().build(graph)
         output = pipeline.run(1)
 
-        np.testing.assert_array_equal(output[0], 255 - test_image)
+        self.compare_arrays(output[0], 255 - test_image)
 
     def test_image_equals(self):
 
@@ -497,7 +498,7 @@ class TestsImage(unittest.TestCase):
         temp = np.copy(test_image)
         temp[temp!=128] = 0
         temp[temp==128] = 255
-        np.testing.assert_array_equal(output[0], temp)
+        self.compare_arrays(output[0], temp)
 
     def test_image_moments(self):
 
@@ -526,7 +527,7 @@ class TestsImage(unittest.TestCase):
         np.testing.assert_array_equal(output[0], moments_int)
         np.testing.assert_array_equal(output[1], moments_bin)
 
-class TestsProcessing(unittest.TestCase):
+class TestsProcessing(TestBase):
 
     def test_image_blend(self):
 
@@ -545,9 +546,9 @@ class TestsProcessing(unittest.TestCase):
         output = pipeline.run(1)
 
         blend = (test_image_0.astype(np.float32) + test_image_1.astype(np.float32)) / 2
-        np.testing.assert_array_equal(output[0], test_image_0)
-        np.testing.assert_array_equal(output[1], blend.round().astype(np.uint8))
-        np.testing.assert_array_equal(output[2], test_image_0)
+        self.compare_arrays(output[0], test_image_0)
+        self.compare_arrays(output[1], blend.round().astype(np.uint8))
+        self.compare_arrays(output[2], test_image_0)
 
     def test_dropout(self):
 
@@ -591,8 +592,8 @@ class TestsProcessing(unittest.TestCase):
         output = pipeline.run(1)
 
         max_val = np.amax(test_image)
-        np.testing.assert_array_equal(output[0], max_val - test_image + 1)
-        np.testing.assert_array_equal(output[1], test_image)
+        self.compare_arrays(output[0], max_val - test_image + 1)
+        self.compare_arrays(output[1], test_image)
 
 class TestsRender(unittest.TestCase):
 
@@ -606,7 +607,7 @@ class TestsRender(unittest.TestCase):
         output = pipeline.run(1)
 
         self.assertIsInstance(output[0], np.ndarray)
-        self.assertEqual(output[0].shape, (10, 10))
+        self.assertEqual(output[0].shape, (1, 10, 10))
 
     def test_uniform_noise(self):
 
@@ -618,7 +619,7 @@ class TestsRender(unittest.TestCase):
         output = pipeline.run(1)
 
         self.assertIsInstance(output[0], np.ndarray)
-        self.assertEqual(output[0].shape, (10, 10))
+        self.assertEqual(output[0].shape, (1, 10, 10))
 
     def test_linear_image(self):
 
@@ -630,11 +631,11 @@ class TestsRender(unittest.TestCase):
         pipeline = Compiler().build(graph)
         sample = pipeline.run(1)
 
-        self.assertEqual(sample[0][0, 0], 1)
-        self.assertEqual(sample[0][0, -1], 50)
-        self.assertEqual(sample[0][-1, 0], 1)
-        self.assertEqual(sample[0][-1, -1], 50)
-        self.assertEqual(sample[1][0, 0], 1)
-        self.assertEqual(sample[1][-1, 0], 50)
-        self.assertEqual(sample[1][0, -1], 1)
-        self.assertEqual(sample[1][-1, -1], 50)
+        self.assertEqual(sample[0][0, 0, 0], 1)
+        self.assertEqual(sample[0][0, 0, -1], 50)
+        self.assertEqual(sample[0][0, -1, 0], 1)
+        self.assertEqual(sample[0][0, -1, -1], 50)
+        self.assertEqual(sample[1][0, 0, 0], 1)
+        self.assertEqual(sample[1][0, -1, 0], 50)
+        self.assertEqual(sample[1][0, 0, -1], 1)
+        self.assertEqual(sample[1][0, -1, -1], 50)

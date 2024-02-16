@@ -477,6 +477,8 @@ class Compiler(object):
 
         # Assemble a list of pipeline operations
         for i, (name, data, inputs) in enumerate(operations):
+            self._debug("#{}: {} ({}), args: {}, inputs: {}",
+                        i, data[0], inferred_types[name], data[1:], inputs)
             pipeline_operations.append(PipelineOperation(
                 name, data[0], list(data[1:]), inputs))
 

@@ -60,7 +60,7 @@ class ImageCut(Operation):
 class ImageSolarize(Operation):
     """Invert all values above a threshold in images."""
 
-    source = Input(types.Image(channels=1), description="Source image")
+    source = Input(types.Image(), description="Source image")
     threshold = Input(types.Float(), description="Threshold value")
 
     def operation(self):

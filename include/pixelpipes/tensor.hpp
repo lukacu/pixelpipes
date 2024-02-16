@@ -880,6 +880,17 @@ namespace pixelpipes
         return extract<int>(token);
     }
 
+    template<>
+    inline Size extract(const TokenReference &v) {
+        return get_size(v);
+    }
+
+    template<>
+    inline TokenReference wrap(Size v) {
+        if (v == unknown) return create<Placeholder>(IntegerType);
+        return create<IntegerScalar>(v);
+    }
+
 #ifdef XTENSOR_TENSOR_HPP
 
     template <typename T>

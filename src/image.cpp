@@ -9,35 +9,63 @@
 namespace pixelpipes
 {
 
-    /**
-     * @brief Apply view linear transformation to an image.
-     *
-     */
-    TokenReference GetImageProperties(const TensorReference& tensor)
-    {
-        Shape s = tensor->shape();
+        /**
+         * @brief Apply view linear transformation to an image.
+         *
+         */
+        TokenReference image_properties(const TokenList &inputs)
+        {
+                VERIFY(inputs.size() == 1, "Image properties requires one argument");
 
-        VERIFY(s.rank() <= 3, "Image has rank 3 or less");
+                Shape s = inputs[0]->shape();
 
-        size_t depth = 0;
+                VERIFY(s.rank() <= 3, "Image has rank 3 or less");
 
-        if (s.element() == IntegerType) {
-                depth = sizeof(int);
-        } else if (s.element() == CharType) {
-                depth = sizeof(uchar);
-        } else if (s.element() == ShortType) {
-                depth = sizeof(short);
-        } else if (s.element() == UnsignedShortType) {
-                depth = sizeof(ushort);
-        } else if (s.element() == FloatType) {
-                depth = sizeof(float);
-        } else {
-            throw TypeException("Unknown element type");
+                TokenReference dtype = create<Placeholder>(IntegerType);
+
+                if (s.element() == IntegerType)
+                {
+                        dtype = wrap(DataType::Integer);
+                }
+                else if (s.element() == CharType)
+                {
+                        dtype = wrap(DataType::Char);
+                }
+                else if (s.element() == ShortType)
+                {
+                        dtype = wrap(DataType::Short);
+                }
+                else if (s.element() == UnsignedShortType)
+                {
+                        dtype = wrap(DataType::UnsignedShort);
+                }
+                else if (s.element() == FloatType)
+                {
+                        dtype = wrap(DataType::Float);
+                }
+                /*else if (s.element() != AnyType)
+                {
+                        std::cout << "Unsupported image depth: " << s.element() << " " << BooleanType << std::endl;
+                        throw TypeException("Unsupported image depth");
+                }*/
+
+                Sequence<TokenReference> data((size_t)4);
+                if (s.rank() < 3)
+                {
+                        data[0] = wrap(s[1]);
+                        data[1] = wrap(s[0]);
+                        data[2] = wrap(1);
+                        data[3] = dtype.reborrow();
+                } else {
+                        data[0] = wrap(s[2]);
+                        data[1] = wrap(s[1]);
+                        data[2] = wrap(s[0]);
+                        data[3] = dtype.reborrow();
+                }
+
+                return create<GenericList>(data);
         }
 
-        return create<IntegerVector>(make_view(std::vector<int>({(int)s[1], (int)s[0], (int)s[2], (int)depth * 8})));
-    }
-
-    PIXELPIPES_UNIT_OPERATION_AUTO("image_properties", GetImageProperties, (constant_shape<int, 4>));
+        PIXELPIPES_UNIT_OPERATION("image_properties", image_properties, image_properties);
 
 }

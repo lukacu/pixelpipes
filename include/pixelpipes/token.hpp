@@ -41,6 +41,8 @@ namespace pixelpipes
 
         Placeholder(const Type &type, const Sizes &shape);
 
+        Placeholder(const Type &type);
+
         /** Destruct the placeholder token.
          */
         virtual ~Placeholder();

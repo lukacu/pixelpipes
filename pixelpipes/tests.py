@@ -50,6 +50,13 @@ class TestBase(unittest.TestCase):
             print("\n **** Refs end:", pypixelpipes._refcount(), "**** ")
         return super().tearDown()
 
+    def compare_arrays(self, a, b):
+        """ Compares two arrays ignoring singleton dimensions at the beginning or end"""
+        a = np.squeeze(a)
+        b = np.squeeze(b)
+        self.assertEqual(a.shape, b.shape)
+        np.testing.assert_array_equal(a, b)
+
 class TypesTests(TestBase):
 
     def test_casting_scalar(self):

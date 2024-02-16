@@ -74,58 +74,60 @@ namespace pixelpipes
      * @brief Converts depth of an image, scaling values in the process
      *
      */
-    TokenReference convert_depth_run(const TensorReference &input, ImageDepth depth) noexcept(false)
+    cv::Mat convert_depth_run(const cv::Mat &image, DataType depth) noexcept(false)
     {
-
-        cv::Mat image = wrap_tensor(input);
 
         double maxin = maximum_value(image);
         int dtype = -1;
-        Type ti;
+        //Type ti;
         double maxout = 1;
+
+        VERIFY(depth != DataType::Boolean, "Boolean depth conversion not supported");
 
         switch (depth)
         {
-        case ImageDepth::Char:
+        case DataType::Char:
             dtype = CV_8U;
             maxout = std::numeric_limits<uchar>::max();
-            ti = CharType;
+           // ti = CharType;
             break;
-        case ImageDepth::Short:
+        case DataType::Short:
             dtype = CV_16S;
             maxout = std::numeric_limits<short>::max();
-            ti = ShortType;
+          //  ti = ShortType;
             break;
-        case ImageDepth::UShort:
+        case DataType::UnsignedShort:
             dtype = CV_16U;
             maxout = std::numeric_limits<ushort>::max();
-            ti = UnsignedShortType;
+          //  ti = UnsignedShortType;
             break;
-        case ImageDepth::Integer:
+        case DataType::Integer:
             dtype = CV_32S;
             maxout = std::numeric_limits<int>::max();
-            ti = IntegerType;
+         //   ti = IntegerType;
             break;
-        case ImageDepth::Float:
+        case DataType::Float:
             dtype = CV_32F;
             maxout = 1;
-            ti = FloatType;
+         //   ti = FloatType;
+            break;
+        case DataType::Boolean:
             break;
         }
 
         if (image.depth() == dtype)
         {
-            // No conversion required
-            return input.reborrow();
+            // No conversion required, should we return a copy?
+            return image;
         }
 
-        TensorReference result = create_tensor(input->shape().cast(ti));
+        //TensorReference result = create_tensor(input->shape().cast(ti));
 
-        cv::Mat out = wrap_tensor(result);
+        cv::Mat out;
 
         image.convertTo(out, dtype, maxout / maxin);
 
-        return result;
+        return out;
     }
 
     TokenReference convert_depth_eval(const TokenList& inputs) noexcept(false)
@@ -133,20 +135,24 @@ namespace pixelpipes
         VERIFY(inputs.size() == 2, "Depth conversion requires two inputs");
 
         auto shape = inputs[0]->shape();
-        auto depth = extract<ImageDepth>(inputs[1]);
+        auto depth = extract<DataType>(inputs[1]);
+
+        VERIFY(depth != DataType::Boolean, "Boolean depth conversion not supported");
 
         switch (depth)
         {
-        case ImageDepth::Char:
+        case DataType::Char:
             return create<Placeholder>(shape.cast(CharType));
-        case ImageDepth::Short:
+        case DataType::Short:
             return create<Placeholder>(shape.cast(ShortType));
-        case ImageDepth::UShort:
+        case DataType::UnsignedShort:
             return create<Placeholder>(shape.cast(UnsignedShortType));
-        case ImageDepth::Integer:
+        case DataType::Integer:
             return create<Placeholder>(shape.cast(IntegerType));
-        case ImageDepth::Float:
+        case DataType::Float:
             return create<Placeholder>(shape.cast(FloatType));
+        case DataType::Boolean:
+            break;
         }
 
         throw TypeException("Unknown depth type conversion");
@@ -158,17 +164,14 @@ namespace pixelpipes
      * @brief Thresholds an image.
      *
      */
-    TokenReference threshold(const cv::Mat &image, float threshold) noexcept(false)
+    cv::Mat threshold(const cv::Mat &image, float threshold) noexcept(false)
     {
         VERIFY(image.channels() == 1, "Image has more than one channel");
         float maxval = maximum_value(image);
 
-        TensorReference result = create_tensor(image);
-
-        cv::Mat out = wrap_tensor(result);
-
+        cv::Mat out;
         cv::threshold(image, out, threshold, maxval, cv::THRESH_BINARY);
-        return result;
+        return out;
     }
 
     PIXELPIPES_COMPUTE_OPERATION_AUTO("threshold", threshold, (forward_shape<0>));
@@ -177,17 +180,13 @@ namespace pixelpipes
      * @brief Inverts image pixel values.
      *
      */
-    TokenReference invert(const cv::Mat &image) noexcept(false)
+    cv::Mat invert(const cv::Mat &image) noexcept(false)
     {
         float maxval = maximum_value(image);
 
-        TensorReference result = create_tensor(image);
-
-        cv::Mat out = wrap_tensor(result);
-
+        cv::Mat out;
         cv::subtract(maxval, image, out);
-
-        return result;
+        return out;
     }
 
     PIXELPIPES_COMPUTE_OPERATION_AUTO("invert", invert, forward_shape<0>);
@@ -224,20 +223,16 @@ namespace pixelpipes
 
     PIXELPIPES_COMPUTE_OPERATION_AUTO("blend", blend, (forward_shape<0>));
 
-    TokenReference normalize(const cv::Mat &image)
+    cv::Mat normalize(const cv::Mat &image)
     {
 
         VERIFY(image.channels() == 1, "Only single channel images accepted");
 
         int maxv = maximum_value(image);
 
-        TensorReference result = create_tensor(image);
-
-        cv::Mat out = wrap_tensor(result);
-
+        cv::Mat out;
         cv::normalize(image, out, 0, maxv, cv::NORM_MINMAX);
-
-        return result;
+        return out;
     }
 
     PIXELPIPES_COMPUTE_OPERATION_AUTO("normalize", normalize, (forward_shape<0>));

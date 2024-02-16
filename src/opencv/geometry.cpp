@@ -58,7 +58,7 @@ namespace pixelpipes
         return output;
     }
 
-    PIXELPIPES_COMPUTE_OPERATION_AUTO("view", view, (given_shape<2, 3, FloatType>));
+    PIXELPIPES_COMPUTE_OPERATION_AUTO("view", view, (given_shape_type<2, 3, 0>));
 
     /**
      * @brief Apply view linear transformation to an image.
@@ -86,7 +86,7 @@ namespace pixelpipes
         VERIFY(tokens.size() == 5, "Remap requires five arguments");
         auto ishape = tokens[0]->shape();
         auto xshape = tokens[1]->shape();
-        return create<Placeholder>(Shape(ishape.element(), {xshape[0], xshape[1]}));
+        return create<Placeholder>(Shape(ishape.element(), {ishape[0], xshape[0], xshape[1]}));
     }
 
     PIXELPIPES_COMPUTE_OPERATION_AUTO("remap", remap, _remap_eval);
@@ -177,9 +177,9 @@ namespace pixelpipes
     TokenReference _rescale_eval(const TokenList& tokens)
     {
         VERIFY(tokens.size() == 3, "Rescale requires three arguments");
-        auto shape = tokens[0]->shape();
+        auto shape = image_shape(tokens[0]);
         auto scale = extract<float>(tokens[1]);
-        return create<Placeholder>(Shape(shape.element(), {shape[0] * scale, shape[1] * scale}));
+        return create<Placeholder>(Shape(shape.type, {shape.channels, shape.height * scale, shape.width * scale}));
     }
 
     PIXELPIPES_COMPUTE_OPERATION_AUTO("rescale", rescale, _rescale_eval);
@@ -188,12 +188,10 @@ namespace pixelpipes
      * @brief Flips a 2D array around vertical, horizontal, or both axes.
      *
      */
-    TokenReference flip(const cv::Mat& image, bool horizontal, bool vertical) noexcept(false)
+    cv::Mat flip(const cv::Mat& image, bool horizontal, bool vertical) noexcept(false)
     {
 
-        TensorReference result = create_tensor(image);
-
-        cv::Mat out = wrap_tensor(result);
+        cv::Mat out;
 
         if (horizontal)
         {
@@ -218,7 +216,7 @@ namespace pixelpipes
             }
         }
 
-        return result;
+        return out;
     }
 
     PIXELPIPES_COMPUTE_OPERATION_AUTO("flip", flip, (forward_shape<0>));
@@ -247,14 +245,14 @@ namespace pixelpipes
     TokenReference _crop_eval(const TokenList& tokens)
     {
         VERIFY(tokens.size() == 5, "Crop requires five arguments");
-        auto shape = tokens[0]->shape();
+        auto shape = image_shape(tokens[0]);
         auto x = extract<int>(tokens[1]);
         auto y = extract<int>(tokens[2]);
         auto width = extract<int>(tokens[3]);
         auto height = extract<int>(tokens[4]);
         cv::Rect bbox(x, y, width, height);
-        bbox &= cv::Rect(0, 0, shape[1], shape[0]);
-        return create<Placeholder>(Shape(shape.element(), {bbox.width, bbox.height}));
+        bbox &= cv::Rect(0, 0, shape.width, shape.height);
+        return create<Placeholder>(Shape(shape.type, {shape.channels, bbox.width, bbox.height}));
     }
 
     PIXELPIPES_COMPUTE_OPERATION_AUTO("crop", crop, _crop_eval);

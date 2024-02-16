@@ -63,7 +63,7 @@ class LinearFilter(Operation):
     """
 
     source = Input(types.Image(), description="Input image")
-    kernel = Input(types.Image(channels=1, depth="float"), description="Filter matrix")
+    kernel = Input(types.Image(depth="float"), description="Filter matrix")
     border = EnumerationInput(BorderStrategy, default="Reflect", description="Border handling strategy")
 
     def operation(self):

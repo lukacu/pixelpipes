@@ -11,7 +11,9 @@ namespace pixelpipes {
     class ImageDecode : public Operation
     {
     public:
-        ImageDecode(ImageChannels channels, ImageDepth depth) : _channels(channels), _depth(depth) {}
+        ImageDecode(DataType depth, ImageChannels channels) : _channels(channels), _depth(depth) {
+            VERIFY(_depth != DataType::Boolean, "Boolean type not supported");
+        }
         ~ImageDecode() {}
 
         TokenReference run(const TokenList& inputs) override
@@ -39,19 +41,21 @@ namespace pixelpipes {
 
             switch (_depth)
             {
-            case ImageDepth::Char:
+            case DataType::Char:
                 break;
-            case ImageDepth::UShort:
+            case DataType::UnsignedShort:
                 decode_flags |= cv::IMREAD_ANYDEPTH;
                 break;
-            case ImageDepth::Short:
+            case DataType::Short:
                 decode_flags |= cv::IMREAD_ANYDEPTH;
                 break;
-            case ImageDepth::Integer:
+            case DataType::Integer:
                 decode_flags |= cv::IMREAD_ANYDEPTH;
                 break;
-            case ImageDepth::Float:
+            case DataType::Float:
                 decode_flags |= cv::IMREAD_ANYDEPTH;
+                break;
+            case DataType::Boolean:
                 break;
             }
 
@@ -64,25 +68,27 @@ namespace pixelpipes {
 
             switch (_depth)
             {
-            case ImageDepth::Char:
+            case DataType::Char:
                 if (image.depth() != CV_8U)
                     image.convertTo(image, CV_8U, 255 * scaling, offset);
                 break;
-            case ImageDepth::UShort:
+            case DataType::UnsignedShort:
                 if (image.depth() != CV_16U)
                     image.convertTo(image, CV_MAKETYPE(CV_16U, image.channels()), 65535 * scaling, offset);
                 break;
-            case ImageDepth::Short:
+            case DataType::Short:
                 if (image.depth() != CV_16S)
                     image.convertTo(image, CV_MAKETYPE(CV_16S, image.channels()), 65535 * scaling, offset);
                 break;
-            case ImageDepth::Integer:
+            case DataType::Integer:
                 if (image.depth() != CV_32S)
                     image.convertTo(image, CV_MAKETYPE(CV_32S, image.channels()), 65535 * scaling, offset);
                 break;
-            case ImageDepth::Float:
+            case DataType::Float:
                 if (image.depth() != CV_32F)
                     image.convertTo(image, CV_MAKETYPE(CV_32F, image.channels()), 1.0 * scaling, offset);
+                break;
+            case DataType::Boolean: 
                 break;
             }
 
@@ -137,20 +143,22 @@ namespace pixelpipes {
 
                 switch (_depth)
                 {
-                case ImageDepth::Char:
-                    depth = GetType<uint8_t>();
+                case DataType::Char:
+                    depth = GetType<char>();
                     break;
-                case ImageDepth::UShort:
+                case DataType::UnsignedShort:
                     depth = GetType<uint16_t>();
                     break;
-                case ImageDepth::Short:
+                case DataType::Short:
                     depth = GetType<int16_t>();
                     break;
-                case ImageDepth::Integer:
+                case DataType::Integer:
                     depth = GetType<int32_t>();
                     break;
-                case ImageDepth::Float:
+                case DataType::Float:
                     depth = GetType<float>();
+                    break;
+                case DataType::Boolean:
                     break;
                 }
 
@@ -178,10 +186,10 @@ namespace pixelpipes {
 
     private:
         ImageChannels _channels;
-        ImageDepth _depth;
+        DataType _depth;
     
     };
     
-    PIXELPIPES_OPERATION_CLASS("image_decode", ImageDecode, ImageChannels, ImageDepth);
+    PIXELPIPES_OPERATION_CLASS("image_decode", ImageDecode, DataType, ImageChannels);
 
 }

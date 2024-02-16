@@ -136,22 +136,22 @@ namespace pixelpipes
         if (t == CharType)
         {
             auto aout = wrap_xtensor<uchar>(out);
-            aout = xt::cast<uchar>(ain);
+            aout = xt::cast<uchar>(xt::clip(ain, std::numeric_limits<uchar>::min(), std::numeric_limits<uchar>::max()));
         }
         else if (t == ShortType)
         {
             auto aout = wrap_xtensor<short>(out);
-            aout = xt::cast<short>(ain);
+            aout = xt::cast<short>(xt::clip(ain, std::numeric_limits<short>::min(), std::numeric_limits<short>::max()));
         }
         else if (t == UnsignedShortType)
         {
             auto aout = wrap_xtensor<ushort>(out);
-            aout = xt::cast<ushort>(ain);
+            aout = xt::cast<ushort>(xt::clip(ain, std::numeric_limits<ushort>::min(), std::numeric_limits<ushort>::max()));
         }
         else if (t == IntegerType)
         {
             auto aout = wrap_xtensor<int>(out);
-            aout = xt::cast<int>(ain);
+            aout = xt::cast<int>(xt::clip(ain, std::numeric_limits<int>::min(), std::numeric_limits<int>::max()));
         }
         else if (t == FloatType)
         {

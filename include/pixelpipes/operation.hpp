@@ -54,11 +54,11 @@ namespace pixelpipes
 
     enum class OperationTrait
     {
-        Default = 0,
-        Compute = 1,
-        Access = 2,
-        Stateful = 4,
-        Critical = 8
+        Default = 0, // No special traits
+        Compute = 1, // Operation is a compute operation
+        Access = 2, // Operation is an access operation (IO)
+        Stateful = 4, // Operation is stateful, it has an internal state and is not thread safe
+        Forward = 8 // Operation is a forward operation, it may forward the input to the output without copying
     };
 
     // Combine traits

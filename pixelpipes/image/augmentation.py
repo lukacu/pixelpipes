@@ -1,8 +1,8 @@
 
-from attributee.primitives import Integer
+from attributee.primitives import Integer as IntegerInput
 
 from .geometry import ImageRemap, Resize
-from ..numbers import Round, Add
+from ..numbers import Add, Convert
 from ..graph import Macro, Input, SeedInput, types
 from . import GetImageProperties, ConvertDepth
 from .render import LinearImage, GaussianNoise, UniformNoise
@@ -19,18 +19,19 @@ class ImageNoise(Macro):
     def expand(self, source, amount, seed):
         properties = GetImageProperties(source)
         noise = GaussianNoise(width=properties["width"], height=properties["height"], mean=0, std=amount, seed=seed)
-        return ConvertDepth(Add(ConvertDepth(source, "Float"), noise), depth="Char")
+        return ConvertDepth(Add(ConvertDepth(source, "Float"), noise), depth=properties["depth"])
 
 
 class ImageBrightness(Macro):
     """Change image brightness
     """
     
-    source = Input(types.Image(depth=8))
+    source = Input(types.Image())
     amount = Input(types.Float())
 
     def expand(self, source, amount):
-        return Add(source, Round(amount), saturate=True)
+        properties = GetImageProperties(source)
+        return Convert(Add(source, amount, saturate=True), properties["depth"])
 
 class ImagePiecewiseAffine(Macro):
     """Piecewise affine transformation of image. This augmentation creates a grid of random perturbations and
@@ -39,7 +40,7 @@ class ImagePiecewiseAffine(Macro):
     
     source = Input(types.Image(), description="Input image")
     amount = Input(types.Float(), description="Maximum amount of perturbation in pixels")
-    subdivision = Integer(val_min=2, default=4, description="Perturbation lattice subdivision")
+    subdivision = IntegerInput(val_min=2, default=4, description="Perturbation lattice subdivision")
     seed = SeedInput()
 
     def expand(self, source, amount, seed):

@@ -51,25 +51,15 @@ namespace pixelpipes
         YCRCB_RGB
     };
 
-    enum class ImageDepth
-    {
-        Char,
-        Short,
-        UShort,
-        Integer,
-        Float
-    };
-
     enum class ImageChannels
     {
-        GRAY,
-        RGB,
-        RGBA
+        GRAY = 1,
+        RGB = 3,
+        RGBA = 4
     };
 
     PIXELPIPES_CONVERT_ENUM(Interpolation)
     PIXELPIPES_CONVERT_ENUM(BorderStrategy)
-    PIXELPIPES_CONVERT_ENUM(ImageDepth)
     PIXELPIPES_CONVERT_ENUM(ImageChannels)
     PIXELPIPES_CONVERT_ENUM(ColorConversion)
 
@@ -213,11 +203,9 @@ namespace pixelpipes
         Type _element;
     };
 
-    //cv::Mat copy(const TensorReference &tensor);
-
     cv::Mat wrap_tensor(const TensorReference &tensor);
 
-    TensorReference create_tensor(const cv::Mat &mat);
+    //TensorReference create_tensor(const cv::Mat &mat);
 
     template <>
     inline cv::Mat extract(const TokenReference &v)
@@ -286,14 +274,23 @@ namespace pixelpipes
 
     TokenReference forward_image_type(const TokenList &inputs);
 
-    inline Size get_width(const TokenReference &token) {
-        if (_IS_PLACEHOLDER(token)) return unknown;
-        return extract<cv::Rect>(token).width;
-    }
+    typedef struct ImageShape
+    {
+        Size width;
+        Size height;
+        Size channels;
+        Type type;
+    } ImageShape;
 
-    inline Size get_height(const TokenReference &token) {
-        if (_IS_PLACEHOLDER(token)) return unknown;
-        return extract<cv::Rect>(token).height;
+    inline ImageShape image_shape(const TokenReference &image)
+    {
+        auto shape = image->shape();
+        if (shape.rank() < 3)
+        {
+            return {shape[1], shape[0], 1, shape.element()};
+        }
+        VERIFY(shape.rank() == 3, "Image has more than 3 dimensions");
+        return {shape[2], shape[1], shape[0], shape.element()};
     }
 
     inline Size min(Size a, Size b) {
@@ -306,11 +303,11 @@ namespace pixelpipes
         return std::max((size_t)a, (size_t)b);
     }
 
-    template <int W, int H, Type T>
+    template <int W, int H, Type T, int C>
     TokenReference given_shape(const TokenList &inputs) noexcept(false)
     {
         VERIFY(inputs.size() >= W && inputs.size() >= H, "Incorrect number of parameters");
-        return create<Placeholder>(Shape(T, {get_size(inputs[H]), get_size(inputs[W])}));
+        return create<Placeholder>(Shape(T, {C, get_size(inputs[H]), get_size(inputs[W])}));
     }
 
     template <int I>
@@ -331,7 +328,8 @@ namespace pixelpipes
     TokenReference given_shape_type(const TokenList &inputs) noexcept(false)
     {
         VERIFY(inputs.size() >= W && inputs.size() >= H && inputs.size() >= I, "Incorrect number of parameters");
-        return create<Placeholder>(Shape(inputs[I]->shape().element(), {get_size(inputs[H]), get_size(inputs[W])}));
+        auto shape = image_shape(inputs[I]);
+        return create<Placeholder>(Shape(shape.type, {shape.channels, get_size(inputs[H]), get_size(inputs[W])}));
     }
 
     template <int I1, int I2>

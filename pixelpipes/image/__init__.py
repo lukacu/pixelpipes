@@ -4,7 +4,6 @@ from .. import LazyLoadEnum, load_module
 load_module("opencv")
 
 ImageChannels = LazyLoadEnum("channels")
-ImageDepth = LazyLoadEnum("depth")
 InterpolationMode = LazyLoadEnum("interpolation")
 BorderStrategy = LazyLoadEnum("border")
 ColorConvert = LazyLoadEnum("color")
@@ -12,7 +11,7 @@ ColorConvert = LazyLoadEnum("color")
 from pixelpipes.graph import Operation, Input, Macro, hidden, EnumerationInput
 
 from ..list import GetElement
-from .. import types
+from .. import types, DataType
 
 @hidden
 class _GetImageProperties(Operation):
@@ -66,7 +65,7 @@ class ConvertDepth(Operation):
     """
 
     source = Input(types.Image(), description="Input image")
-    depth = EnumerationInput(ImageDepth, description="Output depth type")
+    depth = EnumerationInput(DataType, description="Output depth type")
 
     def operation(self):
         return "opencv:convert_depth",
@@ -83,7 +82,7 @@ class ColorConvert(Operation):
 class Threshold(Operation):
     """Sets pixels with values above threshold to zero. Returns a binary image"""
 
-    source = Input(types.Image(channels=1), description="Input image")
+    source = Input(types.Image(), description="Input image")
     threshold = Input(types.Float(), description="Threshold value")
 
     def operation(self):
@@ -110,7 +109,7 @@ class Equals(Operation):
     Tags: image
     """
 
-    source = Input(types.Image(channels=1), description="Input image")
+    source = Input(types.Image(), description="Input image")
     value = Input(types.Integer(), description="Value to compare to")
 
     def operation(self):

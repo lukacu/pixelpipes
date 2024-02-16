@@ -23,7 +23,6 @@ namespace pixelpipes
 
     PIXELPIPES_REGISTER_ENUM("interpolation", Interpolation);
     PIXELPIPES_REGISTER_ENUM("border", BorderStrategy);
-    PIXELPIPES_REGISTER_ENUM("depth", ImageDepth);
     PIXELPIPES_REGISTER_ENUM("channels", ImageChannels);
     PIXELPIPES_REGISTER_ENUM("color", ColorConversion);
 
@@ -197,6 +196,11 @@ namespace pixelpipes
         return mat;
     }
 
+    /**
+     * Wraps tensor data as an OpenCV matrix. Since the OpenCV matrix stride model is not fully compatible with our model, 
+     * the function will copy the data if needed. Otherwise the data is only wrapped in OpenCV class.
+     * The underlying data is therefore only valid as long as the tensor is valid.
+    */
     cv::Mat wrap_tensor(const TensorReference &tensor)
     {
 
@@ -238,22 +242,6 @@ namespace pixelpipes
 
     }
 
-    TensorReference create_tensor(const cv::Mat &mat)
-    {
-        auto tensor_type = decode_ocvtype(mat.type());
-
-        if (mat.channels() == 1)
-        {
-            SizeSequence shape = {(size_t)mat.rows, (size_t)mat.cols};
-            return create_tensor(tensor_type, shape);
-        }
-        else
-        {
-            SizeSequence shape = {(size_t)mat.channels(), (size_t)mat.rows, (size_t)mat.cols};
-            return create_tensor(tensor_type, shape);
-        }
-    }
-
     MatImage::MatImage(cv::Mat data) : _mat(data)
     {
         VERIFY(data.dims == 2, "Only two dimensional matrices supported");
@@ -262,8 +250,8 @@ namespace pixelpipes
 
         if (data.channels() == 1)
         {
-            _strides = {_mat.step[0], _mat.step[1]};
-            _shape = {(size_t)_mat.rows, (size_t)_mat.cols};
+            _strides = {type_size(_element), _mat.step[0], _mat.step[1]};
+            _shape = {1, (size_t)_mat.rows, (size_t)_mat.cols};
         }
         else
         {

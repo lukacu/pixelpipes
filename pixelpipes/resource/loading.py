@@ -7,11 +7,10 @@ from attributee import String, Boolean, Callable, Enumeration
 
 from . import ResourceField
 from .list import ResourceListSource, FileList
-from .. import types
+from .. import types, DataType
 from ..image.loading import DecodeImage
 from ..graph import ReadFile
-
-from ..image import ImageDepth, ImageChannels
+from ..image import ImageChannels
 
 class ColorConversion(Enum):
     UNCHANGED = auto()
@@ -49,7 +48,7 @@ class ImageDirectory(ResourceListSource):
     sorted = Boolean(default=True, description="Sort images by filename")
     filter = Callable(
         default=None, description="Filtering function, recieves filename, tells if file should be included")
-    depth = Enumeration(ImageDepth, default="Char", description="Depth of the image")
+    depth = Enumeration(DataType, default="Char", description="Depth of the image")
     channels = Enumeration(ImageChannels, default="RGB", description="Number of channels in the image")
 
     def load(self):

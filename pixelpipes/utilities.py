@@ -202,15 +202,12 @@ def collage(pipeline: Pipeline, index: int, rows: int, columns: int, offset: typ
     assert offset >= 0
     assert index >= 0 and index < len(outputs)
 
-    for label, shape in outputs:
-        print(label, shape)
-
     image = None
     for i in range(rows):
         column = []
         for j in range(columns):
             sample = pipeline.run(i * columns + j + 1 + offset)
-            column.append(sample[index])
+            column.append(sample[index].transpose(1, 2, 0))
         column = np.concatenate(column, 1)
         image = column if image is None else np.concatenate((image, column), 0)
 

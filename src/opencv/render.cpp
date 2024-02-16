@@ -30,7 +30,7 @@ namespace pixelpipes
         }
     }
 
-    PIXELPIPES_COMPUTE_OPERATION_AUTO("polygon_mask", polygon_mask, (given_shape<1, 2, CharType>));
+    PIXELPIPES_COMPUTE_OPERATION_AUTO("polygon_mask", polygon_mask, (given_shape<1, 2, CharType, 1>));
 
     /*
     NOISE GENERATION
@@ -50,7 +50,7 @@ namespace pixelpipes
         return wrap(noise);
     }
 
-    PIXELPIPES_COMPUTE_OPERATION_AUTO("gaussian_noise", gaussian_noise, (given_shape<0, 1, FloatType>));
+    PIXELPIPES_COMPUTE_OPERATION_AUTO("gaussian_noise", gaussian_noise, (given_shape<0, 1, FloatType, 1>));
 
     /**
      * @brief Creates a single channel image with values sampled from uniform distribution.
@@ -66,7 +66,7 @@ namespace pixelpipes
         return wrap(noise);
     }
 
-    PIXELPIPES_COMPUTE_OPERATION_AUTO("uniform_noise", uniform_noise, (given_shape<0, 1, FloatType>));
+    PIXELPIPES_COMPUTE_OPERATION_AUTO("uniform_noise", uniform_noise, (given_shape<0, 1, FloatType, 1>));
 
     cv::Mat linear_image(int width, int height, float min, float max, bool flip) noexcept(false)
     {
@@ -103,7 +103,7 @@ namespace pixelpipes
         return result;
     }
 
-    PIXELPIPES_COMPUTE_OPERATION_AUTO("linear_image", linear_image, (given_shape<0, 1, FloatType>));
+    PIXELPIPES_COMPUTE_OPERATION_AUTO("linear_image", linear_image, (given_shape<0, 1, FloatType, 1>));
 
 
 

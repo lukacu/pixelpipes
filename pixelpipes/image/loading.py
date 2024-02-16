@@ -3,10 +3,8 @@ from pixelpipes.graph import Operation, Input
 
 from attributee import Enumeration
 
-from .. import types
-from ..graph import EnumerationInput
-
-from . import ImageDepth, ImageChannels
+from .. import types, DataType
+from . import ImageChannels
 
 class DecodePNGPaletteIndices(Operation):
     """Decodes buffer as PNG as palette indices (no conversion to RGB)"""
@@ -21,8 +19,8 @@ class DecodeImage(Operation):
     """
 
     buffer = Input(types.Buffer(), description="Memory buffer with encoded image")
-    depth = Enumeration(ImageDepth, default="Char", description="Depth of the image")
+    depth = Enumeration(DataType, default="Char", description="Depth of the image")
     channels = Enumeration(ImageChannels, default="RGB", description="Number of channels in the image")
 
-    def operation(self):    
+    def operation(self):
         return "opencv:image_decode", self.depth, self.channels

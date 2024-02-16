@@ -112,7 +112,7 @@ namespace pixelpipes
 
         virtual OperationTrait trait() const override 
         {
-            return OperationTrait::Critical;
+            return OperationTrait::Stateful;
         }
 
         virtual Type type() const override
