@@ -3,7 +3,7 @@ import numpy as np
 
 from .flow import Conditional
 from .list import Table, Range
-from .numbers import Floor, Round, SampleUnform, Stack
+from .numbers import Floor, Round, SampleUnform, Stack, Ceil
 from .types import Integer, Char, Float, IntegerList, FloatList, Token, Boolean
 from .compiler import Compiler
 from .graph import Constant, Debug, Graph, SampleIndex, outputs
@@ -119,7 +119,6 @@ class GraphTests(TestBase):
     def test_serialization(self):
         from .numbers import SampleUnform
         from .flow import Conditional
-        from .compiler import Compiler
 
         with Graph() as graph:
             a = SampleUnform(0, 30)
@@ -194,6 +193,30 @@ class NumbersTests(TestBase):
         self.assertEqual(output[5], 0)
         self.assertEqual(output[6], -6)
 
+    def test_sampling(self):
+
+        from pixelpipes.numbers import SampleUnform, SampleNormal, SampleBinomial, SampleBernoulli
+
+        with Graph() as graph:
+            n1 = SampleUnform(0, 30)
+            n2 = SampleNormal(0, 1)
+            n3 = SampleBinomial(n=10, p=0.5)
+            n4 = SampleBernoulli(0.5)
+            outputs(n1, n2, n3, n4)
+
+        pipeline = Compiler().build(graph)
+
+        # Evaluate the pipeline multiple times, collect samples and check if they are within the expected range and match the distribution
+        for i in range(1, 100):
+            sample = pipeline.run(i)
+            self.assertGreaterEqual(sample[0], 0)
+            self.assertLess(sample[0], 30)
+            self.assertGreaterEqual(sample[1], -5)
+            self.assertLess(sample[1], 5)
+            self.assertGreaterEqual(sample[2], 0)
+            self.assertLess(sample[2], 10)
+            self.assertTrue(sample[3] in [0, 1])
+
     def test_trigonometry(self):
         from pixelpipes.numbers import Sin, Cos, Tan, ArcCos, ArcSin, ArcTan
 
@@ -207,20 +230,6 @@ class NumbersTests(TestBase):
         self.assertAlmostEqual(output[0], np.sin(0.5))
         self.assertAlmostEqual(output[1], np.cos(0.5))
         self.assertAlmostEqual(output[2], np.tan(0.5))
-
-    def test_sampling(self):
-        a = 0
-        b = 4
-
-        with Graph() as graph:
-            outputs(SampleUnform(a, b))
-
-        pipeline = Compiler.build_graph(graph)
-
-        for i in range(40):
-            output = pipeline.run(i)
-            self.assertGreaterEqual(output[0], a)
-            self.assertLess(output[0], b)
 
     def test_constant(self):
 
@@ -236,6 +245,36 @@ class NumbersTests(TestBase):
         sample = pipeline.run(1)
         np.testing.assert_array_equal(sample[2], [0, 1, 2])
 
+    def test_conversion(self):
+
+        from pixelpipes.numbers import Convert
+
+        with Graph() as graph:
+            n1 = Constant(value=3)
+            n2 = Constant(value=3.6)
+            n3 = Constant(value=1000)
+            outputs(Convert(n1, "Float"), Convert(n2, "Integer"), Convert(n3, "Char"), Convert(n3, "Short"))
+
+        pipeline = Compiler().build(graph)
+        sample = pipeline.run(1)
+
+        self.assertEqual(sample[0], 3)
+        self.assertEqual(sample[1], 3)
+        self.assertEqual(sample[2], 255)
+        self.assertEqual(sample[3], 1000)
+
+    def test_truncation(self): 
+
+        with Graph() as graph:
+            n1 = Constant(value=3.6)
+            outputs(Floor(n1), Round(n1), Ceil(n1))
+
+        pipeline = Compiler().build(graph)
+        sample = pipeline.run(1)
+
+        self.assertEqual(sample[0], 3)
+        self.assertEqual(sample[1], 4)
+        self.assertEqual(sample[2], 4)
 
 class ListTests(TestBase):
 
@@ -282,7 +321,6 @@ class ListTests(TestBase):
         np.testing.assert_array_equal(sample[3], [-1, -1, -1])
         np.testing.assert_array_equal(sample[4], [2, 2, 2])
         np.testing.assert_array_equal(sample[5], [2, 3, 4])
-
 
     def test_list_comparison(self):
 
@@ -538,5 +576,5 @@ if __name__ == "__main__":
             unused.append(op)
 
     if unused:
-        print("\nUntested operations:", ",".join(unused))
+        print("\n{}/{} untested operations:".format(len(unused), len(supported_operations)), ",".join(unused))
 
