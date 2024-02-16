@@ -18,6 +18,32 @@ class Conditional(Operation):
     def operation(self):
         return "condition",
 
+class Toggle(Macro):
+    """Node that executes conditional selection, output of branch "true" will be selected in "p" cases, otherwise output of branch "false" will be selected.
+    """
+
+    true = Input(types.Wildcard(), description="Use this data if condition is true")
+    false = Input(types.Wildcard(), description="Use this data if condition is false")
+    p = Float(val_min=0, val_max=1, description="Probability of selecting true branch")
+    seed = SeedInput()
+
+    def expand(self, **inputs):
+        from .numbers import SampleUnform
+        from .resource import Resource, ConditionalResource
+
+        resource_type = Resource()
+
+        is_resource = resource_type.castable(inputs["true"].type) and resource_type.castable(inputs["false"].type)
+
+        random = SampleUnform(min=0, max=1, seed=inputs["seed"])
+
+        comparison = random < self.p
+
+        if is_resource:
+            return ConditionalResource(condition=comparison, true=inputs["true"], false=inputs["false"])
+        else:
+            return Conditional(condition=comparison, true=inputs["true"], false=inputs["false"])
+
 class Switch(Macro):
     """Random switch between multiple branches, a macro that generates a tree of binary choices based on a random
     variable. The probability of choosing a defined branch """
