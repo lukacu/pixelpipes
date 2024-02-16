@@ -368,6 +368,41 @@ class ListTests(TestBase):
         self.assertEqual(sample[1].shape, a2.shape)
         self.assertEqual(sample[2].shape, a3.shape)
 
+    def test_list_build(self):
+        from pixelpipes.list import MakeList
+
+        with Graph() as graph:
+            n1 = Constant(1)
+            n2 = Constant(2.3)
+            n3 = Constant([1, 2, 3])
+            l = MakeList(inputs=[n1, n2, n3])
+            outputs(l[0], l[1], l[2])
+
+        pipeline = Compiler().build(graph)
+        sample = pipeline.run(1)
+
+        self.assertEqual(sample[0], 1)
+        self.assertEqual(sample[1], 2.3)
+        np.testing.assert_array_equal(sample[2], [1, 2, 3])
+    
+    def test_list_permutation(self):
+
+        from pixelpipes.list import Permute, Permutation
+
+        ls = [10, 20, 30, 40, 50]
+
+        with Graph() as graph:
+            l = Constant(ls)
+            outputs(Permutation(10), Permute(l))
+
+        pipeline = Compiler().build(graph)
+        sample = pipeline.run(1)
+
+        self.assertEqual(len(sample[0]), 10)
+        self.assertTrue(len(np.unique(sample[0].squeeze())) == 10)
+        self.assertEqual(len(sample[1]), 5)
+        self.assertTrue(np.all(np.sort(sample[1].squeeze()) == ls))
+
 class FlowTests(TestBase):
 
     def test_conditional_simple(self):

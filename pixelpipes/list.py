@@ -204,7 +204,7 @@ class MakeList(Operation):
         return self.__class__(_origin=_origin, **config)
 
     def operation(self):
-        return "list_build",
+        return "make_list",
 
 
 class Repeat(Operation):

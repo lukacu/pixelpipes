@@ -583,37 +583,24 @@ namespace pixelpipes
 
     PIXELPIPES_UNIT_OPERATION_AUTO("list_length", list_length, constant_shape<int>);
 
-    // TODO: better detecton of integer lists vs float
-    TokenReference list_build(const TokenList &inputs)
+    /**
+     * @brief Returns a list with the given elements. This is a generic list that can contain any type of elements.
+     *
+     */
+    TokenReference make_list_run(const TokenList &inputs)
     {
 
         VERIFY(inputs.size() > 0, "No inputs");
 
-        if (inputs[0]->shape().element() == IntegerType)
-        {
+        std::vector<TokenReference> list;
 
-            std::vector<int> result;
+        for (size_t i = 0; i < inputs.size(); i++)
+            list.push_back(inputs[i].reborrow());
 
-            for (size_t i = 0; i < inputs.size(); i++)
-                result.push_back(extract<int>(inputs[i]));
-
-            return create<IntegerVector>(make_span(result));
-        }
-        else
-        {
-
-            std::vector<float> result;
-
-            for (size_t i = 0; i < inputs.size(); i++)
-            {
-                result.push_back(extract<float>(inputs[i]));
-            }
-
-            return create<FloatVector>(make_span(result));
-        }
+        return create<GenericList>(make_span(list));
     }
 
-    TokenReference shape_from_elements(const TokenList &inputs) 
+    TokenReference make_list_eval(const TokenList &inputs) 
     {
         // Determine list type from elements, the size is the number of elements
 
@@ -630,6 +617,6 @@ namespace pixelpipes
 
     }
 
-    PIXELPIPES_COMPUTE_OPERATION("list_build", list_build, shape_from_elements);
+    PIXELPIPES_COMPUTE_OPERATION("make_list", make_list_run, make_list_eval);
 
 }
