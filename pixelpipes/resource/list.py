@@ -7,7 +7,7 @@ import numpy as np
 
 from attributee.object import class_fullname
 
-from ..list import GetElement, Permutation, Remap, Repeat, SublistSelect
+from ..list import GetElement, Permutation, Remap, Repeat, Sublist
 from ..numbers import Integer, SampleUnform
 from ..graph import Constant, Macro, Input, Node, NodeOperation, Copy, SeedInput, ValidationException, hidden
 from . import Resource, ResourceField, ResourceProxy, TokenField, real_field, types
@@ -282,7 +282,7 @@ class ListInterval(Macro):
             if not real_field(field):
                 fields[name] = field
             else:
-                forward[name] = SublistSelect(parent=field.access(resources), \
+                forward[name] = Sublist(parent=field.access(resources), \
                     begin=begin, end=end, _name="." + name)
 
         forward["__list_length"] = Copy(end - begin,  _name=".__list_length")

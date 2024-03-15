@@ -186,7 +186,7 @@ namespace pixelpipes
             {
                 if (index < (*l)->length())
                     return (*l)->get(index);
-                index -= (*l)->length() - 1;
+                index -= (*l)->length();
             }
 
             throw TypeException("Index out of range");

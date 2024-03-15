@@ -403,6 +403,79 @@ class ListTests(TestBase):
         self.assertEqual(len(sample[1]), 5)
         self.assertTrue(np.all(np.sort(sample[1].squeeze()) == ls))
 
+    def test_list_concatenation(self):
+        from .list import Concatenate
+
+        with Graph() as graph:
+            n1 = Constant([1, 2, 3])
+            n2 = Constant([4, 5, 6])
+            outputs(Concatenate([n1, n2]))
+
+        pipeline = Compiler().build(graph)
+        sample = pipeline.run(1)
+
+        self.compare_arrays(sample[0], [1, 2, 3, 4, 5, 6])
+
+    def test_list_length(self):
+        from .list import Length
+
+        with Graph() as graph:
+            n1 = Constant([1, 2, 3])
+            outputs(Length(n1))
+
+        pipeline = Compiler().build(graph)
+        sample = pipeline.run(1)
+
+        self.assertEqual(sample[0], 3)
+
+    def test_list_sublist(self):
+        from .list import Sublist
+
+        with Graph() as graph:
+            n1 = Constant([1, 2, 3, 4, 5, 6])
+            outputs(Sublist(n1, 2, 3))
+
+        pipeline = Compiler().build(graph)
+        sample = pipeline.run(1)
+
+        self.compare_arrays(sample[0], [3, 4])
+
+    def test_list_repeat(self):
+        from .list import Repeat
+
+        with Graph() as graph:
+            n1 = Constant(1)
+            outputs(Repeat(n1, 3))
+
+        pipeline = Compiler().build(graph)
+        sample = pipeline.run(1)
+
+        self.compare_arrays(sample[0], [1, 1, 1])
+
+    def test_list_remap(self):
+        from .list import Remap
+
+        with Graph() as graph:
+            n1 = Constant([1, 2, 3])
+            outputs(Remap(n1, Constant([2, 1, 0])))
+
+        pipeline = Compiler().build(graph)
+        sample = pipeline.run(1)
+
+        self.compare_arrays(sample[0], [3, 2, 1])
+
+    def test_list_filter(self):
+        from .list import Filter
+
+        with Graph() as graph:
+            n1 = Constant([1, 2, 3, 4, 5, 6])
+            outputs(Filter(n1, Constant([True, False, True, False, True, False])))
+
+        pipeline = Compiler().build(graph)
+        sample = pipeline.run(1)
+
+        self.compare_arrays(sample[0], [1, 3, 5])
+
 class FlowTests(TestBase):
 
     def test_conditional_simple(self):

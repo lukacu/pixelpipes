@@ -52,7 +52,7 @@ class FileList(Operation):
         return "file_list", list(self.list)
 
 
-class SublistSelect(Operation):
+class Sublist(Operation):
     """
     Selects a range from the source list as a new list.
     """
@@ -99,7 +99,7 @@ class Concatenate(Operation):
         return "list_concatenate",
 
 
-class FilterSelect(Operation):
+class Filter(Operation):
     """Generate a sublist based on values from a filter list
     """
 
