@@ -67,7 +67,10 @@ class LazyLoadEnum(Mapping):
         if isinstance(key, int):
             if key in self._data.values():
                 return key
-        return self._data[key]
+        try:
+            return self._data[key]
+        except KeyError:
+            raise KeyError(key + " not available, possible values: " + ", ".join(self._data.keys()))
 
     def __len__(self):
         self._load()

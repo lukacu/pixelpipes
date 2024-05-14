@@ -104,7 +104,7 @@ class Power(Operation):
     def operation(self):
         return "power",
 
-class Sqrt(Operation):
+class SquareRoot(Operation):
 
     a = Input(types.Wildcard(), description="Input value")
 
@@ -225,6 +225,28 @@ class Ceil(Operation):
 
     def operation(self):
         return "ceil",
+
+class Min(Operation):
+    
+    """Piecewise minimum of two values.
+    """
+
+    a = Input(types.Wildcard(), description="First operand")
+    b = Input(types.Wildcard(), description="Second operand")
+    
+    def operation(self):
+        return "min",
+
+class Max(Operation):
+        
+    """Piecewise maximum of two values.
+    """
+
+    a = Input(types.Wildcard(), description="First operand")
+    b = Input(types.Wildcard(), description="Second operand")
+    
+    def operation(self):
+        return "max",
 
 # Trigonometric functions
 

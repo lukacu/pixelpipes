@@ -98,6 +98,9 @@ class ResourceListSource(Macro):
         if not all([lenghts[0] == x for x in lenghts]):
             raise ValidationException("Field size mismatch for resource list")
 
+        if lenghts[0] == 0:
+            raise ValidationException("Empty resource list")
+
         forward["__list_length"] = Constant(lenghts[0], _name=".__list_length")
 
         return fields, forward
@@ -228,7 +231,8 @@ class RandomResource(Macro):
     def expand(self, resources, seed):
 
         length = GetResourceListLength(resources)
-        generator = SampleUnform(0, length-1, seed=self.seed)
+        # Generator is [min, max) and is then floored to max-1
+        generator = SampleUnform(0, length, seed=self.seed)
 
         index = Integer(generator)
         

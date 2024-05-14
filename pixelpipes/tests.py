@@ -276,6 +276,34 @@ class NumbersTests(TestBase):
         self.assertEqual(sample[1], 4)
         self.assertEqual(sample[2], 4)
 
+    def test_min_max(self):
+
+        from pixelpipes.numbers import Min, Max
+
+        with Graph() as graph:
+            n1 = Constant(value=3)
+            n2 = Constant(value=4)
+            outputs(Min(n1, n2), Max(n1, n2))
+
+        pipeline = Compiler().build(graph)
+        sample = pipeline.run(1)
+
+        self.assertEqual(sample[0], 3)
+        self.assertEqual(sample[1], 4)
+
+    def test_square_root(self):
+
+        from pixelpipes.numbers import SquareRoot
+
+        with Graph() as graph:
+            n1 = Constant(value=9)
+            outputs(SquareRoot(n1))
+
+        pipeline = Compiler().build(graph)
+        sample = pipeline.run(1)
+
+        self.assertEqual(sample[0], 3)
+
 class ListTests(TestBase):
 
     def test_list_range(self):
