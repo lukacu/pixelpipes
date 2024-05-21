@@ -108,14 +108,12 @@ breathe_default_project = "pixelpipes"
 cpp_index_common_prefix = ['pixelpipes::']
 
 def setup(app):
-    app.connect('autoapi-skip-member', skip_nodes)
     app.connect("builder-inited", generate_doxygen_xml)
 
 def generate_doxygen_xml(app):
     """Run the doxygen make commands if we're on the ReadTheDocs server"""
 
     read_the_docs_build = os.environ.get('READTHEDOCS', None) == 'True'
-    print(read_the_docs_build)
 
     if read_the_docs_build:
 
@@ -125,14 +123,3 @@ def generate_doxygen_xml(app):
                 sys.stderr.write("doxygen terminated by signal %s" % (-retcode))
         except OSError as e:
             sys.stderr.write("doxygen execution failed: %s" % e)
-
-
-def skip_nodes(app, what, name, obj, skip, options):
-    from inspect import isclass
-    from pixelpipes.graph import Node
-    print(obj, what)
-    if what != "class":
-        return None
-    if not isclass(obj):
-        return None
-    return issubclass(obj, Node)

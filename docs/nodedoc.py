@@ -20,21 +20,42 @@ from sphinx.domains import Domain, ObjType, Index
 from sphinx.domains.python import py_sig_re, PyObject
 from sphinx.environment import BuildEnvironment
 
-def is_node(obj):
-    from pixelpipes.graph import Node
-
-    if not isclass(obj.object):
-        return False
-    if not issubclass(obj.object, Node):
-        return False
-
-    return not obj.object.hidden()
 
 class IndexEntry(NamedTuple):
     docname: str
     node_id: str
     objtype: str
     aliased: bool
+
+def is_instance(obj, cls_str):
+    print(obj)
+    for cls in obj.__mro__:
+        if cls.__name__ == cls_str:
+            return True
+    return False
+
+def is_subclass(cls, cls_str):
+    from autoapi._objects import PythonClass
+    if not isinstance(cls, PythonClass):
+        return False
+   
+    if cls.imported:
+        return False
+   
+    package = cls.obj["full_name"][:-len(cls.obj["name"])]
+    
+    if cls_str in cls.bases:
+        return True
+    
+    return False
+
+def is_node(obj):
+
+    if not is_subclass(obj.object, "pixelpipes.graph.Node"):
+        return False
+
+    return not obj.object.hidden()
+
 
 class NodeEntry(PyObject):
 
@@ -234,9 +255,9 @@ class NodesDocumenter(ModuleDocumenter):
     @classmethod
     def can_document_member(cls, member: Any, membername: str, isattr: bool, parent: Any
                             ) -> bool:
-        from pixelpipes.graph import Node
+
         try:
-            return issubclass(member, Node)
+            return is_subclass(member, "pixelpipes.graph.Node")
         except TypeError:
             return False
 
@@ -266,9 +287,8 @@ class NodeDocumenter(ClassDocumenter):
     def can_document_member(cls,
                             member: Any, membername: str,
                             isattr: bool, parent: Any) -> bool:
-        from pixelpipes.graph import Node
         try:
-            return issubclass(member, Node)
+            return is_subclass(member, "pixelpipes.graph.Node")
         except TypeError:
             return False
 
@@ -280,8 +300,7 @@ class NodeDocumenter(ClassDocumenter):
 
         Let the user process it via the ``autodoc-process-signature`` event.
         """
-        from pixelpipes.graph import Node
-        node_object: Node = self.object
+        node_object: "Node" = self.object
 
         args = []
 
@@ -297,12 +316,11 @@ class NodeDocumenter(ClassDocumenter):
         if self.doc_as_attr:
             self.directivetype = 'attribute'
 
-        from pixelpipes.graph import Node, Operation, Macro
-        node_object: Node = self.object
+        node_object: "Node" = self.object
 
-        if issubclass(node_object, Operation):
+        if is_subclass(node_object, "pixelpipes.graph.Operation"):
             self.directivetype = "operation"
-        elif issubclass(node_object, Macro):
+        elif is_subclass(node_object, "pixelpipes.graph.Macro"):
             self.directivetype = "macro"
         else:
             self.directivetype = "node"
@@ -319,34 +337,31 @@ class NodeDocumenter(ClassDocumenter):
                     more_content: Optional[StringList]
                     ) -> None:
 
-        from pixelpipes.graph import Node, Input
-        from attributee import Integer, String, Float, Any, Boolean, is_undefined
-
         super().add_content(more_content)
 
         source_name = self.get_sourcename()
 
-        node_object: Node = self.object
+        node_object: "Node" = self.object
 
         self.add_line('', source_name)
 
         for arg_name, arg_value in node_object.attributes().items():
             arg_type = ""
-            if isinstance(arg_value, Input):
+            if is_instance(arg_value, "pixelpipes.graph.Input"):
                 arg_type = str(arg_value.reftype())
-            elif isinstance(arg_value, Integer):
+            elif is_instance(arg_value, "attributee.Integer"):
                 arg_type = "int"
-            elif isinstance(arg_value, Float):
+            elif is_instance(arg_value, "attributee.Float"):
                 arg_type = "float"
-            elif isinstance(arg_value, String):
+            elif is_instance(arg_value, "attributee.String"):
                 arg_type = "str"
-            elif isinstance(arg_value, Boolean):
+            elif is_instance(arg_value, "attributee.Boolean"):
                 arg_type = "bool"
-            elif isinstance(arg_value, Any):
+            elif is_instance(arg_value, "attributee.Any"):
                 arg_type = "any"
 
-            if not is_undefined(arg_value.default):
-                arg_type += f" = {arg_value.default!s}"
+            #if not is_undefined(arg_value.default):
+            #    arg_type += f" = {arg_value.default!s}"
 
             self.add_line(
                 f"**{arg_name}** [{arg_type}]: {arg_value.description}", source_name)

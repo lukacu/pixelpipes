@@ -3,4 +3,3 @@ sphinx_rtd_theme
 recommonmark
 sphinx-autoapi
 breathe
-attributee
