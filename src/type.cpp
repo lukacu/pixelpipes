@@ -125,11 +125,6 @@ namespace pixelpipes
 		return Size(data == other.data ? data : unknown);
 	}
 
-    /**
-     * The type identifier for anything, only used for placeholders, denotes any type as well as any shape.
-    */
-    constexpr static Type Anything = 1;
-
 	Shape::Shape() : Shape(AnyType)
 	{
 	}
@@ -152,10 +147,7 @@ namespace pixelpipes
 
 	Type Shape::element() const
 	{
-		if (is_anything())
-			return AnyType;
-
-		return _element;
+		return (Type) (_element);
 	}
 
 	Size Shape::operator[](size_t index) const
@@ -170,33 +162,45 @@ namespace pixelpipes
 
 	size_t Shape::rank() const
 	{
+		if (is_anything())
+			return 0;
+
 		return _shape.size();
 	}
 
 	size_t Shape::size() const
 	{
-		size_t s = 1;
+		if (is_anything())
+			return 0;
 
+		Size s = 1;
+      
 		for (size_t i = 0; i < _shape.size(); i++) {
-			s *= (size_t)_shape[i];
+			s = s * _shape[i];
 		}
 
-		return s;
+		return (size_t)s;
 	}
 
 	bool Shape::is_fixed() const
-	{
+	{	
+		if (is_anything())
+			return false;
+
 		bool fixed = true;
 		for (const auto& d : _shape)
 		{
-			fixed &= d.data > 0;
+			fixed &= !IS_UNKNOWN(d);
 		}
 		return fixed;
 	}
 
 	bool Shape::is_scalar() const
 	{
-		if (_element != IntegerType && _element != FloatType && _element != BooleanType && _element != CharType && _element != ShortType && _element != UnsignedShortType)
+		if (is_anything())
+			return false;
+
+		if (element() != IntegerType && element() != FloatType && element() != BooleanType && element() != CharType && element() != ShortType && element() != UnsignedShortType)
 			return false;
 
 		bool scalar = true;
@@ -209,7 +213,7 @@ namespace pixelpipes
 
 	bool Shape::is_anything() const
 	{
-		return _element == Anything;
+		return _shape.size() == 1 && _shape[0] == 0;
 	}
 
 	Shape Shape::cast(Type t) const
@@ -220,7 +224,7 @@ namespace pixelpipes
 	Shape Shape::push(Size s) const
 	{
 		if (is_anything())
-			return Shape(Anything);
+			return Shape(element(), {0});
 
 		std::vector<Size> _s;
 		_s.push_back(s);
@@ -232,7 +236,7 @@ namespace pixelpipes
 	Shape Shape::pop() const
 	{
 		if (is_anything())
-			return Shape(Anything);
+			return Shape(element(), {0});
 
 		return Shape(element(), make_view(_shape, 1));
 	}
@@ -245,13 +249,12 @@ namespace pixelpipes
 	*/
 	Shape Shape::operator&(const Shape &other) const
 	{
+		Type e = (other.element() == element()) ? element() : AnyType;
 
-		if (element() == Anything || other.element() == Anything)
-			return Shape(Anything);
+		if (is_anything() || other.is_anything())
+			return Shape(e, {0});
 
 		std::vector<Size> _s;
-
-		Type e = (other.element() == element()) ? element() : AnyType;
 
 		size_t _d = MAX(rank(), other.rank());
 
@@ -289,7 +292,7 @@ namespace pixelpipes
 
     Shape AnythingShape()
     {
-        return Shape(Anything);
+        return Shape(AnyType, {0});
     }
 
 

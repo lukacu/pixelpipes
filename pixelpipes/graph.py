@@ -176,6 +176,40 @@ class EnumerationInput(Input):
         else:
             return self._inverse[value]
 
+class Context(object):
+    
+    def __init__(self, **kwargs) -> None:
+        self._state = kwargs
+
+    @staticmethod
+    def snapshot():
+        with _CONTEXT_LOCK:
+            if not hasattr(_CONTEXT, "state"):
+                return Context()
+            return Context(**_CONTEXT.state[-1])
+
+    @staticmethod
+    def get(key: str, default=None):
+        with _CONTEXT_LOCK:
+            if not hasattr(_CONTEXT, "state"):
+                return default
+            return _CONTEXT.state[-1].get(key, default)
+    
+    def __enter__(self):
+        with _CONTEXT_LOCK:
+            if not hasattr(_CONTEXT, "state"):
+                _CONTEXT.state = [{}]
+            _CONTEXT.state.append(_CONTEXT.state[-1].copy())
+            _CONTEXT.state[-1].update(self._state)
+            return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        with _CONTEXT_LOCK:
+            state = getattr(_CONTEXT, "state", [])
+            if len(state) == 0:
+                raise RuntimeError("Illegal state")
+            _CONTEXT.state.pop()
+
 _operation_registry = {}
 
 class OperationProxy:
@@ -500,6 +534,14 @@ class Operation(Node):
 
 @hidden
 class Macro(Node):
+
+    def __init__(self, *args, _name: str = None, _auto: bool = True, _origin: Node = None, **kwargs):
+        super().__init__(*args, _name=_name, _auto=_auto, _origin=_origin, **kwargs)
+        self._context = Context.snapshot()
+        
+    @property
+    def context(self):
+        return self._context
 
     def expand(self, **inputs):
         raise NotImplementedError()

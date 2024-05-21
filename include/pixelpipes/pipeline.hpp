@@ -36,7 +36,7 @@ namespace pixelpipes
     {
     public:
         Metadata();
-        Metadata(const Metadata&);
+        Metadata(const Metadata &);
         Metadata(Metadata &&);
         ~Metadata();
 
@@ -47,7 +47,7 @@ namespace pixelpipes
         bool has(std::string key) const;
         void set(std::string key, std::string value);
         size_t size() const;
-        
+
         Sequence<std::string> keys() const;
 
     private:
@@ -59,16 +59,18 @@ namespace pixelpipes
     {
         struct State;
 
-        struct StateDeleter {
+        struct StateDeleter
+        {
 
-            void operator()(State* p) const;
+            void operator()(State *p) const;
         };
 
         // TODO: figure out what kind of magic is done here and replicate it.
         std::unique_ptr<State, StateDeleter> state;
 
     public:
-        struct OperationData {
+        struct OperationData
+        {
             OperationReference operation;
             Sequence<int> inputs;
             Metadata metadata;
@@ -84,7 +86,7 @@ namespace pixelpipes
 
         virtual void finalize(bool optimize = true);
 
-        virtual int append(std::string name, const TokenList& args, const Span<int>& inputs, const Metadata& metadata = Metadata());
+        virtual int append(std::string name, const TokenList &args, const Span<int> &inputs, const Metadata &metadata = Metadata());
 
         virtual Sequence<TokenReference> run(unsigned long index) noexcept(false);
 
@@ -96,9 +98,9 @@ namespace pixelpipes
 
         std::vector<float> operation_time();
 
-        Metadata& metadata();
+        Metadata &metadata();
 
-        const Metadata& metadata() const;
+        const Metadata &metadata() const;
 
     protected:
         typedef struct
@@ -108,7 +110,7 @@ namespace pixelpipes
         } OperationStats;
     };
 
-    std::string PIXELPIPES_API visualize_pipeline(const Pipeline& pipeline);
+    std::string PIXELPIPES_API visualize_pipeline(const Pipeline &pipeline);
 
     class PipelineCallback
     {
@@ -122,61 +124,49 @@ namespace pixelpipes
     {
     public:
         PipelineException(std::string reason);
-        PipelineException(const PipelineException& e) = default;
+        PipelineException(const PipelineException &e) = default;
     };
 
     class PIXELPIPES_API OperationException : public PipelineException
     {
     public:
-        OperationException(std::string reason, const OperationReference& reference, int position);
-        OperationException(const OperationException& e) = default;
+        OperationException(std::string reason, const OperationReference &reference, int position);
+        OperationException(const OperationException &e) = default;
 
         inline int position() const
         {
             return _position;
         }
-        
+
     private:
         int _position;
         std::string name;
     };
+/*
+    class PIXELPIPES_API Engine
+    {
+        struct State;
 
-    /*
-    class Engine: public std::enable_shared_from_this<Engine> {
     public:
-        Engine(int workers);
+    
+        Engine(uint16_t workers);
 
         ~Engine();
 
-        void start();
+        void run(Pipeline& pipeline, unsigned long index, std::shared_ptr<PipelineCallback> callback) noexcept(false);
 
-        void stop();
-
-        bool running();
-
-        bool add(std::string, SharedPipeline pipeline);
-
-        bool remove(std::string);
-
-        void run(std::string, unsigned long index, std::shared_ptr<PipelineCallback> callback) noexcept(false);
+        void batch(Pipeline& pipeline, const Sequence<unsigned long>& indices, std::shared_ptr<PipelineCallback> callback) noexcept(false);
 
     private:
 
-        std::map<std::string, SharedPipeline> pipelines;
+        struct StateDeleter
+        {
+            void operator()(State *p) const;
+        };
 
-        std::shared_ptr<dispatch_queue> workers;
-
-        std::recursive_mutex mutex_;
-
-        int workers_count;
+        // TODO: figure out what kind of magic is done here and replicate it.
+        std::unique_ptr<State, StateDeleter> state;
 
     };
-
-    class EngineException: public BaseException {
-    public:
-
-        EngineException(std::string reason);
-
-    };*/
-
+*/
 }

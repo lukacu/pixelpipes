@@ -41,7 +41,7 @@ namespace pixelpipes
             return create_tensor<ushort>(sizes);
         }
         else
-        {
+        { 
             throw TypeException("Unsupported tensor format");
         }
     }
@@ -49,6 +49,7 @@ namespace pixelpipes
     TensorReference create_tensor(Shape s)
     {
         // Not the nicest way to do this, but it works (optimization is not a priority here)
+        //return create_tensor(s.element(), s.sizes());
         return create_tensor(s.element(), SizeSequence(std::vector<size_t>(s.begin(), s.end())));
     }
 
@@ -414,6 +415,7 @@ namespace pixelpipes
         size_t outdim = std::max(sa.rank(), sb.rank());
         SizeSequence outsize(outdim);
 
+
         for (size_t i = 0; i < outdim; i++)
         {
             if (sa[i] == 1)
@@ -759,22 +761,162 @@ namespace pixelpipes
 
     // Comparison operations on tensors
 
-#define _equal _elementwise_binary<xt::detail::equal_to, no_cast>
+    template <class T>
+    TokenReference _elementwise_comparison(const TokenReference &ta, const TokenReference &tb)
+    {
+        Shape sa = ta->shape();
+        Shape sb = tb->shape();
+
+        TensorReference tra;
+        TensorReference trb;
+
+        bool scalar_a = sa.is_scalar();
+        bool scalar_b = sb.is_scalar();
+
+        if (scalar_a)
+        {
+            tra = create_scalar(ta);
+        }
+        else
+        {
+            tra = extract<TensorReference>(ta);
+        }
+
+        if (scalar_b)
+        {
+            trb = create_scalar(tb);
+        }
+        else
+        {
+            trb = extract<TensorReference>(tb);
+        }
+
+        size_t outdim = std::max(sa.rank(), sb.rank());
+        SizeSequence outsize(outdim);
+
+        for (size_t i = 0; i < outdim; i++)
+        {
+            if (sa[i] == 1)
+            {
+                outsize[i] = sb[i];
+            }
+            else if (sb[i] == 1)
+            {
+                outsize[i] = sa[i];
+            }
+            else if (sa[i] == sb[i])
+            {
+                outsize[i] = sa[i];
+            }
+            else
+                throw TypeException("Tensor dimension mismatch");
+        }
+
+        Type common_type = 0;
+        TensorReference converted;
+
+        auto strides_a = _broadcasting_strides(sa, outsize, tra->strides());
+        auto strides_b = _broadcasting_strides(sb, outsize, trb->strides());
+
+        TensorReference tva = create<TensorView>(tra, 0, outsize, strides_a);
+        TensorReference tvb = create<TensorView>(trb, 0, outsize, strides_b);
+
+        if (sa.element() != sb.element())
+        {
+            common_type = _promote_type(sa.element(), sb.element());
+
+            converted = create_tensor(common_type, outsize);
+            if (common_type == sa.element())
+            {
+                copy_tensor(tvb, converted);
+                tvb = converted.reborrow();
+                tva = tra.reborrow();
+            }
+            else
+            {
+                copy_tensor(tva, converted);
+                tva = converted.reborrow();
+                tvb = trb.reborrow();
+            }
+        }
+        else
+        {
+            common_type = sa.element();
+            tva = tra.reborrow();
+            tvb = trb.reborrow();
+        }
+       
+        TensorReference result = create_tensor(BooleanType, outsize);
+        auto out = wrap_xtensor<bool>(result);
+
+        if (common_type == CharType)
+        {
+            auto a = wrap_xtensor<uchar>(tva);
+            auto b = wrap_xtensor<uchar>(tvb);
+ 
+            _execute_tensor_binary<T, no_cast<bool, bool>>(a, b, out);
+            return result;
+        }
+        else if (common_type == ShortType)
+        {
+            auto a = wrap_xtensor<short>(tva);
+            auto b = wrap_xtensor<short>(tvb);
+
+            _execute_tensor_binary<T, no_cast<bool, bool>>(a, b, out);
+            return result;
+        }
+        else if (common_type == UnsignedShortType)
+        {
+            auto a = wrap_xtensor<ushort>(tva);
+            auto b = wrap_xtensor<ushort>(tvb);
+
+            _execute_tensor_binary<T, no_cast<bool, bool>>(a, b, out);
+            return result;
+        }
+        else if (common_type == IntegerType)
+        {
+            auto a = wrap_xtensor<int>(tva);
+            auto b = wrap_xtensor<int>(tvb);
+
+            _execute_tensor_binary<T, no_cast<bool, bool>>(a, b, out);
+            return result;
+        }
+        else if (common_type == FloatType)
+        {
+            auto a = wrap_xtensor<float>(tva);
+            auto b = wrap_xtensor<float>(tvb);
+
+            _execute_tensor_binary<T, no_cast<bool, bool>>(a, b, out);
+            return result;
+        }
+        else
+        {
+            throw TypeException("Unsupported tensor type");
+        }
+
+        return result;
+    }
+
+    XTENSOR_FUNCTOR_BINARY(xtensor_equal_functor, xt::equal)
+
+#define _equal _elementwise_comparison<xtensor_equal_functor>
     PIXELPIPES_COMPUTE_OPERATION_AUTO("equal", _equal, _determine_shape_binary_cast<bool>);
 
-#define _not_equal _elementwise_binary<xt::detail::not_equal_to, no_cast>
+    XTENSOR_FUNCTOR_BINARY(xtensor_not_equal_functor, xt::not_equal)
+
+#define _not_equal _elementwise_comparison<xtensor_not_equal_functor>
     PIXELPIPES_COMPUTE_OPERATION_AUTO("not_equal", _not_equal, _determine_shape_binary_cast<bool>);
 
-#define _less _elementwise_binary<xt::detail::less, no_cast>
+#define _less _elementwise_comparison<xt::detail::less>
     PIXELPIPES_COMPUTE_OPERATION_AUTO("less", _less, _determine_shape_binary_cast<bool>);
 
-#define _less_equal _elementwise_binary<xt::detail::less_equal, no_cast>
+#define _less_equal _elementwise_comparison<xt::detail::less_equal>
     PIXELPIPES_COMPUTE_OPERATION_AUTO("less_equal", _less_equal, _determine_shape_binary_cast<bool>);
 
-#define _greater _elementwise_binary<xt::detail::greater, no_cast>
+#define _greater _elementwise_comparison<xt::detail::greater>
     PIXELPIPES_COMPUTE_OPERATION_AUTO("greater", _greater, _determine_shape_binary_cast<bool>);
 
-#define _greater_equal _elementwise_binary<xt::detail::greater_equal, no_cast>
+#define _greater_equal _elementwise_comparison<xt::detail::greater_equal>
     PIXELPIPES_COMPUTE_OPERATION_AUTO("greater_equal", _greater_equal, _determine_shape_binary_cast<bool>);
 
     // Logical operations on tensors
@@ -833,7 +975,6 @@ namespace pixelpipes
                 throw TypeException("Tensor dimension mismatch");
         }
 
-        Type return_type = 0;
         TensorReference result;
 
         auto strides_a = _broadcasting_strides(sa, outsize, tra->strides());
@@ -842,31 +983,9 @@ namespace pixelpipes
         TensorReference tva = create<TensorView>(tra, 0, outsize, strides_a);
         TensorReference tvb = create<TensorView>(trb, 0, outsize, strides_b);
 
-        if (sa.element() != sb.element())
-        {
-            return_type = _promote_type(sa.element(), sb.element());
-
-            result = create_tensor(return_type, outsize);
-            if (return_type == sa.element())
-            {
-                copy_tensor(tvb, result);
-                tvb = result.reborrow();
-                tva = tra.reborrow();
-            }
-            else
-            {
-                copy_tensor(tva, result);
-                tva = result.reborrow();
-                tvb = trb.reborrow();
-            }
-        }
-        else
-        {
-            return_type = sa.element();
-            result = create_tensor(return_type, outsize);
-            tva = tra.reborrow();
-            tvb = trb.reborrow();
-        }
+        result = create_tensor(BooleanType, outsize);
+        tva = tra.reborrow();
+        tvb = trb.reborrow();
 
         auto a = wrap_xtensor<bool>(tva);
         auto b = wrap_xtensor<bool>(tvb);
@@ -912,118 +1031,5 @@ namespace pixelpipes
 #define _or _logical_binary<xt::detail::logical_or>
     PIXELPIPES_COMPUTE_OPERATION_AUTO("logical_or", _or, _determine_shape_binary_cast<bool>);
 
-    class Stack : public Operation
-    {
-    public:
-        Stack() {}
-
-        virtual TokenReference run(const TokenList &inputs)
-        {
-            VERIFY(inputs.size() > 1, "Two or more tensors expected");
-
-            TensorReference t0 = extract<TensorReference>(inputs[0]);
-
-            Shape s = t0->shape();
-
-            for (size_t i = 1; i < inputs.size(); i++)
-            {
-                TensorReference ti = extract<TensorReference>(inputs[i]);
-
-                VERIFY(s == ti->shape(), "Shape mismatch");
-            }
-
-            s = s.push(inputs.size());
-
-            TensorReference result = create_tensor(s);
-
-            for (size_t i = 0; i < inputs.size(); i++)
-            {
-                TensorReference ts = extract<TensorReference>(inputs[i]);
-                TensorReference td = extract<TensorReference>(result->get(i));
-
-                copy_buffer(ts, td);
-            }
-
-            return result;
-        }
-
-        virtual Type type()
-        {
-            return GetType<Stack>();
-        }
-
-        virtual Sequence<TokenReference> serialize() { return Sequence<TokenReference>(); }
-    };
-
-    PIXELPIPES_OPERATION_CLASS("stack", Stack);
-
-    /**
-     * @brief Converts depth of an image, scaling pixel values.
-     */
-    TokenReference convert_run(const TensorReference &input, DataType dtype) noexcept(false)
-    {
-        Type rtype = AnyType;
-
-        switch (dtype)
-        {
-        case DataType::Boolean:
-            rtype = BooleanType;
-            break;
-        case DataType::Char:
-            rtype = CharType;
-            break;
-        case DataType::Short:
-            rtype = ShortType;
-            break;
-        case DataType::UnsignedShort:
-            rtype = UnsignedShortType;
-            break;
-        case DataType::Integer:
-            rtype = IntegerType;
-            break;
-        case DataType::Float:
-            rtype = FloatType;
-            break;
-        }
-
-        TensorReference output = create_tensor(input->shape().cast(rtype));
-
-        copy_tensor(input, output);
-
-        return output;
-    }
-
-    TokenReference convert_eval(const TokenList &inputs)
-    {
-        VERIFY(inputs.size() == 2, "Two tokens expected");
-
-        auto shape = inputs[0]->shape();
-
-        if (_IS_PLACEHOLDER(inputs[1])) {
-            return create<Placeholder>(shape.cast(AnyType));
-        }
-
-        DataType dtype = extract<DataType>(inputs[1]);
-
-        switch (dtype)
-        {
-        case DataType::Boolean:
-            return create<Placeholder>(shape.cast(BooleanType));
-        case DataType::Char:
-            return create<Placeholder>(shape.cast(CharType));
-        case DataType::Short:
-            return create<Placeholder>(shape.cast(ShortType));
-        case DataType::UnsignedShort:
-            return create<Placeholder>(shape.cast(UnsignedShortType));
-        case DataType::Integer:
-            return create<Placeholder>(shape.cast(IntegerType));
-        case DataType::Float:         
-            return create<Placeholder>(shape.cast(FloatType));  
-        }
-
-        throw TypeException("Unsupported data type");
-    }
-
-    PIXELPIPES_COMPUTE_OPERATION_AUTO("convert", convert_run, convert_eval);
 
 }

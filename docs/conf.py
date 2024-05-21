@@ -32,7 +32,7 @@ master_doc = 'index'
 
 # General information about the project.
 project = u'PixelPipes'
-copyright = u'2022, Luka Cehovin Zajc'
+copyright = u'2024, Luka Cehovin Zajc'
 author = u'Luka Cehovin Zajc'
 
 version = __version__
@@ -115,6 +115,7 @@ def generate_doxygen_xml(app):
     """Run the doxygen make commands if we're on the ReadTheDocs server"""
 
     read_the_docs_build = os.environ.get('READTHEDOCS', None) == 'True'
+    print(read_the_docs_build)
 
     if read_the_docs_build:
 

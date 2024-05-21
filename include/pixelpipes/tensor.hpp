@@ -33,6 +33,18 @@ namespace pixelpipes
         return SizeSequence::claim(strides, shape.size());
     }
 
+    inline bool is_contiguous(const Sizes &shape, const Sizes &strides)
+    {
+        size_t stride = 1;
+        for (size_t i = shape.size() - 1; i > 0; i--)
+        {
+            if (strides[i] != stride)
+                return false;
+            stride *= shape[i];
+        }
+        return true;
+    }
+
     class PIXELPIPES_API Tensor : public List, public Buffer
     {
         PIXELPIPES_RTTI(Tensor, List, Buffer)
@@ -64,6 +76,12 @@ namespace pixelpipes
         virtual ByteSpan data() override = 0;
 
         virtual SizeSequence strides() const = 0;
+
+        virtual bool contiguous() const
+        {
+            return is_contiguous(shape().sizes(), strides());
+        }
+
     };
 
     typedef Pointer<Tensor> TensorReference;
@@ -459,9 +477,11 @@ namespace pixelpipes
 
             VERIFY(shape.size() == N, "Number of dimensions does not match");
 
-            size_t s = std::accumulate(shape.begin(), shape.end(), 1, std::multiplies<size_t>());
+            auto s = aggregate(shape);
 
-            VERIFY(data.size() == s, "Data length does not match its shape");
+            VERIFY(bool(s), "Undefined shape");
+
+            VERIFY(data.size() == (size_t) s, "Data length does not match its shape");
 
             _shape = shape;
             _strides = generate_strides(_shape, sizeof(T));
@@ -475,9 +495,11 @@ namespace pixelpipes
 
             VERIFY(shape.size() == N, "Number of dimensions does not match");
 
-            size_t s = std::accumulate(shape.begin(), shape.end(), 1, std::multiplies<size_t>()) * sizeof(T);
+            auto s = aggregate(shape);
 
-            _data = ByteSequence(s);
+            VERIFY(bool(s), "Undefined shape");
+
+            _data = ByteSequence((size_t) s * sizeof(T));
             _shape = shape;
             _strides = generate_strides(_shape, sizeof(T));
         }
@@ -859,7 +881,7 @@ namespace pixelpipes
             Shape s = v->shape();
 
             if (!s.is_fixed())
-                throw TypeException("Cannot convert to tensorr");
+                throw TypeException("Cannot convert to tensor");
 
             if (s.element() == CharType || s.element() == ShortType || s.element() == UnsignedShortType || s.element() == IntegerType || s.element() == FloatType)
             {
@@ -868,11 +890,17 @@ namespace pixelpipes
             }
             else
             {
-                throw TypeException("Cannot convert to tensorr");
+                throw TypeException("Cannot convert to tensor");
             }
         }
 
         throw TypeException("Not a tensor");
+    }
+
+    template <>
+    inline TokenReference wrap(const TensorReference &v)
+    {
+        return cast<Token>(v);
     }
 
     inline Size get_size(const TokenReference &token) {

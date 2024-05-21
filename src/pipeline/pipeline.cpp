@@ -18,6 +18,7 @@
 #include <pixelpipes/operation.hpp>
 
 #include "optimization.hpp"
+#include "queue.hpp"
 
 using namespace std;
 using namespace std::chrono;
@@ -99,7 +100,9 @@ namespace pixelpipes
         {
             UNUSED(inputs);
 
-            // Constants are shared 
+            VERIFY(inputs.size() == 0, "Illegal number of inputs");
+
+            // Constants are shared
             std::scoped_lock lock(_mutex);
 
             return _value.reborrow();
@@ -110,7 +113,7 @@ namespace pixelpipes
             return run(inputs);
         }
 
-        virtual OperationTrait trait() const override 
+        virtual OperationTrait trait() const override
         {
             return OperationTrait::Stateful;
         }
@@ -150,12 +153,14 @@ namespace pixelpipes
             VERIFY(inputs.size() == 3, "Illegal number of inputs");
 
             // If all inputs are defined, evaluate the condition
-            if (any_placeholder(inputs)) {
+            if (any_placeholder(inputs))
+            {
                 return create<Placeholder>(inputs[0]->shape() & inputs[1]->shape());
-            } else {
+            }
+            else
+            {
                 return run(inputs);
             }
-            
         }
 
         virtual OperationTrait trait() const override
@@ -276,11 +281,11 @@ namespace pixelpipes
     };
 
     Metadata::Metadata() = default;
-    Metadata::Metadata(const Metadata&) = default;
+    Metadata::Metadata(const Metadata &) = default;
     Metadata::~Metadata() = default;
 
     Metadata::Metadata(Metadata &&) = default;
-    
+
     Metadata &Metadata::operator=(const Metadata &) = default;
     Metadata &Metadata::operator=(Metadata &&) = default;
 
@@ -308,19 +313,18 @@ namespace pixelpipes
         return _state->data.size();
     }
 
-    Sequence<std::string> Metadata::keys() const 
+    Sequence<std::string> Metadata::keys() const
     {
         Sequence<std::string> list(_state->data.size());
 
         size_t i = 0;
-        for (auto item : _state->data) 
+        for (auto item : _state->data)
         {
             list[i++] = item.first;
         }
 
         return list;
     }
-
 
     struct Pipeline::State
     {
@@ -363,13 +367,25 @@ namespace pixelpipes
     {
         if (state->finalized)
             throw PipelineException("Pipeline is finalized");
-            
+
         state->finalized = true;
 
         // First determine stateless outputs
         // prune if needed (replace with constants)
         // optimize if needed (add jumps)
+/*
+        auto tokens = stateless_pass(state->operations);
 
+        // Replace all nodes with constant values with constant operations.
+        // Operations that are not needed will be pruned during graph optimization.
+        for (size_t i = 0; i < state->operations.size(); i++)
+        {
+            if (!_IS_PLACEHOLDER(tokens[i]))
+            {
+                state->operations[i].operation = create<Constant>(tokens[i]);
+            }
+        }
+*/
         state->operations = optimize_pipeline(state->operations, optimize);
 
         auto tokens = stateless_pass(state->operations);
@@ -412,11 +428,9 @@ namespace pixelpipes
                 output_position++;
             }
         }
-
-
     }
 
-    int Pipeline::append(std::string name, const TokenList &args, const Span<int> &inputs, const Metadata& metadata)
+    int Pipeline::append(std::string name, const TokenList &args, const Span<int> &inputs, const Metadata &metadata)
     {
 
         if (state->finalized)
@@ -461,12 +475,12 @@ namespace pixelpipes
         return state->operations.size();
     }
 
-    Metadata& Pipeline::metadata() 
+    Metadata &Pipeline::metadata()
     {
         return state->metadata;
     }
 
-    const Metadata& Pipeline::metadata() const
+    const Metadata &Pipeline::metadata() const
     {
         return state->metadata;
     }
@@ -684,88 +698,46 @@ namespace pixelpipes
         return extracted;
     }
 
-    /*
-    Engine::Engine(int workers) : workers_count(workers) {
+    thread_local uint16_t thread_index = 0;
 
+    void initialize_thread()
+    {
+        thread_index = 0;
+    }
+/*
+    struct Engine::State
+    {
+        DispatchQueue workers;
+
+        State(uint16_t workers) : workers(workers) {}
+    };
+
+    Engine::Engine(uint16_t workers) : state(new Engine::State(workers))
+    {
     }
 
-    Engine::~Engine() {
-        stop();
-    }
+    Engine::~Engine() {}
 
-    void Engine::start() {
+    void Engine::run(Pipeline &pipeline, unsigned long index, std::shared_ptr<PipelineCallback> callback) noexcept(false)
+    {
 
-        if (running())
-            return;
-
-        workers = make_shared<dispatch_queue>(workers_count);
-
-    }
-
-    void Engine::stop() {
-
-        if (!running())
-            return;
-
-        workers.reset();
-
-    }
-
-    bool Engine::running() {
-
-        return (bool) workers;
-
-    }
-
-    bool Engine::add(std::string name, SharedPipeline pipeline) {
-
-        std::lock_guard<std::recursive_mutex> lock (mutex_);
-
-        pipeline->finalize();
-
-        pipelines[name] = pipeline;
-
-        return true;
-
-    }
-
-    bool Engine::remove(std::string name) {
-
-        std::lock_guard<std::recursive_mutex> lock (mutex_);
-
-        if (pipelines.find(name) == pipelines.end()) {
-            return false;
-        }
-
-        pipelines.erase(pipelines.find(name));
-
-        return true;
-    }
-
-    void Engine::run(std::string name, unsigned long index, std::shared_ptr<PipelineCallback> callback) {
-
-        std::lock_guard<std::recursive_mutex> lock (mutex_);
-
-        if (!running())
-            throw EngineException("Not running");
-
-        if (pipelines.find(name) == pipelines.end()) {
-            throw EngineException("Pipeline not found");
-        }
-
-        auto pipeline = pipelines[name];
-
-        workers->dispatch([pipeline, index, callback] () {
+        state->workers.dispatch([pipeline, index, callback]()
+                                {
             try {
-                auto result = pipeline->run(index);
+                auto result = pipeline.run(index);
                 callback->done(result);
             } catch (PipelineException &pe) {
                 callback->error(pe);
-            }
-        } );
-
+            } });
     }
-    */
 
+    void Engine::batch(Pipeline &pipeline, const Sequence<unsigned long> &indices, std::shared_ptr<PipelineCallback> callback) noexcept(false)
+    {
+        for (auto index : indices)
+        {
+            run(pipeline, index, callback);
+        }
+    }
+*/
     PIXELPIPES_REGISTER_ENUM("context", ContextData);
 }

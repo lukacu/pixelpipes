@@ -28,7 +28,6 @@ namespace pixelpipes
 
     Placeholder::Placeholder(const Placeholder &that) : _shape{that._shape} 
     {
-
     }
 
     Placeholder::Placeholder(const Type &type, const Sizes &shape) : _shape{type, shape}

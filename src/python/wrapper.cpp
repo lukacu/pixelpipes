@@ -150,7 +150,7 @@ py::tuple shape_to_tuple(const Shape &shape)
 
     for (size_t i = 0; i < shape.rank(); i++)
     {
-        if (!shape[i])
+        if (!shape[i]) 
         {
             result[i + 1] = py::none();
         }

@@ -283,8 +283,9 @@ class Compiler(object):
                 #node.evaluate(**{k: v.type for k, v in inputs.items()})
                 # Expand the macro subgraph
                 with graph.subgraph(prefix=Reference(name)) as macro_builder:
-                    output = node.expand(**inputs)
-                    subgraph = macro_builder.nodes()
+                    with node.context:
+                        output = node.expand(**inputs)
+                        subgraph = macro_builder.nodes()
 
             except Exception as ee:
                 if isinstance(ee, NodeException):

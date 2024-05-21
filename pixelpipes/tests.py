@@ -3,7 +3,7 @@ import numpy as np
 
 from .flow import Conditional
 from .list import Table, Range
-from .numbers import Floor, Round, SampleUnform, Stack, Ceil
+from .numbers import Floor, Round, SampleUnform, Ceil
 from .types import Integer, Char, Float, IntegerList, FloatList, Token, Boolean
 from .compiler import Compiler
 from .graph import Constant, Debug, Graph, SampleIndex, outputs
@@ -193,6 +193,24 @@ class NumbersTests(TestBase):
         self.assertEqual(output[5], 0)
         self.assertEqual(output[6], -6)
 
+    def test_saturated(self):  
+        from pixelpipes.numbers import Saturate
+        from pixelpipes.tensor import Convert
+
+        with Graph() as graph:
+            n1 = Convert(Constant(value=255), "Char")
+            n2 = Convert(Constant(value=2), "Char")
+            with Saturate():
+                outputs(n1+n2, n1-n2, n1 * n2, n1 / n2)
+
+        pipeline = Compiler().build(graph)
+        output = pipeline.run(1)
+
+        self.assertEqual(output[0], 255)
+        self.assertEqual(output[1], 253)
+        self.assertEqual(output[2], 255)
+        self.assertEqual(output[3], 127)
+
     def test_sampling(self):
 
         from pixelpipes.numbers import SampleUnform, SampleNormal, SampleBinomial, SampleBernoulli
@@ -247,7 +265,7 @@ class NumbersTests(TestBase):
 
     def test_conversion(self):
 
-        from pixelpipes.numbers import Convert
+        from pixelpipes.tensor import Convert
 
         with Graph() as graph:
             n1 = Constant(value=3)
@@ -353,16 +371,19 @@ class ListTests(TestBase):
     def test_list_comparison(self):
 
         with Graph() as graph:
-            n1 = Constant([0, 1, 1])
-            n2 = Constant([2, 0, 2])
-            outputs(n1 > n2, n1 >= 1, n2 <= 1.5)
+            n1 = Constant([0, 1, 1, 1])
+            n2 = Constant([2, 0, 2, 1])
+            outputs(n1 > n2, n1 >= 1, n2 <= 1.5, n1 != n2, n1 == n2, n2 < 2)
 
         pipeline = Compiler().build(graph)
         sample = pipeline.run(1)
 
-        np.testing.assert_array_equal(sample[0], [False, True, False])
-        np.testing.assert_array_equal(sample[1], [False, True, True])
-        np.testing.assert_array_equal(sample[2], [False, True, False])
+        np.testing.assert_array_equal(sample[0], [False, True, False, False])
+        np.testing.assert_array_equal(sample[1], [False, True, True, True])
+        np.testing.assert_array_equal(sample[2], [False, True, False, True])
+        np.testing.assert_array_equal(sample[3], [True, True, True, False])
+        np.testing.assert_array_equal(sample[4], [False, False, False, True])
+        np.testing.assert_array_equal(sample[5], [False, True, False, True])
 
     def test_list_logical(self):
 
@@ -664,6 +685,8 @@ class TestTensor(TestBase):
 
     def test_tensor_stack(self):
 
+        from pixelpipes.tensor import Stack
+
         test_image = np.random.randint(0, 255, (4,20,40), dtype=np.uint8)
 
         with Graph() as graph:
@@ -680,6 +703,39 @@ class TestTensor(TestBase):
         np.testing.assert_array_equal(output[1], test_image[0, ...])
         np.testing.assert_array_equal(output[2], output[3])
         np.testing.assert_array_equal(output[0], test_image)
+
+    def test_tesor_reshape(self):
+
+        from pixelpipes.tensor import Reshape
+
+        test_image = np.random.randint(0, 255, (4,20,40), dtype=np.uint8)
+
+        with Graph() as graph:
+            n0 = Constant(test_image)
+            o0 = Reshape(n0, Constant([20, 160]))
+            outputs(o0)
+
+        pipeline = Compiler().build(graph)
+        output = pipeline.run(1)
+
+        np.testing.assert_array_equal(output[0], test_image.reshape(20, 160))
+
+    def test_tensor_transpose(self):
+
+        from pixelpipes.tensor import Transpose
+        
+        test_image = np.random.randint(0, 255, (4,20,40), dtype=np.uint8)
+        test_image2 = np.random.randint(0, 255, (4,2), dtype=np.uint8)
+        
+        with Graph() as graph:
+            o0 = Transpose(Constant(test_image), Constant([1, 2, 0]))
+            o1 = Transpose(Constant(test_image2), Constant([1, 0]))
+            outputs(o0, o1)
+            
+        pipeline = Compiler().build(graph)
+        output = pipeline.run(1)
+        
+        np.testing.assert_array_equal(output[0], np.transpose(test_image, [1, 2, 0]))
 
 if __name__ == "__main__":
     # Special entrypoint for running tests and determining operation coverage afterwards

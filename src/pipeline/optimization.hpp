@@ -69,9 +69,8 @@ namespace pixelpipes
 
     /**
      * The main function that optimizes a pipeline and returns a new set of operations. The optimization can be 
-     * just ordering, it can add predictive jumps and preexecute certain (deterministic) parts of pipeline and compact them
-     * to constants.
+     * just ordering, it can add predictive jumps and merge parts of the graph that are repeated.
     */
-    std::vector<Pipeline::OperationData> optimize_pipeline(std::vector<Pipeline::OperationData> &operations, bool predictive = true, bool prune = true);
+    std::vector<Pipeline::OperationData> optimize_pipeline(std::vector<Pipeline::OperationData> &operations, bool predictive = true, bool merge = true);
 
 }

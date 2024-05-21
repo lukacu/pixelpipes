@@ -2,7 +2,8 @@
 from attributee.primitives import Integer as IntegerInput
 
 from .geometry import ImageRemap, Resize
-from ..numbers import Add, Convert
+from ..numbers import Add
+from ..tensor import Convert
 from ..graph import Macro, Input, SeedInput, types
 from . import GetImageProperties, ConvertDepth
 from .render import LinearImage, GaussianNoise, UniformNoise

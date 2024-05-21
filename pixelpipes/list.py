@@ -105,6 +105,7 @@ class Filter(Operation):
 
     parent = Input(Wildlist())
     filter = Input(types.IntegerList())
+    
     def operation(self):
         return "list_filter",
 

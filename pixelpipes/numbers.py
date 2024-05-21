@@ -1,8 +1,9 @@
 
+from typing import Any, Mapping
 from attributee import Boolean, List
 
 from . import types, DataType
-from .graph import Macro, Operation, Node, Input, SeedInput, NodeOperation, Constant, NodeException, EnumerationInput
+from .graph import Macro, Operation, Node, Input, SeedInput, NodeOperation, Constant, NodeException, EnumerationInput, Context
 
 class SampleUnform(Operation):
     """Samples random value between min and max value."""
@@ -51,7 +52,20 @@ class RandomBoolean(Macro):
     def expand(self, seed):
         return SampleUnform(0, 1, seed) >= 0.5
 
-class Add(Operation):
+class Saturate(Context):
+    """Context for saturated cast operations."""
+    
+    def __init__(self):
+        super().__init__(saturate=True)
+
+class SaturateOperation(Operation):
+    
+    def __init__(self, *args, **kwargs):
+        if "saturate" not in kwargs:
+            kwargs["saturate"] = Context.get("saturate", False)
+        super().__init__(*args, **kwargs)
+
+class Add(SaturateOperation):
 
     a = Input(types.Wildcard(), description="First operand")
     b = Input(types.Wildcard(), description="Second operand")
@@ -62,7 +76,7 @@ class Add(Operation):
             return "add_saturate",
         return "add",
 
-class Multiply(Operation):
+class Multiply(SaturateOperation):
 
     a = Input(types.Wildcard(), description="First operand")
     b = Input(types.Wildcard(), description="Second operand")
@@ -73,7 +87,7 @@ class Multiply(Operation):
             return "multiply_saturate",
         return "multiply",
 
-class Subtract(Operation):
+class Subtract(SaturateOperation):
 
     a = Input(types.Wildcard(), description="First operand")
     b = Input(types.Wildcard(), description="Second operand")
@@ -84,7 +98,7 @@ class Subtract(Operation):
             return "subtract_saturate",
         return "subtract",
 
-class Divide(Operation):
+class Divide(SaturateOperation):
 
     a = Input(types.Wildcard(), description="First operand")
     b = Input(types.Wildcard(), description="Second operand")
@@ -92,7 +106,7 @@ class Divide(Operation):
 
     def operation(self):
         if self.saturate:
-            return "divide",
+            return "divide_saturate",
         return "divide",
 
 
@@ -321,68 +335,3 @@ class LogicalNot(Operation):
         return "logical_not",
 
 Node.register_operation(NodeOperation.LOGICAL_NOT, LogicalNot, types.Wildcard())
-
-class Stack(Operation):
-    """Merges three single channel images into three channel image.
-    """
-
-    inputs = List(Input(types.Wildcard(mindim=1)), description="Two or more input tensors")
-
-    def _init(self):
-        if len(self.inputs) == 0:
-            raise NodeException("No inputs provided", node=self)
-
-    def input_values(self):
-        return [self.inputs[int(name)] for name, _ in enumerate(self.inputs)]
-
-    def get_inputs(self):
-        return [(str(k), types.Wildcard(mindim=1)) for k, _ in enumerate(self.inputs)]
-
-    def duplicate(self, _origin=None, **inputs):
-        config = self.dump()
-        for k, v in inputs.items():
-            i = int(k)
-            assert i >= 0 and i < len(config["inputs"])
-            config["inputs"][i] = v
-        return self.__class__(_origin=_origin, **config)
-
-    def operation(self):
-        return "stack",
-
-class Convert(Operation):
-    """Converts input to different primitive data type.
-    """
-
-    source = Input(types.Wildcard(), description="Input value")
-    dtype = EnumerationInput(DataType, default="Integer", description="Desired data type")
-
-    def operation(self):
-        return "convert",
-
-class Float(Macro):
-    """Converts input to float. A utility macro for Convert operation.
-    """
-
-    source = Input(types.Wildcard(), description="Input value")
-
-    def expand(self, source):
-        return Convert(source, "Float")
-
-class Integer(Macro):
-    """Converts input to integer. A utility macro for Convert operation.
-    """
-
-    source = Input(types.Wildcard(), description="Input value")
-
-    def expand(self, source):
-        return Convert(source, "Integer")
-    
-class Boolean(Macro):
-    """Converts input to boolean. A utility macro for Convert operation.
-
-    """
-    source = Input(types.Wildcard(), description="Input value")
-
-    def expand(self, source):
-        return Convert(source, "Boolean")
-    

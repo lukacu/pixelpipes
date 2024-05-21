@@ -145,6 +145,23 @@ namespace pixelpipes
     }
 
     template <>
+    inline cv::Matx22f extract(const TokenReference &v)
+    {
+        View2D d = extract<View2D>(v);
+
+        cv::Matx22f m{d.m00, d.m01, d.m02, d.m10, d.m11, d.m12, d.m20, d.m21, d.m22};
+        return m;
+    }
+
+    template <>
+    inline TokenReference wrap(const cv::Matx22f v)
+    {
+        View2D d{v(0, 0), v(0, 1), v(1, 0), v(1, 1)};
+
+        return wrap(d);
+    }
+
+    template <>
     inline cv::Matx33f extract(const TokenReference &v)
     {
         View2D d = extract<View2D>(v);
@@ -160,6 +177,7 @@ namespace pixelpipes
 
         return wrap(d);
     }
+
 
     class MatImage : public Tensor
     {
@@ -231,10 +249,10 @@ namespace pixelpipes
         return create<MatImage>(v);
     }
 
-    inline int maximum_value(cv::Mat image)
+    inline int maximum_value(int ocv_depth)
     {
 
-        switch (image.depth())
+        switch (ocv_depth)
         {
         case CV_8U:
             return 255;
@@ -251,10 +269,16 @@ namespace pixelpipes
         }
     }
 
-    inline int minimum_value(cv::Mat image)
+    inline int maximum_value(cv::Mat image)
+    {
+        return maximum_value(image.depth());
+    }
+
+
+    inline int minimum_value(int ocv_depth) 
     {
 
-        switch (image.depth())
+        switch (ocv_depth)
         {
         case CV_8U:
             return 0;
@@ -269,6 +293,13 @@ namespace pixelpipes
             throw TypeException("Unsupported image depth");
         }
     }
+
+    inline int minimum_value(cv::Mat image)
+    {
+        return minimum_value(image.depth());
+    }
+
+   
 
     int ocv_border_type(BorderStrategy b, int *value);
 
@@ -317,11 +348,11 @@ namespace pixelpipes
         return create<Placeholder>(inputs[I]->shape());
     }
 
-    template <int I, Type T>
+    template <int I, class T>
     TokenReference forward_shape_new_type(const TokenList &inputs) noexcept(false)
     {
         VERIFY(inputs.size() >= I, "Incorrect number of parameters");
-        return create<Placeholder>(inputs[I]->shape().cast(T));
+        return create<Placeholder>(inputs[I]->shape().cast(GetType<T>()));
     }
 
     template <int W, int H, int I>
@@ -342,6 +373,10 @@ namespace pixelpipes
 
         return create<Placeholder>(s1 & s2);
     }
+
+    TokenReference ensure_single_channel(const TokenList &inputs);
+
+    
 
     #define rect_shape_int constant_shape<int, 4>
     #define rect_shape_float constant_shape<float, 4>

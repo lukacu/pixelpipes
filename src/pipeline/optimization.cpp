@@ -539,26 +539,25 @@ namespace pixelpipes
         return stateless;
     }
 
-    std::vector<OperationData> optimize_pipeline(std::vector<OperationData> &operations, bool predictive, bool prune)
+    std::vector<OperationData> optimize_pipeline(std::vector<OperationData> &operations, bool predictive, bool merge)
     {
 
-        UNUSED(prune);
+        UNUSED(merge);
 
         std::vector<size_t> outputs;
         std::vector<size_t> context;
         std::set<int> conditions;
         std::vector<BranchSet> branches;
         std::vector<std::set<int>> dependencies;
-        std::vector<TokenReference> stateless;
+        std::vector<int> map;
 
         dependencies.resize(operations.size());
-        stateless.resize(operations.size());
-
+        map.resize(operations.size());
+        
         DEBUGMSG("Optimization start, using %ld operations.\n", operations.size());
 
         for (size_t i = 0; i < operations.size(); i++)
         {
-
             // Note: this at the moment assumes that the operations are already topologically sorted
   
             // Collect special operations: outputs, context, conditionals
@@ -598,6 +597,8 @@ namespace pixelpipes
         {
             for (auto i : subtree(operations, output_node))
             {
+                // Set default mapping of a node to itself
+                map[i] = i;
 
                 if (is_conditional(operations[i].operation))
                 {
@@ -662,7 +663,7 @@ namespace pixelpipes
             // Prepare list for ordering
             order[i] = i;
 
-            // Constants do not have to be conditionally skipped
+            // Constants do not have to be skipped conditionally
             if (is_constant(operations[i].operation) || is_context(operations[i].operation))
             {
                 dependencies[i].clear();

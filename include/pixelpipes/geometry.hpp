@@ -238,7 +238,6 @@ namespace pixelpipes
                 if (shape.element() == FloatType)
                 {
                     copy_buffer(tensor, view2);
-                    return view;
                 } else 
                 {
                     for (size_t i = 0; i < 3; i++) {
@@ -249,6 +248,7 @@ namespace pixelpipes
                         }
                     }
                 }
+                return view;
             } 
         }
 

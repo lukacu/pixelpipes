@@ -8,11 +8,12 @@ import numpy as np
 from attributee.object import class_fullname
 
 from ..list import GetElement, Permutation, Remap, Repeat, Sublist
-from ..numbers import Integer, SampleUnform
+from ..numbers import SampleUnform
 from ..graph import Constant, Macro, Input, Node, NodeOperation, Copy, SeedInput, ValidationException, hidden
 from . import Resource, ResourceField, ResourceProxy, TokenField, real_field, types
 from ..utilities import PersistentDict
 from ..list import FileList as FileListConstant
+from ..tensor import Integer
 
 if "PIXELPIPES_CACHE" in os.environ:
     _RESOURCE_CACHE = PersistentDict(os.environ.get("PIXELPIPES_CACHE"))

@@ -96,11 +96,11 @@ namespace pixelpipes
 
     typedef Pointer<Operation> OperationReference;
 
-    RandomGenerator make_generator(uint32_t seed);
+    RandomGenerator PIXELPIPES_API make_generator(uint32_t seed);
 
-    RandomGenerator create_generator(TokenReference seed);
+    RandomGenerator PIXELPIPES_API create_generator(TokenReference seed);
 
-    RandomGenerator create_generator(int seed);
+    RandomGenerator PIXELPIPES_API create_generator(int seed);
 
     class PIXELPIPES_API Operation
     {

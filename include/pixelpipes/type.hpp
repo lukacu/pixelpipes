@@ -256,6 +256,18 @@ namespace pixelpipes
     typedef Span<size_t> SizeSpan;
     typedef View<size_t> Sizes;
 
+    inline Size aggregate(const Sizes& sizes) 
+    {
+        size_t result = 1;
+        for (auto s : sizes)
+        {
+            if (s == unknown)
+                return unknown;
+            result *= s;
+        }
+        return result;
+    }
+
     // TODO: Add support for larger ranks, make it so that anything above MAX is a dynamicly allocated array
     #define SHAPE_RANK_MAX 6
 
@@ -315,6 +327,17 @@ namespace pixelpipes
         bool operator==(const Shape &other) const;
         Shape &operator=(const Shape &s) = default;
         Shape &operator=(Shape &&s) = default;
+
+        inline Sizes sizes() const
+        {
+            SizeSequence _s(rank());
+            for (size_t i = 0; i < rank(); i++)
+            {
+                _s[i] = _shape[i];
+            }
+
+            return _s;
+        }
 
     private:
     
