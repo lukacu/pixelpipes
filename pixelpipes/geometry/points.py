@@ -2,7 +2,7 @@
 
 from attributee import List
 
-from ..graph import NodeOperation, Input, Macro, Operation, ValidationException, Node
+from ..graph import Input, Macro, Operation, SeedInput
 
 from .. import types
 from ..list import MakeList
@@ -98,3 +98,13 @@ class PointsFromRectangle(Operation):
 
     def operation(self):
         return "points_from_rectangle",
+
+class RandomPoints(Operation):
+    """Generates a list of random points
+    """
+
+    count = Input(types.Integer(), description="Number of points")
+    seed = SeedInput()
+
+    def operation(self):
+        return "random_points2d",

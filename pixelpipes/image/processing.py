@@ -65,3 +65,45 @@ class ImageSolarize(Operation):
 
     def operation(self):
         return "opencv:solarize",
+
+class DerivativeX(Operation):
+    """Computes the derivative of an image in the x direction."""
+
+    source = Input(types.Image(), description="Input image")
+
+    def operation(self):
+        return "opencv:derivative_x",
+    
+class DerivativeY(Operation):
+    """Computes the derivative of an image in the y direction."""
+
+    source = Input(types.Image(), description="Input image")
+
+    def operation(self):
+        return "opencv:derivative_y",
+    
+class Edges(Operation):
+    """Computes the edges of an image."""
+
+    source = Input(types.Image(), description="Input image")
+    threshold1 = Input(types.Float(), default=0, description="Threshold 1")
+    threshold2 = Input(types.Float(), default=100, description="Threshold 2")
+
+    def operation(self):
+        return "opencv:edges",
+    
+class Laplacian(Operation):
+    """Computes the Laplacian of an image."""
+
+    source = Input(types.Image(), description="Input image")
+
+    def operation(self):
+        return "opencv:laplacian",
+    
+class DistanceTransform(Operation):
+    """Computes the distance transform of an image."""
+
+    source = Input(types.Image(), description="Input image")
+
+    def operation(self):
+        return "opencv:distance_transform",

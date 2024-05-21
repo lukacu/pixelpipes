@@ -192,23 +192,6 @@ namespace pixelpipes
     PIXELPIPES_COMPUTE_OPERATION_AUTO("invert", invert, forward_shape<0>);
 
     /**
-     * @brief Calculates image moments.
-     *
-     */
-    Sequence<float> moments(const cv::Mat &image, bool binary) noexcept(false)
-    {
-        VERIFY(image.channels() == 1, "Image has more than one channel");
-
-        cv::Moments m = cv::moments(image, binary);
-
-        Sequence<float> data{(float)m.m00, (float)m.m01, (float)m.m10, (float)m.m11};
-
-        return data;
-    }
-
-    PIXELPIPES_COMPUTE_OPERATION_AUTO("moments", moments, (constant_shape<float, 4>));
-
-    /**
      * @brief Blends two images using alpha.
      *
      */
@@ -526,4 +509,61 @@ namespace pixelpipes
 
     PIXELPIPES_COMPUTE_OPERATION_AUTO("solarize", solarize, forward_shape<0>);
 
+    /**
+     * @brief Compute X partial derivative of an image.
+     *
+     */
+
+    cv::Mat derivative_x(const cv::Mat &image) 
+    {
+        cv::Mat out;
+        cv::Sobel(image, out, CV_32F, 1, 0);
+        return out;
+    }
+
+    PIXELPIPES_COMPUTE_OPERATION_AUTO("derivative_x", derivative_x, (forward_shape_new_type<0, float>) );
+
+    /**
+     * @brief Compute Y partial derivative of an image.
+     *
+     */
+
+    cv::Mat derivative_y(const cv::Mat &image)
+    {
+        cv::Mat out;
+        cv::Sobel(image, out, CV_32F, 0, 1);
+        return out;
+    }
+
+    PIXELPIPES_COMPUTE_OPERATION_AUTO("derivative_y", derivative_y, (forward_shape_new_type<0, float>) );
+
+    /**
+     * @brief Compute Canny edge detection.
+     *
+     */
+
+    cv::Mat edges(const cv::Mat &image, float threshold1, float threshold2)
+    {
+        cv::Mat out;
+        cv::Canny(image, out, threshold1, threshold2);
+        return out;
+    }
+
+    PIXELPIPES_COMPUTE_OPERATION_AUTO("edges", edges, ensure_single_channel);
+
+    /**
+     * @brief Compute Laplacian of an image.
+     *
+     */
+
+    cv::Mat laplacian(const cv::Mat &image)
+    {
+        cv::Mat out;
+        cv::Laplacian(image, out, CV_32F);
+        return out;
+    }
+
+    PIXELPIPES_COMPUTE_OPERATION_AUTO("laplacian", laplacian, (forward_shape_new_type<0, float>) );
+
+   
 }

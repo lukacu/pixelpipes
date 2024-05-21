@@ -114,13 +114,3 @@ class Equals(Operation):
 
     def operation(self):
         return "opencv:equals",
-
-
-class Moments(Operation):
-    """Calculates (first five) image moments."""
-
-    source = Input(types.Image(), description="Input image")
-    binary = Input(types.Boolean(), default=True, description="Interpret image as binary")
-
-    def operation(self):
-        return "opencv:moments",

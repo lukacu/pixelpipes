@@ -4,8 +4,8 @@ import numpy as np
 
 from ..graph import Graph, Constant, outputs
 from ..compiler import Compiler
-from . import Equals, ColorConvert, Invert, Threshold, Moments, GetImageProperties, ConvertDepth
-from .processing import ImageBlend, ImageCoarseDropout, ImageCut, ImageDropout, ImageSolarize
+from . import Equals, ColorConvert, Invert, Threshold, GetImageProperties, ConvertDepth
+from .processing import ImageBlend, ImageCoarseDropout, ImageDropout, ImageSolarize
 from .geometry import Flip, MaskBoundingBox, Resize, Scale, ImageCrop, ImageCropSafe
 from .augmentation import ImageBrightness, ImageNoise, ImagePiecewiseAffine
 from .filter import AverageFilter, BilateralFilter, GaussianFilter, LinearFilter, MedianBlur
@@ -500,17 +500,18 @@ class TestsImage(TestBase):
         temp[temp==128] = 255
         self.compare_arrays(output[0], temp)
 
+class TestsMorphology(TestBase):
+
     def test_image_moments(self):
 
-        m_int = np.random.randint(0, 255, (10,10), dtype=np.uint8)
-        m_bin = np.random.randint(0, 1, (10,10), dtype=np.uint8)
+        from .morphology import Moments
+
+        regions = np.random.randint(0, 8, (10,10), dtype=np.uint16)
 
         with Graph() as graph:
-            n0 = Constant(m_int)
-            n1 = Constant(m_bin)
-            o0 = Moments(n0, binary=False)
-            o1 = Moments(n1, binary=True)
-            outputs(o0, o1)
+            n0 = Constant(regions)
+            o0 = Moments(n0)
+            outputs(o0)
             
         pipeline = Compiler().build(graph)
         output = pipeline.run(1)
@@ -522,10 +523,42 @@ class TestsImage(TestBase):
                     sum += x**i * y**j * I[y,x]
             return float(sum)
 
-        moments_int = np.array([m(0,0,m_int), m(0,1,m_int), m(1,0,m_int), m(1,1,m_int)])
-        moments_bin = np.array([m(0,0,m_bin), m(0,1,m_bin), m(1,0,m_bin), m(1,1,m_bin)])
-        np.testing.assert_array_equal(output[0], moments_int)
-        np.testing.assert_array_equal(output[1], moments_bin)
+        self.assertEqual(output[0].shape, (8, 10))
+
+    def test_connected_components(self):
+
+        from .morphology import ConnectedComponents
+
+        regions = np.zeros((10,10), dtype=np.uint8)
+        regions[0:5,0:5] = 1
+        regions[6:10,6:10] = 2
+
+        with Graph() as graph:
+            n0 = Constant(regions)
+            o0 = ConnectedComponents(n0)
+            outputs(o0)
+            
+        pipeline = Compiler().build(graph)
+        output = pipeline.run(1)
+
+        self.assertIsInstance(output[0], np.ndarray)
+
+    def test_distance_transform(self):
+            
+        from .morphology import DistanceTransform
+
+        regions = np.zeros((10,10), dtype=np.uint8)
+        regions[5,5] = 1
+        
+        with Graph() as graph:
+            n0 = Constant(regions)
+            o0 = DistanceTransform(n0)
+            outputs(o0)
+            
+        pipeline = Compiler().build(graph)
+        output = pipeline.run(1)
+
+        self.assertIsInstance(output[0], np.ndarray)
 
 class TestsProcessing(TestBase):
 
@@ -594,6 +627,56 @@ class TestsProcessing(TestBase):
         max_val = np.amax(test_image)
         self.compare_arrays(output[0], max_val - test_image + 1)
         self.compare_arrays(output[1], test_image)
+        
+    def test_derivatives(self):
+        
+        from .processing import DerivativeX, DerivativeY
+
+        test_image = np.random.randint(0, 255, (256,256), dtype=np.uint8)
+
+        with Graph() as graph:
+            n0 = Constant(test_image)
+            o0 = DerivativeX(n0)
+            o1 = DerivativeY(n0)
+            outputs(o0, o1)
+
+        pipeline = Compiler().build(graph)
+        output = pipeline.run(1)
+
+        self.assertIsInstance(output[0], np.ndarray)
+        self.assertIsInstance(output[1], np.ndarray)
+
+    def test_edges(self):
+        
+        from .processing import Edges
+
+        test_image = np.random.randint(0, 255, (256,256), dtype=np.uint8)
+
+        with Graph() as graph:
+            n0 = Constant(test_image)
+            o0 = Edges(n0)
+            outputs(o0)
+
+        pipeline = Compiler().build(graph)
+        output = pipeline.run(1)
+
+        self.assertIsInstance(output[0], np.ndarray)
+        
+    def test_laplacian(self):
+        
+        from .processing import Laplacian
+
+        test_image = np.random.randint(0, 255, (256,256), dtype=np.uint8)
+
+        with Graph() as graph:
+            n0 = Constant(test_image)
+            o0 = Laplacian(n0)
+            outputs(o0)
+
+        pipeline = Compiler().build(graph)
+        output = pipeline.run(1)
+
+        self.assertIsInstance(output[0], np.ndarray)
 
 class TestsRender(unittest.TestCase):
 
@@ -620,6 +703,21 @@ class TestsRender(unittest.TestCase):
 
         self.assertIsInstance(output[0], np.ndarray)
         self.assertEqual(output[0].shape, (1, 10, 10))
+
+    def test_binary_noise(self):
+       
+        from pixelpipes.image.render import BinaryNoise
+        
+        with Graph() as graph:
+            o0 = BinaryNoise(width=10, height=10, positive=0.5)
+            outputs(o0)
+
+        pipeline = Compiler().build(graph)
+        output = pipeline.run(1)
+
+        self.assertIsInstance(output[0], np.ndarray)
+        self.assertEqual(output[0].shape, (1, 10, 10))
+        self.assertEqual(np.sum(output[0] > 0), 50)
 
     def test_linear_image(self):
 

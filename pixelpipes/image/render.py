@@ -30,6 +30,19 @@ class UniformNoise(Operation):
     def operation(self):
         return "opencv:uniform_noise",
 
+class BinaryNoise(Operation):
+    """
+    Creates a single channel image where a random percentage of values are set to 1.
+    """
+
+    width = Input(types.Integer(), description="Image width")
+    height = Input(types.Integer(), description="Image height")
+    positive = Input(types.Float(), default=0.5, description="Percentage of non-zero values, between 0 and 1")
+    seed = SeedInput()
+
+    def operation(self):
+        return "opencv:binary_noise",
+
 class LinearImage(Operation):
     """Generate an image with linearly progressing values from min to max.
     """
@@ -43,13 +56,26 @@ class LinearImage(Operation):
     def operation(self):
         return "opencv:linear_image",
 
-class Polygon(Operation):
+class PolygonMask(Operation):
     """Draw a polygon to a canvas of a given size
     """
 
     source = Input(types.Points(), description="List of points")
     width = Input(types.Integer(), description="Image width")
     height = Input(types.Integer(), description="Image height")
+    thickness = Input(types.Integer(), default=0, description="Thickness of the line (0 fills the polygon)")
 
     def operation(self):
-        return "opencv:polygon",
+        return "opencv:polygon_mask",
+
+class PointsMask(Operation):
+    """Generate a list of points for a polygon
+    """
+
+    num_points = Input(types.Integer(), description="Number of points")
+    width = Input(types.Integer(), description="Image width")
+    height = Input(types.Integer(), description="Image height")
+    size = Input(types.Integer(), default=1, description="Size of each point")
+
+    def operation(self):
+        return "opencv:points_mask",

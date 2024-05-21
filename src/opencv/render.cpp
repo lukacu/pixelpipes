@@ -5,11 +5,12 @@
 
 namespace pixelpipes
 {
+
     /**
      * @brief Draw a polygon to a canvas of a given size.
      *
      */
-    TokenReference polygon_mask(const std::vector<cv::Point2f>& points, int width, int height) noexcept(false)
+    TokenReference polygon_mask(const std::vector<cv::Point2f>& points, int width, int height, int thickness) noexcept(false)
     {
 
         try
@@ -17,10 +18,16 @@ namespace pixelpipes
 
             std::vector<cv::Point> v(points.begin(), points.end());
 
+            VERIFY(v.size() > 2, "Polygon must have at least 3 points");
+            
             cv::Mat mat = cv::Mat::zeros(cv::Size(width, height), CV_8UC1);
 
-            // TODO: expose value?
-            cv::fillPoly(mat, std::vector<std::vector<cv::Point>>({v}), cv::Scalar(255, 255, 255));
+            if (thickness > 0)
+            {
+                cv::polylines(mat, std::vector<std::vector<cv::Point>>({v}), true, cv::Scalar(255, 255, 255), thickness);
+            } else {
+                cv::fillPoly(mat, std::vector<std::vector<cv::Point>>({v}), cv::Scalar(255, 255, 255));
+            }
 
             return wrap(mat);
         }
@@ -31,6 +38,38 @@ namespace pixelpipes
     }
 
     PIXELPIPES_COMPUTE_OPERATION_AUTO("polygon_mask", polygon_mask, (given_shape<1, 2, CharType, 1>));
+
+    /**
+     * @brief Draw points on a canvas of a given size.
+     *
+     */
+    TokenReference point_mask(const std::vector<cv::Point2f>& points, int width, int height, int size) noexcept(false)
+    {
+
+        try
+        {
+
+            std::vector<cv::Point> v(points.begin(), points.end());
+
+            cv::Mat mat = cv::Mat::zeros(cv::Size(width, height), CV_8UC1);
+
+            // Draw points to a canvas
+            for (auto p : v)
+            {
+                cv::circle(mat, p, size, cv::Scalar(255, 255, 255), -1);
+            }
+
+            return wrap(mat);
+        }
+        catch (cv::Exception &cve)
+        {
+            throw TypeException(cve.what());
+        }
+    }
+
+    PIXELPIPES_COMPUTE_OPERATION_AUTO("point_mask", point_mask, (given_shape<1, 2, CharType, 1>));
+
+
 
     /*
     NOISE GENERATION
@@ -67,6 +106,41 @@ namespace pixelpipes
     }
 
     PIXELPIPES_COMPUTE_OPERATION_AUTO("uniform_noise", uniform_noise, (given_shape<0, 1, FloatType, 1>));
+
+
+    /**
+     * @brief Creates a single channel image with binary values
+     *
+     */
+    TokenReference binary_noise(int width, int height, float positive, int seed) noexcept(false)
+    {
+
+        VERIFY(positive >= 0.0 && positive <= 1.0, "Positives percentage value must be between 0 and 1");
+
+        RandomGenerator generator = create_generator(seed);
+        cv::Mat noise(height, width, CV_8U);
+
+        // Generate a vector of increasing 1D image indices
+        std::vector<size_t> indices(width * height);
+        for (size_t i = 0; i < noise.total(); i++)
+        {
+            indices[i] = i;
+        }
+
+        // Shuffle the indices
+        std::shuffle(indices.begin(), indices.end(), generator);
+
+        // Set the first positive% of the indices to 1
+        for (int i = 0; i < positive * noise.total(); i++)
+        {
+            noise.at<uchar>(indices[i]) = 255;
+        }
+
+        return wrap(noise);
+    }
+
+    PIXELPIPES_COMPUTE_OPERATION_AUTO("binary_noise", binary_noise, (given_shape<0, 1, FloatType, 1>));
+
 
     cv::Mat linear_image(int width, int height, float min, float max, bool flip) noexcept(false)
     {
@@ -107,54 +181,21 @@ namespace pixelpipes
 
 
 
-    /**
-     * @brief Tabulates a function into a matrix of a given size
+    /*
+     * @brief Tabulates a mixture of Gaussian functions.
      *
-     * TODO: reorganize into spearate methods
+     * 
      *
      */
-    /*cv::Mat map_gaussian(int size_x, int size_y, int function, bool normalize) noexcept(false)
+    cv::Mat map_mixture(int width, int height) noexcept(false)
     {
-        cv::Mat result(size_y, size_x, CV_32F);
+        cv::Mat result(height, width, CV_32F);
+        result.setTo(0);
 
-        switch (function)
-        {
-        case 0:
-        {
-            VERIFY(inputs.size() == 6, "Incorrect number of parameters");
 
-            float mean_x = FloatScalar::get_value(inputs[2]);
-            float mean_y = FloatScalar::get_value(inputs[3]);
-            float sigma_x = FloatScalar::get_value(inputs[4]);
-            float sigma_y = FloatScalar::get_value(inputs[5]);
-
-            // intialising standard deviation to 1.0
-            float r;
-            float sum = 0.0;
-
-            // generating 5x5 kernel
-            for (int x = 0; x < size_x; x++)
-            {
-                for (int y = 0; y < size_y; y++)
-                {
-                    float px = x - mean_x;
-                    float py = y - mean_y;
-                    r = (px * px) / (2 * sigma_x * sigma_x) + (py * py) / (2 * sigma_y * sigma_y);
-                    float v = exp(-r);
-                    sum += v;
-                    result.at<float>(y, x) = v;
-                }
-            }
-
-            if (normalize)
-                result /= sum;
-        }
-        }
 
         return result;
-    }
+    }   
 
-    PIXELPIPES_OPERATION_AUTO("map_function", map_function);*/
-
-
+    PIXELPIPES_COMPUTE_OPERATION_AUTO("map_mixture", map_mixture, (given_shape<0, 1, FloatType, 1>));
 }

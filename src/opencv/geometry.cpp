@@ -158,6 +158,7 @@ namespace pixelpipes
     {
 
         cv::Mat result;
+
         cv::resize(image, result, cv::Size(width, height), 0, 0, interpolate_convert(interpolation));
 
         return result;

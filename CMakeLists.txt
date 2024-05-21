@@ -108,6 +108,7 @@ ADD_LIBRARY(pixelpipes_opencv SHARED
     src/opencv/geometry.cpp
     src/opencv/processing.cpp
     src/opencv/render.cpp
+    src/opencv/morphology.cpp
     )
 
 TARGET_LINK_LIBRARIES(pixelpipes_opencv pixelpipes ${OPENCV_LIBS})

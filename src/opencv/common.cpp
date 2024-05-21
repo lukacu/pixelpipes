@@ -21,6 +21,13 @@ namespace pixelpipes
         return create<Placeholder>(inputs[0]->shape());
     }
 
+    TokenReference ensure_single_channel(const TokenList &inputs) 
+    {
+        auto shape = inputs[0]->shape();
+        VERIFY((shape.rank() == 3 && shape[0] == 1) || shape.rank() == 2, "Image is not single channel");
+        return create<Placeholder>(inputs[0]->shape());
+    }
+
     PIXELPIPES_REGISTER_ENUM("interpolation", Interpolation);
     PIXELPIPES_REGISTER_ENUM("border", BorderStrategy);
     PIXELPIPES_REGISTER_ENUM("channels", ImageChannels);
@@ -217,7 +224,7 @@ namespace pixelpipes
             int size[2] = {(int)shape[1], (int)shape[2]};
             size_t step[2] = {strides[1], strides[2]};
  
-            VERIFY(size[0] <= CV_CN_MAX, "Channel number exceeds OpenCV supported number");
+            VERIFY((int)shape[0] <= CV_CN_MAX, "Channel number exceeds OpenCV supported number");
 
             type |= CV_MAKETYPE(0, ((int)shape[0]));
             if (type_size(shape.element()) != (size_t) strides[0])
