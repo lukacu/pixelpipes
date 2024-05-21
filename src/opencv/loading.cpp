@@ -6,17 +6,19 @@
 #include <opencv2/imgcodecs.hpp>
 #include <opencv2/imgproc.hpp>
 
-namespace pixelpipes {
+namespace pixelpipes
+{
 
     class ImageDecode : public Operation
     {
     public:
-        ImageDecode(DataType depth, ImageChannels channels) : _channels(channels), _depth(depth) {
+        ImageDecode(DataType depth, ImageChannels channels, bool normalize) : _channels(channels), _depth(depth), _normalize(normalize)
+        {
             VERIFY(_depth != DataType::Boolean, "Boolean type not supported");
         }
         ~ImageDecode() {}
 
-        TokenReference run(const TokenList& inputs) override
+        TokenReference run(const TokenList &inputs) override
         {
             VERIFY(inputs.size() == 1, "ImageDecode: expected 1 input");
 
@@ -24,37 +26,36 @@ namespace pixelpipes {
 
             cv::Mat wrapper(1, buffer->size(), CV_8UC1, buffer->data().data());
 
-            int decode_flags = 0;
-
-            switch (_channels)
-            {
-            case ImageChannels::GRAY:
-                decode_flags |= cv::IMREAD_GRAYSCALE;
-                break;
-            case ImageChannels::RGB:
-                decode_flags |= cv::IMREAD_COLOR;
-                break;
-            case ImageChannels::RGBA:
-                decode_flags |= cv::IMREAD_UNCHANGED;
-                break;
-            }
+            int decode_flags = cv::IMREAD_UNCHANGED;
+            int depth = 0;
 
             switch (_depth)
             {
             case DataType::Char:
+            {
+                depth = CV_8U;
                 break;
+            }
             case DataType::UnsignedShort:
-                decode_flags |= cv::IMREAD_ANYDEPTH;
+            {
+                depth = CV_16U;
                 break;
+            }
             case DataType::Short:
-                decode_flags |= cv::IMREAD_ANYDEPTH;
+            {
+                depth = CV_16S;
                 break;
+            }
             case DataType::Integer:
-                decode_flags |= cv::IMREAD_ANYDEPTH;
+            {
+                depth = CV_32S;
                 break;
+            }
             case DataType::Float:
-                decode_flags |= cv::IMREAD_ANYDEPTH;
+            {
+                depth = CV_32F;
                 break;
+            }
             case DataType::Boolean:
                 break;
             }
@@ -64,33 +65,16 @@ namespace pixelpipes {
 
             // Convert to correct depth if necessary, also scales the values
             double offset = -minimum_value(image);
-            double scaling = 1.0 / (maximum_value(image) - minimum_value(image));
+            double scaling = maximum_value(depth) / (maximum_value(image) - minimum_value(image));
 
-            switch (_depth)
+            if (!_normalize)
             {
-            case DataType::Char:
-                if (image.depth() != CV_8U)
-                    image.convertTo(image, CV_8U, 255 * scaling, offset);
-                break;
-            case DataType::UnsignedShort:
-                if (image.depth() != CV_16U)
-                    image.convertTo(image, CV_MAKETYPE(CV_16U, image.channels()), 65535 * scaling, offset);
-                break;
-            case DataType::Short:
-                if (image.depth() != CV_16S)
-                    image.convertTo(image, CV_MAKETYPE(CV_16S, image.channels()), 65535 * scaling, offset);
-                break;
-            case DataType::Integer:
-                if (image.depth() != CV_32S)
-                    image.convertTo(image, CV_MAKETYPE(CV_32S, image.channels()), 65535 * scaling, offset);
-                break;
-            case DataType::Float:
-                if (image.depth() != CV_32F)
-                    image.convertTo(image, CV_MAKETYPE(CV_32F, image.channels()), 1.0 * scaling, offset);
-                break;
-            case DataType::Boolean: 
-                break;
+                scaling = 1.0;
+                offset = 0.0;
             }
+
+            if (depth != image.depth() || scaling != 1.0 || offset != 0.0)
+                image.convertTo(image, CV_MAKETYPE(depth, image.channels()), scaling, offset);
 
             switch (_channels)
             {
@@ -119,7 +103,7 @@ namespace pixelpipes {
             return wrap(image);
         }
 
-        TokenReference evaluate(const TokenList& inputs) override
+        TokenReference evaluate(const TokenList &inputs) override
         {
             VERIFY(inputs.size() == 1, "ImageDecode: expected 1 input");
 
@@ -163,13 +147,11 @@ namespace pixelpipes {
                 }
 
                 return create<Placeholder>(Shape(depth, {channels, unknown, unknown}));
-
             }
             else
             {
                 return run(inputs);
             }
-            
         }
 
         OperationTrait trait() const override
@@ -187,9 +169,9 @@ namespace pixelpipes {
     private:
         ImageChannels _channels;
         DataType _depth;
-    
+        bool _normalize;
     };
-    
-    PIXELPIPES_OPERATION_CLASS("image_decode", ImageDecode, DataType, ImageChannels);
+
+    PIXELPIPES_OPERATION_CLASS("image_decode", ImageDecode, DataType, ImageChannels, bool);
 
 }

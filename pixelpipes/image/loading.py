@@ -1,7 +1,7 @@
 
 from pixelpipes.graph import Operation, Input
 
-from attributee import Enumeration
+from attributee import Enumeration, Boolean
 
 from .. import types, DataType
 from . import ImageChannels
@@ -21,6 +21,7 @@ class DecodeImage(Operation):
     buffer = Input(types.Buffer(), description="Memory buffer with encoded image")
     depth = Enumeration(DataType, default="Char", description="Depth of the image")
     channels = Enumeration(ImageChannels, default="RGB", description="Number of channels in the image")
+    normalize = Boolean(default=True, description="Normalize image")
 
     def operation(self):
-        return "opencv:image_decode", self.depth, self.channels
+        return "opencv:image_decode", self.depth, self.channels, self.normalize
