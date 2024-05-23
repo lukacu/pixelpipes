@@ -737,6 +737,38 @@ class TestTensor(TestBase):
         
         np.testing.assert_array_equal(output[0], np.transpose(test_image, [1, 2, 0]))
 
+    def test_tensor_squeeze(self):
+            
+            from pixelpipes.tensor import Squeeze
+    
+            test_image = np.random.randint(0, 255, (1,20,40,1), dtype=np.uint8)
+    
+            with Graph() as graph:
+                n0 = Constant(test_image)
+                o0 = Squeeze(n0)
+                outputs(o0)
+    
+            pipeline = Compiler().build(graph)
+            output = pipeline.run(1)
+    
+            np.testing.assert_array_equal(output[0], test_image.squeeze())
+
+    def test_tensor_unsqueeze(self):
+        
+        from pixelpipes.tensor import Unsqueeze
+
+        test_image = np.random.randint(0, 255, (20,40), dtype=np.uint8)
+
+        with Graph() as graph:
+            n0 = Constant(test_image)
+            o0 = Unsqueeze(Unsqueeze(n0, Constant(0)), 3)
+            outputs(o0)
+
+        pipeline = Compiler().build(graph)
+        output = pipeline.run(1)
+
+        np.testing.assert_array_equal(output[0], np.expand_dims(test_image, (0, 3)))
+
 if __name__ == "__main__":
     # Special entrypoint for running tests and determining operation coverage afterwards
     from collections import Counter

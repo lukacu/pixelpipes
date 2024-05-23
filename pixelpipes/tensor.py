@@ -50,6 +50,21 @@ class Transpose(Operation):
     def operation(self):
         return "transpose",
 
+class Squeeze(Operation):
+    
+    source = Input(types.Wildcard(), description="Input tensor")
+
+    def operation(self):
+        return "squeeze",
+
+class Unsqueeze(Operation):
+    
+    source = Input(types.Wildcard(), description="Input tensor")
+    axis = Input(types.Integer(), description="Dimension to insert")
+    
+    def operation(self):
+        return "unsqueeze",
+
 class Convert(Operation):
     """Converts input to different primitive data type.
     """

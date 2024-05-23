@@ -436,4 +436,125 @@ namespace pixelpipes
 
     PIXELPIPES_COMPUTE_OPERATION_AUTO("transpose", transpose_run, transpose_eval);
 
+    /**
+     * @brief Squeeze tensor, removing dimensions of size 1.
+     */
+
+    TokenReference squeeze_run(const TensorReference &input) noexcept(false)
+    {
+        Shape shape = input->shape();
+        SizeSequence strides = input->strides();
+
+        std::vector<size_t> new_shape;
+        std::vector<size_t> new_strides;
+
+        for (size_t i = 0; i < shape.rank(); i++)
+        {
+            if (shape[i] != 1)
+            {
+                new_shape.push_back(shape[i]);
+                new_strides.push_back(strides[i]);
+            }
+        }
+
+        return create<TensorView>(input, 0, make_view(new_shape), make_view(new_strides));
+    }
+
+    TokenReference squeeze_eval(const TokenList &inputs)
+    {
+        VERIFY(inputs.size() == 1, "One token expected");
+
+        auto shape = inputs[0]->shape();
+
+        if (shape.is_anything())
+            return create<Placeholder>(shape);
+
+        std::vector<size_t> new_shape;
+ 
+        for (size_t i = 0; i < shape.rank(); i++)
+        {
+            if (shape[i] != 1)
+            {
+                new_shape.push_back(shape[i]);
+            }
+        }
+
+        return create<Placeholder>(Shape(shape.element(), make_view(new_shape)));
+    }
+
+    PIXELPIPES_COMPUTE_OPERATION_AUTO("squeeze", squeeze_run, squeeze_eval);
+
+    /**
+     * @brief Unsqueeze tensor, adding dimensions of size 1.
+     */
+
+    TokenReference unsqueeze_run(const TensorReference &input, int axis) noexcept(false)
+    {
+        Shape shape = input->shape();
+        SizeSequence strides = input->strides();
+
+        VERIFY(axis >= 0 && axis <= (int) shape.rank(), "Axis out of range");
+
+        std::vector<size_t> new_shape;
+        std::vector<size_t> new_strides;
+
+        for (size_t i = 0; i < shape.rank(); i++)
+        {
+            if (i == (size_t) axis)
+            {
+                new_shape.push_back(1);
+                new_strides.push_back(0);
+            }
+
+            new_shape.push_back(shape[i]);
+            new_strides.push_back(strides[i]);
+
+        }
+
+        if ((size_t) axis == shape.rank())
+        {
+            new_shape.push_back(1);
+            new_strides.push_back(0);
+        }
+
+        return create<TensorView>(input, 0, make_view(new_shape), make_view(new_strides));
+    }
+
+    TokenReference unsqueeze_eval(const TokenList &inputs)
+    {
+        VERIFY(inputs.size() == 2, "Two tokens expected");
+
+        auto shape = inputs[0]->shape();
+
+        if (shape.is_anything())
+            return create<Placeholder>(shape);
+
+        if (_IS_PLACEHOLDER(inputs[1])) {
+            return create<Placeholder>();
+        }
+
+        int axis = extract<int>(inputs[1]);
+        VERIFY(axis >= 0 && axis <= (int) shape.rank(), "Axis out of range");
+
+        std::vector<size_t> new_shape;
+ 
+        for (size_t i = 0; i < shape.rank(); i++)
+        {
+            if (i == (size_t) axis)
+            {
+                new_shape.push_back(1);
+            }
+            new_shape.push_back(shape[i]);
+        }
+
+        if ((size_t) axis == shape.rank())
+        {
+            new_shape.push_back(1);
+        }
+
+
+        return create<Placeholder>(shape.element(), make_view(new_shape));
+    }
+
+    PIXELPIPES_COMPUTE_OPERATION_AUTO("unsqueeze", unsqueeze_run, unsqueeze_eval);
 }
