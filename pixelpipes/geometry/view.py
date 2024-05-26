@@ -2,7 +2,7 @@
 from attributee import List
 
 from .. import types
-from ..graph import Operation, Macro, Input, Graph, outputs
+from ..graph import Operation, Macro, Input
 
 class TranslateView(Operation):
     """Create a 2D translation matrix."""

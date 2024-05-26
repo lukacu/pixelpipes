@@ -85,26 +85,6 @@ class ImageCropSafe(Operation):
     def operation(self):
         return "opencv:crop_safe",
 
-class RandomPatchView(Macro):
-    """Returns a view that focuses on a random patch in an image"""
-
-    source = Input(types.Image(), description="Input image")
-    width = Input(types.Integer(), description="Width of a patch")
-    height = Input(types.Integer(), description="Height of a patch")
-    padding = Input(types.Integer(), default=0, description="Padding for sampling")
-    seed = SeedInput()
-
-    def expand(self, source, width, height, padding, seed):
-
-        properties = GetImageProperties(source)
-        image_width = properties["width"]
-        image_height = properties["height"]
-
-        x = SampleUnform(- padding, image_width - width + padding, seed=seed)
-        y = SampleUnform(- padding, image_height - height + padding, seed=seed * 2)
-
-        return TranslateView(x=-x, y=-y)
-
 class ViewImage(Operation):
     """ Apply a linear transformation to an image and generate a new image based on it."""
 
@@ -130,3 +110,43 @@ class ImageRemap(Operation):
 
     def operation(self):
         return "opencv:remap",
+
+class RandomPatchView(Macro):
+    """Returns a view that focuses on a random patch in an image"""
+
+    source = Input(types.Image(), description="Input image")
+    width = Input(types.Integer(), description="Width of a patch")
+    height = Input(types.Integer(), description="Height of a patch")
+    padding = Input(types.Integer(), default=0, description="Padding for sampling")
+    seed = SeedInput()
+
+    def expand(self, source, width, height, padding, seed):
+
+        properties = GetImageProperties(source)
+        image_width = properties["width"]
+        image_height = properties["height"]
+
+        x = SampleUnform(- padding, image_width - width + padding, seed=seed)
+        y = SampleUnform(- padding, image_height - height + padding, seed=seed * 2)
+
+        return TranslateView(x=-x, y=-y)
+
+class EnsureSize(Macro):
+    """Ensures that the image has at least specific size."""
+    
+    source = Input(types.Image(), description="Input image")
+    width = Input(types.Integer(), description="Minimum width")
+    height = Input(types.Integer(), description="Minimum height")
+    
+    def expand(self, source, width, height):
+        from pixelpipes.flow import Conditional
+        from pixelpipes.numbers import Max, LogicalOr
+        from pixelpipes.tensor import Float
+
+        properties = GetImageProperties(source)
+        image_width = properties["width"]
+        image_height = properties["height"]
+                
+        c = LogicalOr((image_width < self.width), (image_height < self.height))
+        return Conditional(Scale(source, Max(width / Float(image_width), height / Float(image_height))), source, c)
+        

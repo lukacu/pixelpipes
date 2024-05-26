@@ -59,7 +59,7 @@ namespace pixelpipes
         return moments;
     }
 
-    PIXELPIPES_COMPUTE_OPERATION("moments", moments, (constant_shape<float, 4>));
+    PIXELPIPES_COMPUTE_OPERATION("moments", moments, (constant_shape<float, unknown, 10>));
 
     /**
      * @brief Calculates connected components.

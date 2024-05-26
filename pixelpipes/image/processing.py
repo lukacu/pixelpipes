@@ -85,7 +85,7 @@ class DerivativeY(Operation):
 class Edges(Operation):
     """Computes the edges of an image."""
 
-    source = Input(types.Image(), description="Input image")
+    source = Input(types.Image(depth="char"), description="Input image")
     threshold1 = Input(types.Float(), default=0, description="Threshold 1")
     threshold2 = Input(types.Float(), default=100, description="Threshold 2")
 

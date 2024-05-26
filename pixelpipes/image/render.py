@@ -72,7 +72,7 @@ class PointsMask(Operation):
     """Generate a list of points for a polygon
     """
 
-    num_points = Input(types.Integer(), description="Number of points")
+    points = Input(types.Token("float", None, 2), description="Number of points")
     width = Input(types.Integer(), description="Image width")
     height = Input(types.Integer(), description="Image height")
     size = Input(types.Integer(), default=1, description="Size of each point")

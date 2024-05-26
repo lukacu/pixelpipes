@@ -155,50 +155,53 @@ namespace pixelpipes
         throw TypeException("Unable to convert to list of images");
     }
 
-    class Stack : public Operation
+    TokenReference stack_run(const TokenList &inputs)
     {
-    public:
-        Stack() {}
+        VERIFY(inputs.size() > 1, "Two or more tensors expected");
 
-        virtual TokenReference run(const TokenList &inputs)
+        TensorReference t0 = extract<TensorReference>(inputs[0]);
+
+        Shape s = t0->shape();
+
+        for (size_t i = 1; i < inputs.size(); i++)
         {
-            VERIFY(inputs.size() > 1, "Two or more tensors expected");
+            TensorReference ti = extract<TensorReference>(inputs[i]);
 
-            TensorReference t0 = extract<TensorReference>(inputs[0]);
-
-            Shape s = t0->shape();
-
-            for (size_t i = 1; i < inputs.size(); i++)
-            {
-                TensorReference ti = extract<TensorReference>(inputs[i]);
-
-                VERIFY(s == ti->shape(), "Shape mismatch");
-            }
-
-            s = s.push(inputs.size());
-
-            TensorReference result = create_tensor(s);
-
-            for (size_t i = 0; i < inputs.size(); i++)
-            {
-                TensorReference ts = extract<TensorReference>(inputs[i]);
-                TensorReference td = extract<TensorReference>(result->get(i));
-
-                copy_buffer(ts, td);
-            }
-
-            return result;
+            VERIFY(s == ti->shape(), "Shape mismatch");
         }
 
-        virtual Type type()
+        s = s.push(inputs.size());
+
+        TensorReference result = create_tensor(s);
+
+        for (size_t i = 0; i < inputs.size(); i++)
         {
-            return GetType<Stack>();
+            TensorReference ts = extract<TensorReference>(inputs[i]);
+            TensorReference td = extract<TensorReference>(result->get(i));
+
+            copy_buffer(ts, td);
         }
 
-        virtual Sequence<TokenReference> serialize() { return Sequence<TokenReference>(); }
-    };
+        return result;
+    }
 
-    PIXELPIPES_OPERATION_CLASS("stack", Stack);
+    TokenReference stack_eval(const TokenList &inputs)
+    {
+        VERIFY(inputs.size() > 1, "Two or more tensors expected");
+
+        Shape s = inputs[0]->shape();
+
+        for (size_t i = 1; i < inputs.size(); i++)
+        {
+            VERIFY(s == inputs[i]->shape(), "Shape mismatch");
+        }
+
+        s = s.push(inputs.size());
+
+        return create<Placeholder>(s);
+    }
+
+    PIXELPIPES_COMPUTE_OPERATION("stack", stack_run, stack_eval);
 
     /**
      * @brief Converts depth of an image, scaling pixel values.
@@ -408,7 +411,7 @@ namespace pixelpipes
 
     TokenReference transpose_eval(const TokenList &inputs)
     {
-        VERIFY(inputs.size() == 1, "One token expected");
+        VERIFY(inputs.size() == 2, "One token expected");
 
         auto shape = inputs[0]->shape();
 

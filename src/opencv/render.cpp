@@ -43,7 +43,7 @@ namespace pixelpipes
      * @brief Draw points on a canvas of a given size.
      *
      */
-    TokenReference point_mask(const std::vector<cv::Point2f>& points, int width, int height, int size) noexcept(false)
+    TokenReference points_mask(const std::vector<cv::Point2f>& points, int width, int height, int size) noexcept(false)
     {
 
         try
@@ -67,7 +67,7 @@ namespace pixelpipes
         }
     }
 
-    PIXELPIPES_COMPUTE_OPERATION_AUTO("point_mask", point_mask, (given_shape<1, 2, CharType, 1>));
+    PIXELPIPES_COMPUTE_OPERATION_AUTO("points_mask", points_mask, (given_shape<1, 2, CharType, 1>));
 
 
 
