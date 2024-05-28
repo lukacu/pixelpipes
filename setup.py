@@ -4,13 +4,14 @@ import pybind11
 import os
 import setuptools
 import platform
-import distutils.log
-import distutils.file_util as file_util
-from distutils.command import build
-from distutils.cmd import Command
+import shutil
 
+from setuptools import Command
 from setuptools import Extension, setup
 from setuptools.command import build_py, build_ext
+
+# TODO: replace this with setuptools
+from distutils.command import build
 
 platid = os.getenv("PYTHON_PLATFORM", platform.system()).lower()
 
@@ -150,10 +151,9 @@ class CMakeBuildCommand(Command):
 
         command = ['cmake', *cmake_command_args, root]
         self.announce(
-            'Running command: %s' % str(command),
-            level=distutils.log.INFO)
+            'Running command: %s' % str(command))
         subprocess.check_call(command, cwd=build_dir, env=env)
-        self.announce("Done", level=distutils.log.INFO)
+        self.announce("Done")
 
         command = ['cmake', '--build', build_dir]
 
@@ -163,10 +163,9 @@ class CMakeBuildCommand(Command):
             command.append("-j%d" % cmake_workers)
 
         self.announce(
-            'Running command: %s' % str(command),
-            level=distutils.log.INFO)
+            'Running command: %s' % str(command))
         subprocess.check_call(command, env=env)
-        self.announce("Library compilation done", level=distutils.log.INFO)
+        self.announce("Library compilation done")
 
         if not self.inplace:
             # copy binaries generated with cmake to the package
@@ -174,15 +173,15 @@ class CMakeBuildCommand(Command):
             files = [os.path.join(build_dir, filename) for filename in os.listdir(build_dir) if filter(filename)]
             for file in files:
                 if os.path.isfile(file):
-                    file_util.copy_file(file, os.path.join(
-                        target_dir, os.path.basename(file)), update=True, verbose=True)
+                    self.copy_file(file, os.path.join(
+                        target_dir, os.path.basename(file)))
 
             # copy C++ headers to the
             header_dir = os.path.join(target_dir, "include", "pixelpipes")
             self.mkpath(header_dir)
             for file in glob.glob(os.path.join(os.path.join(root, "include", "pixelpipes"), "**", "*.hpp"), recursive=True):
-                file_util.copy_file(file, os.path.join(
-                    header_dir, os.path.basename(file)), update=True, verbose=True)
+                self.copy_file(file, os.path.join(
+                    header_dir, os.path.basename(file)))
 
 
 include_dirs = []
@@ -205,6 +204,7 @@ define_macros = []
 #libraries.extend(['c10', 'torch', 'torch_python'])
 
 if "PIXELPIPES_DEBUG" in os.environ:
+    print("Debug mode enabled")
     define_macros.append(("PIXELPIPES_DEBUG", None))
 
 
@@ -239,9 +239,9 @@ setup(
     ext_modules=ext_modules,
     packages=setuptools.find_packages(include=["pixelpipes", "pixelpipes.*"]),
     include_package_data=True,
-    setup_requires=["pybind11>=2.5.0", "numpy>=1.23"],
+    setup_requires=["pybind11>=2.5.0", "numpy>=1.23,<1.25"],
     install_requires=[
-        "numpy>=1.23",
+        "numpy>=1.23,<1.25",
         "bidict>=0.21",
         "attributee>=0.1.7"
     ],
