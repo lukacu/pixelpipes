@@ -10,11 +10,10 @@ import cv2 as cv
 
 from pixelpipes.graph import Graph
 from pixelpipes.compiler import Compiler, Conditional
-from pixelpipes.core import Output
-from pixelpipes.core.numbers import NormalDistribution, UniformDistribution
-from pixelpipes.core.flow import Switch
+from pixelpipes.graph import Output
+from pixelpipes.numbers import SampleNormal, SampleUnform
 from pixelpipes.sink import AbstractDataLoader, PipelineDataLoader
-from pixelpipes.resource import ExtractField, GetRandomResource, ImageDirectory
+from pixelpipes.resource.list import RandomResource
 from pixelpipes.image.geometry import ViewImage
 from pixelpipes.geometry.view import AffineView
 from pixelpipes.image.augmentation import ImageBrightness
@@ -42,15 +41,15 @@ def compile_graph(dataset_dir):
  
         images = ImageDirectory(dataset_dir)
 
-        x = UniformDistribution(0, 100)
+        x = SampleUnform(0, 100)
 
         y = Conditional(true=x, false=x+2, condition=x > 0.5)
 
-        image = ExtractField(GetRandomResource(images), "image")
+        image = RandomResource(images)["image"]
 
-        view = AffineView(x = NormalDistribution(0, 10), y = y)
+        view = AffineView(x = SampleNormal(0, 10), y = y)
 
-        image = ImageBrightness(ViewImage(image, view, width=100, height=100), UniformDistribution(-10, 30) )
+        image = ImageBrightness(ViewImage(image, view, width=100, height=100), SampleUnform(-10, 30) )
 
         Output(outputs=[image])
 

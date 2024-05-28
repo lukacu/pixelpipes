@@ -8,7 +8,9 @@ from .rectangle import MakeRectangle, ResizeRectangle
 from ..graph import Graph
 from ..compiler import Compiler
 
-class TestPoints(unittest.TestCase):    
+from pixelpipes.tests import TestBase
+
+class TestPoints(TestBase):    
     
     def test_make_points(self):
         from ..compiler import Compiler
@@ -55,7 +57,7 @@ class TestPoints(unittest.TestCase):
 
         compare_serialized(graph)
 
-class TestRectangle(unittest.TestCase):    
+class TestRectangle(TestBase):    
 
     def test_make_rectangle(self):
 

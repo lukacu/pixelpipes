@@ -237,9 +237,14 @@ class Expression(Macro):
             pos += 1
         return tokens
 
-class Tests(unittest.TestCase):    
+from pixelpipes.tests import TestBase
+
+class Tests(TestBase):    
 
     def test_expression(self):
+
+        from .compiler import Compiler
+        from .graph import Graph, Constant, Output
 
         with Graph() as graph:
             n1 = Constant(value=5)

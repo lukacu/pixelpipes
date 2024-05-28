@@ -41,13 +41,14 @@ class TestBase(unittest.TestCase):
     def setUp(self) -> None:
         from pixelpipes import pypixelpipes
         if hasattr(pypixelpipes, "_refcount"):
-            print("\n **** Refs start:", pypixelpipes._refcount(), "**** ")
+            self.__startobj = pypixelpipes._refcount()
         return super().setUp()
 
     def tearDown(self) -> None:
         from pixelpipes import pypixelpipes
         if hasattr(pypixelpipes, "_refcount"):
-            print("\n **** Refs end:", pypixelpipes._refcount(), "**** ")
+            leftobj = pypixelpipes._refcount() - self.__startobj
+            print("\n **** Remaining objects:", leftobj, "(total:", pypixelpipes._refcount(), ")**** ")
         return super().tearDown()
 
     def compare_arrays(self, a, b):

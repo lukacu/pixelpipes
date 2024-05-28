@@ -65,7 +65,7 @@ class TestsArithmetic(TestBase):
 
         compare_serialized(graph)
 
-class TestsAugmentation(unittest.TestCase):
+class TestsAugmentation(TestBase):
 
     def test_image_noise(self):
 
@@ -678,7 +678,7 @@ class TestsProcessing(TestBase):
 
         self.assertIsInstance(output[0], np.ndarray)
 
-class TestsRender(unittest.TestCase):
+class TestsRender(TestBase):
 
     def test_normal_noise(self):
 
