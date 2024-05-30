@@ -142,7 +142,10 @@ class CMakeBuildCommand(Command):
 
         cmake_command_args = list(cmake_args)
         
-        cmake_command_args += ['-DBUILD_DEBUG=OFF']
+        if "PIXELPIPES_DEBUG" in os.environ:
+            cmake_command_args += ['-DBUILD_DEBUG=ON']
+        else:
+            cmake_command_args += ['-DBUILD_DEBUG=OFF']
 
         if not self.inplace:
             cmake_command_args += ['-DBUILD_INPLACE=OFF']
