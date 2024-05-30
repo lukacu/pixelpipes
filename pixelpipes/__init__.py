@@ -89,15 +89,32 @@ DataType = LazyLoadEnum("datatype")
 PipelineOperation = namedtuple("PipelineOperation", ["id", "name", "arguments", "inputs"])
 
 class _PipelineMetadata(object):
+    """Wrapper for the C++ pipeline metadata structure. This wrapper should be used instead of interacting with the C++ object directly."""
 
     def __init__(self, pipeline):
         self._pipeline = pipeline
 
     def __getitem__(self, key):
+        """Accesses the metadata storage.
+        
+        Args:
+            key (str): Key to access
+            
+        Returns: Value associated with the key
+        """
+        
         key = str(key)
         return self._pipeline.get(key)
 
     def __setitem__(self, key, value):
+        """Sets the metadata value.
+        
+        Args:
+            key (str): Key to set
+            value (str): Value to set
+        
+        Returns: Value associated with the key
+        """
         key = str(key)
         value = str(value)
         return self._pipeline.set(key, value)
@@ -106,11 +123,21 @@ class Pipeline(object):
     """Wrapper for the C++ pipeline object, includes additional metadata. This wrapper should be used instead of interacting with the C++ object directly.
     """
 
-    def __init__(self, data: Iterable[PipelineOperation], optimize=True):
+    def __init__(self, data: Iterable[PipelineOperation], optimize: bool = None):
+        """Creates a new pipeline object from a list of operations.
+        
+        Args:
+            data (Iterable[PipelineOperation]): List of operations
+            optimize (bool, optional): Optimize the pipeline. Defaults to True.
+        """
 
         from . import pypixelpipes
         from pixelpipes.graph import ValidationException
-
+        
+        if optimize is None:
+            import os
+            optimize = os.environ.get("PIXELPIPES_PIPELINE_OPTIMIZE", "1") == "1"
+            
         if isinstance(data, pypixelpipes.Pipeline):
             self._pipeline = data
         else:
@@ -185,6 +212,13 @@ def write_pipeline(filename: str, pipeline: Pipeline, compress: Optional[bool] =
     pypixelpipes.write_pipeline(pipeline._pipeline, filename, compress)
 
 def read_pipeline(filename: str):
+    """Reads pipeline from a file. 
+    
+    Args:
+        filename (str): Filename to read from.
+        
+    Returns: Pipeline object
+    """
     from . import pypixelpipes
     pipeline = pypixelpipes.read_pipeline(filename)
     return Pipeline(pipeline)

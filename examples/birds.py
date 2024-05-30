@@ -27,10 +27,12 @@ def stream():
 
     return Toggle(image, Invert(image), p=0.9)
 
-samples = collage(stream(), index=0, rows=8, columns=20)
+if __name__ == "__main__":
 
-cv2.imshow("Samples", cv2.cvtColor(samples, cv2.COLOR_RGB2BGR))
-cv2.waitKey()
+    samples = collage(stream(), index=0, rows=8, columns=20)
+
+    cv2.imshow("Samples", cv2.cvtColor(samples, cv2.COLOR_RGB2BGR))
+    cv2.waitKey()
 
 
 

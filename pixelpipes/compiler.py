@@ -187,14 +187,14 @@ class Compiler(object):
     def build(self, graph: Graph,
               variables: typing.Optional[typing.Mapping[str,
                                                         numbers.Number]] = None,
-              output: typing.Optional[typing.Union[Container, typing.Callable]] = None, optimize=True) -> Pipeline:
+              output: typing.Optional[typing.Union[Container, typing.Callable]] = None, optimize: bool = None) -> Pipeline:
         """Compiles the graph and builds a pipeline from it in one function.
 
         Args:
             graph (Graph): _description_
             variables (typing.Optional[typing.Mapping[str, numbers.Number]], optional): _description_. Defaults to None.
             output (typing.Optional[typing.Union[Container, typing.Callable]], optional): _description_. Defaults to None.
-            optimize (bool, optional): Optimize conditional operations by inserting jumps into the pipeline.
+            optimize (bool, optional): Optimize conditional operations by inserting jumps into the pipeline and using cache.
 
         Returns:
             Pipeline: Pipeline object
