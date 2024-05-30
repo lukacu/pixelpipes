@@ -164,7 +164,7 @@ namespace pixelpipes
             return GetType<ImageDecode>();
         }
 
-        virtual Sequence<TokenReference> serialize() { return Sequence<TokenReference>({wrap(_channels), wrap(_depth)}); }
+        virtual Sequence<TokenReference> serialize() { return Sequence<TokenReference>({wrap(_channels), wrap(_depth), wrap(_normalize)}); }
 
     private:
         ImageChannels _channels;

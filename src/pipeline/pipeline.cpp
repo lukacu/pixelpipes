@@ -243,7 +243,10 @@ namespace pixelpipes
 
             VERIFY(inputs.size() == 1, "Only one input supported for debug");
 
-            std::cout << prefix << inputs[0]->describe() << std::endl;
+            if (prefix.size() > 0)
+                std::cout << prefix << ": " << inputs[0]->describe() << std::endl;
+            else
+                std::cout << inputs[0]->describe() << std::endl;
 
             return inputs[0].reborrow();
         }
@@ -374,6 +377,10 @@ namespace pixelpipes
         // prune if needed (replace with constants)
         // optimize if needed (add jumps)
 /*
+        TODO: Split optimization into two passes, the first one only simplifies the graph,
+        the second one adds jumps and other optimizations and caching. This pipeline is not
+        serializable as some operations are internal to the pipeline and not part of the operation list.
+
         auto tokens = stateless_pass(state->operations);
 
         // Replace all nodes with constant values with constant operations.

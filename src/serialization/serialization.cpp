@@ -670,29 +670,35 @@ namespace pixelpipes
 
                 std::string name = read_t<std::string>(source);
 
-                std::vector<TokenReference> arguments;
+                try {
 
-                Sequence<int> token_indices = read_sequence<int>(source);
+                    std::vector<TokenReference> arguments;
 
-                Sequence<int> inputs = read_sequence<int>(source);
+                    Sequence<int> token_indices = read_sequence<int>(source);
 
-                Metadata metadata;
-                read_metadata(source, metadata);
+                    Sequence<int> inputs = read_sequence<int>(source);
 
-                for (auto t : token_indices)
-                {
-                    if (t >= (int)tokens.size())
-                        throw SerializationException("Illegal token index");
+                    Metadata metadata;
+                    read_metadata(source, metadata);
 
-                    if (name == "file_list" && tokens[t]->is<List>())
-                    { // TODO: this should be done without string identifier?
-                        tokens[t] = make_absolute(extract<ListReference>(tokens[t]), origin);
+                    for (auto t : token_indices)
+                    {
+                        if (t >= (int)tokens.size())
+                            throw SerializationException("Illegal token index");
+
+                        if (name == "file_list" && tokens[t]->is<List>())
+                        { // TODO: this should be done without string identifier?
+                            tokens[t] = make_absolute(extract<ListReference>(tokens[t]), origin);
+                        }
+
+                        arguments.push_back(tokens[t].reborrow());
                     }
 
-                    arguments.push_back(tokens[t].reborrow());
-                }
+                    pipeline.append(name, make_span(arguments), make_span(inputs), metadata);
 
-                pipeline.append(name, make_span(arguments), make_span(inputs), metadata);
+                } catch (TypeException &e) {
+                    throw SerializationException((Formatter() << "Operation deserialization error (" << i << "/" << count << ", " << name << "): "  << e.what()).str());
+                }
             }
         }
     }
