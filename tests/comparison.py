@@ -9,11 +9,12 @@ import numpy as np
 import cv2 as cv
 
 from pixelpipes.graph import Graph
-from pixelpipes.compiler import Compiler, Conditional
+from pixelpipes.compiler import Conditional
 from pixelpipes.graph import Output
 from pixelpipes.numbers import SampleNormal, SampleUnform
 from pixelpipes.sink import AbstractDataLoader, PipelineDataLoader
 from pixelpipes.resource.list import RandomResource
+from pixelpipes.resource.loading import ImageDirectory
 from pixelpipes.image.geometry import ViewImage
 from pixelpipes.geometry.view import AffineView
 from pixelpipes.image.augmentation import ImageBrightness
