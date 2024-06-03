@@ -21,7 +21,6 @@ namespace pixelpipes
         return ss.str();
     }
 
-
     Placeholder::Placeholder(const Shape &shape) : _shape{shape}
     {
     }

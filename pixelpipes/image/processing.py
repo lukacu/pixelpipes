@@ -17,7 +17,7 @@ class ImageBlend(Operation):
 
 class ImageNormalize(Operation):
     """Normalizes values between a range determined by the type of image elements, for integer types this is
-    min-max, for float it is 0 and 1.
+    min-max of the type, for float it is 0 and 1.
     """
 
     source = Input(types.Image(), description="Input image")

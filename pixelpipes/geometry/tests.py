@@ -3,7 +3,7 @@ import numpy as np
 
 from ..graph import outputs
 from ..geometry.points import MakePoint, MakePoints
-from ..geometry.view import AffineView, RotateView,Chain
+from ..geometry.view import AffineView, RotateView, Chain, IdentityView, ViewPoints
 from .rectangle import MakeRectangle, ResizeRectangle
 from ..graph import Graph
 from ..compiler import Compiler
@@ -57,6 +57,36 @@ class TestPoints(TestBase):
 
         compare_serialized(graph)
 
+    def test_points_view(self):
+
+        with Graph() as graph:
+            n0 = IdentityView()
+            n1 = AffineView(x=0, y=1)
+            n2 = RotateView(angle=np.pi)
+            p = MakePoints([0, 0, 1, 1, 2, 2])
+            outputs(ViewPoints(p, Chain(inputs=[n0, n1, n2])))
+
+        pipeline = Compiler().build(graph)
+        output = pipeline.run(1)
+
+        np.testing.assert_almost_equal(output[0], np.array([[0, 1], [-1, 0], [-2, -1]]))
+
+    def test_view_calculation(self):
+        from ..geometry.view import FocusView, CenterView
+
+
+        with Graph() as graph:
+            rectangle = MakeRectangle(0, 0, 10, 10)
+            v1 = FocusView(rectangle, 1)
+            v2 = CenterView(rectangle)
+            outputs(v1, v2)
+
+        pipeline = Compiler().build(graph)
+        output = pipeline.run(1)
+
+        self.compare_arrays(output[0], np.array([[0.1, 0, 0], [0, 0.1, 0], [0, 0, 1]], dtype=np.float32))
+        self.compare_arrays(output[1], np.array([[1, 0, -5], [0, 1, -5], [0, 0, 1]], dtype=np.float32))
+  
 class TestRectangle(TestBase):    
 
     def test_make_rectangle(self):

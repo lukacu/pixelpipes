@@ -1,4 +1,5 @@
 
+from typing import Tuple
 from attributee import List
 
 from .. import types
@@ -35,7 +36,7 @@ class IdentityView(Operation):
     """ Create a 2D identity matrix."""
 
     def operation(self):
-        return "opencv:identity",
+        return "opencv:identity_view2d",
 
 class Chain(Operation):
     """Multiply a series of views"""
@@ -80,11 +81,31 @@ class CenterView(Operation):
 
     source = Input(types.Rectangle(), description="A bounding box type")
 
-    def _output(self) -> types.Data:
-        return types.View()
+    def operation(self) -> Tuple:
+        return "opencv:center_view2d",
 
 class FocusView(Operation):
     """Create a view that centers to a bounding box and scales so that bounding box maintains relative scale."""
 
     source = Input(types.Rectangle(), description="A bounding box type")
     scale = Input(types.Float(), description="Scaling factor")
+
+    def operation(self) -> Tuple:
+        return "opencv:focus_view2d",
+
+
+class ViewPoints(Operation):
+    """Transforms points with a given view.
+
+    Inputs:
+        - source: A list of points
+        - view: View type
+
+    Category: points
+    """
+
+    source = Input(types.Points(), description="Input list of points")
+    view = Input(types.View(), description="Transform")
+
+    def operation(self):
+        return "opencv:view_points2d",

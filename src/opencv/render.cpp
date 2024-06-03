@@ -197,5 +197,5 @@ namespace pixelpipes
         return result;
     }   
 
-    PIXELPIPES_COMPUTE_OPERATION_AUTO("map_mixture", map_mixture, (given_shape<0, 1, FloatType, 1>));
+    //PIXELPIPES_COMPUTE_OPERATION_AUTO("map_mixture", map_mixture, (given_shape<0, 1, FloatType, 1>));
 }

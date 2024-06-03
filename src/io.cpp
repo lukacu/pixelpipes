@@ -37,6 +37,9 @@ namespace pixelpipes
 
         std::ifstream handle(filename, std::ios::binary | std::ios::ate);
         std::streamsize size = handle.tellg();
+
+        VERIFY(size >= 0, Formatter() << "Unable to open file " << filename << " for reading");
+
         handle.seekg(0, std::ios::beg);
 
         auto buffer = create<FlatBuffer>(size);

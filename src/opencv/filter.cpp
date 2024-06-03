@@ -25,19 +25,6 @@ namespace pixelpipes
     PIXELPIPES_COMPUTE_OPERATION_AUTO("median_blur", median_blur, (forward_shape<0>));
 
     /**
-     * @brief Convolving an image with a normalized box filter.
-     *
-     */
-    cv::Mat average_blur(const cv::Mat &image, int size) noexcept(false)
-    {
-        cv::Mat result;
-        CV_EX_WRAP(cv::blur(image, result, cv::Size(size, size)));
-        return result;
-    }
-
-    PIXELPIPES_COMPUTE_OPERATION_AUTO("average_blur", average_blur, (forward_shape<0>));
-
-    /**
      * @brief Applies the bilateral filter to an image.
      *
      */

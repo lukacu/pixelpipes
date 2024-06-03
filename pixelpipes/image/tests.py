@@ -1,16 +1,17 @@
 
-import unittest
 import numpy as np
 
 from ..graph import Graph, Constant, outputs
 from ..compiler import Compiler
 from . import Equals, ColorConvert, Invert, Threshold, GetImageProperties, ConvertDepth
 from .processing import ImageBlend, ImageCoarseDropout, ImageDropout, ImageSolarize
-from .geometry import Flip, MaskBoundingBox, Resize, Scale, ImageCrop, ImageCropSafe
+from .geometry import Flip, MaskBoundingBox, Resize, Scale, ImageCrop, ImageCropSafe, ViewImage
 from .augmentation import ImageBrightness, ImageNoise, ImagePiecewiseAffine
 from .filter import AverageFilter, BilateralFilter, GaussianFilter, LinearFilter, MedianBlur
-from .render import LinearImage, GaussianNoise, UniformNoise
+from .render import LinearImage, GaussianNoise, UniformNoise, PointsMask, PolygonMask
 from ..geometry.rectangle import MakeRectangle
+from ..geometry.points import MakePoints
+from ..geometry.view import AffineView
 
 np.random.seed(0)
 test_image = np.random.randint(0, 255, (32,32), dtype=np.uint8) 
@@ -60,8 +61,7 @@ class TestsArithmetic(TestBase):
             n3 = Constant(img3)
             n4 = Constant(img4)
             l = Constant([img1, img2, img3])
-            #outputs(n1, n2, n3, n4, l[1])
-            outputs(n1)
+            outputs(n1, n2, n3, n4, l)
 
         compare_serialized(graph)
 
@@ -341,7 +341,20 @@ class TestsGeometry(TestBase):
         self.assertEqual(output[2].shape[1], 256)
         self.assertEqual(output[2].shape[2], 256)
 
-    # TODO ViewImage
+    def test_image_view(self):
+
+        test_image = np.random.randint(0, 255, (256,256), dtype=np.uint8)
+
+        with Graph() as graph:
+            n0 = Constant(test_image)
+            v = AffineView(x = 10, y = 10)
+            outputs(ViewImage(n0, v, 30, 30))
+
+        pipeline = Compiler().build(graph)
+        output = pipeline.run(1)
+
+        self.assertEqual(output[0].shape, (1, 30, 30))
+
     # TODO ImageRemap
 
 class TestsImage(TestBase):
@@ -499,6 +512,24 @@ class TestsImage(TestBase):
         temp[temp!=128] = 0
         temp[temp==128] = 255
         self.compare_arrays(output[0], temp)
+
+    def test_image_normalize(self):
+
+        from pixelpipes.image.processing import ImageNormalize
+
+        test_image1 = np.array([[0, 1, 0, 1], [0, 0.5, 0, 0]], dtype=np.float32)
+        test_image2 = np.array([[0, 255, 0, 255], [0, 30, 0, 0]], dtype=np.uint8)
+
+        with Graph() as graph:
+            n0 = Constant((test_image1 / 2).astype(np.float32))
+            n1 = Constant((test_image2 / 2).astype(np.uint8))
+            outputs(ImageNormalize(n0), ImageNormalize(n1))
+
+        pipeline = Compiler().build(graph)
+        output = pipeline.run(1)
+
+        self.compare_arrays(output[0], test_image1)
+        self.compare_arrays(output[1], test_image2)
 
 class TestsMorphology(TestBase):
 
@@ -737,3 +768,14 @@ class TestsRender(TestBase):
         self.assertEqual(sample[1][0, -1, 0], 50)
         self.assertEqual(sample[1][0, 0, -1], 1)
         self.assertEqual(sample[1][0, -1, -1], 50)
+
+    def test_mask(self):
+
+        with Graph() as graph:
+            p = MakePoints([10, 10, 50, 10, 50, 50, 10, 50])
+            outputs(PolygonMask(p, 60, 60, 10), PolygonMask(p, 60, 60), PointsMask(p, 60, 60, 3))
+
+        pipeline = Compiler().build(graph)
+        sample = pipeline.run(1)
+
+        self.assertEqual(sample[0].shape, (1, 60, 60))

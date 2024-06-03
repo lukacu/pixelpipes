@@ -141,7 +141,6 @@ class GraphTests(TestBase):
 
     def test_file_location(self):
         from .list import FileList
-        from .compiler import Compiler
         from . import write_pipeline, read_pipeline
         import os
 
@@ -162,7 +161,6 @@ class GraphTests(TestBase):
         self.assertEqual(str(pipeline.run(1)[0]), os.path.abspath(files[0]))
 
     def test_output_filter(self):
-        from .compiler import Compiler
         from .graph import Output
 
         with Graph() as graph:

@@ -20,23 +20,6 @@ class PointsBounds(Operation):
     def operation(self):
         return "bounding_box",
 
-# TODO: move to view.py
-class ViewPoints(Operation):
-    """Transforms points with a given view.
-
-    Inputs:
-        - source: A list of points
-        - view: View type
-
-    Category: points
-    """
-
-    source = Input(Points(), description="Input list of points")
-    view = Input(View(), description="Transform")
-
-    def operation(self):
-        return "opencv:view_points",
-
 class PointsCenter(Operation):
     """Computes center of point set as an average of all coordinates"""
 
