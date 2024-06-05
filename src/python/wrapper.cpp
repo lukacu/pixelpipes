@@ -33,6 +33,7 @@ PYBIND11_DECLARE_HOLDER_TYPE(T, pixelpipes::Pointer<T>)
 // array.cpp
 TokenReference wrap_tensor(const py::object &src);
 py::object extract_tensor(const TokenReference &src);
+py::object extract_buffer(const TokenReference &src);
 // TokenReference wrap_tensor_list(const py::object &src);
 
 /*class PyPipelineCallback : public PipelineCallback
@@ -225,6 +226,11 @@ py::array token_to_python(const pixelpipes::TokenReference &variable)
         return extract_tensor(variable);
     };
 
+    if (variable->is<FlatBuffer>())
+    {
+        return extract_buffer(variable);
+    };
+
     if (variable->is<List>())
     {
 
@@ -256,7 +262,7 @@ py::array token_to_python(const pixelpipes::TokenReference &variable)
         return py::reinterpret_steal<py::array>(handle);
     }
 
-    throw py::value_error(Formatter() << "Unable to convert token to Python:" << variable);
+    throw py::value_error(Formatter() << "Unable to convert token to Python: " << variable);
 }
 
 template <typename T, typename C>

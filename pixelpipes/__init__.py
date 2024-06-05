@@ -137,23 +137,28 @@ class Pipeline(object):
         if optimize is None:
             import os
             optimize = os.environ.get("PIXELPIPES_PIPELINE_OPTIMIZE", "1") == "1"
-            
-        if isinstance(data, pypixelpipes.Pipeline):
-            self._pipeline = data
-        else:
-            self._pipeline = pypixelpipes.Pipeline()
+        
+        try:
 
-            indices = {}
+            if isinstance(data, pypixelpipes.Pipeline):
+                self._pipeline = data
+            else:
+                self._pipeline = pypixelpipes.Pipeline()
 
-            for op in data:
-                input_indices = [indices[id] for id in op.inputs]
-                try:
-                    indices[op.id] = self._pipeline.append(op.name, tuple(op.arguments), input_indices, {"label": op.id})
-                except ValueError as ve:
-                    raise ValidationException("Error when adding operation %s: %s" % (op.name, str(ve)))
-                assert indices[op.id] >= 0
+                indices = {}
 
-            self._pipeline.finalize(optimize=optimize)
+                for op in data:
+                    input_indices = [indices[id] for id in op.inputs]
+                    try:
+                        indices[op.id] = self._pipeline.append(op.name, tuple(op.arguments), input_indices, {"label": op.id})
+                    except ValueError as ve:
+                        raise ValidationException("Error when adding operation %s: %s" % (op.name, str(ve)))
+                    assert indices[op.id] >= 0
+
+                self._pipeline.finalize(optimize=optimize)
+
+        except pypixelpipes.IllegalStateException as e:
+            raise ValidationException(str(e))
 
     def __len__(self):
         return self._pipeline.size()
@@ -167,7 +172,11 @@ class Pipeline(object):
         Returns:
             Tuple[np.ndarray]: Generated sample, a sequence of NumPy objects.
         """
-        return self._pipeline.run(index)
+        from . import pypixelpipes
+        try:
+            return self._pipeline.run(index)
+        except pypixelpipes.IllegalStateException as e:
+            raise RuntimeError(str(e)) from e
 
     @property
     def metadata(self) -> MappingProxyType:
@@ -188,12 +197,6 @@ class Pipeline(object):
         from pixelpipes import types
         return [(label, types.Token(shape[0], *shape[1:])) for label, shape in self._pipeline.outputs()]
 
-    def _stats(self):
-        # TODO: remove this
-        stats = self._pipeline.operation_time()
-        for k, v in zip(self._operations, stats):
-            print("%s: %.3f ms" % (k, v))
-        
     def __iter__(self):
         index = 1
         while True:

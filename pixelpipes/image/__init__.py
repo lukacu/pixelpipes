@@ -6,7 +6,7 @@ load_module("opencv")
 ImageChannels = LazyLoadEnum("channels")
 InterpolationMode = LazyLoadEnum("interpolation")
 BorderStrategy = LazyLoadEnum("border")
-ColorConvert = LazyLoadEnum("color")
+ColorConversion = LazyLoadEnum("color")
 
 from pixelpipes.graph import Operation, Input, Macro, hidden, EnumerationInput
 
@@ -74,7 +74,7 @@ class ColorConvert(Operation):
     """Converts image between color spaces."""
 
     source = Input(types.Image(), description="Input image")
-    convert = EnumerationInput(ColorConvert, description="Conversion type")
+    convert = EnumerationInput(ColorConversion, description="Conversion type")
 
     def operation(self):
         return "opencv:color",

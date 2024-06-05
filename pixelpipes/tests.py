@@ -1,5 +1,6 @@
 import unittest
 import numpy as np
+import os
 
 from .flow import Conditional
 from .list import Table, Range
@@ -7,6 +8,8 @@ from .numbers import Floor, Round, SampleUnform, Ceil
 from .types import Integer, Char, Float, IntegerList, FloatList, Token, Boolean
 from .compiler import Compiler
 from .graph import Constant, Debug, Graph, SampleIndex, outputs
+
+ROOT_DIR = os.path.dirname(os.path.dirname(__file__))
 
 def compare_serialized(graph, samples=100):
     import os
@@ -768,14 +771,47 @@ class TestTensor(TestBase):
 
         np.testing.assert_array_equal(output[0], np.expand_dims(test_image, (0, 3)))
 
+class TestFiles(TestBase):
+
+    def test_read_file(self):
+
+        from pixelpipes.graph import ReadFile
+
+        with Graph() as graph:
+            n0 = ReadFile(__file__)
+            outputs(n0)
+
+        pipeline = Compiler().build(graph)
+        output = pipeline.run(1)
+
+        # Read the same file with numpy
+        with open(__file__, "rb") as f:
+            data = np.frombuffer(f.read(), dtype=np.uint8)
+
+        self.compare_arrays(output[0], data)
+
+    def test_nonexisting_file(self):
+
+        from pixelpipes.graph import ReadFile, NodeException
+
+        with Graph() as graph:
+            n0 = ReadFile("nonexisting.txt")
+            outputs(n0)
+
+        with self.assertRaises(NodeException):
+            pipeline = Compiler().build(graph)
+            pipeline.run(1)
+
 if __name__ == "__main__":
     # Special entrypoint for running tests and determining operation coverage afterwards
     from collections import Counter
     from pixelpipes import list_operations
 
+    from pixelpipes.graph import Operation, Macro
+
     ignore_operations = ["debug"]
 
-    # Monkey patch the compiler to track operations
+    # Monkey-patch the compiler to track operations
     Compiler._operations = []
     Compiler._compile = Compiler.compile
 
@@ -786,12 +822,24 @@ if __name__ == "__main__":
     
     Compiler.compile = compile
     
+    # Monkey-patch the Macro class to track macros
+    Macro._macros = []
+
+    def evaluate(self, *args, **kwargs):
+        Macro._macros.append(self.__class__)
+        return None
+
+    Macro.evaluate = evaluate
+
     unittest.main(exit=False, module=None)
 
     # Count appearances of unique operations
 
     used_operations = Counter(Compiler._operations)
     supported_operations = list_operations()
+
+    macros = Counter(Macro._macros)
+    supported_macros = [m for m in Macro.__subclasses__()]
 
     unused = []
     for op in supported_operations:
@@ -801,3 +849,10 @@ if __name__ == "__main__":
     if unused:
         print("\n{}/{} untested operations:".format(len(unused), len(supported_operations)), ",".join(unused))
 
+    unused_macros = []
+    for m in supported_macros:
+        if m not in macros:
+            unused_macros.append(m.__name__)
+    
+    if unused_macros:
+        print("\n{}/{} untested macros:".format(len(unused_macros), len(supported_macros)), ",".join(unused_macros))

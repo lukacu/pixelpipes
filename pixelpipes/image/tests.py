@@ -1,5 +1,6 @@
 
 import numpy as np
+import os
 
 from ..graph import Graph, Constant, outputs
 from ..compiler import Compiler
@@ -20,7 +21,7 @@ test_image_rgb = np.random.randint(0, 255, (3,32,32), dtype=np.uint8)
 def clamp_uint8(image):
     return np.clip(image, 0, 255).astype(np.uint8)
 
-from ..tests import TestBase
+from ..tests import TestBase, ROOT_DIR
 
 class TestsArithmetic(TestBase):
 
@@ -530,6 +531,22 @@ class TestsImage(TestBase):
 
         self.compare_arrays(output[0], test_image1)
         self.compare_arrays(output[1], test_image2)
+
+    def test_indexed_png(self):
+
+        from pixelpipes.graph import ReadFile
+        from pixelpipes.image.loading import DecodePNGPaletteIndices
+
+        with Graph() as graph:
+            n0 = DecodePNGPaletteIndices(ReadFile(os.path.join(ROOT_DIR, "tests", "resources", "indexed.png")))
+            outputs(n0)
+
+        pipeline = Compiler().build(graph)
+        output = pipeline.run(1)
+
+        self.assertIsInstance(output[0], np.ndarray)
+        self.compare_arrays(np.unique(output[0]), [0, 1, 2 ,3])
+        self.assertEqual(len(output[0].shape), 2)
 
 class TestsMorphology(TestBase):
 

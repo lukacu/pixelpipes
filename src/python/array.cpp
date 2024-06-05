@@ -246,6 +246,30 @@ py::object extract_tensor(const TokenReference& src)
 
     throw py::value_error(Formatter() << "Unable to convert token to NumPy array:"  << src);
 }
+
+struct BufferGuard {
+    BufferReference guard;
+};
+
+py::object extract_buffer(const TokenReference& src)
+{
+
+    if (!src || !src->is<FlatBuffer>())
+        throw py::value_error(Formatter() << "Not a buffer:"  << src);
+
+    BufferReference buffer = extract<BufferReference>(src);
+
+    auto v = new BufferGuard{buffer.reborrow()};
+    // TODO: add capsule name
+    auto capsule = py::capsule((void *)v, [](void *v)
+                               {  delete static_cast<BufferGuard *>(v); });
+
+    std::vector<ssize_t> pydimensions = {static_cast<ssize_t>(buffer->size())};
+
+    return py::array(std::move(pydimensions), (uint8_t *)buffer->data().data(), capsule);
+
+}
+
 /*
 TokenReference wrap_tensor_list(const py::object& src)
 {
