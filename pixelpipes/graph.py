@@ -446,10 +446,6 @@ class Node(Attributee, OperationProxy):
     def frame(self):
         return self._source
 
-    @property
-    def origin(self):
-        return self._origin
-
     def _merge_config(self, config, update):
         for k, v in update.items():
             assert k in config, "Key %s not in config" % k
@@ -547,7 +543,7 @@ class Macro(Node):
         raise NotImplementedError()
 
     def evaluate(self, **inputs):
-        # Macro inferrence will never be used, this is just a placeholder
+        """Will not evaluate to a type, just return None"""
         return None
 
 @hidden
@@ -733,10 +729,10 @@ class Graph(object):
     def __getitem__(self, ref: Reference):
         return self._nodes[ref.name]
 
-    def pipeline(self, fixedout=False, variables = None, output=None):
+    def pipeline(self, variables = None, output=None):
         from pixelpipes.compiler import Compiler
         
-        return Compiler(fixedout=fixedout).build(self, variables=variables, output=output)
+        return Compiler().build(self, variables=variables, output=output)
 
     def __contains__(self, node: typing.Union[Node, Reference]):
         if isinstance(node, Reference):

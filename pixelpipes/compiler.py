@@ -122,19 +122,16 @@ class Compiler(object):
     def build_graph(graph: typing.Union[Graph, typing.Mapping[str, Node]],
                     variables: typing.Optional[typing.Mapping[str,
                                                               numbers.Number]] = None,
-                    output: typing.Optional[str] = None, fixedout: bool = False) -> Pipeline:
-        compiler = Compiler(fixedout)
+                    output: typing.Optional[str] = None) -> Pipeline:
+        compiler = Compiler()
         return compiler.build(graph, variables, output)
 
-    def __init__(self, fixedout=False, debug=False):
+    def __init__(self, debug=False):
         """[summary]
 
         Args:
-            fixedout (bool, optional): Dimensions of all outputs should be fixed, making their concatenation possible.
-                This is important when creating a batch dataset. Defaults to False.
             debug (bool, optional): Print a lot of debug messages. Defaults to False.
         """
-        self._fixedout = fixedout
         self._debug_enabled = debug
 
     def validate(self, graph: typing.Union[Graph, typing.Mapping[str, Node]]):
@@ -178,7 +175,7 @@ class Compiler(object):
                       for i in nodes[output].input_values()]
 
             for i, output_type in enumerate(inputs):
-                if isinstance(output_type, types.Complex):
+                if not isinstance(output_type, types.Token):
                     raise ValidationException("Output {} is a non-primitive type for output node {}: {}".format(
                         i, output, output_type), output)
 
@@ -275,9 +272,14 @@ class Compiler(object):
         def expand_macro(name, node):
             self._debug("Expanding macro {} ({})", name, node)
 
+            
+
             inputs, _ = normalize_inputs(node)
             if inputs is None:
                 return False
+
+            # Evaluate in macros does nothing, but calling it in unit tests allows us to monitor which macros are
+            node.evaluate(**inputs)
 
             try:
                 #node.evaluate(**{k: v.type for k, v in inputs.items()})

@@ -203,14 +203,15 @@ def _generate_outputs(out):
 def graph(constructor):
 
     from pixelpipes.graph import Graph
+    
     def wrapper(*args, **kwargs):
         with Graph() as builder:
             _generate_outputs(constructor(*args, **kwargs))
-        return builder.graph()
+        return builder
 
     return wrapper
 
-def pipeline(variables=None, fixedout=False, debug=False):
+def pipeline(variables=None, debug=False):
     
     from pixelpipes.compiler import Compiler
     from pixelpipes.graph import Graph
@@ -219,7 +220,7 @@ def pipeline(variables=None, fixedout=False, debug=False):
         def wrapper(*args, **kwargs):
             with Graph() as builder:
                 _generate_outputs(constructor(*args, **kwargs))
-            return Compiler(fixedout=fixedout, debug=debug).build(builder, variables=variables)
+            return Compiler(debug=debug).build(builder, variables=variables)
 
         return wrapper
     return inner
