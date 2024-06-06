@@ -260,6 +260,7 @@ class Compiler(object):
                     input_value, input_type = normalize_input(input_value)
                     if input_type is None:
                         return None, False
+                    
                     if isinstance(input_value, Node):
                         change = True
                         input_value = subgraph.reference(input_value)
@@ -423,7 +424,7 @@ class Compiler(object):
                 node = optimized[name]
                 if not isinstance(node, Operation):
                     raise ValidationException(
-                        "Only atomic operations allowed, got {}".format(node), node=node)
+                        "Only operations allowed here, got {}".format(node), node=node)
                 if isinstance(node, Conditional):
                     # In case of a conditional node we can determine which nodes will be executed only
                     # in certain conditions and insert jumps into the pipeline to speed up execution.
@@ -452,6 +453,11 @@ class Compiler(object):
 
                 dependencies.setdefault(name, set()).update(
                     [node.name for node in optimized[name].input_values()])
+
+                for node in optimized[name].input_values():
+                   if isinstance(optimized[node.name], Output):
+                        raise ValidationException(
+                            "Output node cannot be used as an input", node=optimized[node.name])
 
         self._debug("Resolving dependencies")
 

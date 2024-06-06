@@ -619,7 +619,7 @@ class TestTensor(TestBase):
             n0 = Constant(test0)
             n1 = Constant(test1)
             c1 = Constant(1)    
-            o0 = Debug(n0 - n0)
+            o0 = n0 - n0
             o1 = n0 - c1
             o2 = c1 - n0
             o3 = n1 - n1

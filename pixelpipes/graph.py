@@ -835,10 +835,7 @@ class Debug(Operation):
 
     def operation(self):
         return "debug", self.prefix
-    
-    def _evaluate(self, inputs) -> Data:
-        return inputs[0]
- 
+
 class Output(Operation):
     """Output node that accepts a single input, enables outputting tokens from the final pipeline. Tokens
     are returned as a tuple, their order is determined by the order of adding output nodes to the graph. Additionally
@@ -866,6 +863,8 @@ def outputs(*inputs, label="default"):
 
 @hidden
 class Copy(Node):
+    """Copy node is a special node that copies the input to the output. 
+    It is not an operation or a macro, it is only used as a helper and is removed during compilation."""
 
     source = Input(types.Wildcard())
 

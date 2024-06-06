@@ -253,7 +253,8 @@ namespace pixelpipes
 
         virtual TokenReference evaluate(const TokenList &inputs)
         {
-            return run(inputs);
+            // TODO: make evaluation output toggleable via some sort of context flag
+            return inputs[0].reborrow();
         }
 
         virtual OperationTrait trait() const override
