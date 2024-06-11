@@ -233,7 +233,7 @@ class RandomResource(Macro):
 
         length = GetResourceListLength(resources)
         # Generator is [min, max) and is then floored to max-1
-        generator = SampleUnform(0, length, seed=self.seed)
+        generator = SampleUnform(0, length, seed=seed)
 
         index = Integer(generator)
         

@@ -105,7 +105,7 @@ class Resource(Data):
         return key in self._fields
 
     def __getitem__(self, key):
-        if self._fields is None:
+        if not key in self:
             raise KeyError("Field {} does not exist in the resource".format(key))
         return self._fields[key]
 
@@ -274,14 +274,14 @@ class ConditionalResource(Macro):
             else:
                 if real_field(true_type[name]):
                     hidden = "__cond_true_" + condition.name + "_" + true.name
-                    forward[hidden] = Copy(true, _name = "." + hidden)
+                    forward[hidden] = Copy(true_type[name].reference(true), _name = "." + hidden)
                     true_field = AliasField(hidden)
                 else:
                     true_field = true_type[name]
 
                 if real_field(false_type[name]):
                     hidden = "__cond_false_" + condition.name + "_" + false.name
-                    forward[hidden] = Copy(false, _name = "." + hidden)
+                    forward[hidden] = Copy(false_type[name].reference(false), _name = "." + hidden)
                     false_field = AliasField(hidden)
                 else:
                     false_field = false_type[name]
@@ -322,7 +322,7 @@ class GetField(Macro):
     def expand(self, source):
         from .list import is_resource_list
 
-        if is_resource_list(source.type) and not real_field(source.type[self.field]):
+        if is_resource_list(source.type) and not real_field(source.type[self.element]):
             raise TypeException("Fields can only be accessed on a single resource, not a list")
 
         return Copy(source=source.type[self.element].access(source))
