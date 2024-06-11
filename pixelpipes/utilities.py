@@ -117,9 +117,13 @@ class PersistentDict:
         try:
             with open(filename, "wb") as filehandle:
                 pickle.dump(value, filehandle)
-        except pickle.PickleError as e:
-            print(e)
-            pass
+        except Exception as e:
+            print("Unable to cache resource: {}".format(e))
+            # Delete the file if it was not possible to cache the resource
+            try:
+                os.unlink(filename)
+            except IOError:
+                pass
 
     def __delitem__(self, key: str) -> None:
         """Operator for item deletion.
