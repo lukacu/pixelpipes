@@ -141,7 +141,6 @@ class TestList(TestBase):
             def load(self):
                 data = np.arange(10, dtype=np.int32)
                 return {
-                    "source": data,
                     "list": data + 1,
                 }
 
@@ -155,7 +154,9 @@ class TestList(TestBase):
             c2 = ConditionalResource(RandomResource(b, s), RandomResource(b, s), RandomBoolean(s))
             c3 = ConditionalResource(RandomResource(a, s), RandomResource(b, s), RandomBoolean(s))
 
-            outputs(c1["list"], c2["list"], c3["list"])
+            c4 = ConditionalResource(c2, c3, RandomBoolean())
+
+            outputs(c1["list"], c2["list"], c3["list"], c4["list"])
             
 
         pipeline = Compiler().build(graph)
@@ -164,7 +165,6 @@ class TestList(TestBase):
             output = pipeline.run(i)
             self.assertEqual(output[0], output[1])
             self.assertEqual(output[0], output[2])
-
 
 
 class TestLoading(TestBase):    

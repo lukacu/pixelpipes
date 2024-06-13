@@ -155,20 +155,37 @@ class AliasField(ResourceField):
 
 class ConditionalField(ResourceField):
 
-    def __init__(self, true_field: ResourceField, false_field: ResourceField, condition: Reference):
+    def __init__(self, true_field: ResourceField, false_field: ResourceField, true_filter: str, false_filter: str, condition: Reference):
         self._condition = condition
         self._true_field = true_field
         self._false_field = false_field
+        self._true_filter = true_filter
+        self._false_filter = false_filter
 
     def access(self, parent: "InferredReference"):
         from pixelpipes.flow import Conditional
 
-        return Conditional(self._true_field.access(parent), self._false_field.access(parent), self._condition)
+        true_aliases = dict(**parent.type.fields())
+
+        for name, _ in parent.type:
+            if name.startswith(self._true_filter):
+                true_aliases[name[len(self._true_filter):]] = AliasField(name)
+                
+        false_aliases = dict(**parent.type.fields())
+
+        for name, _ in parent.type:
+            if name.startswith(self._false_filter):
+                false_aliases[name[len(self._false_filter):]] = AliasField(name)
+
+        true_parent = InferredReference(parent.name, Resource(**true_aliases))
+        false_parent = InferredReference(parent.name, Resource(**false_aliases))
+
+        return Conditional(self._true_field.access(true_parent), self._false_field.access(false_parent), self._condition)
 
 @hidden
 class ResourceProxy(Node):
 
-    inputs = InputCollector(Input(Wildcard()), description="A map of inputs that are provide data to resource")
+    inputs = InputCollector(Input(Wildcard()), description="A map of inputs that are provide data to the resource")
 
     def __init__(self, *args, _fields=None, **kwargs):
         super().__init__(*args, **kwargs)
@@ -266,7 +283,10 @@ class ConditionalResource(Macro):
         forward = {}
         fields = {}
 
-        for name, field in common_type:
+        true_filter = "__pass_true_" + condition.name+ "_" + true.name + "_"
+        false_filter = "__pass_false_" + condition.name+ "_" + false.name + "_"
+
+        for name, _ in common_type:
             if real_field(true_type[name]) and real_field(false_type[name]):
                 true_ref = true_type[name].access(true)
                 false_ref = false_type[name].access(false)
@@ -286,7 +306,23 @@ class ConditionalResource(Macro):
                 else:
                     false_field = false_type[name]
 
-                fields[name] = ConditionalField(true_field, false_field, condition)
+                fields[name] = ConditionalField(true_field, false_field, true_filter, false_filter, condition)
+
+        for name, _ in true_type:
+            if not name in common_type:
+                if name.startswith("__"):
+                    hidden = name
+                else:
+                    hidden = true_filter + name
+                forward[hidden] = Copy(true_type[name].reference(true), _name = "." + hidden)
+
+        for name, _ in false_type:
+            if not name in common_type:
+                if name.startswith("__"):
+                    hidden = name
+                else:
+                    hidden = false_filter + name
+                forward[hidden] = Copy(false_type[name].reference(false), _name = "." + hidden)
 
         return ResourceProxy(_fields=fields, **forward)
 
