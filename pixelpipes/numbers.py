@@ -305,6 +305,14 @@ class ArcTan(Operation):
     def operation(self):
         return "atan",
 
+class ArcTan2(Operation):
+    
+    a = Input(types.Wildcard(), description="First operand")
+    b = Input(types.Wildcard(), description="Second operand")
+    
+    def operation(self):
+        return "atan2",
+
 # Logical operations
 
 class LogicalAnd(Operation):

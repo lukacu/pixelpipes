@@ -698,7 +698,7 @@ namespace pixelpipes
     XTENSOR_FUNCTOR_UNARY(tensor_sqrt_functor, xt::sqrt)
 
 #define _sqrt _elementwise_unary<tensor_sqrt_functor, nonsaturate_cast>
-    PIXELPIPES_COMPUTE_OPERATION_AUTO("sqrt", _sqrt, _determine_shape_binary_cast<float>);
+    PIXELPIPES_COMPUTE_OPERATION_AUTO("sqrt", _sqrt, _determine_shape_unary_cast<float>);
 
     // Trigonometric operations on tensors
 
@@ -731,6 +731,11 @@ namespace pixelpipes
 
 #define _atan _elementwise_unary<xtensor_atan_functor, nonsaturate_cast>
     PIXELPIPES_COMPUTE_OPERATION_AUTO("atan", _atan, _determine_shape_unary_cast<float>);
+
+    XTENSOR_FUNCTOR_BINARY(xtensor_atan2_functor, xt::atan2)
+
+#define _atan2 _elementwise_binary<xtensor_atan2_functor, nonsaturate_cast>
+    PIXELPIPES_COMPUTE_OPERATION_AUTO("atan2", _atan2, _determine_shape_binary_cast<float>);
 
     // Rounding operations
 

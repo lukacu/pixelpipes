@@ -238,11 +238,11 @@ class NumbersTests(TestBase):
             self.assertTrue(sample[3] in [0, 1])
 
     def test_trigonometry(self):
-        from pixelpipes.numbers import Sin, Cos, Tan, ArcCos, ArcSin, ArcTan
+        from pixelpipes.numbers import Sin, Cos, Tan, ArcCos, ArcSin, ArcTan, ArcTan2
 
         with Graph() as graph:
             n1 = Constant(value=0.5)
-            outputs(Sin(n1), Cos(n1), Tan(n1), ArcCos(n1), ArcSin(n1), ArcTan(n1))
+            outputs(Sin(n1), Cos(n1), Tan(n1), ArcCos(n1), ArcSin(n1), ArcTan(n1), ArcTan2(n1, n1))
 
         pipeline = Compiler().build(graph)
         output = pipeline.run(1)
@@ -250,6 +250,10 @@ class NumbersTests(TestBase):
         self.assertAlmostEqual(output[0], np.sin(0.5))
         self.assertAlmostEqual(output[1], np.cos(0.5))
         self.assertAlmostEqual(output[2], np.tan(0.5))
+        self.assertAlmostEqual(output[3], np.arccos(0.5))
+        self.assertAlmostEqual(output[4], np.arcsin(0.5))
+        self.assertAlmostEqual(output[5], np.arctan(0.5))
+        self.assertAlmostEqual(output[6], np.arctan2(0.5, 0.5))
 
     def test_constant(self):
 
@@ -301,15 +305,19 @@ class NumbersTests(TestBase):
         from pixelpipes.numbers import Min, Max
 
         with Graph() as graph:
-            n1 = Constant(value=3)
-            n2 = Constant(value=4)
-            outputs(Min(n1, n2), Max(n1, n2))
+            n1 = Constant(3)
+            n2 = Constant(4)
+            n3 = Constant(np.array([1, 2, 4, 5], dtype=np.int32).reshape(2, 2))
+            outputs(Min(n1, n2), Max(n1, n2), Min(n1, n3), Max(n1, n3))
 
         pipeline = Compiler().build(graph)
         sample = pipeline.run(1)
 
         self.assertEqual(sample[0], 3)
         self.assertEqual(sample[1], 4)
+
+        self.compare_arrays(sample[2], [[1, 2], [3, 3]])
+        self.compare_arrays(sample[3], [[3, 3], [4, 5]])
 
     def test_square_root(self):
 
