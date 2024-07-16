@@ -75,6 +75,7 @@ class ResourceListSource(Macro):
         forward = {}
 
         lenghts = []
+        data_fields = []
 
         for name, field in data.items():
             if isinstance(field, ResourceField):
@@ -82,14 +83,17 @@ class ResourceListSource(Macro):
             elif isinstance(field, FileList):
                 forward[name] = FileListConstant(field, _name="." + name)
                 lenghts.append(len(field))
+                data_fields.append(name)
             elif isinstance(field, list):
                 forward[name] = Constant(field, _name="." + name)
                 lenghts.append(len(field))
+                data_fields.append(name)
             elif isinstance(field, np.ndarray):
                 # The current array copy is quite slow for strided arrays so use NumPy to make
                 # input array contiguous.
                 forward[name] = Constant(np.ascontiguousarray(field), _name="." + name)
                 lenghts.append(field.shape[0])
+                data_fields.append(name)
             else:
                 raise ValidationException("Not a supported resource list field: {!s:.100}".format(field))
     
@@ -97,7 +101,7 @@ class ResourceListSource(Macro):
             raise ValidationException("Empty resource list, no fields defined")
 
         if not all([lenghts[0] == x for x in lenghts]):
-            raise ValidationException("Field size mismatch for resource list")
+            raise ValidationException("Field size mismatch for resource list: " + ", ".join(["%s=%d" % (n, x) for n, x in zip(data_fields, lenghts)]))
 
         if lenghts[0] == 0:
             raise ValidationException("Empty resource list")

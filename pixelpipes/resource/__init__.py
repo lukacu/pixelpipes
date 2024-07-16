@@ -151,7 +151,7 @@ class AliasField(ResourceField):
     def access(self, parent: "InferredReference"):
         if not isinstance(parent.type, Resource) and not self._field in parent.type:
             raise ValidationException("Not a resource or nonexistent field")
-        return Reference(parent.name + "." + self._field)
+        return parent.type[self._field].access(parent)
 
 class ConditionalField(ResourceField):
 
@@ -295,14 +295,14 @@ class ConditionalResource(Macro):
                 if real_field(true_type[name]):
                     hidden = "__cond_true_" + condition.name + "_" + true.name
                     forward[hidden] = Copy(true_type[name].reference(true), _name = "." + hidden)
-                    true_field = AliasField(hidden)
+                    true_field = TokenField(hidden)
                 else:
                     true_field = true_type[name]
 
                 if real_field(false_type[name]):
                     hidden = "__cond_false_" + condition.name + "_" + false.name
                     forward[hidden] = Copy(false_type[name].reference(false), _name = "." + hidden)
-                    false_field = AliasField(hidden)
+                    false_field = TokenField(hidden)
                 else:
                     false_field = false_type[name]
 
@@ -314,7 +314,14 @@ class ConditionalResource(Macro):
                     hidden = name
                 else:
                     hidden = true_filter + name
-                forward[hidden] = Copy(true_type[name].reference(true), _name = "." + hidden)
+
+                if real_field(true_type[name]):
+                    forward[hidden] = Copy(true_type[name].reference(true), _name = "." + hidden)
+                    true_field = TokenField(hidden)
+                else:
+                    true_field = true_type[name]
+                    
+                fields[hidden] = true_field
 
         for name, _ in false_type:
             if not name in common_type:
@@ -322,7 +329,14 @@ class ConditionalResource(Macro):
                     hidden = name
                 else:
                     hidden = false_filter + name
-                forward[hidden] = Copy(false_type[name].reference(false), _name = "." + hidden)
+                
+                if real_field(false_type[name]):
+                    forward[hidden] = Copy(false_type[name].reference(false), _name = "." + hidden)
+                    false_field = TokenField(hidden)
+                else:
+                    false_field = false_type[name]
+                
+                fields[hidden] = false_field
 
         return ResourceProxy(_fields=fields, **forward)
 

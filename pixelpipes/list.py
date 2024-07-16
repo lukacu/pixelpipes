@@ -3,8 +3,9 @@ from attributee.primitives import String
 from attributee import List, Primitive
 
 from . import types
-from .graph import Constant, Operation, Input, SeedInput, ValidationException, hidden, Macro, Node, NodeOperation
+from .graph import Constant, Operation, Input, SeedInput, Macro, Node, NodeOperation
 from .numbers import Round, SampleUnform
+from .tensor import Convert
 
 def Wildlist(element=None):
     return types.Wildcard(element=element, mindim=1)
@@ -225,7 +226,7 @@ class GetRandom(Macro):
 
     def expand(self, source, seed):
         generator = SampleUnform(0, Length(source)-1, seed=seed)
-        index = Round(generator)
+        index = Convert(Round(generator), "Integer")
         return GetElement(source, index)
 
 
