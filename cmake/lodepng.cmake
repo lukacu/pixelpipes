@@ -25,9 +25,24 @@ else()
     endif()
 endif()
 
-set_property(TARGET lodepng PROPERTY POSITION_INDEPENDENT_CODE ON)
+get_target_property(LODEPNG_IS_IMPORTED lodepng IMPORTED)
+if(NOT LODEPNG_IS_IMPORTED)
+    set_property(TARGET lodepng PROPERTY POSITION_INDEPENDENT_CODE ON)
+endif()
 target_include_directories(lodepng INTERFACE ${LODEPNG_INCLUDE_DIRS})
 
-if (MSVC)
+if (MSVC AND NOT LODEPNG_IS_IMPORTED)
     target_compile_options(lodepng PUBLIC /WX-)
+endif()
+
+if(PIXELPIPES_FETCH_DEPENDENCIES)
+    install(TARGETS lodepng
+        ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR} COMPONENT dependencies
+        LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR} COMPONENT dependencies
+        RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR} COMPONENT dependencies
+    )
+    install(FILES "${lodepng_SOURCE_DIR}/lodepng.h"
+        DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+        COMPONENT dependencies
+    )
 endif()

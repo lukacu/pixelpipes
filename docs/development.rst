@@ -85,6 +85,13 @@ controlled by the revisions in ``cmake/dependency-versions.cmake``. Dependency
 updates should change those revisions centrally and be reviewed alongside the
 upstream release/version, compatibility, and license changes.
 
+GitHub Actions builds and tests on pull requests and branch pushes. The
+manylinux release job caches the dependency source/build/install tree separately
+from Python-specific CMake build directories. Its cache key includes the
+manylinux image identity and dependency/build configuration, so unchanged
+dependencies are reused across releases while a pin or build-option change
+starts a fresh cache. A cache miss simply rebuilds from the pinned sources.
+
 To produce a source archive, wheel, or inspect the shipped source files:
 
 .. code-block:: bash

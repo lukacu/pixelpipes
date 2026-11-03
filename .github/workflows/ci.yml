@@ -1,0 +1,107 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [master]
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  tests:
+    name: Build and test (Ubuntu, Python 3.10)
+    runs-on: ubuntu-22.04
+    env:
+      PIXELPIPES_DEPENDENCY_ROOT: ${{ github.workspace }}/build/test-dependencies
+      BUILD_ROOT: ${{ github.workspace }}/build/test-python
+      BUILD_WORKERS: 2
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.10"
+          cache: pip
+          cache-dependency-path: pyproject.toml
+
+      - name: Record native toolchain
+        id: toolchain
+        run: |
+          echo "compiler=$(g++ -dumpfullversion -dumpversion)" >> "$GITHUB_OUTPUT"
+          echo "cmake=$(cmake --version | awk 'NR == 1 { print $3 }')" >> "$GITHUB_OUTPUT"
+
+      - name: Restore native dependency build
+        uses: actions/cache@v5
+        with:
+          path: build/test-dependencies
+          key: native-test-${{ runner.os }}-${{ runner.arch }}-gcc-${{ steps.toolchain.outputs.compiler }}-cmake-${{ steps.toolchain.outputs.cmake }}-${{ hashFiles('CMakeLists.txt', 'cmake/**') }}-v1
+
+      - name: Install Python build and runtime requirements
+        run: python -m pip install "cmake>=3.15,<4" "pybind11>=2.12" "numpy>=1.23" "bidict>=0.21" "attributee>=0.1.9"
+
+      - name: Build native libraries
+        run: python setup.py build_lib --inplace
+
+      - name: Run tests
+        run: python -m unittest discover -v
+
+  manylinux-wheels:
+    name: Build manylinux2014 x86_64 wheels
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-22.04
+    env:
+      MANYLINUX_IMAGE: quay.io/pypa/manylinux2014_x86_64
+      DEPENDENCY_ROOT: ${{ github.workspace }}/build_wheel/dependencies
+      WHEEL_ROOT: ${{ github.workspace }}/build_wheel/dist
+      BUILD_ROOT: ${{ github.workspace }}/build_wheel/build
+      BUILD_WORKERS: 4
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Pull manylinux image
+        id: image
+        run: |
+          docker pull "$MANYLINUX_IMAGE"
+          image_id=$(docker image inspect --format '{{.Id}}' "$MANYLINUX_IMAGE")
+          image_id=${image_id#sha256:}
+          echo "id=${image_id}" >> "$GITHUB_OUTPUT"
+
+      - name: Restore pinned dependency build
+        uses: actions/cache@v5
+        with:
+          path: build_wheel/dependencies
+          key: native-manylinux2014-x86_64-${{ steps.image.outputs.id }}-${{ hashFiles('CMakeLists.txt', 'cmake/**', 'scripts/build_native_dependencies.sh') }}-v1
+
+      - name: Build or reuse pinned native dependencies
+        run: |
+          docker run --rm \
+            -v "$GITHUB_WORKSPACE:/io" -w /io \
+            -e PIXELPIPES_DEPENDENCY_ROOT=/io/build_wheel/dependencies \
+            -e BUILD_WORKERS="$BUILD_WORKERS" \
+            "$MANYLINUX_IMAGE" bash /io/scripts/build_native_dependencies.sh
+
+      - name: Build sdist and repaired wheels
+        if: startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch'
+        run: |
+          docker run --rm \
+            -v "$GITHUB_WORKSPACE:/io" -w /io \
+            -e SKIP=cp36-cp36m,cp37-cp37m,pp37-pypy37_pp73,cp313-cp313,cp313-cp313t \
+            -e WHEEL_ROOT=/io/build_wheel/dist \
+            -e BUILD_ROOT=/io/build_wheel/build \
+            -e PIXELPIPES_DEPENDENCY_ROOT=/io/build_wheel/dependencies \
+            -e BUILD_WORKERS="$BUILD_WORKERS" \
+            "$MANYLINUX_IMAGE" bash -lc \
+            '/opt/python/cp310-cp310/bin/python /io/setup.py sdist --dist-dir /io/build_wheel/dist && bash /io/scripts/build_manylinux.sh'
+
+      - name: Upload release artifacts
+        if: startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch'
+        uses: actions/upload-artifact@v7
+        with:
+          name: pixelpipes-manylinux2014-x86_64
+          path: |
+            build_wheel/dist/*.whl
+            build_wheel/dist/*.tar.gz
+          if-no-files-found: error

@@ -70,6 +70,23 @@ class CMakeBuildCommand(Command):
                     os.environ["PIXELPIPES_LODEPNG_SOURCE_DIR"]
                 )
             )
+        if "PIXELPIPES_DEPENDENCY_ROOT" in os.environ:
+            dependency_root = os.path.abspath(os.environ["PIXELPIPES_DEPENDENCY_ROOT"])
+            installed_root = os.path.join(dependency_root, "installed")
+            cmake_args.extend([
+                "-DPIXELPIPES_DEPENDENCY_ROOT={}".format(dependency_root),
+                "-DCMAKE_PREFIX_PATH={};{};{}".format(
+                    os.path.join(installed_root, "opencv"),
+                    os.path.join(installed_root, "xtensor"),
+                    installed_root,
+                ),
+                "-DOpenCV_DIR={}".format(
+                    os.path.join(installed_root, "opencv", "lib", "cmake", "opencv4")
+                ),
+                "-DPIXELPIPES_ZLIBNG_ROOT={}".format(
+                    os.path.join(installed_root, "zlib")
+                ),
+            ])
         if "PIXELPIPES_DEBUG" in os.environ:
             cmake_args.append("-DBUILD_DEBUG=ON")
         else:

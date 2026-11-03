@@ -27,7 +27,12 @@ option(BUILD_DEBUG "Enable debug output" OFF)
 option(BUILD_TOOL "Build CLI tool" ON)
 option(PIXELPIPES_FETCH_DEPENDENCIES "Build pinned third-party dependencies from source" ON)
 
-SET(CMAKE_EXTERNALS_DIR "${CMAKE_BINARY_DIR}/external/")
+set(PIXELPIPES_DEPENDENCY_ROOT "${CMAKE_BINARY_DIR}/dependencies" CACHE PATH
+    "Persistent source/build/install root for PixelPipes third-party dependencies")
+set(CMAKE_EXTERNALS_DIR "${PIXELPIPES_DEPENDENCY_ROOT}/installed/")
+set(PIXELPIPES_EXTERNAL_PROJECT_ROOT "${PIXELPIPES_DEPENDENCY_ROOT}/build")
+set(FETCHCONTENT_BASE_DIR "${PIXELPIPES_DEPENDENCY_ROOT}/sources" CACHE PATH
+    "Persistent FetchContent source root")
 
 if (CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     ADD_COMPILE_OPTIONS(/W4 /WX /WL /wd4251 /permissive-)

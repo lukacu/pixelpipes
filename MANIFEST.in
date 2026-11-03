@@ -5,6 +5,7 @@ include pyproject.toml
 include setup.py
 
 recursive-include cmake *
+recursive-include scripts *.sh
 recursive-include include *
 recursive-include src *
 recursive-include pixelpipes *.py

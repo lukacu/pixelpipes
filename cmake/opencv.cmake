@@ -70,12 +70,14 @@ SET(_PREFIX ${CMAKE_STATIC_LIBRARY_PREFIX})
 
 IF(NOT EXISTS "${CMAKE_EXTERNALS_DIR}opencv/lib/${_PREFIX}opencv_core${_SUFFIX}")
 ExternalProject_Add(opencv
-  PREFIX opencv
+  PREFIX "${PIXELPIPES_EXTERNAL_PROJECT_ROOT}/opencv"
   GIT_REPOSITORY ${PIXELPIPES_OPENCV_REPOSITORY}
   GIT_TAG ${PIXELPIPES_OPENCV_REVISION}
   CMAKE_ARGS ${OPENCV_STATIC_FLAGS}
   TEST_COMMAND ""
 )
+ELSE()
+  add_custom_target(opencv)
 ENDIF()
 
 foreach(M IN ITEMS zlib ittnotify libpng libopenjp2 libjpeg-turbo libtiff)

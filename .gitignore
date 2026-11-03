@@ -34,3 +34,10 @@ Debug
 _data
 _build
 *.pxpt
+
+# Keep CI configuration and its helper script versioned despite the broad
+# hidden-file and build-artifact ignore rules above.
+!.github/
+!.github/workflows/
+!.github/workflows/ci.yml
+!scripts/build_native_dependencies.sh
