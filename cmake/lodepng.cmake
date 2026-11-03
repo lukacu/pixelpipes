@@ -1,13 +1,32 @@
 
-FetchContent_Declare(lodepng
-GIT_REPOSITORY https://github.com/lvandeve/lodepng.git
-GIT_TAG        5601b8272a6850b7c5d693dd0c0e16da50be8d8d
-)
+if(PIXELPIPES_FETCH_DEPENDENCIES)
+    FetchContent_Declare(lodepng
+        GIT_REPOSITORY ${PIXELPIPES_LODEPNG_REPOSITORY}
+        GIT_TAG ${PIXELPIPES_LODEPNG_REVISION}
+    )
+    FetchContent_MakeAvailable(lodepng)
+    set(PIXELPIPES_LODEPNG_SOURCE_DIR "${lodepng_SOURCE_DIR}" CACHE PATH "lodepng sources" FORCE)
+    ADD_LIBRARY(lodepng STATIC ${lodepng_SOURCE_DIR}/lodepng.cpp)
+    set(LODEPNG_INCLUDE_DIRS "${lodepng_SOURCE_DIR};${lodepng_SOURCE_DIR}/include")
+else()
+    set(PIXELPIPES_LODEPNG_SOURCE_DIR "" CACHE PATH "Directory containing provisioned lodepng sources")
+    if(PIXELPIPES_LODEPNG_SOURCE_DIR AND EXISTS "${PIXELPIPES_LODEPNG_SOURCE_DIR}/lodepng.cpp")
+        ADD_LIBRARY(lodepng STATIC "${PIXELPIPES_LODEPNG_SOURCE_DIR}/lodepng.cpp")
+        set(LODEPNG_INCLUDE_DIRS "${PIXELPIPES_LODEPNG_SOURCE_DIR};${PIXELPIPES_LODEPNG_SOURCE_DIR}/include")
+    else()
+        find_path(LODEPNG_INCLUDE_DIR NAMES lodepng.h)
+        find_library(LODEPNG_LIBRARY NAMES lodepng)
+        if(NOT LODEPNG_INCLUDE_DIR OR NOT LODEPNG_LIBRARY)
+            message(FATAL_ERROR "No-network mode requires lodepng sources via PIXELPIPES_LODEPNG_SOURCE_DIR or an installed lodepng library/header")
+        endif()
+        add_library(lodepng UNKNOWN IMPORTED)
+        set_target_properties(lodepng PROPERTIES IMPORTED_LOCATION "${LODEPNG_LIBRARY}")
+        set(LODEPNG_INCLUDE_DIRS "${LODEPNG_INCLUDE_DIR}")
+    endif()
+endif()
 
-FetchContent_MakeAvailable(lodepng)
-
-ADD_LIBRARY(lodepng STATIC ${lodepng_SOURCE_DIR}/lodepng.cpp)
 set_property(TARGET lodepng PROPERTY POSITION_INDEPENDENT_CODE ON)
+target_include_directories(lodepng INTERFACE ${LODEPNG_INCLUDE_DIRS})
 
 if (MSVC)
     target_compile_options(lodepng PUBLIC /WX-)

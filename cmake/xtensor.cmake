@@ -1,31 +1,37 @@
 
 
-ExternalProject_Add(xtl
-PREFIX xtl
-GIT_REPOSITORY    https://github.com/xtensor-stack/xtl
-GIT_TAG           0.7.4
-TEST_COMMAND      ""
-CMAKE_ARGS   -DCMAKE_INSTALL_PREFIX=${CMAKE_EXTERNALS_DIR}xtensor/
-)
-
-ExternalProject_Add(xsimd
-PREFIX xsimd
-GIT_REPOSITORY    https://github.com/xtensor-stack/xsimd
-GIT_TAG           10.0.0
-TEST_COMMAND      ""
-CMAKE_ARGS   -DCMAKE_INSTALL_PREFIX=${CMAKE_EXTERNALS_DIR}xtensor/
-)
-
-ExternalProject_Add(xtensor
-PREFIX xtensor
-GIT_REPOSITORY    https://github.com/xtensor-stack/xtensor
-GIT_TAG           0.24.3
-TEST_COMMAND      ""
-CMAKE_ARGS   -DCMAKE_INSTALL_PREFIX=${CMAKE_EXTERNALS_DIR}xtensor/
-)
-
-ADD_DEPENDENCIES(xtensor xtl xsimd)
-
-SET(XTENSOR_TARGET xtl xsimd xtensor)
-
-SET(XTENSOR_INCLUDE_DIRS "${CMAKE_EXTERNALS_DIR}xtensor/include/")
+if(PIXELPIPES_FETCH_DEPENDENCIES)
+    ExternalProject_Add(xtl
+        PREFIX xtl
+        GIT_REPOSITORY ${PIXELPIPES_XTL_REPOSITORY}
+        GIT_TAG ${PIXELPIPES_XTL_REVISION}
+        TEST_COMMAND ""
+        CMAKE_ARGS -DCMAKE_INSTALL_PREFIX=${CMAKE_EXTERNALS_DIR}xtensor/
+    )
+    ExternalProject_Add(xsimd
+        PREFIX xsimd
+        GIT_REPOSITORY ${PIXELPIPES_XSIMD_REPOSITORY}
+        GIT_TAG ${PIXELPIPES_XSIMD_REVISION}
+        TEST_COMMAND ""
+        CMAKE_ARGS -DCMAKE_INSTALL_PREFIX=${CMAKE_EXTERNALS_DIR}xtensor/
+    )
+    ExternalProject_Add(xtensor
+        PREFIX xtensor
+        GIT_REPOSITORY ${PIXELPIPES_XTENSOR_REPOSITORY}
+        GIT_TAG ${PIXELPIPES_XTENSOR_REVISION}
+        TEST_COMMAND ""
+        CMAKE_ARGS -DCMAKE_INSTALL_PREFIX=${CMAKE_EXTERNALS_DIR}xtensor/
+    )
+    ADD_DEPENDENCIES(xtensor xtl xsimd)
+    SET(XTENSOR_TARGET xtl xsimd xtensor)
+    SET(XTENSOR_INCLUDE_DIRS "${CMAKE_EXTERNALS_DIR}xtensor/include/")
+else()
+    find_path(XTENSOR_INCLUDE_DIR NAMES xtensor/xarray.hpp)
+    find_path(XTL_INCLUDE_DIR NAMES xtl/xsequence.hpp)
+    find_path(XSIMD_INCLUDE_DIR NAMES xsimd/xsimd.hpp)
+    if(NOT XTENSOR_INCLUDE_DIR OR NOT XTL_INCLUDE_DIR OR NOT XSIMD_INCLUDE_DIR)
+        message(FATAL_ERROR "No-network mode requires installed xtensor, xtl and xsimd headers (set CMAKE_PREFIX_PATH or the *_INCLUDE_DIR cache variables)")
+    endif()
+    SET(XTENSOR_TARGET "")
+    SET(XTENSOR_INCLUDE_DIRS "${XTENSOR_INCLUDE_DIR};${XTL_INCLUDE_DIR};${XSIMD_INCLUDE_DIR}")
+endif()

@@ -8,11 +8,12 @@ IF(${CMAKE_VERSION} GREATER_EQUAL "3.19")
 ENDIF()
 
 PROJECT(pixelpipes)
-CMAKE_MINIMUM_REQUIRED(VERSION 3.11 FATAL_ERROR)
+CMAKE_MINIMUM_REQUIRED(VERSION 3.15 FATAL_ERROR)
 
 INCLUDE(GNUInstallDirs)
 INCLUDE(FetchContent)
 INCLUDE(ExternalProject)
+INCLUDE(cmake/dependency-versions.cmake)
 
 SET(PROJECT_VERSION 0.1.0)
 SET(CMAKE_CXX_STANDARD 17)
@@ -24,6 +25,7 @@ option(BUILD_INPLACE "Build to source directory" OFF)
 option(BUILD_PYTHON "Build the Python wrapper" ON)
 option(BUILD_DEBUG "Enable debug output" OFF)
 option(BUILD_TOOL "Build CLI tool" ON)
+option(PIXELPIPES_FETCH_DEPENDENCIES "Build pinned third-party dependencies from source" ON)
 
 SET(CMAKE_EXTERNALS_DIR "${CMAKE_BINARY_DIR}/external/")
 
@@ -88,15 +90,17 @@ SET(CORE_SOURCE
     src/serialization/serialization.cpp
 )
 
-INCLUDE_DIRECTORIES(SYSTEM ${OPENCV_INCLUDE_DIRS} ${lodepng_SOURCE_DIR} ${ZLIB_INCLUDE_DIRS}
-    ${XTENSOR_INCLUDE_DIRS} ${lodepng_SOURCE_DIR}/include )
+INCLUDE_DIRECTORIES(SYSTEM ${OPENCV_INCLUDE_DIRS} ${LODEPNG_INCLUDE_DIRS} ${ZLIB_INCLUDE_DIRS}
+    ${XTENSOR_INCLUDE_DIRS})
     
 INCLUDE_DIRECTORIES(include/)
 
 LINK_DIRECTORIES(${CMAKE_BINARY_DIR}/deps/lib)
 
 ADD_LIBRARY(pixelpipes SHARED ${CORE_SOURCE})
-ADD_DEPENDENCIES(pixelpipes ${XTENSOR_TARGET})
+if(XTENSOR_TARGET)
+    ADD_DEPENDENCIES(pixelpipes ${XTENSOR_TARGET})
+endif()
 TARGET_LINK_LIBRARIES(pixelpipes ${CMAKE_DL_LIBS} lodepng ${ZLIB_LIBS})
 target_compile_definitions(pixelpipes PRIVATE PIXELPIPES_BUILD_CORE)
 
@@ -122,30 +126,58 @@ SET(BINARY_TARGETS pixelpipes pixelpipes_opencv)
 
 IF(BUILD_PYTHON)
 
-  find_package (pybind11)
+  find_package(Python3 REQUIRED COMPONENTS Interpreter Development NumPy)
+  execute_process(
+      COMMAND ${Python3_EXECUTABLE} -m pybind11 --cmakedir
+      OUTPUT_VARIABLE pybind11_cmake_dir
+      OUTPUT_STRIP_TRAILING_WHITESPACE
+      RESULT_VARIABLE pybind11_cmake_dir_result
+  )
+  if(pybind11_cmake_dir_result EQUAL 0)
+      list(PREPEND CMAKE_PREFIX_PATH "${pybind11_cmake_dir}")
+  endif()
+  find_package(pybind11 CONFIG REQUIRED)
 
-  find_package (Python COMPONENTS Interpreter Development NumPy)
-
-  INCLUDE_DIRECTORIES(${Python_INCLUDE_DIRS} ${Python_NumPy_INCLUDE_DIRS} ${pybind11_INCLUDE_DIRS})
-
-  ADD_LIBRARY(pypixelpipes SHARED 
+  pybind11_add_module(pypixelpipes MODULE
       src/python/wrapper.cpp
       src/python/array.cpp 
   )
 
-  TARGET_LINK_LIBRARIES(pypixelpipes pixelpipes ${Python_LIBRARIES})
-
-  set_target_properties(
-      pypixelpipes
-      PROPERTIES
-          PREFIX ""
-          OUTPUT_NAME "pypixelpipes"
-          LINKER_LANGUAGE C
-      )
+  TARGET_LINK_LIBRARIES(pypixelpipes PRIVATE pixelpipes Python3::NumPy)
 
   LIST(APPEND BINARY_TARGETS pypixelpipes)
 
 ENDIF()
+
+if(APPLE)
+    set(PIXELPIPES_INSTALL_RPATH "@loader_path")
+else()
+    set(PIXELPIPES_INSTALL_RPATH "$ORIGIN")
+endif()
+
+set_target_properties(pixelpipes_opencv PROPERTIES INSTALL_RPATH "${PIXELPIPES_INSTALL_RPATH}")
+if(BUILD_PYTHON)
+    set_target_properties(pypixelpipes PROPERTIES INSTALL_RPATH "${PIXELPIPES_INSTALL_RPATH}")
+endif()
+
+install(TARGETS pixelpipes pixelpipes_opencv
+    LIBRARY DESTINATION pixelpipes
+    RUNTIME DESTINATION pixelpipes
+    ARCHIVE DESTINATION pixelpipes
+)
+
+if(BUILD_PYTHON)
+    install(TARGETS pypixelpipes
+        LIBRARY DESTINATION pixelpipes
+        RUNTIME DESTINATION pixelpipes
+        ARCHIVE DESTINATION pixelpipes
+    )
+endif()
+
+install(DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/include/pixelpipes"
+    DESTINATION pixelpipes/include
+    FILES_MATCHING PATTERN "*.hpp"
+)
 
 # Where to place outputs
 IF (BUILD_INPLACE)

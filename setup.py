@@ -1,263 +1,135 @@
-import numpy
-import pybind11
+"""Setuptools metadata and CMake-backed native build integration."""
+
 import os
 import re
-import setuptools
-import platform
-import shutil
+import subprocess
+import sys
 
-from setuptools import Command
-from setuptools import Extension, setup
-from setuptools.command import build_py, build_ext
+from setuptools import Command, find_packages, setup
+from setuptools.command.build_py import build_py
+from setuptools.dist import Distribution
 
-# TODO: replace this with setuptools
-from distutils.command import build
 
-platid = os.getenv("PYTHON_PLATFORM", platform.system()).lower()
+ROOT = os.path.abspath(os.path.dirname(__file__))
 
-cmake_args = ["-DBUILD_PYTHON=OFF",
-                "-DBUILD_TEST=OFF",
-                "-DCMAKE_BUILD_RPATH_USE_ORIGIN=ON"]
-
-cmake_workers = int(os.getenv("BUILD_WORKERS", "0"))
-
-if platid == "linux":
-    rpath = ["$ORIGIN"]
-    libext = [".so"]
-elif platid == "darwin":
-    rpath = ["@loader_path"]
-    libext = [".dylib"]
-    cmake_args += ["-DCMAKE_OSX_DEPLOYMENT_TARGET=12.00"]    
-else:
-    rpath = []
-    libext = [".dll", ".lib"]
-
-def using_clang():
-    from distutils.ccompiler import new_compiler
-    from distutils.sysconfig import customize_compiler
-    from subprocess import getoutput
-    compiler = new_compiler()
-    customize_compiler(compiler)
-    compiler_ver = getoutput("{0} -v".format(compiler.compiler[0]))
-    return 'clang' in compiler_ver
-
-root = os.path.abspath(os.path.dirname(__file__))
-with open(os.path.join(root, "pixelpipes", "__init__.py"), encoding="utf-8") as version_file:
-    version_match = re.search(r"^__version__\s*=\s*['\"]([^'\"]+)['\"]", version_file.read(), re.MULTILINE)
+with open(os.path.join(ROOT, "pixelpipes", "__init__.py"), encoding="utf-8") as version_file:
+    version_match = re.search(
+        r"^__version__\s*=\s*['\"]([^'\"]+)['\"]",
+        version_file.read(),
+        re.MULTILINE,
+    )
 if version_match is None:
     raise RuntimeError("Could not determine package version")
-version = version_match.group(1)
-
-# Override build command
-def make_library_filter(name):
-    import fnmatch
-    from distutils.ccompiler import new_compiler
-    from distutils.sysconfig import customize_compiler
-    compiler = new_compiler()
-    customize_compiler(compiler)
-    filters = [compiler.static_lib_format % (name, ext) for ext in libext]
-    def _cb(filename):
-        filename = os.path.split(filename)[1]
-        return any([fnmatch.fnmatch(filename, f) for f in filters])
-    return _cb
-
-class BuildCommand(build.build):
-
-    def initialize_options(self):
-        build.build.initialize_options(self)
-        self.build_base = os.environ.get("BUILD_ROOT", "build")
-
-class BuildPyCommand(build_py.build_py):
-    """Custom build command."""
-
-    def run(self):
-        self.run_command('build_lib')
-        build_py.build_py.run(self)
-
-class BuildExtCommand(build_ext.build_ext):
-    """Custom build command."""
-
-    def run(self):
-
-        if self.inplace:
-            target_dir = os.path.join(root, "pixelpipes")
-        else:
-            target_dir = os.path.join(os.environ.get("BUILD_ROOT", os.path.dirname(
-                self.build_lib)), os.path.basename(self.build_lib), "pixelpipes")
-
-        self.library_dirs.append(target_dir)
-
-        if not self.rpath:
-            self.rpath = rpath
-        build_ext.build_ext.run(self)
-
-    def build_extensions(self):
-    
-        ct = getattr(self.compiler, 'compiler_type', None) #self.compiler.compiler_type
-        
-        if ct == "msvc":
-           for e in self.extensions:
-                # TODO: figure out how to link with correct runtime
-               e.extra_compile_args += ['/std:c++17', '/MDd']
-        elif ct == "unix":
-            for e in self.extensions:
-                e.extra_compile_args += ['-std=c++17', '-pthread']            
-        else:
-            print("Unknown compiler %s" % ct)
-          
-        build_ext.build_ext.build_extensions(self)
 
 
 class CMakeBuildCommand(Command):
+    """Build and install every native target through the project CMake build."""
 
-    description = 'Build core libraries using CMake'
-    user_options = []
-
-    description = "\"build\" pure Python modules (copy to build directory)"
-
+    description = "Build PixelPipes native libraries and Python extension with CMake"
     user_options = [
-        ('build-lib=', 'd', "directory to \"build\" (copy) to"),
-        ('inplace', 'i', "compile to source structure"),
+        ("build-lib=", "d", "directory for the built package"),
+        ("inplace", "i", "install native artifacts into the source package"),
     ]
-
-    boolean_options = ['inplace']
+    boolean_options = ["inplace"]
 
     def initialize_options(self):
         self.build_lib = None
         self.inplace = None
 
     def finalize_options(self):
-        self.set_undefined_options('build',
-                                   ('build_lib', 'build_lib'))
+        build_py_cmd = self.get_finalized_command("build_py")
+        if self.build_lib is None:
+            self.build_lib = build_py_cmd.build_lib
+        if self.inplace is None:
+            self.inplace = getattr(build_py_cmd, "inplace", False)
 
     def run(self):
-        import subprocess
-        import glob
-        import os
+        build_dir = os.path.abspath(os.environ.get("BUILD_ROOT", os.path.join(ROOT, "build")))
+        if self.inplace:
+            install_prefix = ROOT
+        else:
+            install_prefix = os.path.abspath(self.build_lib)
 
-        build_dir = os.environ.get(
-            "BUILD_ROOT", os.path.dirname(self.build_lib))
-        target_dir = os.path.join(os.environ.get("BUILD_ROOT", os.path.dirname(
-            self.build_lib)), os.path.basename(self.build_lib), "pixelpipes")
-        
-        self.mkpath(target_dir)
         self.mkpath(build_dir)
+        self.mkpath(install_prefix)
 
-        env = dict(**os.environ)
-
-        cmake_command_args = list(cmake_args)
-        
+        cmake_args = [
+            "-DBUILD_PYTHON=ON",
+            "-DBUILD_TOOL=OFF",
+            "-DBUILD_INPLACE=OFF",
+            "-DPIXELPIPES_FETCH_DEPENDENCIES={}".format(
+                os.environ.get("PIXELPIPES_FETCH_DEPENDENCIES", "ON")
+            ),
+            "-DCMAKE_BUILD_RPATH_USE_ORIGIN=ON",
+            "-DCMAKE_INSTALL_PREFIX={}".format(install_prefix),
+            "-DPython3_EXECUTABLE={}".format(sys.executable),
+        ]
+        if "PIXELPIPES_LODEPNG_SOURCE_DIR" in os.environ:
+            cmake_args.append(
+                "-DPIXELPIPES_LODEPNG_SOURCE_DIR={}".format(
+                    os.environ["PIXELPIPES_LODEPNG_SOURCE_DIR"]
+                )
+            )
         if "PIXELPIPES_DEBUG" in os.environ:
-            cmake_command_args += ['-DBUILD_DEBUG=ON']
+            cmake_args.append("-DBUILD_DEBUG=ON")
         else:
-            cmake_command_args += ['-DBUILD_DEBUG=OFF']
+            cmake_args.append("-DBUILD_DEBUG=OFF")
 
-        if not self.inplace:
-            cmake_command_args += ['-DBUILD_INPLACE=OFF']
-        else:
-            cmake_command_args += ['-DBUILD_INPLACE=ON']
+        configure = ["cmake", "-S", ROOT, "-B", build_dir, *cmake_args]
+        self.announce("Configuring CMake: {}".format(" ".join(configure)))
+        subprocess.check_call(configure)
 
-        command = ['cmake', *cmake_command_args, root]
-        self.announce(
-            'Running command: %s' % str(command))
-        subprocess.check_call(command, cwd=build_dir, env=env)
-        self.announce("Done")
+        build = ["cmake", "--build", build_dir]
+        workers = int(os.environ.get("BUILD_WORKERS", "0"))
+        if workers > 0:
+            build.extend(["--parallel", str(workers)])
+        elif workers == 0:
+            build.append("--parallel")
+        self.announce("Building native targets: {}".format(" ".join(build)))
+        subprocess.check_call(build)
 
-        command = ['cmake', '--build', build_dir]
-
-        if cmake_workers == 0:
-            command.append("-j")
-        elif cmake_workers > 1:
-            command.append("-j%d" % cmake_workers)
-
-        self.announce(
-            'Running command: %s' % str(command))
-        subprocess.check_call(command, env=env)
-        self.announce("Library compilation done")
-
-        if not self.inplace:
-            # copy binaries generated with cmake to the package
-            filter = make_library_filter("pixelpipes*")
-            files = [os.path.join(build_dir, filename) for filename in os.listdir(build_dir) if filter(filename)]
-            for file in files:
-                if os.path.isfile(file):
-                    self.copy_file(file, os.path.join(
-                        target_dir, os.path.basename(file)))
-
-            # copy C++ headers to the
-            header_dir = os.path.join(target_dir, "include", "pixelpipes")
-            self.mkpath(header_dir)
-            for file in glob.glob(os.path.join(os.path.join(root, "include", "pixelpipes"), "**", "*.hpp"), recursive=True):
-                self.copy_file(file, os.path.join(
-                    header_dir, os.path.basename(file)))
+        install = ["cmake", "--install", build_dir]
+        self.announce("Installing native package files: {}".format(" ".join(install)))
+        subprocess.check_call(install)
 
 
-include_dirs = []
-library_dirs = []
-runtime_dirs = []
+class BuildPyCommand(build_py):
+    """Build native artifacts first, then copy the Python package."""
 
-include_dirs.append(pybind11.get_include())
-include_dirs.append(numpy.get_include())
+    def run(self):
+        self.run_command("build_lib")
+        super().run()
 
-#from torch.utils import cpp_extension as torch_extension
-# include_dirs.extend(torch_extension.include_paths())
-#torch_path = os.path.dirname(os.path.dirname(os.path.abspath(torch_extension.__file__)))
-#library_dirs.append(os.path.join(torch_path, 'lib'))
-
-libraries = ["pixelpipes"]
-
-define_macros = []
-
-# define_macros.append(("_GLIBCXX_USE_CXX11_ABI", "0")) <- this causes problems with opencv_imgcodecs
-#libraries.extend(['c10', 'torch', 'torch_python'])
-
-if "PIXELPIPES_DEBUG" in os.environ:
-    print("Debug mode enabled")
-    define_macros.append(("PIXELPIPES_DEBUG", None))
+    def get_outputs(self, include_bytecode=1):
+        outputs = super().get_outputs(include_bytecode)
+        package_dir = os.path.join(os.path.abspath(self.build_lib), "pixelpipes")
+        if os.path.isdir(package_dir):
+            for current_dir, _, filenames in os.walk(package_dir):
+                outputs.extend(os.path.join(current_dir, filename) for filename in filenames
+                               if filename.endswith((".so", ".dylib", ".dll", ".lib", ".hpp")))
+        return outputs
 
 
-include_dirs.append(os.path.join(root, "include"))
-#library_dirs.append(os.path.join(root, "pixelpipes"))  # inplace build
-#library_dirs.append(os.path.join(root, "build"))  # custom build
+class BinaryDistribution(Distribution):
+    """Mark wheels as platform-specific despite building via CMake targets."""
 
-ext_core = Extension(
-    'pixelpipes.pypixelpipes',
-    ["src/python/wrapper.cpp", "src/python/array.cpp"],
-    define_macros=define_macros,
-    include_dirs=include_dirs,
-    library_dirs=library_dirs,
-    runtime_library_dirs=runtime_dirs,
-    libraries=list(libraries),
+    def has_ext_modules(self):
+        return True
 
-    language='c++'
-)
-
-ext_modules = [
-    ext_core
-]
 
 setup(
-    name='pixelpipes',
-    version=version,
-    author='Luka Cehovin Zajc',
-    author_email='luka.cehovin@gmail.com',
-    url='https://github.com/lukacu/pixelpipes',
-    description='Infinite data streams for deep learning',
-    long_description='',
-    ext_modules=ext_modules,
-    packages=setuptools.find_packages(include=["pixelpipes", "pixelpipes.*"]),
+    name="pixelpipes",
+    version=version_match.group(1),
+    author="Luka Cehovin Zajc",
+    author_email="luka.cehovin@gmail.com",
+    url="https://github.com/lukacu/pixelpipes",
+    description="Infinite data streams for deep learning",
+    long_description="",
+    distclass=BinaryDistribution,
+    packages=find_packages(include=["pixelpipes", "pixelpipes.*"]),
     include_package_data=True,
-    install_requires=[
-        "numpy>=1.23",
-        "bidict>=0.21",
-        "attributee>=0.1.9"
-    ],
-    python_requires='>=3.8',
+    install_requires=["numpy>=1.23", "bidict>=0.21", "attributee>=0.1.9"],
+    python_requires=">=3.8",
     zip_safe=False,
-    cmdclass={
-        'build_lib': CMakeBuildCommand,
-        'build_py': BuildPyCommand,
-        'build_ext': BuildExtCommand,
-        "build": BuildCommand
-    },
+    cmdclass={"build_lib": CMakeBuildCommand, "build_py": BuildPyCommand},
 )

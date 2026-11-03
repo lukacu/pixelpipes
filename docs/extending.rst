@@ -18,7 +18,27 @@ For this example lets write a macro that
 Creating custom operations
 --------------------------
 
-Frequently used or complex operations can be included into the pipeline by crating and building a PixelPipes module. 
-A module is a dynamic library written in C++ that contains operations. Operations are functions that are exposed in a special manner and can be integrated in operation pipeline.
+Frequently used or complex operations can be included in a pipeline by
+building a PixelPipes module. A module is a C++ dynamic library that registers
+operations with the native runtime.
+
+The installed package includes the public C++ headers under
+``pixelpipes/include/pixelpipes`` and the shared core library beside the Python
+extension. Use ``pixelpipes.include_dirs()`` and ``pixelpipes.link_dirs()`` to
+query those paths rather than copying or flattening the SDK headers. The
+``examples/custom_module`` directory contains a minimal CMake project and a
+``example:example_triple`` operation. After installing PixelPipes, build and load it
+with:
+
+.. code-block:: bash
+
+   cmake -S examples/custom_module -B build/custom_module
+   cmake --build build/custom_module
+   PIXELPIPES_MODULES_PATH="$PWD/build/custom_module" python examples/custom_module/run.py
+
+The module must be loaded before compiling a graph that references its
+operation. Its library filename follows the runtime convention:
+``libpixelpipes_<name>.so`` on Linux, ``libpixelpipes_<name>.dylib`` on macOS,
+and ``pixelpipes_<name>.dll`` on Windows.
 
 

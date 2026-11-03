@@ -1,4 +1,22 @@
 
+if(NOT PIXELPIPES_FETCH_DEPENDENCIES)
+    set(PIXELPIPES_ZLIBNG_ROOT "" CACHE PATH "Prefix containing a provisioned zlib-ng build")
+    find_path(ZLIBNG_INCLUDE_DIR NAMES zlib-ng.h
+        HINTS "${PIXELPIPES_ZLIBNG_ROOT}/include")
+    find_library(ZLIBNG_LIBRARY NAMES z-ng zlibstatic-ng
+        HINTS "${PIXELPIPES_ZLIBNG_ROOT}/lib" "${PIXELPIPES_ZLIBNG_ROOT}/lib64")
+    if(NOT ZLIBNG_INCLUDE_DIR OR NOT ZLIBNG_LIBRARY)
+        message(FATAL_ERROR "No-network mode requires zlib-ng headers and library (set PIXELPIPES_ZLIBNG_ROOT or ZLIBNG_INCLUDE_DIR/ZLIBNG_LIBRARY)")
+    endif()
+    add_library(zlib_lib UNKNOWN IMPORTED)
+    set_target_properties(zlib_lib PROPERTIES
+        IMPORTED_LOCATION "${ZLIBNG_LIBRARY}"
+        INTERFACE_INCLUDE_DIRECTORIES "${ZLIBNG_INCLUDE_DIR}")
+    SET(ZLIB_LIBS zlib_lib)
+    SET(ZLIB_INCLUDE_DIRS "${ZLIBNG_INCLUDE_DIR}")
+    return()
+endif()
+
 SET(ZLIB_CMAKE_FLAGS
 -DCMAKE_INSTALL_PREFIX=${CMAKE_EXTERNALS_DIR}zlib 
 -DZLIB_ENABLE_TESTS=OFF 
@@ -16,8 +34,8 @@ IF(NOT EXISTS "${CMAKE_EXTERNALS_DIR}zlib/lib/${ZLIB_LIB_NAME}${CMAKE_STATIC_LIB
 
 ExternalProject_Add(zlib
 PREFIX zlib
-GIT_REPOSITORY    https://github.com/zlib-ng/zlib-ng
-GIT_TAG           c882034d48afc0b32a38e8f7ca63a2e4e91ab42d
+GIT_REPOSITORY    ${PIXELPIPES_ZLIBNG_REPOSITORY}
+GIT_TAG           ${PIXELPIPES_ZLIBNG_REVISION}
 CMAKE_ARGS        ${ZLIB_CMAKE_FLAGS}
 TEST_COMMAND      ""
 )

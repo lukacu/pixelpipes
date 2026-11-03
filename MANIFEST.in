@@ -1,0 +1,21 @@
+include CMakeLists.txt
+include MANIFEST.in
+include README.md
+include pyproject.toml
+include setup.py
+
+recursive-include cmake *
+recursive-include include *
+recursive-include src *
+recursive-include pixelpipes *.py
+recursive-include docs *
+recursive-include examples *
+recursive-include tests *
+
+global-exclude *.py[cod]
+global-exclude *.so *.dylib *.dll *.lib *.o *.obj *.a
+global-exclude __pycache__
+prune build
+prune pixelpipes.egg-info
+prune pixelpipes/include
+prune docs/_build
