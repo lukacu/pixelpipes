@@ -1,32 +1,58 @@
 Batching data for training
 ==========================
 
-Simply generating data sequentially is ok for testing pipeline output, but for training deep models using SGD or related optimization methods, we would like to efficiently generate batches of samples utilizing multiple cores. Since the execution of pipeline is done in C++, this is possible to do from Python using a thread pool. But the frameworks also  provides helper classes called sinks that do this. Special sinks are provided for the most popular deep learning frameworks that anable easy integration.
+Simply generating data sequentially is suitable for inspecting pipeline output,
+but training usually requires batches prepared by multiple workers. PixelPipes
+provides sink helpers that run a pipeline in a Python thread pool and stack the
+outputs into batches.
 
 One important thing that sinks assume is that all outputs are scalars or have a fixed size for every sample. This allows stacking into tensors that are necessary for efficient deep learning.
 
-For the bervity of examples below we will be using the MNIST pipeline that we have created in the `MNIST tutorial <tutorials/mnist.html>`_.
+For brevity, the examples below use the pipeline from the `MNIST tutorial
+<mnist.html>`_.
 
 NumPy sink
 ----------
 
-The default sink generates a tuple of 
+``PipelineDataLoader`` generates a list of NumPy arrays, one array for each
+pipeline output. All outputs must have a fixed shape so that they can be
+stacked.
 
-.. literalinclude:: ../../examples/mnist_batch.py
+.. code-block:: python
+
+   from examples.mnist import mnist
+   from pixelpipes.sink import PipelineDataLoader
+
+   loader = PipelineDataLoader(mnist(), batch=32, workers=4)
+
+   for images, labels in loader:
+       # images.shape == (32, height, width)
+       # labels.shape == (32,)
+       train(images, labels)
 
 PyTorch sink
 ------------
 
-A simple example on how to download, prepare and convert PyTorch MNIST dataset into acceptable type for injecting it into pixelpipes graph.
+When PyTorch is installed, ``TorchDataLoader`` is available from
+``pixelpipes.sink``. It has the same interface as ``PipelineDataLoader`` but
+converts each stacked NumPy output to a PyTorch tensor.
 
-.. literalinclude:: ../../examples/mnist_pytorch.py
+.. code-block:: python
 
-TensorFlow sink
----------------
+   from examples.mnist import mnist
+   from pixelpipes.sink import TorchDataLoader
 
-A simple example on how to download, prepare and convert TensorFlow MNIST dataset into acceptable type for injecting it into pixelpipes graph.
+   loader = TorchDataLoader(mnist(), batch=32, workers=4)
 
-.. literalinclude:: ../../examples/mnist_tensorflow.py
+   for images, labels in loader:
+       train(images, labels)
+
+TensorFlow
+----------
+
+PixelPipes does not currently provide a TensorFlow-specific sink. Use
+``PipelineDataLoader`` and adapt its NumPy batches to the TensorFlow input API
+used by your training code.
 
 
 

@@ -35,6 +35,7 @@ Overview
 
    setup
    architecture
+   examples
    tutorials/index
    nodes
    api/index
