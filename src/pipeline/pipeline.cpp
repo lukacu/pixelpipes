@@ -335,12 +335,14 @@ namespace pixelpipes
         bool finalized;
 
         std::vector<TokenReference> cache;
+        std::vector<std::unique_ptr<std::once_flag>> cache_initializers;
 
         std::vector<OperationData> operations;
 
         std::vector<bool> constants;
 
         std::vector<OperationStats> stats;
+        std::mutex stats_mutex;
 
         std::vector<OutputDescription> outputs;
 
@@ -399,6 +401,10 @@ namespace pixelpipes
         auto tokens = stateless_pass(state->operations);
 
         state->cache.resize(state->operations.size());
+        state->cache_initializers.clear();
+        state->cache_initializers.reserve(state->operations.size());
+        for (size_t i = 0; i < state->operations.size(); i++)
+            state->cache_initializers.push_back(std::make_unique<std::once_flag>());
         state->stats.resize(state->operations.size());
         state->constants.resize(state->operations.size());
 
@@ -513,16 +519,62 @@ namespace pixelpipes
 
         RandomGenerator generator = make_generator((int)index);
 
+        auto record_stats = [this](size_t operation, unsigned long elapsed)
+        {
+            std::lock_guard<std::mutex> lock(state->stats_mutex);
+            state->stats[operation].count++;
+            state->stats[operation].elapsed += elapsed;
+        };
+
         while (i < state->operations.size())
         {
 
-            if (state->cache[i])
+            const auto operation_type = state->operations[i].operation->type();
+            const bool cacheable = state->constants[i] &&
+                                   operation_type != GetType<Output>() &&
+                                   operation_type != GetType<Jump>() &&
+                                   operation_type != GetType<ConditionalJump>();
+
+            if (cacheable)
             {
-                context[i] = state->cache[i].reborrow();
-                if ((state->operations[i].operation->type()) == GetType<Output>())
+                // Constant results are shared by all runs; publish each cache slot once.
+                std::call_once(*state->cache_initializers[i], [&]()
                 {
-                    result.push_back(state->cache[i].reborrow());
-                }
+                    vector<TokenReference> inputs;
+                    inputs.reserve(state->operations[i].inputs.size());
+                    for (int j : state->operations[i].inputs)
+                        inputs.push_back(state->cache[j].reborrow());
+
+                    try
+                    {
+                        auto operation_start = high_resolution_clock::now();
+                        auto output = state->operations[i].operation->run(make_span(inputs));
+                        auto operation_end = high_resolution_clock::now();
+
+                        if (!output)
+                            throw OperationException("Operation output undefined", state->operations[i].operation, (int)i);
+
+                        state->cache[i] = std::move(output);
+                        record_stats(i, (unsigned long)duration_cast<microseconds>(operation_end - operation_start).count());
+                    }
+                    catch (BaseException &e)
+                    {
+                        std::cout << "ERROR at operation " << i << " " << operation_name(state->operations[i].operation) << ": " << e.what() << ", inputs:" << std::endl;
+                        int k = 0;
+                        for (int j : state->operations[i].inputs)
+                        {
+                            std::cout << " * " << k << " (operation " << j << " " << operation_name(state->operations[j].operation) << "): ";
+                            if ((bool)(inputs[k]))
+                                std::cout << inputs[k]->describe() << std::endl;
+                            else
+                                std::cout << "undefined" << std::endl;
+                            k++;
+                        }
+                        throw OperationException(e.what(), state->operations[i].operation, (int)i);
+                    }
+                });
+
+                context[i] = state->cache[i].reborrow();
                 i++;
                 continue;
             }
@@ -566,8 +618,7 @@ namespace pixelpipes
                     }
                 }
 
-                state->stats[i].count++;
-                state->stats[i].elapsed += (unsigned long)duration_cast<microseconds>(operation_end - operation_start).count();
+                record_stats(i, (unsigned long)duration_cast<microseconds>(operation_end - operation_start).count());
 
                 if ((state->operations[i].operation)->type() == GetType<Output>())
                 {
@@ -585,11 +636,6 @@ namespace pixelpipes
                 }
 
                 context[i] = std::move(output);
-
-                if (state->constants[i])
-                {
-                    state->cache[i] = context[i].reborrow();
-                }
 
                 if ((state->operations[i].operation)->type() == GetType<Jump>())
                 {
@@ -688,6 +734,7 @@ namespace pixelpipes
 
     std::vector<float> Pipeline::operation_time()
     {
+        std::lock_guard<std::mutex> lock(state->stats_mutex);
 
         std::vector<float> extracted;
 

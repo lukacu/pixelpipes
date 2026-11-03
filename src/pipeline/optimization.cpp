@@ -409,9 +409,8 @@ namespace pixelpipes
                 for (auto j : nodes[i].inputs)
                 {
 
-                    if (result.find(j) != result.end())
+                    if (result.insert(j).second)
                     {
-                        result.insert(j);
                         next.push_back(j);
                     }
                 }

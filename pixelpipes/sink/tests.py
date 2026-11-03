@@ -5,7 +5,7 @@ import unittest
 import numpy as np
 
 from ..compiler import Compiler
-from ..graph import Graph, Constant, outputs
+from ..graph import Graph, Constant, SampleIndex, outputs
 from . import PipelineDataLoader
 
 from ..tests import TestBase
@@ -32,6 +32,22 @@ class TestSinks(TestBase):
     def test_sink_multi_worker(self):
         
         _run_sink_text(PipelineDataLoader, 32, 50)
+
+    def test_sink_multi_worker_shared_pipeline(self):
+        values = np.arange(32, dtype=np.float32)
+
+        with Graph() as graph:
+            constant = Constant(values)
+            index = SampleIndex()
+            outputs(constant, index, constant + index)
+
+        loader = PipelineDataLoader(Compiler().build(graph), batch=16, workers=16)
+
+        for batch_index, batch in zip(range(8), loader):
+            sample_indices = np.arange(batch_index * 16 + 1, batch_index * 16 + 17)
+            np.testing.assert_array_equal(batch[0], np.broadcast_to(values, (16, values.size)))
+            np.testing.assert_array_equal(batch[1].reshape(-1), sample_indices)
+            np.testing.assert_array_equal(batch[2], values[None, :] + sample_indices[:, None])
 
     def test_sink_pytorch(self):
 

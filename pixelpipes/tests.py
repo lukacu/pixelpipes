@@ -592,6 +592,23 @@ class FlowTests(TestBase):
             b = pipeline2.run(i)
             self.assertEqual(a[0], b[0])
 
+    def test_conditional_optimization_nested_dependencies(self):
+        from .flow import Conditional
+
+        with Graph() as graph:
+            index = SampleIndex()
+            shared = index + 10
+            first = Conditional(shared * 2, shared * 3, index % 3 == 0)
+            second = Conditional(first - 7, first + 5, index % 2 == 0)
+            outputs(first, second)
+
+        optimized = Compiler().build(graph)
+        reference = Compiler().build(graph, optimize=False)
+
+        for i in range(100):
+            for actual, expected in zip(optimized.run(i), reference.run(i)):
+                np.testing.assert_array_equal(actual, expected)
+
 class TestTensor(TestBase):
 
     def test_tensor_add(self):
