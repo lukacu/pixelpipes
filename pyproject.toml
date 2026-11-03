@@ -1,2 +1,10 @@
 [build-system]
-requires = ["setuptools", "wheel", "cmake>=3.11", "pybind11>=2.9.0", "numpy>=1.23", "pip"]
+requires = [
+    "setuptools",
+    "wheel",
+    "cmake>=3.11,<4",
+    "pybind11>=2.12",
+    "numpy>=2; python_version >= '3.9'",
+    "numpy>=1.23,<2; python_version < '3.9'",
+]
+build-backend = "setuptools.build_meta"

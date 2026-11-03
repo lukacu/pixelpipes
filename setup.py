@@ -1,7 +1,7 @@
-from pixelpipes import __version__
 import numpy
 import pybind11
 import os
+import re
 import setuptools
 import platform
 import shutil
@@ -42,6 +42,11 @@ def using_clang():
     return 'clang' in compiler_ver
 
 root = os.path.abspath(os.path.dirname(__file__))
+with open(os.path.join(root, "pixelpipes", "__init__.py"), encoding="utf-8") as version_file:
+    version_match = re.search(r"^__version__\s*=\s*['\"]([^'\"]+)['\"]", version_file.read(), re.MULTILINE)
+if version_match is None:
+    raise RuntimeError("Could not determine package version")
+version = version_match.group(1)
 
 # Override build command
 def make_library_filter(name):
@@ -233,7 +238,7 @@ ext_modules = [
 
 setup(
     name='pixelpipes',
-    version=__version__,
+    version=version,
     author='Luka Cehovin Zajc',
     author_email='luka.cehovin@gmail.com',
     url='https://github.com/lukacu/pixelpipes',
@@ -242,7 +247,6 @@ setup(
     ext_modules=ext_modules,
     packages=setuptools.find_packages(include=["pixelpipes", "pixelpipes.*"]),
     include_package_data=True,
-    setup_requires=["pybind11>=2.5.0", "numpy>=1.23"],
     install_requires=[
         "numpy>=1.23",
         "bidict>=0.21",

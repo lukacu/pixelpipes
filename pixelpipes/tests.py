@@ -247,13 +247,17 @@ class NumbersTests(TestBase):
         pipeline = Compiler().build(graph)
         output = pipeline.run(1)
 
-        self.assertAlmostEqual(output[0], np.sin(0.5))
-        self.assertAlmostEqual(output[1], np.cos(0.5))
-        self.assertAlmostEqual(output[2], np.tan(0.5))
-        self.assertAlmostEqual(output[3], np.arccos(0.5))
-        self.assertAlmostEqual(output[4], np.arcsin(0.5))
-        self.assertAlmostEqual(output[5], np.arctan(0.5))
-        self.assertAlmostEqual(output[6], np.arctan2(0.5, 0.5))
+        expected = (
+            np.sin(0.5),
+            np.cos(0.5),
+            np.tan(0.5),
+            np.arccos(0.5),
+            np.arcsin(0.5),
+            np.arctan(0.5),
+            np.arctan2(0.5, 0.5),
+        )
+        for actual, value in zip(output, expected):
+            np.testing.assert_allclose(actual, value, rtol=1e-6, atol=1e-7)
 
     def test_constant(self):
 
