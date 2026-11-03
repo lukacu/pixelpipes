@@ -6,6 +6,7 @@
 #include <pixelpipes/tensor.hpp>
 
 #include "compression.hpp"
+#include "../pipeline/optimization.hpp"
 
 #include "../debug.h"
 
@@ -454,11 +455,18 @@ namespace pixelpipes
 
         PipelineData(const Pipeline &pipeline, const std::string &origin)
         {
+            std::vector<int> operation_map(pipeline.size(), -1);
 
             for (size_t o = 0; o < pipeline.size(); o++)
             {
 
                 Pipeline::OperationData op = pipeline.get(o);
+
+                // Predictive jumps are runtime scheduling details, not part
+                // of the logical graph. Drop them and serialize the graph in
+                // dependency order so it can be optimized again on load.
+                if (op.operation->is<Jump>() || op.operation->is<ConditionalJump>())
+                    continue;
 
                 auto name = operation_name(op.operation);
 
@@ -469,6 +477,14 @@ namespace pixelpipes
                     used_modules.insert(source.reborrow());
 
                 std::vector<int> token_indices;
+                std::vector<int> input_indices;
+
+                for (auto input : op.inputs)
+                {
+                    if (input < 0 || input >= static_cast<int>(operation_map.size()) || operation_map[input] < 0)
+                        throw SerializationException("Operation input references an unserializable instruction");
+                    input_indices.push_back(operation_map[input]);
+                }
 
                 auto args = op.operation->serialize();
 
@@ -499,7 +515,8 @@ namespace pixelpipes
                     token_indices.push_back((int)tokens.size() - 1);
                 }
 
-                operations.push_back(OperationData(name, Sequence<int>(token_indices), Sequence<int>(op.inputs), op.metadata));
+                operation_map[o] = static_cast<int>(operations.size());
+                operations.push_back(OperationData(name, Sequence<int>(token_indices), Sequence<int>(input_indices), op.metadata));
             }
         }
     };

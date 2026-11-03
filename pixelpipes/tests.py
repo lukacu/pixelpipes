@@ -133,6 +133,33 @@ class GraphTests(TestBase):
             outputs(a, c, d, e)
 
         compare_serialized(graph)
+
+    def test_conditional_pipeline_serialization_compatibility(self):
+        import tempfile
+        from . import read_pipeline, write_pipeline
+        from .flow import Conditional
+
+        with Graph() as graph:
+            index = SampleIndex()
+            sample = SampleUnform(0, 100, seed=index)
+            selected = Conditional(sample + 1, sample - 1, index % 2 == 0)
+            outputs(index, sample, selected)
+
+        for optimize in (False, True):
+            pipeline = Compiler().build(graph, optimize=optimize)
+            with tempfile.TemporaryDirectory() as temp_dir:
+                for compress in (False, True):
+                    filename = os.path.join(
+                        temp_dir, "pipeline-{}.pxpi".format(int(compress)))
+                    write_pipeline(filename, pipeline, compress=compress)
+                    restored = read_pipeline(filename)
+
+                    for index in range(1, 33):
+                        expected = pipeline.run(index)
+                        actual = restored.run(index)
+                        self.assertEqual(len(actual), len(expected))
+                        for actual_value, expected_value in zip(actual, expected):
+                            np.testing.assert_array_equal(actual_value, expected_value)
         
     def test_debug(self):
 
@@ -540,6 +567,17 @@ class ListTests(TestBase):
         self.compare_arrays(sample[0], [1, 3, 5])
 
 class FlowTests(TestBase):
+
+    def test_sampled_output_is_deterministic_for_sample_index(self):
+        with Graph() as graph:
+            sample = SampleUnform(0, 1)
+            outputs(sample)
+
+        pipeline = Compiler().build(graph)
+        for index in range(1, 33):
+            expected = pipeline.run(index)
+            for _ in range(10):
+                np.testing.assert_array_equal(pipeline.run(index)[0], expected[0])
 
     def test_conditional_simple(self):
 

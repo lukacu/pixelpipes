@@ -46,7 +46,9 @@ class TestSinks(TestBase):
 
         loader = PipelineDataLoader(Compiler().build(graph), batch=16, workers=16)
 
-        for batch_index, batch in zip(range(8), loader):
+        # Exercise repeated concurrent calls after the first batch has raced to
+        # initialize the shared constant cache.
+        for batch_index, batch in zip(range(32), loader):
             sample_indices = np.arange(batch_index * 16 + 1, batch_index * 16 + 17)
             np.testing.assert_array_equal(batch[0], np.broadcast_to(values, (16, values.size)))
             np.testing.assert_array_equal(batch[1].reshape(-1), sample_indices)
