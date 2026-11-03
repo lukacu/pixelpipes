@@ -8,6 +8,7 @@
 #include <queue>
 #include <iostream>
 #include <mutex>
+#include <atomic>
 #include <string>
 #include <condition_variable>
 #include <filesystem>
@@ -332,10 +333,11 @@ namespace pixelpipes
 
     struct Pipeline::State
     {
-        bool finalized;
+        std::atomic<bool> finalized{false};
 
         std::vector<TokenReference> cache;
         std::vector<std::unique_ptr<std::once_flag>> cache_initializers;
+        std::vector<std::unique_ptr<std::mutex>> operation_mutexes;
 
         std::vector<OperationData> operations;
 
@@ -371,10 +373,8 @@ namespace pixelpipes
 
     void Pipeline::finalize(bool optimize)
     {
-        if (state->finalized)
+        if (state->finalized.load(std::memory_order_acquire))
             throw PipelineException("Pipeline is finalized");
-
-        state->finalized = true;
 
         // First determine stateless outputs
         // prune if needed (replace with constants)
@@ -403,8 +403,14 @@ namespace pixelpipes
         state->cache.resize(state->operations.size());
         state->cache_initializers.clear();
         state->cache_initializers.reserve(state->operations.size());
+        state->operation_mutexes.clear();
+        state->operation_mutexes.resize(state->operations.size());
         for (size_t i = 0; i < state->operations.size(); i++)
+        {
             state->cache_initializers.push_back(std::make_unique<std::once_flag>());
+            if (state->operations[i].operation->trait() & static_cast<int>(OperationTrait::Stateful))
+                state->operation_mutexes[i] = std::make_unique<std::mutex>();
+        }
         state->stats.resize(state->operations.size());
         state->constants.resize(state->operations.size());
 
@@ -442,12 +448,16 @@ namespace pixelpipes
                 output_position++;
             }
         }
+
+        // Publish all finalized state at once. A concurrent run either sees
+        // the complete immutable pipeline or fails the finalized check.
+        state->finalized.store(true, std::memory_order_release);
     }
 
     int Pipeline::append(std::string name, const TokenList &args, const Span<int> &inputs, const Metadata &metadata)
     {
 
-        if (state->finalized)
+        if (state->finalized.load(std::memory_order_acquire))
             throw PipelineException("Pipeline is finalized");
 
         OperationReference operation = create_operation(name, args);
@@ -478,7 +488,7 @@ namespace pixelpipes
     Sequence<OutputDescription> Pipeline::outputs() const
     {
 
-        if (!state->finalized)
+        if (!state->finalized.load(std::memory_order_acquire))
             throw PipelineException("Pipeline not finalized");
 
         return Sequence<OutputDescription>(state->outputs);
@@ -510,7 +520,7 @@ namespace pixelpipes
         vector<TokenReference> context;
         vector<TokenReference> result;
 
-        if (!state->finalized)
+        if (!state->finalized.load(std::memory_order_acquire))
             throw PipelineException("Pipeline not finalized");
 
         context.resize(state->operations.size());
@@ -530,6 +540,15 @@ namespace pixelpipes
         {
 
             const auto operation_type = state->operations[i].operation->type();
+            auto run_operation = [this, i](const TokenList &inputs)
+            {
+                if (state->operation_mutexes[i])
+                {
+                    std::lock_guard<std::mutex> lock(*state->operation_mutexes[i]);
+                    return state->operations[i].operation->run(inputs);
+                }
+                return state->operations[i].operation->run(inputs);
+            };
             const bool cacheable = state->constants[i] &&
                                    operation_type != GetType<Output>() &&
                                    operation_type != GetType<Jump>() &&
@@ -548,7 +567,7 @@ namespace pixelpipes
                     try
                     {
                         auto operation_start = high_resolution_clock::now();
-                        auto output = state->operations[i].operation->run(make_span(inputs));
+                        auto output = run_operation(make_span(inputs));
                         auto operation_end = high_resolution_clock::now();
 
                         if (!output)
@@ -591,7 +610,7 @@ namespace pixelpipes
             {
                 auto operation_start = high_resolution_clock::now();
 
-                auto output = state->operations[i].operation->run(make_span(local));
+                auto output = run_operation(make_span(local));
                 auto operation_end = high_resolution_clock::now();
 
                 if ((state->operations[i].operation->type()) == GetType<ContextQuery>())

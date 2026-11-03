@@ -34,12 +34,15 @@ class TestSinks(TestBase):
         _run_sink_text(PipelineDataLoader, 32, 50)
 
     def test_sink_multi_worker_shared_pipeline(self):
+        from ..flow import Conditional
+
         values = np.arange(32, dtype=np.float32)
 
         with Graph() as graph:
             constant = Constant(values)
             index = SampleIndex()
             outputs(constant, index, constant + index)
+            outputs(Conditional(constant + index, constant - index, index % 2 == 0))
 
         loader = PipelineDataLoader(Compiler().build(graph), batch=16, workers=16)
 
@@ -48,6 +51,12 @@ class TestSinks(TestBase):
             np.testing.assert_array_equal(batch[0], np.broadcast_to(values, (16, values.size)))
             np.testing.assert_array_equal(batch[1].reshape(-1), sample_indices)
             np.testing.assert_array_equal(batch[2], values[None, :] + sample_indices[:, None])
+            expected_conditional = np.where(
+                (sample_indices % 2 == 0)[:, None],
+                values[None, :] + sample_indices[:, None],
+                values[None, :] - sample_indices[:, None],
+            )
+            np.testing.assert_array_equal(batch[3], expected_conditional)
 
     def test_sink_pytorch(self):
 

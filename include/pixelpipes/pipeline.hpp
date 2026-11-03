@@ -6,6 +6,7 @@
 #include <exception>
 #include <random>
 #include <iostream>
+#include <cstdint>
 
 #include <pixelpipes/base.hpp>
 #include <pixelpipes/token.hpp>
@@ -105,8 +106,8 @@ namespace pixelpipes
     protected:
         typedef struct
         {
-            int count;
-            unsigned long elapsed;
+            std::uint64_t count;
+            std::uint64_t elapsed;
         } OperationStats;
     };
 
