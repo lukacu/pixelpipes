@@ -9,7 +9,6 @@ from .graph import Graph, Graph, InferredReference, Macro, Node, NodeException, 
 from . import types
 from .numbers import Constant
 from .graph import RandomSeed, SampleIndex, Node, Operation
-from .flow import Conditional
 from pixelpipes import Pipeline, PipelineOperation
 
 from attributee import String, Number
@@ -395,29 +394,18 @@ class Compiler(object):
 
         self._debug("Optimized graph to {} nodes", len(optimized))
 
-        def traverse(nodes, start, depthfirst=True, stack=None):
-            if not start in nodes:
-                return
-            if depthfirst:
-                if stack is None:
-                    yield start
-                else:
-                    yield start, stack + [start]
-                    stack = stack + [start]
-                for node in nodes[start].input_values():
-                    yield from traverse(nodes, node.name, True, stack)
-            else:
-                if stack is not None:
-                    stack = stack + [start]
-                for node in nodes[start].input_values():
-                    yield from traverse(nodes, node.name, False, stack)
-                if stack is None:
-                    yield start
-                else:
-                    yield start, stack
+        def traverse(nodes, start):
+            pending = [start]
+            visited = set()
+            while pending:
+                name = pending.pop()
+                if name in visited or name not in nodes:
+                    continue
+                visited.add(name)
+                yield name
+                pending.extend(node.name for node in nodes[name].input_values())
 
         dependencies = {}
-        conditions = []
 
         for output_node in output_nodes:
             for name in traverse(optimized, output_node):
@@ -425,31 +413,6 @@ class Compiler(object):
                 if not isinstance(node, Operation):
                     raise ValidationException(
                         "Only operations allowed here, got {}".format(node), node=node)
-                if isinstance(node, Conditional):
-                    # In case of a conditional node we can determine which nodes will be executed only
-                    # in certain conditions and insert jumps into the pipeline to speed up execution.
-
-                    # Only register conditon once, do not use sets to preserve order
-                    if not node.condition.name in conditions:
-                        conditions.append(node.condition.name)
-                    # List of nodes required by branch true
-                    tree_true = set(traverse(optimized, node.true.name))
-                    # List of nodes required by branch false
-                    tree_false = set(traverse(optimized, node.false.name))
-                    # List of nodes required to process condition
-                    tree_condition = set(
-                        traverse(optimized, node.condition.name))
-                    # Required by both branches (A - B) + C
-                    common = tree_true.intersection(
-                        tree_false).union(tree_condition)
-
-                    if node.condition.name not in common:
-                        for sub_node in tree_true.difference(common):
-                            dependencies.setdefault(
-                                sub_node, set()).add(node.condition.name)
-                        for sub_node in tree_false.difference(common):
-                            dependencies.setdefault(
-                                sub_node, set()).add(node.condition.name)
 
                 dependencies.setdefault(name, set()).update(
                     [node.name for node in optimized[name].input_values()])
@@ -460,9 +423,6 @@ class Compiler(object):
                             "Output node cannot be used as an input", node=optimized[node.name])
 
         self._debug("Resolving dependencies")
-
-        # Transform conditions to name-index map
-        conditions = {v: i for i, v in enumerate(conditions)}
 
         def operation_data(node):
             meta = node.operation()

@@ -75,7 +75,7 @@ namespace pixelpipes
         return create<IntegerScalar>(offset);
     }
 
-    Type Jump::type()
+    Type Jump::type() const
     {
         return GetType<Jump>();
     }
@@ -99,7 +99,7 @@ namespace pixelpipes
         }
     }
 
-    Type ConditionalJump::type()
+    Type ConditionalJump::type() const
     {
         return GetType<ConditionalJump>();
     }
@@ -454,6 +454,12 @@ namespace pixelpipes
 
     void build_branches(std::vector<OperationData> &nodes, int current, std::vector<BranchSet> &branches, std::map<int, int> &mapping, std::map<size_t, bool> state = std::map<size_t, bool>())
     {
+
+        // The conditional's result belongs to the surrounding branch, even
+        // though its inputs are visited under the conditional's own branches.
+        // Without this, a nested conditional can be scheduled unconditionally
+        // and run with an unset branch input.
+        branches[current].add(state);
 
         if (is_conditional(nodes[current].operation))
         {

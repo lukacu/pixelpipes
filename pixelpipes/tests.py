@@ -598,16 +598,62 @@ class FlowTests(TestBase):
         with Graph() as graph:
             index = SampleIndex()
             shared = index + 10
-            first = Conditional(shared * 2, shared * 3, index % 3 == 0)
-            second = Conditional(first - 7, first + 5, index % 2 == 0)
-            outputs(first, second)
+            shared_condition = shared % 3 == 0
+            first = Conditional(shared * 2, shared * 3, shared_condition)
+            second = Conditional(first - shared, first + shared, index % 2 == 0)
+            third = Conditional(second, shared, shared_condition)
+            outputs(second, shared, first, third)
 
         optimized = Compiler().build(graph)
         reference = Compiler().build(graph, optimize=False)
 
         for i in range(100):
-            for actual, expected in zip(optimized.run(i), reference.run(i)):
-                np.testing.assert_array_equal(actual, expected)
+            shared_value = i + 10
+            first_value = shared_value * (2 if shared_value % 3 == 0 else 3)
+            second_value = first_value + (-shared_value if i % 2 == 0 else shared_value)
+            third_value = second_value if shared_value % 3 == 0 else shared_value
+            expected = (second_value, shared_value, first_value, third_value)
+
+            for pipeline in (optimized, reference):
+                actual = pipeline.run(i)
+                for value, expected_value in zip(actual, expected):
+                    np.testing.assert_array_equal(value, [expected_value])
+
+    def test_conditional_optimization_skips_inactive_branch(self):
+        import shutil
+        import tempfile
+        from .flow import Conditional
+        from .graph import ReadFile
+
+        valid_path = os.path.join(ROOT_DIR, "tests", "resources", "indexed.png")
+
+        def build_pipeline(true_path, false_path):
+            with Graph() as graph:
+                index = SampleIndex()
+                selected = Conditional(
+                    ReadFile(true_path),
+                    ReadFile(false_path),
+                    index % 2 == 0,
+                )
+                outputs(selected)
+
+            return Compiler().build(graph)
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            conditional_path = os.path.join(temp_dir, "conditional-branch.png")
+            shutil.copyfile(valid_path, conditional_path)
+
+            true_branch_pipeline = build_pipeline(valid_path, conditional_path)
+            false_branch_pipeline = build_pipeline(conditional_path, valid_path)
+            os.remove(conditional_path)
+
+            self.assertGreater(true_branch_pipeline.run(0)[0].size, 0)
+            with self.assertRaisesRegex(Exception, "Unable to open file"):
+                true_branch_pipeline.run(1)
+
+            with self.assertRaisesRegex(Exception, "Unable to open file"):
+                false_branch_pipeline.run(0)
+            self.assertGreater(false_branch_pipeline.run(1)[0].size, 0)
 
 class TestTensor(TestBase):
 

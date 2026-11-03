@@ -637,7 +637,7 @@ namespace pixelpipes
 
                 context[i] = std::move(output);
 
-                if ((state->operations[i].operation)->type() == GetType<Jump>())
+                if (operation_type == GetType<Jump>() || operation_type == GetType<ConditionalJump>())
                 {
                     size_t jump = (size_t)extract<int>(context[i]);
 
