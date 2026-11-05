@@ -6,7 +6,7 @@ from ..graph import Input, Macro, Operation, SeedInput
 
 from .. import types
 from ..list import MakeList
-from ..types import Point, Points, Rectangle, View
+from ..types import Point, Points, Rectangle
 
 PointsBroadcastType = types.Union(types.Float(), Point(), Points())
 PointBroadcastType = types.Union(types.Float(), Point())

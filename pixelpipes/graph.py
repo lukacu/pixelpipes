@@ -818,7 +818,7 @@ class RandomSeed(Operation):
     a specific position in the data sequence. This is the corner-stone of repeatability of the pipeline. 
     """
 
-    def operation(Operation):
+    def operation(self):
         return "context", ContextFields["RandomSeed"]
 
 class Debug(Operation):

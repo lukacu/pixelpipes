@@ -3,9 +3,8 @@ from attributee import String
 from pixelpipes.image.geometry import MaskBoundingBox
 
 from .. import types
-from ..graph import types, Input, Macro, Copy
-from ..geometry.view import CenterView, FocusView, TranslateView, Chain
-from ..geometry.points import ViewPoints
+from ..graph import Input, Macro, Copy
+from ..geometry.view import CenterView, FocusView, TranslateView, Chain, ViewPoints
 from ..geometry.rectangle import PointsBounds
 
 from ..image.geometry import ViewImage
