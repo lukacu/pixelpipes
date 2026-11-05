@@ -74,6 +74,7 @@ INCLUDE(cmake/lodepng.cmake)
 INCLUDE(cmake/zlib.cmake)
 INCLUDE(cmake/opencv.cmake)
 INCLUDE(cmake/xtensor.cmake)
+INCLUDE(cmake/hashlib.cmake)
 
 add_compile_definitions(XTENSOR_USE_XSIMD)
 #add_compile_options(-march=native)
