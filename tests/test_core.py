@@ -119,6 +119,35 @@ class GraphTests(TestBase):
 
         compare_serialized(graph)
 
+    def test_debug_removed_when_last_node(self):
+        """A disabled, unreferenced Debug node may be the final graph node."""
+
+        with Graph() as graph:
+            value = Constant(value=6)
+            outputs(value)
+            Debug(value)
+
+        operations = Compiler().compile(graph)
+
+        self.assertEqual(
+            [operation.name for operation in operations],
+            ["constant", "output"],
+        )
+
+    def test_debug_removed_from_output(self):
+        """Removing Debug must preserve an output that directly consumes it."""
+
+        with Graph() as graph:
+            value = Constant(value=6)
+            outputs(Debug(value))
+
+        operations = Compiler().compile(graph)
+
+        self.assertEqual(
+            [operation.name for operation in operations],
+            ["constant", "output"],
+        )
+
     def test_file_location(self):
         from pixelpipes.list import FileList
         from pixelpipes import write_pipeline, read_pipeline
