@@ -11,7 +11,7 @@ if command -v cmake >/dev/null 2>&1; then
     cmake_version=$(cmake --version | awk 'NR == 1 { print $3 }')
 fi
 IFS=. read -r cmake_major cmake_minor _ <<< "${cmake_version}"
-if ((cmake_major < 3 || (cmake_major == 3 && cmake_minor < 15))); then
+if ((cmake_major < 3 || (cmake_major == 3 && cmake_minor < 15) || cmake_major >= 4)); then
     CMAKE_PYTHON=${CMAKE_PYTHON:-/opt/python/cp310-cp310/bin/python}
     "${CMAKE_PYTHON}" -m pip install --cache-dir "${DEPENDENCY_ROOT}/pip-cache" "cmake>=3.15,<4"
     export PATH="$(dirname "${CMAKE_PYTHON}"):${PATH}"
