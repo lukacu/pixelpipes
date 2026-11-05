@@ -77,6 +77,8 @@ class Add(SaturateOperation):
         return "add",
 
 class Multiply(SaturateOperation):
+    """Multiply two values. If one of the operands is a tensor, the multiplication is performed element-wise.
+    If both operands are tensors, they must have the same shape. The output type is inferred using type promotion."""
 
     a = Input(types.Wildcard(), description="First operand")
     b = Input(types.Wildcard(), description="Second operand")
@@ -88,6 +90,8 @@ class Multiply(SaturateOperation):
         return "multiply",
 
 class Subtract(SaturateOperation):
+    """Subtract two values. If one of the operands is a tensor, the subtraction is performed element-wise.
+    If both operands are tensors, they must have the same shape. The output type is inferred using type promotion."""
 
     a = Input(types.Wildcard(), description="First operand")
     b = Input(types.Wildcard(), description="Second operand")
@@ -99,6 +103,9 @@ class Subtract(SaturateOperation):
         return "subtract",
 
 class Divide(SaturateOperation):
+    """Divide two values. If one of the operands is a tensor, the division is performed element-wise.
+    If both operands are tensors, they must have the same shape. The output type is inferred using type promotion."""
+
 
     a = Input(types.Wildcard(), description="First operand")
     b = Input(types.Wildcard(), description="Second operand")
@@ -111,6 +118,8 @@ class Divide(SaturateOperation):
 
 
 class Power(Operation):
+    """Raise a to the power of b. If a is a tensor, the operation is performed element-wise.
+    If both operands are tensors, they must have the same shape. The output type is inferred using type promotion."""
 
     a = Input(types.Wildcard(), description="First operand")
     b = Input(types.Wildcard(), description="Second operand")
@@ -119,6 +128,7 @@ class Power(Operation):
         return "power",
 
 class SquareRoot(Operation):
+    """Compute square root of a value."""
 
     a = Input(types.Wildcard(), description="Input value")
 
@@ -126,6 +136,7 @@ class SquareRoot(Operation):
         return "sqrt",
 
 class Modulo(Operation):
+    """Compute modulo of two values."""
 
     a = Input(types.Wildcard(), description="First operand")
     b = Input(types.Wildcard(), description="Second operand")
@@ -134,6 +145,8 @@ class Modulo(Operation):
         return "modulo",
 
 class Greater(Operation):
+    """Check if a is greater than b. If a is a tensor, the operation is performed element-wise.
+    If both operands are tensors, they must have the same shape. The output type is inferred using type promotion."""
 
     a = Input(types.Wildcard(), description="First operand")
     b = Input(types.Wildcard(), description="Second operand")

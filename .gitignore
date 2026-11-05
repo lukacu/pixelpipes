@@ -33,6 +33,7 @@ Debug
 *.gv.pdf
 _data
 _build
+docs/_generated/
 *.pxpt
 
 # Keep CI configuration and its helper script versioned despite the broad

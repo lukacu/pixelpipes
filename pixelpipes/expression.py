@@ -164,15 +164,12 @@ _SYMBOLS = ['+', '-', '*', '/', '^', '(', ')']
 
 class Expression(Macro):
 
-    """Numeric expression with variables
-
-    Macro that expands into an arithmetic expression parsed from an input string.
-
-    Inputs:
-        - source: text representation of arithmetic expression
-        - variables: a map of inputs that are inserted into the expression
-
-    Category: arithmetic, macro
+    """Numeric expression with variables. This macro can be used to define
+    a numeric expression with variables. The expression is defined as a string,
+    it supports basic arithmetic operations and order of operations. The variables
+    are defined as a map of variable names and input nodes. All the variables should
+    be provided when expanding the expression. The expression is parsed and expanded
+    into a graph of nodes that represent the expression. 
     """
 
     source = String()

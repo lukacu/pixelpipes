@@ -768,7 +768,8 @@ def _list_type(source):
         return typ
 
 class Constant(Operation):
-    """ Generates a constant in the pipeline """
+    """Inject a constant value into the pipeline. The value can be a scalar, a string, a list or a numpy array.
+    This is one of the most basic nodes in the graph and is used to inject data into the pipeline."""
 
     value = Any()
 
@@ -850,7 +851,7 @@ class Output(Operation):
         return "output", self.label
 
 class ReadFile(Operation):
-    """Read file from disk to memory buffer. File is read in binary mode."""
+    """Read the entire file from disk to a memory buffer. File is read in binary mode."""
 
     filename = Input(types.String(), description="Path to the image file")
 
@@ -864,7 +865,8 @@ def outputs(*inputs, label="default"):
 @hidden
 class Copy(Node):
     """Copy node is a special node that copies the input to the output. 
-    It is not an operation or a macro, it is only used as a helper and is removed during compilation."""
+    It is not an operation or a macro, it is only used as a helper and is discarded 
+    during graph compilation."""
 
     source = Input(types.Wildcard())
 
