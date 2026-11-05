@@ -262,6 +262,22 @@ class Max(Operation):
     def operation(self):
         return "max",
 
+class ArgMin(Operation):
+    """Return the flattened index of the first smallest element."""
+
+    source = Input(types.Wildcard(mindim=1), description="Input tensor")
+
+    def operation(self):
+        return "argmin",
+
+class ArgMax(Operation):
+    """Return the flattened index of the first largest element."""
+
+    source = Input(types.Wildcard(mindim=1), description="Input tensor")
+
+    def operation(self):
+        return "argmax",
+
 # Trigonometric functions
 
 class Sin(Operation):

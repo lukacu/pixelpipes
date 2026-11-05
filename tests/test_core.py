@@ -329,6 +329,23 @@ class NumbersTests(TestBase):
         self.compare_arrays(sample[2], [[1, 2], [3, 3]])
         self.compare_arrays(sample[3], [[3, 3], [4, 5]])
 
+    def test_argmin_argmax(self):
+
+        from pixelpipes.numbers import ArgMin, ArgMax
+
+        values = np.array([[4, 1, 3], [1, 8, 2]], dtype=np.int32)
+
+        with Graph() as graph:
+            source = Constant(values)
+            outputs(ArgMin(source), ArgMax(source))
+
+        pipeline = Compiler().build(graph)
+        sample = pipeline.run(1)
+
+        # The result is flattened and ties select the first occurrence.
+        self.assertEqual(sample[0], 1)
+        self.assertEqual(sample[1], 4)
+
     def test_square_root(self):
 
         from pixelpipes.numbers import SquareRoot

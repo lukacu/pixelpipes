@@ -19,6 +19,10 @@ Scalar operations
 .. autonodes:: pixelpipes.numbers
    :members:
 
+Argmin and argmax reduce a numeric tensor to the flattened index of its first
+smallest or largest element, respectively.  Their results are integer scalar
+nodes.
+
 .. autonodes:: pixelpipes.expression
    :members:
 
