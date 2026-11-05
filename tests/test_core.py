@@ -1,65 +1,15 @@
-import unittest
-import numpy as np
 import os
 
-from .flow import Conditional
-from .list import Table, Range
-from .numbers import Floor, Round, SampleUnform, Ceil
-from .types import Integer, Char, Float, IntegerList, FloatList, Token, Boolean
-from .compiler import Compiler
-from .graph import Constant, Debug, Graph, SampleIndex, outputs
+import numpy as np
 
-ROOT_DIR = os.path.dirname(os.path.dirname(__file__))
+from pixelpipes.flow import Conditional
+from pixelpipes.list import Table, Range
+from pixelpipes.numbers import Floor, Round, SampleUnform, Ceil
+from pixelpipes.types import Integer, Char, Float, IntegerList, FloatList, Token, Boolean
+from pixelpipes.compiler import Compiler
+from pixelpipes.graph import Constant, Debug, Graph, SampleIndex, outputs
 
-def compare_serialized(graph, samples=100):
-    import os
-    import tempfile
-    import numpy.testing as npt
-    from .compiler import Compiler
-    from . import write_pipeline, read_pipeline
-
-    compiler = Compiler()
-
-    pipeline1 = compiler.build(graph)
-
-    tmpfd, tmpname = tempfile.mkstemp(suffix=".pxpi")
-
-    os.close(tmpfd)
-
-    write_pipeline(tmpname, pipeline1)
-
-    pipeline2 = read_pipeline(tmpname)
-
-    for i in range(1, samples):
-        a = pipeline1.run(i)
-        b = pipeline2.run(i)
-        assert len(a) == len(b), "Output does not match"
-        for x, y in zip(a, b):
-            npt.assert_equal(x, y)
-
-    #os.remove(tmpname)
-
-class TestBase(unittest.TestCase):
-
-    def setUp(self) -> None:
-        from pixelpipes import pypixelpipes
-        if hasattr(pypixelpipes, "_refcount"):
-            self.__startobj = pypixelpipes._refcount()
-        return super().setUp()
-
-    def tearDown(self) -> None:
-        from pixelpipes import pypixelpipes
-        if hasattr(pypixelpipes, "_refcount"):
-            leftobj = pypixelpipes._refcount() - self.__startobj
-            print("\n **** Remaining objects:", leftobj, "(total:", pypixelpipes._refcount(), ")**** ")
-        return super().tearDown()
-
-    def compare_arrays(self, a, b):
-        """ Compares two arrays ignoring singleton dimensions at the beginning or end"""
-        a = np.squeeze(a)
-        b = np.squeeze(b)
-        self.assertEqual(a.shape, b.shape)
-        np.testing.assert_array_equal(a, b)
+from tests._base import ROOT_DIR, TestBase, compare_serialized
 
 class TypesTests(TestBase):
 
@@ -121,8 +71,8 @@ class GraphTests(TestBase):
 
 
     def test_serialization(self):
-        from .numbers import SampleUnform
-        from .flow import Conditional
+        from pixelpipes.numbers import SampleUnform
+        from pixelpipes.flow import Conditional
 
         with Graph() as graph:
             a = SampleUnform(0, 30)
@@ -136,8 +86,8 @@ class GraphTests(TestBase):
 
     def test_conditional_pipeline_serialization_compatibility(self):
         import tempfile
-        from . import read_pipeline, write_pipeline
-        from .flow import Conditional
+        from pixelpipes import read_pipeline, write_pipeline
+        from pixelpipes.flow import Conditional
 
         with Graph() as graph:
             index = SampleIndex()
@@ -170,8 +120,8 @@ class GraphTests(TestBase):
         compare_serialized(graph)
 
     def test_file_location(self):
-        from .list import FileList
-        from . import write_pipeline, read_pipeline
+        from pixelpipes.list import FileList
+        from pixelpipes import write_pipeline, read_pipeline
         import os
 
         files = ["a.txt", "b.txt", "c.txt"]
@@ -191,7 +141,7 @@ class GraphTests(TestBase):
         self.assertEqual(str(pipeline.run(1)[0]), os.path.abspath(files[0]))
 
     def test_output_filter(self):
-        from .graph import Output
+        from pixelpipes.graph import Output
 
         with Graph() as graph:
             Output(1, label="a")
@@ -494,7 +444,7 @@ class ListTests(TestBase):
         self.assertTrue(np.all(np.sort(sample[1].squeeze()) == ls))
 
     def test_list_concatenation(self):
-        from .list import Concatenate
+        from pixelpipes.list import Concatenate
 
         with Graph() as graph:
             n1 = Constant([1, 2, 3])
@@ -507,7 +457,7 @@ class ListTests(TestBase):
         self.compare_arrays(sample[0], [1, 2, 3, 4, 5, 6])
 
     def test_list_length(self):
-        from .list import Length
+        from pixelpipes.list import Length
 
         with Graph() as graph:
             n1 = Constant([1, 2, 3])
@@ -519,7 +469,7 @@ class ListTests(TestBase):
         self.assertEqual(sample[0], 3)
 
     def test_list_sublist(self):
-        from .list import Sublist
+        from pixelpipes.list import Sublist
 
         with Graph() as graph:
             n1 = Constant([1, 2, 3, 4, 5, 6])
@@ -531,7 +481,7 @@ class ListTests(TestBase):
         self.compare_arrays(sample[0], [3, 4])
 
     def test_list_repeat(self):
-        from .list import Repeat
+        from pixelpipes.list import Repeat
 
         with Graph() as graph:
             n1 = Constant(1)
@@ -543,7 +493,7 @@ class ListTests(TestBase):
         self.compare_arrays(sample[0], [1, 1, 1])
 
     def test_list_remap(self):
-        from .list import Remap
+        from pixelpipes.list import Remap
 
         with Graph() as graph:
             n1 = Constant([1, 2, 3])
@@ -555,7 +505,7 @@ class ListTests(TestBase):
         self.compare_arrays(sample[0], [3, 2, 1])
 
     def test_list_filter(self):
-        from .list import Filter
+        from pixelpipes.list import Filter
 
         with Graph() as graph:
             n1 = Constant([1, 2, 3, 4, 5, 6])
@@ -610,7 +560,7 @@ class FlowTests(TestBase):
             self.assertEqual(output[0], i)
 
     def test_conditional_optimization(self):
-        from .flow import Switch
+        from pixelpipes.flow import Switch
 
         with Graph() as graph:
             a = Constant(value=20)
@@ -631,7 +581,7 @@ class FlowTests(TestBase):
             self.assertEqual(a[0], b[0])
 
     def test_conditional_optimization_nested_dependencies(self):
-        from .flow import Conditional
+        from pixelpipes.flow import Conditional
 
         with Graph() as graph:
             index = SampleIndex()
@@ -660,8 +610,8 @@ class FlowTests(TestBase):
     def test_conditional_optimization_skips_inactive_branch(self):
         import shutil
         import tempfile
-        from .flow import Conditional
-        from .graph import ReadFile
+        from pixelpipes.flow import Conditional
+        from pixelpipes.graph import ReadFile
 
         valid_path = os.path.join(ROOT_DIR, "tests", "resources", "indexed.png")
 
@@ -915,57 +865,3 @@ class TestFiles(TestBase):
             pipeline = Compiler().build(graph)
             pipeline.run(1)
 
-if __name__ == "__main__":
-    # Special entrypoint for running tests and determining operation coverage afterwards
-    from collections import Counter
-    from pixelpipes import list_operations
-
-    from pixelpipes.graph import Operation, Macro
-
-    ignore_operations = ["debug"]
-
-    # Monkey-patch the compiler to track operations
-    Compiler._operations = []
-    Compiler._compile = Compiler.compile
-
-    def compile(self, *args, **kwargs):
-        operations = self._compile(*args, **kwargs)
-        Compiler._operations.extend([o.name for o in operations])
-        return operations
-    
-    Compiler.compile = compile
-    
-    # Monkey-patch the Macro class to track macros
-    Macro._macros = []
-
-    def evaluate(self, *args, **kwargs):
-        Macro._macros.append(self.__class__)
-        return None
-
-    Macro.evaluate = evaluate
-
-    unittest.main(exit=False, module=None)
-
-    # Count appearances of unique operations
-
-    used_operations = Counter(Compiler._operations)
-    supported_operations = list_operations()
-
-    macros = Counter(Macro._macros)
-    supported_macros = [m for m in Macro.__subclasses__()]
-
-    unused = []
-    for op in supported_operations:
-        if op not in used_operations and op not in ignore_operations:
-            unused.append(op)
-
-    if unused:
-        print("\n{}/{} untested operations:".format(len(unused), len(supported_operations)), ",".join(unused))
-
-    unused_macros = []
-    for m in supported_macros:
-        if m not in macros:
-            unused_macros.append(m.__name__)
-    
-    if unused_macros:
-        print("\n{}/{} untested macros:".format(len(unused_macros), len(supported_macros)), ",".join(unused_macros))

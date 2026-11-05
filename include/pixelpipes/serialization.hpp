@@ -81,8 +81,8 @@ namespace pixelpipes
     template <>
     inline bool read_t(std::istream &source)
     {
-        char c;
-        source.read(&c, sizeof(unsigned char));
+        unsigned char c;
+        source.read(reinterpret_cast<char *>(&c), sizeof(unsigned char));
         check_error(source);
         return c > 0;
     }

@@ -107,7 +107,13 @@ After an in-place build, run the Python test suite from the repository root:
 
 .. code-block:: bash
 
-   python -m unittest discover -v
+   python -m unittest discover -s tests -t . -p 'test_*.py' -v
+
+Run the native C++ tests registered with CTest from the CMake build directory:
+
+.. code-block:: bash
+
+   ctest --test-dir build/offline --output-on-failure
 
 Build the HTML documentation with:
 

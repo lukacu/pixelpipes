@@ -41,3 +41,9 @@ _build
 !.github/workflows/
 !.github/workflows/ci.yml
 !scripts/build_native_dependencies.sh
+
+# Keep the conventional Python unit-test suite versioned.
+!tests/test_*.py
+!tests/_base.py
+!tests/__init__.py
+!tests/__main__.py

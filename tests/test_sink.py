@@ -1,14 +1,12 @@
 
 
-import unittest
-
 import numpy as np
 
-from ..compiler import Compiler
-from ..graph import Graph, Constant, SampleIndex, outputs
-from . import PipelineDataLoader
+from pixelpipes.compiler import Compiler
+from pixelpipes.graph import Graph, Constant, SampleIndex, outputs
+from pixelpipes.sink import PipelineDataLoader
 
-from ..tests import TestBase
+from tests._base import TestBase
 
 def _run_sink_text(constructor, batch_size, workers):
 
@@ -34,7 +32,7 @@ class TestSinks(TestBase):
         _run_sink_text(PipelineDataLoader, 32, 50)
 
     def test_sink_multi_worker_shared_pipeline(self):
-        from ..flow import Conditional
+        from pixelpipes.flow import Conditional
 
         values = np.arange(32, dtype=np.float32)
 
@@ -63,7 +61,7 @@ class TestSinks(TestBase):
     def test_sink_pytorch(self):
 
         try:
-            from . import TorchDataLoader
+            from pixelpipes.sink import TorchDataLoader
             _run_sink_text(TorchDataLoader, 32, 1)
         except ImportError:
             return

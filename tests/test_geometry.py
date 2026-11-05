@@ -1,19 +1,17 @@
-import unittest
 import numpy as np
 
-from ..graph import outputs
-from ..geometry.points import MakePoint, MakePoints
-from ..geometry.view import AffineView, RotateView, Chain, IdentityView, ViewPoints
-from .rectangle import MakeRectangle, ResizeRectangle
-from ..graph import Graph
-from ..compiler import Compiler
+from pixelpipes.graph import outputs, Graph
+from pixelpipes.geometry.points import MakePoint, MakePoints
+from pixelpipes.geometry.view import AffineView, RotateView, Chain, IdentityView, ViewPoints
+from pixelpipes.geometry.rectangle import MakeRectangle, ResizeRectangle
+from pixelpipes.compiler import Compiler
 
-from pixelpipes.tests import TestBase
+from tests._base import TestBase, compare_serialized
 
 class TestPoints(TestBase):    
     
     def test_make_points(self):
-        from ..compiler import Compiler
+        from pixelpipes.compiler import Compiler
 
         gt = np.array([[1, 1], [2, 2], [3, 4]])
 
@@ -28,7 +26,7 @@ class TestPoints(TestBase):
         np.testing.assert_equal(output[1], gt)
 
     def test_arithmetic(self):
-        from ..compiler import Compiler
+        from pixelpipes.compiler import Compiler
 
         gt = np.array([[1, 1], [2, 2], [1, 1]])
 
@@ -45,8 +43,6 @@ class TestPoints(TestBase):
         np.testing.assert_equal(output[0], gt)
 
     def test_serialization(self):
-
-        from ..tests import compare_serialized
 
         gt = np.array([[1, 1], [2, 2], [1, 1]])
         with Graph() as graph:
@@ -72,7 +68,7 @@ class TestPoints(TestBase):
         np.testing.assert_almost_equal(output[0], np.array([[0, 1], [-1, 0], [-2, -1]]))
 
     def test_view_calculation(self):
-        from ..geometry.view import FocusView, CenterView
+        from pixelpipes.geometry.view import FocusView, CenterView
 
 
         with Graph() as graph:

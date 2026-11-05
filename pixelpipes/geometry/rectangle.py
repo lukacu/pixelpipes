@@ -1,6 +1,3 @@
-
-import unittest
-
 import numpy as np
 
 from .points import PointsBounds, PointsCenter, PointsFromRectangle

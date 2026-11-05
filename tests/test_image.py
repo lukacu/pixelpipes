@@ -2,17 +2,17 @@
 import numpy as np
 import os
 
-from ..graph import Graph, Constant, outputs
-from ..compiler import Compiler
-from . import Equals, ColorConvert, Invert, Threshold, GetImageProperties, ConvertDepth
-from .processing import ImageBlend, ImageCoarseDropout, ImageDropout, ImageSolarize
-from .geometry import Flip, MaskBoundingBox, Resize, Scale, ImageCrop, ImageCropSafe, ViewImage
-from .augmentation import ImageBrightness, ImageNoise, ImagePiecewiseAffine
-from .filter import AverageFilter, BilateralFilter, GaussianFilter, LinearFilter, MedianBlur
-from .render import LinearImage, GaussianNoise, UniformNoise, PointsMask, PolygonMask
-from ..geometry.rectangle import MakeRectangle
-from ..geometry.points import MakePoints
-from ..geometry.view import AffineView
+from pixelpipes.graph import Graph, Constant, outputs
+from pixelpipes.compiler import Compiler
+from pixelpipes.image import Equals, ColorConvert, Invert, Threshold, GetImageProperties, ConvertDepth
+from pixelpipes.image.processing import ImageBlend, ImageCoarseDropout, ImageDropout, ImageSolarize
+from pixelpipes.image.geometry import Flip, MaskBoundingBox, Resize, Scale, ImageCrop, ImageCropSafe, ViewImage
+from pixelpipes.image.augmentation import ImageBrightness, ImageNoise, ImagePiecewiseAffine
+from pixelpipes.image.filter import AverageFilter, BilateralFilter, GaussianFilter, LinearFilter, MedianBlur
+from pixelpipes.image.render import LinearImage, GaussianNoise, UniformNoise, PointsMask, PolygonMask
+from pixelpipes.geometry.rectangle import MakeRectangle
+from pixelpipes.geometry.points import MakePoints
+from pixelpipes.geometry.view import AffineView
 
 np.random.seed(0)
 test_image = np.random.randint(0, 255, (32,32), dtype=np.uint8) 
@@ -21,7 +21,7 @@ test_image_rgb = np.random.randint(0, 255, (3,32,32), dtype=np.uint8)
 def clamp_uint8(image):
     return np.clip(image, 0, 255).astype(np.uint8)
 
-from ..tests import TestBase, ROOT_DIR
+from tests._base import TestBase, ROOT_DIR, compare_serialized
 
 class TestsArithmetic(TestBase):
 
@@ -48,8 +48,6 @@ class TestsArithmetic(TestBase):
         np.testing.assert_equal(sample[3], img4)
 
     def test_serialization(self):
-
-        from pixelpipes.tests import compare_serialized
 
         img1 = test_image_rgb.astype(np.uint8)
         img2 = test_image_rgb.astype(np.uint16)
@@ -383,7 +381,7 @@ class TestsImage(TestBase):
         np.testing.assert_array_equal(output[3], test_image_rgb_1)
 
     def test_constat_list(self):
-        from ..list import GetElement
+        from pixelpipes.list import GetElement
 
         test_image_list = [
             np.random.randint(0, 255, (256,256), dtype=np.uint8),
@@ -552,7 +550,7 @@ class TestsMorphology(TestBase):
 
     def test_image_moments(self):
 
-        from .morphology import Moments
+        from pixelpipes.image.morphology import Moments
 
         regions = np.random.randint(0, 8, (10,10), dtype=np.uint16)
 
@@ -575,7 +573,7 @@ class TestsMorphology(TestBase):
 
     def test_connected_components(self):
 
-        from .morphology import ConnectedComponents
+        from pixelpipes.image.morphology import ConnectedComponents
 
         regions = np.zeros((10,10), dtype=np.uint8)
         regions[0:5,0:5] = 1
@@ -593,7 +591,7 @@ class TestsMorphology(TestBase):
 
     def test_distance_transform(self):
             
-        from .morphology import DistanceTransform
+        from pixelpipes.image.morphology import DistanceTransform
 
         regions = np.zeros((10,10), dtype=np.uint8)
         regions[5,5] = 1
@@ -678,7 +676,7 @@ class TestsProcessing(TestBase):
         
     def test_derivatives(self):
         
-        from .processing import DerivativeX, DerivativeY
+        from pixelpipes.image.processing import DerivativeX, DerivativeY
 
         test_image = np.random.randint(0, 255, (256,256), dtype=np.uint8)
 
@@ -696,7 +694,7 @@ class TestsProcessing(TestBase):
 
     def test_edges(self):
         
-        from .processing import Edges
+        from pixelpipes.image.processing import Edges
 
         test_image = np.random.randint(0, 255, (256,256), dtype=np.uint8)
 
@@ -712,7 +710,7 @@ class TestsProcessing(TestBase):
         
     def test_laplacian(self):
         
-        from .processing import Laplacian
+        from pixelpipes.image.processing import Laplacian
 
         test_image = np.random.randint(0, 255, (256,256), dtype=np.uint8)
 

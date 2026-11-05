@@ -1,15 +1,13 @@
-import unittest
-
 import numpy as np
 from attributee import Integer
 
 from pixelpipes.graph import InferredReference
 from pixelpipes.resource.list import ResourceListSource, SegmentedResourceListSource
 
-from ..graph import Constant, SampleIndex, outputs, Graph, RandomSeed
-from ..compiler import Compiler
-from . import AppendField, ConditionalResource, MakeResource
-from ..tests import TestBase
+from pixelpipes.graph import Constant, SampleIndex, outputs, Graph, RandomSeed
+from pixelpipes.compiler import Compiler
+from pixelpipes.resource import AppendField, ConditionalResource, MakeResource
+from tests._base import TestBase
 
 class TestResourceList(ResourceListSource):
 
@@ -114,9 +112,9 @@ class TestList(TestBase):
 
     def test_field_conditional(self):
 
-        from . import ResourceField
-        from .list import RandomResource
-        from ..numbers import RandomBoolean, Add
+        from pixelpipes.resource import ResourceField
+        from pixelpipes.resource.list import RandomResource
+        from pixelpipes.numbers import RandomBoolean, Add
 
         class AdditionField(ResourceField):
 

@@ -27,6 +27,8 @@ option(BUILD_DEBUG "Enable debug output" OFF)
 option(BUILD_TOOL "Build CLI tool" ON)
 option(PIXELPIPES_FETCH_DEPENDENCIES "Build pinned third-party dependencies from source" ON)
 
+include(CTest)
+
 set(PIXELPIPES_DEPENDENCY_ROOT "${CMAKE_BINARY_DIR}/dependencies" CACHE PATH
     "Persistent source/build/install root for PixelPipes third-party dependencies")
 set(CMAKE_EXTERNALS_DIR "${PIXELPIPES_DEPENDENCY_ROOT}/installed/")
@@ -121,6 +123,12 @@ ADD_LIBRARY(pixelpipes_opencv SHARED
     )
 
 TARGET_LINK_LIBRARIES(pixelpipes_opencv pixelpipes ${OPENCV_LIBS})
+
+if(BUILD_TESTING)
+    add_executable(pixelpipes_cpp_tests src/tests/tokens.cpp)
+    target_link_libraries(pixelpipes_cpp_tests PRIVATE pixelpipes)
+    add_test(NAME pixelpipes_cpp_tests COMMAND pixelpipes_cpp_tests)
+endif()
 
 # CMake config file
 INCLUDE(CMakePackageConfigHelpers)

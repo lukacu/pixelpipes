@@ -46,7 +46,10 @@ jobs:
         run: python setup.py build_lib --inplace
 
       - name: Run tests
-        run: python -m unittest discover -v
+        run: python -m unittest discover -s tests -t . -p 'test_*.py' -v
+
+      - name: Run C++ tests
+        run: ctest --test-dir "$BUILD_ROOT" --output-on-failure
 
   manylinux-wheels:
     name: Build manylinux2014 x86_64 wheels

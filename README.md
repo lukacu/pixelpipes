@@ -7,6 +7,8 @@ This project provides a framework for creating repeatable infinite streams of da
 
 PixelPipes combines both sampling and augmentation into a single data-generation pipeline. The pipeline is first described as a computational graph in Python. It is then transformed into an operation pipeline executed in C++, avoiding GIL and enabling efficient use of multiple threads with shared access to memory structures.
 
+![PixelPipes preview](examples/birds.gif)
+
 ## Quickstart
 
 ### Installing
