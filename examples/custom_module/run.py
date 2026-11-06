@@ -1,4 +1,4 @@
-from pixelpipes import load_module, types
+from pixelpipes import Engine, load_module, types
 from pixelpipes.compiler import Compiler
 from pixelpipes.graph import Graph, Input, Operation, SampleIndex, outputs
 
@@ -16,4 +16,5 @@ class Triple(Operation):
 with Graph() as graph:
     outputs(Triple(SampleIndex()))
 
-print(Compiler().build(graph).run(7)[0])  # 21
+pipeline = Compiler().build(graph)
+print(Engine(pipeline, batch_size=1, first_index=7).next_batch()[0][0])  # 21

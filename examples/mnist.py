@@ -5,6 +5,7 @@ import cv2
 
 import numpy as np
 
+from pixelpipes import Engine
 from pixelpipes.graph import RandomSeed, Constant
 from pixelpipes.list import GetRandom
 from pixelpipes.image import ConvertDepth
@@ -46,8 +47,10 @@ if __name__ == "__main__":
     # unzip them and point the paths below to the final files
 
     stream = mnist()
+    engine = Engine(stream, batch_size=1, workers=4)
 
-    for image, label in stream:
+    for i in count(1):
+        image, label = [value[0] for value in engine.next_batch()]
         print(label)
         cv2.imshow("Patch", (image * 255).astype(np.uint8))
         if cv2.waitKey() != 32:

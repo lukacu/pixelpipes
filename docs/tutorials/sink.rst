@@ -3,8 +3,13 @@ Batching data for training
 
 Simply generating data sequentially is suitable for inspecting pipeline output,
 but training usually requires batches prepared by multiple workers. PixelPipes
-provides sink helpers that run a pipeline in a Python thread pool and stack the
-outputs into batches.
+provides a native multi-worker ``Engine`` and sink helpers that generate
+already-batched tensors.
+
+The sink keeps a bounded queue of completed batches. Iteration returns
+immediately when one is available and otherwise blocks while the engine fills
+the queue. ``workers`` is the minimum worker count; pass ``max_workers`` to
+enable a different autoscaling ceiling.
 
 One important thing that sinks assume is that all outputs are scalars or have a fixed size for every sample. This allows stacking into tensors that are necessary for efficient deep learning.
 
@@ -23,11 +28,11 @@ stacked.
    from examples.mnist import mnist
    from pixelpipes.sink import PipelineDataLoader
 
-   loader = PipelineDataLoader(mnist(), batch=32, workers=4)
+   loader = PipelineDataLoader(mnist(), batch=32, workers=1, max_workers=4)
 
    for images, labels in loader:
        # images.shape == (32, height, width)
-       # labels.shape == (32,)
+       # labels.shape == (32, 1)
        train(images, labels)
 
 PyTorch sink
@@ -42,7 +47,7 @@ converts each stacked NumPy output to a PyTorch tensor.
    from examples.mnist import mnist
    from pixelpipes.sink import TorchDataLoader
 
-   loader = TorchDataLoader(mnist(), batch=32, workers=4)
+   loader = TorchDataLoader(mnist(), batch=32, workers=1, max_workers=4)
 
    for images, labels in loader:
        train(images, labels)

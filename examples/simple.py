@@ -1,5 +1,6 @@
 from itertools import count
 
+from pixelpipes import Engine
 from pixelpipes.graph import Constant
 from pixelpipes.list import GetRandom
 from pixelpipes.utilities import pipeline
@@ -10,6 +11,7 @@ def simple():
     return GetRandom(a)
 
 p = simple()
+engine = Engine(p, batch_size=1, workers=4)
 
 for i in count(1):
-    print(p.run(i)[0])
+    print(engine.next_batch()[0][0])

@@ -1,19 +1,12 @@
 
-import time
 import typing
-from functools import partial
-from concurrent.futures import ThreadPoolExecutor
-from threading import Condition
-
-import numpy as np
 
 from pixelpipes import Pipeline
+from pixelpipes import pypixelpipes
 class BatchIterator(object):
-    """Abstract batch iterator base with most functionality for consumer
-    agnostic multithreaded batching of samples.
-    """
+    """Base for iterators that receive complete batches from an engine."""
 
-    def __init__(self, commit, size: int, offset: int = 0):
+    def __init__(self, size: int, offset: int = 0):
         """Initialize a new iterator
 
         Args:
@@ -24,113 +17,42 @@ class BatchIterator(object):
         if size < 1: raise ValueError("Batch size should be one or more")
         if offset < 0: raise ValueError("Offset should be strictly positive")
 
-        self._commit = commit
         self._size = size
-        self._index = offset + 1
-        self._lock = Condition()
-        self._cache = []
-        self._partial = None
-        self._cache_size = 10
-        self._cache_start = 0
-        self._exception = None
-
-    def _preload(self):
-        with self._lock:
-            if self._partial is not None or len(self._cache) > self._cache_size:
-                return
-            self._partial = [None] * self._size
-            self._cache_start = time.perf_counter()
-            for i in range(self._size):
-                future = self._commit(index=self._index + i)
-                if future is None:
-                    self._partial = None
-                    self._lock.notify()
-                    break
-                future.add_done_callback(partial(self._build, index=i))
-            self._index += self._size
-
-    def _build(self, future, index):
-        with self._lock:
-            try:
-                sample = future.result()
-            except Exception as e:
-                self._partial = None
-                self._exception = e
-                self._lock.notify()
-                return
-
-            if self._partial is None:
-                return
-            self._partial[index] = sample
-
-            if any([x is None for x in self._partial]):
-                return
-
-            batch = self._reduce(self._partial)
-
-            elapsed_time = time.perf_counter() - self._cache_start
-
-            self._cache.insert(0, batch)
-            self._lock.notify()
-            self._partial = None
-            self._preload()
-
-    def _reduce(self, samples):
-        raise NotImplementedError()
+        self._offset = offset
 
     def __iter__(self):
         return self
 
     def __next__(self):
-        with self._lock:
-            if len(self._cache) == 0:
-                self._preload()
-                self._lock.wait()
-            if len(self._cache) == 0:
-                if self._exception is None:
-                    raise StopIteration()
-                else:
-                    raise self._exception
-            batch = self._cache.pop()
-            self._preload()
-            return batch
+        raise NotImplementedError()
 
-
-class WorkerPool(ThreadPoolExecutor):
-
-    def __init__(self, max_workers: int = 1):
-        super().__init__(max_workers=max_workers, thread_name_prefix="pixelpipes_worker")
 
 class AbstractDataLoader(object):
-
-    class _BatchIterator(BatchIterator):
-
-        def _reduce(self, samples):
-            batch = []
-            for i in range(len(samples[0])):
-                field = [x[i] for x in samples]
-                batch.append(np.stack(field, axis=0))
-            return batch
-
-    def __init__(self, batch: int, workers: typing.Optional[typing.Union[int, WorkerPool]] = None, offset: int = 0):
+    def __init__(self, batch: int, workers: typing.Optional[int] = None, offset: int = 0,
+                 max_workers: typing.Optional[int] = None, queue_size: int = 10):
 
         if batch < 1: raise ValueError("Batch size should be one or more")
         if offset < 0: raise ValueError("Offset should be strictly positive")
 
         if workers is None:
-            workers = WorkerPool()
-        elif isinstance(workers, int):
-            workers = WorkerPool(workers)
+            workers = 1
+        if not isinstance(workers, int) or workers < 1:
+            raise ValueError("Worker count should be one or more")
+        if max_workers is None:
+            max_workers = 0
+        if not isinstance(max_workers, int) or max_workers < 0 or (max_workers and max_workers < workers):
+            raise ValueError("Maximum worker count should be zero or at least workers")
+        if not isinstance(queue_size, int) or queue_size < 1:
+            raise ValueError("Queue size should be one or more")
 
         self._workers = workers
+        self._max_workers = max_workers
+        self._queue_size = queue_size
         self._batch = batch
         self._offset = offset
 
-    def _commit(self, index):
-        raise NotImplementedError()
-
     def __iter__(self):
-        return AbstractDataLoader._BatchIterator(self._commit, self._batch, offset=self._offset)
+        raise NotImplementedError()
 
     def benchmark(self, n = 100):
         import time
@@ -146,25 +68,33 @@ class PipelineDataLoader(AbstractDataLoader):
 
     class _BatchIterator(BatchIterator):
 
-        def _reduce(self, samples):
-            batch = []
-            for i in range(len(samples[0])):
-                field = [x[i] for x in samples]
-                batch.append(np.stack(field, axis=0))
-            return batch
+        def __init__(self, engine, pipeline, size, offset):
+            super().__init__(size, offset=offset)
+            self._engine = engine
+            self._pipeline = pipeline
 
-    def __init__(self, pipeline: Pipeline, batch: int, workers: typing.Optional[typing.Union[int, WorkerPool]] = None,
-        offset: typing.Optional[int] = 0):
+        def __next__(self):
+            # Batching, ordering, and prefetching happen in C++.  This call
+            # blocks only when the native queue has no completed batch.
+            return list(self._engine.next_batch())
 
-        super().__init__(batch, workers, offset)
+    def __init__(self, pipeline: Pipeline, batch: int, workers: typing.Optional[int] = None,
+        offset: typing.Optional[int] = 0, max_workers: typing.Optional[int] = None,
+        queue_size: int = 10):
+
+        super().__init__(batch, workers, offset, max_workers=max_workers, queue_size=queue_size)
 
         self._pipeline = pipeline
 
-    def _commit(self, index):
-        try:
-            return self._workers.submit(self._pipeline.run, index)
-        except RuntimeError:
-            return None
+    def __iter__(self):
+        native_pipeline = getattr(self._pipeline, "_pipeline", self._pipeline)
+        # Each iterator owns its stream, so repeated iteration starts at the
+        # loader's configured offset instead of reusing a consumed stream.
+        engine = pypixelpipes.Engine(native_pipeline, self._batch, self._workers,
+                                     self._max_workers, self._queue_size,
+                                     self._offset + 1)
+        return PipelineDataLoader._BatchIterator(
+            engine, native_pipeline, self._batch, self._offset)
 
     @property
     def pipeline(self):

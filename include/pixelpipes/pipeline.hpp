@@ -113,14 +113,6 @@ namespace pixelpipes
 
     std::string PIXELPIPES_API visualize_pipeline(const Pipeline &pipeline);
 
-    class PipelineCallback
-    {
-    public:
-        virtual void done(TokenList result) = 0;
-
-        virtual void error(const PipelineException &error) = 0;
-    };
-
     class PIXELPIPES_API PipelineException : public BaseException
     {
     public:
@@ -143,20 +135,23 @@ namespace pixelpipes
         int _position;
         std::string name;
     };
-/*
     class PIXELPIPES_API Engine
     {
         struct State;
 
     public:
     
-        Engine(uint16_t workers);
+        // The engine owns one ordered batch stream. `workers` is the minimum
+        // number of workers; zero max_workers selects hardware concurrency.
+        explicit Engine(Pipeline &pipeline, size_t batch_size, uint16_t workers = 1,
+                        uint16_t max_workers = 0, size_t queue_size = 10,
+                        unsigned long first_index = 1);
 
         ~Engine();
 
-        void run(Pipeline& pipeline, unsigned long index, std::shared_ptr<PipelineCallback> callback) noexcept(false);
-
-        void batch(Pipeline& pipeline, const Sequence<unsigned long>& indices, std::shared_ptr<PipelineCallback> callback) noexcept(false);
+        // Block until the next complete native batch is available. Indices
+        // advance contiguously by batch_size after every call.
+        Sequence<TokenReference> next_batch() noexcept(false);
 
     private:
 
@@ -169,5 +164,4 @@ namespace pixelpipes
         std::unique_ptr<State, StateDeleter> state;
 
     };
-*/
 }

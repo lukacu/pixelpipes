@@ -5,7 +5,7 @@ import contextlib
 
 import numpy as np
 
-from pixelpipes import Pipeline
+from pixelpipes import Engine, Pipeline
 from pixelpipes.graph import Node, NodeException, Output, Reference
 
 @contextlib.contextmanager
@@ -236,11 +236,14 @@ def collage(pipeline: Pipeline, index: int, rows: int, columns: int, offset: typ
     assert offset >= 0
     assert index >= 0 and index < len(outputs)
 
+    engine = Engine(pipeline, batch_size=1, first_index=offset + 1)
+
     image = None
     for i in range(rows):
         column = []
         for j in range(columns):
-            sample = pipeline.run(i * columns + j + 1 + offset)
+            sample = engine.next_batch()
+            sample = [value[0] for value in sample]
             column.append(sample[index].transpose(1, 2, 0))
         column = np.concatenate(column, 1)
         image = column if image is None else np.concatenate((image, column), 0)

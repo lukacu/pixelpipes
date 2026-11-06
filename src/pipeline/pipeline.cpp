@@ -12,15 +12,17 @@
 #include <string>
 #include <condition_variable>
 #include <filesystem>
+#include <map>
+#include <memory>
+#include <list>
 
 #include <pixelpipes/pipeline.hpp>
 #include <pixelpipes/buffer.hpp>
 #include <pixelpipes/serialization.hpp>
 #include <pixelpipes/operation.hpp>
+#include <pixelpipes/tensor.hpp>
 
 #include "optimization.hpp"
-#include "queue.hpp"
-
 using namespace std;
 using namespace std::chrono;
 
@@ -772,46 +774,336 @@ namespace pixelpipes
         return extracted;
     }
 
-    thread_local uint16_t thread_index = 0;
-
-    void initialize_thread()
+    namespace
     {
-        thread_index = 0;
-    }
-/*
-    struct Engine::State
-    {
-        DispatchQueue workers;
-
-        State(uint16_t workers) : workers(workers) {}
-    };
-
-    Engine::Engine(uint16_t workers) : state(new Engine::State(workers))
-    {
-    }
-
-    Engine::~Engine() {}
-
-    void Engine::run(Pipeline &pipeline, unsigned long index, std::shared_ptr<PipelineCallback> callback) noexcept(false)
-    {
-
-        state->workers.dispatch([pipeline, index, callback]()
-                                {
-            try {
-                auto result = pipeline.run(index);
-                callback->done(result);
-            } catch (PipelineException &pe) {
-                callback->error(pe);
-            } });
-    }
-
-    void Engine::batch(Pipeline &pipeline, const Sequence<unsigned long> &indices, std::shared_ptr<PipelineCallback> callback) noexcept(false)
-    {
-        for (auto index : indices)
+        class AutoscalingQueue
         {
-            run(pipeline, index, callback);
+        public:
+            using Task = std::function<void()>;
+
+            AutoscalingQueue(size_t minimum, size_t maximum) : minimum_(minimum), maximum_(std::max(minimum, maximum))
+            {
+                std::lock_guard<std::mutex> guard(lock_);
+                ensure_workers_locked(minimum_);
+            }
+
+            ~AutoscalingQueue()
+            {
+                {
+                    std::lock_guard<std::mutex> guard(lock_);
+                    stopping_ = true;
+                }
+                condition_.notify_all();
+                for (auto &worker : workers_)
+                {
+                    if (worker.joinable())
+                        worker.join();
+                }
+            }
+
+            void dispatch(Task task)
+            {
+                {
+                    std::lock_guard<std::mutex> guard(lock_);
+                    if (stopping_)
+                        throw IllegalStateException("Engine is stopping");
+
+                    queue_.push(std::move(task));
+
+                    // A task which arrives while all current workers are
+                    // occupied is a demand signal.  Retired workers are
+                    // ignored here; only live workers are counted.
+                    if (live_workers_ < maximum_ && queue_.size() > 0)
+                        ensure_workers_locked(std::min(maximum_, live_workers_ + 1));
+                }
+                condition_.notify_one();
+            }
+
+        private:
+            void ensure_workers_locked(size_t target)
+            {
+                while (live_workers_ < target)
+                {
+                    ++live_workers_;
+                    workers_.emplace_back([this]() { worker_loop(); });
+                }
+            }
+
+            void worker_loop()
+            {
+                for (;;)
+                {
+                    Task task;
+                    {
+                        std::unique_lock<std::mutex> guard(lock_);
+                        if (!condition_.wait_for(guard, milliseconds(100), [this]() { return stopping_ || !queue_.empty(); }))
+                        {
+                            if (live_workers_ > minimum_)
+                            {
+                                --live_workers_;
+                                return;
+                            }
+                            continue;
+                        }
+
+                        if (queue_.empty())
+                        {
+                            if (stopping_)
+                            {
+                                --live_workers_;
+                                return;
+                            }
+                            continue;
+                        }
+
+                        task = std::move(queue_.front());
+                        queue_.pop();
+                    }
+
+                    try
+                    {
+                        task();
+                    }
+                    catch (...)
+                    {
+                        // Tasks own their error reporting.  A task escaping
+                        // here must never terminate the process.
+                    }
+                }
+            }
+
+            size_t minimum_;
+            size_t maximum_;
+            size_t live_workers_ = 0;
+            bool stopping_ = false;
+            std::mutex lock_;
+            std::condition_variable condition_;
+            std::queue<Task> queue_;
+            std::list<std::thread> workers_;
+        };
+
+        template <typename T>
+        TokenReference stack_scalar(const std::vector<TokenReference> &samples)
+        {
+            auto result = create<Matrix<T>>(samples.size(), 1);
+            auto values = result->data().template reinterpret<T>();
+            for (size_t i = 0; i < samples.size(); ++i)
+                values[i] = extract<T>(samples[i]);
+            return result;
+        }
+
+        TokenReference stack_output(std::vector<TokenReference> samples)
+        {
+            if (samples.empty() || !samples[0])
+                throw PipelineException("Unable to batch an empty pipeline output");
+
+            if (samples[0]->is<Tensor>())
+            {
+                auto first = extract<TensorReference>(samples[0]);
+                auto shape = first->shape().push(samples.size());
+                auto result = create_tensor(shape);
+
+                for (size_t i = 0; i < samples.size(); ++i)
+                {
+                    if (!samples[i] || !samples[i]->is<Tensor>() || !(extract<TensorReference>(samples[i])->shape() == first->shape()))
+                        throw PipelineException("Pipeline outputs cannot be batched because their tensor shapes differ");
+                    auto destination = extract<TensorReference>(result->get(i));
+                    copy_buffer(extract<TensorReference>(samples[i]), destination);
+                }
+                return result;
+            }
+
+            if (samples[0]->is<IntegerScalar>())
+                return stack_scalar<int>(samples);
+            if (samples[0]->is<FloatScalar>())
+                return stack_scalar<float>(samples);
+            // Python's scalar conversion historically exposes booleans as
+            // integer arrays, so retain that parity for native batches.
+            if (samples[0]->is<BooleanScalar>())
+                return stack_scalar<int>(samples);
+            if (samples[0]->is<CharScalar>())
+                return stack_scalar<char>(samples);
+            if (samples[0]->is<ShortScalar>())
+                return stack_scalar<short>(samples);
+            if (samples[0]->is<UShortScalar>())
+                return stack_scalar<ushort>(samples);
+
+            throw PipelineException("Pipeline output type is not supported by native batching");
+        }
+
+        Sequence<TokenReference> stack_batch(std::vector<Sequence<TokenReference>> &samples)
+        {
+            if (samples.empty())
+                throw PipelineException("Unable to batch zero samples");
+
+            const size_t output_count = samples[0].size();
+            for (const auto &sample : samples)
+            {
+                if (sample.size() != output_count)
+                    throw PipelineException("Pipeline outputs have different lengths");
+            }
+
+            Sequence<TokenReference> result(output_count);
+            for (size_t output = 0; output < output_count; ++output)
+            {
+                std::vector<TokenReference> values;
+                values.reserve(samples.size());
+                for (auto &sample : samples)
+                    values.push_back(std::move(sample[output]));
+                result[output] = stack_output(std::move(values));
+            }
+            return result;
         }
     }
-*/
+
+    struct Engine::State
+    {
+        struct BatchWork
+        {
+            State *owner;
+            uint64_t order;
+            Pipeline *pipeline;
+            std::vector<Sequence<TokenReference>> samples;
+
+            BatchWork(State *owner, uint64_t order, Pipeline *pipeline, size_t size)
+                : owner(owner), order(order), pipeline(pipeline), samples(size) {}
+        };
+
+        std::mutex batch_lock;
+        std::condition_variable batch_ready;
+        std::map<uint64_t, Sequence<TokenReference>> ready;
+        Pipeline *pipeline;
+        size_t batch_size;
+        size_t queue_capacity;
+        size_t outstanding = 0;
+        unsigned long next_index = 1;
+        uint64_t next_order = 0;
+        uint64_t consume_order = 0;
+        bool stream_failed = false;
+        std::string stream_error;
+        // Keep the worker pool last so it is destroyed first and cannot
+        // access state that has already been torn down.
+        AutoscalingQueue workers;
+
+        State(Pipeline &pipeline, size_t batch_size, uint16_t minimum, uint16_t maximum,
+              size_t queue_capacity, unsigned long first_index)
+            : pipeline(&pipeline), batch_size(batch_size),
+              queue_capacity(std::max<size_t>(1, queue_capacity)),
+              next_index(first_index),
+              workers(minimum, maximum == 0 ? std::max<size_t>(minimum, std::thread::hardware_concurrency()) : maximum)
+        {
+            if (batch_size == 0)
+                throw IllegalStateException("Batch size should be one or more");
+
+            std::lock_guard<std::mutex> guard(batch_lock);
+            for (size_t i = 0; i < queue_capacity; ++i)
+                submit_batch_locked();
+        }
+
+        void fail_batch(const std::string &error)
+        {
+            std::lock_guard<std::mutex> guard(batch_lock);
+            if (!stream_failed)
+            {
+                stream_failed = true;
+                stream_error = error;
+            }
+            batch_ready.notify_all();
+        }
+
+        void complete_batch(const std::shared_ptr<BatchWork> &work)
+        {
+            try
+            {
+                auto result = stack_batch(work->samples);
+                std::lock_guard<std::mutex> guard(batch_lock);
+                ready.emplace(work->order, std::move(result));
+                batch_ready.notify_all();
+            }
+            catch (const BaseException &error)
+            {
+                fail_batch(error.what());
+            }
+            catch (const std::exception &error)
+            {
+                fail_batch(error.what());
+            }
+            catch (...)
+            {
+                fail_batch("Unknown exception while batching pipeline output");
+            }
+        }
+
+        void submit_batch_locked()
+        {
+            const uint64_t order = next_order++;
+            auto work = std::make_shared<BatchWork>(this, order, pipeline, batch_size);
+            outstanding++;
+
+            std::vector<unsigned long> indices(batch_size);
+            for (size_t sample = 0; sample < batch_size; ++sample)
+                indices[sample] = next_index++;
+
+            // A worker owns a complete batch. This keeps batching native and
+            // makes scaling respond to the number of batches the consumer
+            // can drain, without creating a per-sample task fan-out.
+            workers.dispatch([work, indices = std::move(indices)]()
+            {
+                try
+                {
+                    for (size_t sample = 0; sample < indices.size(); ++sample)
+                        work->samples[sample] = work->pipeline->run(indices[sample]);
+                    work->owner->complete_batch(work);
+                }
+                catch (const BaseException &error)
+                {
+                    work->owner->fail_batch(error.what());
+                }
+                catch (const std::exception &error)
+                {
+                    work->owner->fail_batch(error.what());
+                }
+                catch (...)
+                {
+                    work->owner->fail_batch("Unknown exception while running pipeline");
+                }
+            });
+        }
+
+        Sequence<TokenReference> next()
+        {
+            std::unique_lock<std::mutex> guard(batch_lock);
+            batch_ready.wait(guard, [this]() { return stream_failed || ready.find(consume_order) != ready.end(); });
+            if (stream_failed)
+                throw PipelineException(stream_error);
+
+            auto result = std::move(ready.find(consume_order)->second);
+            ready.erase(consume_order++);
+            --outstanding;
+            submit_batch_locked();
+            return result;
+        }
+    };
+
+    void Engine::StateDeleter::operator()(State *p) const
+    {
+        delete p;
+    }
+
+    Engine::Engine(Pipeline &pipeline, size_t batch_size, uint16_t workers, uint16_t max_workers,
+                   size_t queue_size, unsigned long first_index) : state(nullptr)
+    {
+        if (workers == 0)
+            throw IllegalStateException("Engine requires at least one worker");
+
+        state.reset(new Engine::State(pipeline, batch_size, workers, max_workers, queue_size, first_index));
+    }
+
+    Engine::~Engine() = default;
+
+    Sequence<TokenReference> Engine::next_batch() noexcept(false)
+    {
+        return state->next();
+    }
     PIXELPIPES_REGISTER_ENUM("context", ContextData);
 }

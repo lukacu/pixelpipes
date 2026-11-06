@@ -2,10 +2,12 @@
 import os
 import sys
 import pickle
+from itertools import count
 
 import numpy as np
 from attributee import String
 
+from pixelpipes import Engine
 from pixelpipes.resource.list import ResourceListSource, RandomResource
 
 class CIFARDataset(ResourceListSource):
@@ -50,8 +52,10 @@ if __name__ == "__main__":
         datadir = sys.argv[1]
 
     stream = cifar(datadir)
+    engine = Engine(stream, batch_size=1, workers=4)
 
-    for image, _ in stream:
+    for i in count(1):
+        image, _ = [value[0] for value in engine.next_batch()]
         cv2.imshow("CIFAR", cv2.cvtColor(image, cv2.COLOR_BGR2RGB))
         if cv2.waitKey() != 32:
             break

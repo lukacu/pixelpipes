@@ -4,7 +4,6 @@
 #endif
 
 #include <fstream>
-
 #define NPY_NO_DEPRECATED_API NPY_1_7_API_VERSION
 
 #include <pybind11/pybind11.h>
@@ -35,30 +34,6 @@ TokenReference wrap_tensor(const py::object &src);
 py::object extract_tensor(const TokenReference &src);
 py::object extract_buffer(const TokenReference &src);
 // TokenReference wrap_tensor_list(const py::object &src);
-
-/*class PyPipelineCallback : public PipelineCallback
-{
-public:
-    using PipelineCallback::PipelineCallback;
-
-    void done(TokenList result) override
-    {
-        PYBIND11_OVERLOAD_PURE(
-            void,
-            PipelineCallback,
-            done,
-            result);
-    }
-
-    void error(const PipelineException &e) override
-    {
-        PYBIND11_OVERLOAD_PURE(
-            void,
-            PipelineCallback,
-            error,
-            e);
-    }
-};*/
 
 // Solution based on: https://www.pierov.org/2020/03/01/python-custom-exceptions-c-extensions/
 /*static PyObject *PipelineError_tp_str(PyObject *selfPtr)
@@ -264,6 +239,44 @@ py::array token_to_python(const pixelpipes::TokenReference &variable)
 
     throw py::value_error(Formatter() << "Unable to convert token to Python: " << variable);
 }
+
+py::tuple token_list_to_python(const TokenList &result)
+{
+    py::tuple transformed(result.size());
+    for (size_t i = 0; i < result.size(); i++)
+        transformed[i] = token_to_python(result[i]);
+    return transformed;
+}
+
+class PythonEngine
+{
+public:
+    explicit PythonEngine(Pipeline &pipeline, size_t batch_size, uint16_t workers,
+                          uint16_t max_workers, size_t queue_size, unsigned long first_index)
+        : _engine(new Engine(pipeline, batch_size, workers, max_workers, queue_size, first_index)) {}
+
+    ~PythonEngine()
+    {
+        py::gil_scoped_release gil;
+        _engine.reset();
+    }
+
+    py::tuple next_batch()
+    {
+        Sequence<TokenReference> result;
+        {
+            // Waiting for a batch must not hold Python's GIL: pipeline work
+            // and other Python threads should continue while the consumer is
+            // blocked on an empty native queue.
+            py::gil_scoped_release gil;
+            result = _engine->next_batch();
+        }
+        return token_list_to_python(make_view(result));
+    }
+
+private:
+    std::unique_ptr<Engine> _engine;
+};
 
 template <typename T, typename C>
 TokenReference _python_list_convert_strict(const py::list &list)
@@ -515,6 +528,14 @@ PYBIND11_MODULE(pypixelpipes, m)
     py::class_<PyToken>(m, "Token")
         .def("shape", &PyToken::shape, "Get shape of the token");
 
+    py::class_<PythonEngine>(m, "Engine")
+        .def(py::init<Pipeline &, size_t, uint16_t, uint16_t, size_t, unsigned long>(),
+             py::arg("pipeline"), py::arg("batch_size"), py::arg("workers") = 1,
+             py::arg("max_workers") = 0, py::arg("queue_size") = 10,
+             py::arg("first_index") = 1)
+        .def("next_batch", &PythonEngine::next_batch,
+             "Block until the next native batch is available");
+
     py::class_<Pipeline>(m, "Pipeline")
         .def(py::init<>())
         .def("finalize", &Pipeline::finalize, "Finalize pipeline", py::arg("optimize") = true)
@@ -581,9 +602,6 @@ PYBIND11_MODULE(pypixelpipes, m)
         "_refcount", []()
         { return debug_ref_count(); });
 #endif
-
-    /*py::class_<PipelineCallback, PyPipelineCallback, std::shared_ptr<PipelineCallback>>(m, "PipelineCallback")
-        .def(py::init());*/
 
     m.def("evaluate", [](std::string &name, std::vector<PyToken> inputs, py::tuple args)
           {
