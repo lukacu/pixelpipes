@@ -60,6 +60,9 @@ namespace pixelpipes
     {
         struct State;
 
+        template <bool Profiling>
+        Sequence<TokenReference> run_impl(unsigned long index);
+
         struct StateDeleter
         {
 
@@ -78,6 +81,7 @@ namespace pixelpipes
         };
 
         Pipeline();
+        explicit Pipeline(bool profiling);
 
         virtual ~Pipeline();
 

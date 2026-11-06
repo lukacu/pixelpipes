@@ -125,13 +125,15 @@ class Compiler(object):
         compiler = Compiler()
         return compiler.build(graph, variables, output)
 
-    def __init__(self, debug=False):
+    def __init__(self, debug=False, profiling=False):
         """[summary]
 
         Args:
             debug (bool, optional): Print a lot of debug messages. Defaults to False.
+            profiling (bool, optional): Collect per-operation execution times. Defaults to False.
         """
         self._debug_enabled = debug
+        self._profiling_enabled = profiling
 
     def validate(self, graph: typing.Union[Graph, typing.Mapping[str, Node]]):
         """Validates graph by interring input and output types for all nodes. An exception will be
@@ -198,7 +200,8 @@ class Compiler(object):
         import datetime
 
         pipeline = Pipeline(self.compile(
-            graph, variables, output), optimize=optimize)
+            graph, variables, output), optimize=optimize,
+                          profiling=self._profiling_enabled)
         pipeline.metadata["timestamp"] = datetime.datetime.now().isoformat()
         return pipeline
 

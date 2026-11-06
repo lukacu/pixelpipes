@@ -56,6 +56,19 @@ class TypesTests(TestBase):
 
 class GraphTests(TestBase):
 
+    def test_profiling_has_separate_fast_path(self):
+        with Graph() as graph:
+            index = SampleIndex()
+            outputs(index + 1)
+
+        fast = Compiler().build(graph)
+        profiled = Compiler(profiling=True).build(graph)
+
+        np.testing.assert_array_equal(fast.run(7)[0], profiled.run(7)[0])
+        self.assertTrue(all(value == 0 for value in fast.operation_time()))
+        self.assertTrue(any(value >= 0 for value in profiled.operation_time()))
+        self.assertEqual(len(fast.operation_time()), len(profiled.operation_time()))
+
     def test_constants(self):
 
         with Graph() as graph:

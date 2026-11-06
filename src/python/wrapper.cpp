@@ -537,7 +537,7 @@ PYBIND11_MODULE(pypixelpipes, m)
              "Block until the next native batch is available");
 
     py::class_<Pipeline>(m, "Pipeline")
-        .def(py::init<>())
+        .def(py::init<bool>(), py::arg("profiling") = false)
         .def("finalize", &Pipeline::finalize, "Finalize pipeline", py::arg("optimize") = true)
         .def(
             "outputs", [](Pipeline &p)
@@ -564,6 +564,8 @@ PYBIND11_MODULE(pypixelpipes, m)
             { return p.metadata().get(key); },
             "Get metadata entry")
         .def("size", &Pipeline::size, "Returns the length of the pipeline")
+        .def("operation_time", &Pipeline::operation_time,
+             "Return average per-operation execution times in milliseconds")
         .def(
             "run", [](Pipeline &p, unsigned long index)
             {
@@ -583,9 +585,9 @@ PYBIND11_MODULE(pypixelpipes, m)
             "Run pipeline", py::arg("index"));
 
     m.def(
-        "read_pipeline", [](std::string &name)
-        { return read_pipeline(name); },
-        py::arg("filename"));
+        "read_pipeline", [](std::string &name, bool profiling)
+        { return read_pipeline(name, profiling); },
+        py::arg("filename"), py::arg("profiling") = false);
 
     m.def(
         "write_pipeline", [](const Pipeline &pipeline, std::string &name, bool compress)

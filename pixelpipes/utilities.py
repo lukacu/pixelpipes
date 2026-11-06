@@ -215,7 +215,7 @@ def graph(constructor):
 
     return wrapper
 
-def pipeline(variables=None, debug=False):
+def pipeline(variables=None, debug=False, profiling=False):
     
     from pixelpipes.compiler import Compiler
     from pixelpipes.graph import Graph
@@ -224,7 +224,8 @@ def pipeline(variables=None, debug=False):
         def wrapper(*args, **kwargs):
             with Graph() as builder:
                 _generate_outputs(constructor(*args, **kwargs))
-            return Compiler(debug=debug).build(builder, variables=variables)
+            return Compiler(debug=debug, profiling=profiling).build(
+                builder, variables=variables)
 
         return wrapper
     return inner

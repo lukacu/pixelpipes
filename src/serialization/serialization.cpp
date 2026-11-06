@@ -744,9 +744,14 @@ namespace pixelpipes
 
     Pipeline read_pipeline(std::istream &source)
     {
+        return read_pipeline(source, false);
+    }
+
+    Pipeline read_pipeline(std::istream &source, bool profiling)
+    {
         std::string origin = std::filesystem::current_path().string();
 
-        Pipeline pipeline;
+        Pipeline pipeline(profiling);
 
         _read_stream(source, pipeline, origin);
 
@@ -755,12 +760,17 @@ namespace pixelpipes
 
     Pipeline read_pipeline(const std::string &drain)
     {
+        return read_pipeline(drain, false);
+    }
+
+    Pipeline read_pipeline(const std::string &drain, bool profiling)
+    {
 
         std::fstream stream(drain, std::fstream::in | std::ios_base::binary);
 
         std::string origin = std::filesystem::absolute(drain).parent_path().string();
 
-        Pipeline pipeline;
+        Pipeline pipeline(profiling);
 
         _read_stream(stream, pipeline, origin);
 

@@ -347,6 +347,7 @@ namespace pixelpipes
 
         std::vector<OperationStats> stats;
         std::mutex stats_mutex;
+        bool profiling = false;
 
         std::vector<OutputDescription> outputs;
 
@@ -359,8 +360,13 @@ namespace pixelpipes
         delete p;
     }
 
-    Pipeline::Pipeline() : state(new Pipeline::State())
+    Pipeline::Pipeline() : Pipeline(false)
     {
+    }
+
+    Pipeline::Pipeline(bool profiling) : state(new Pipeline::State())
+    {
+        state->profiling = profiling;
     }
 
     // Pipeline::Pipeline(const Pipeline &) = default;
@@ -413,7 +419,10 @@ namespace pixelpipes
             if (state->operations[i].operation->trait() & static_cast<int>(OperationTrait::Stateful))
                 state->operation_mutexes[i] = std::make_unique<std::mutex>();
         }
-        state->stats.resize(state->operations.size());
+        if (state->profiling)
+            state->stats.resize(state->operations.size());
+        else
+            state->stats.clear();
         state->constants.resize(state->operations.size());
 
         int output_position = 0;
@@ -518,6 +527,17 @@ namespace pixelpipes
 
     Sequence<TokenReference> Pipeline::run(unsigned long index)
     {
+        // Select the execution path once per sample.  The fast path is a
+        // separate template instantiation, so it contains no timing calls or
+        // statistics lock updates in its operation loop.
+        if (state->profiling)
+            return run_impl<true>(index);
+        return run_impl<false>(index);
+    }
+
+    template <bool Profiling>
+    Sequence<TokenReference> Pipeline::run_impl(unsigned long index)
+    {
 
         vector<TokenReference> context;
         vector<TokenReference> result;
@@ -533,9 +553,12 @@ namespace pixelpipes
 
         auto record_stats = [this](size_t operation, unsigned long elapsed)
         {
-            std::lock_guard<std::mutex> lock(state->stats_mutex);
-            state->stats[operation].count++;
-            state->stats[operation].elapsed += elapsed;
+            if constexpr (Profiling)
+            {
+                std::lock_guard<std::mutex> lock(state->stats_mutex);
+                state->stats[operation].count++;
+                state->stats[operation].elapsed += elapsed;
+            }
         };
 
         while (i < state->operations.size())
@@ -568,15 +591,23 @@ namespace pixelpipes
 
                     try
                     {
-                        auto operation_start = high_resolution_clock::now();
-                        auto output = run_operation(make_span(inputs));
-                        auto operation_end = high_resolution_clock::now();
+                        TokenReference output;
+                        if constexpr (Profiling)
+                        {
+                            auto operation_start = high_resolution_clock::now();
+                            output = run_operation(make_span(inputs));
+                            auto operation_end = high_resolution_clock::now();
+                            record_stats(i, (unsigned long)duration_cast<microseconds>(operation_end - operation_start).count());
+                        }
+                        else
+                        {
+                            output = run_operation(make_span(inputs));
+                        }
 
                         if (!output)
                             throw OperationException("Operation output undefined", state->operations[i].operation, (int)i);
 
                         state->cache[i] = std::move(output);
-                        record_stats(i, (unsigned long)duration_cast<microseconds>(operation_end - operation_start).count());
                     }
                     catch (BaseException &e)
                     {
@@ -610,10 +641,18 @@ namespace pixelpipes
 
             try
             {
-                auto operation_start = high_resolution_clock::now();
-
-                auto output = run_operation(make_span(local));
-                auto operation_end = high_resolution_clock::now();
+                TokenReference output;
+                if constexpr (Profiling)
+                {
+                    auto operation_start = high_resolution_clock::now();
+                    output = run_operation(make_span(local));
+                    auto operation_end = high_resolution_clock::now();
+                    record_stats(i, (unsigned long)duration_cast<microseconds>(operation_end - operation_start).count());
+                }
+                else
+                {
+                    output = run_operation(make_span(local));
+                }
 
                 if ((state->operations[i].operation->type()) == GetType<ContextQuery>())
                 {
@@ -638,8 +677,6 @@ namespace pixelpipes
                         throw OperationException("Illegal query", state->operations[i].operation, (int)i);
                     }
                 }
-
-                record_stats(i, (unsigned long)duration_cast<microseconds>(operation_end - operation_start).count());
 
                 if ((state->operations[i].operation)->type() == GetType<Output>())
                 {
@@ -755,6 +792,9 @@ namespace pixelpipes
 
     std::vector<float> Pipeline::operation_time()
     {
+        if (!state->profiling)
+            return std::vector<float>(state->operations.size(), 0.0f);
+
         std::lock_guard<std::mutex> lock(state->stats_mutex);
 
         std::vector<float> extracted;

@@ -39,7 +39,9 @@ namespace pixelpipes
     void PIXELPIPES_API write_pipeline(const Pipeline &pipeline, const std::string &drain, bool compress = true, bool relocatable = true);
 
     Pipeline PIXELPIPES_API read_pipeline(std::istream &source);
+    Pipeline PIXELPIPES_API read_pipeline(std::istream &source, bool profiling);
     Pipeline PIXELPIPES_API read_pipeline(const std::string &source);
+    Pipeline PIXELPIPES_API read_pipeline(const std::string &source, bool profiling);
 
     inline void check_error(std::ios &stream)
     {

@@ -123,12 +123,16 @@ class Pipeline(object):
     """Wrapper for the C++ pipeline object, includes additional metadata. This wrapper should be used instead of interacting with the C++ object directly.
     """
 
-    def __init__(self, data: Iterable[PipelineOperation], optimize: bool = None):
+    def __init__(self, data: Iterable[PipelineOperation], optimize: bool = None,
+                 profiling: bool = False):
         """Creates a new pipeline object from a list of operations.
         
         Args:
             data (Iterable[PipelineOperation]): List of operations
             optimize (bool, optional): Optimize the pipeline. Defaults to True.
+            profiling (bool, optional): Collect per-operation execution times.
+                Defaults to False, which uses the fast execution path without
+                profiling locks.
         """
 
         from . import pypixelpipes
@@ -143,7 +147,7 @@ class Pipeline(object):
             if isinstance(data, pypixelpipes.Pipeline):
                 self._pipeline = data
             else:
-                self._pipeline = pypixelpipes.Pipeline()
+                self._pipeline = pypixelpipes.Pipeline(profiling=profiling)
 
                 indices = {}
 
@@ -177,6 +181,14 @@ class Pipeline(object):
             return self._pipeline.run(index)
         except pypixelpipes.IllegalStateException as e:
             raise RuntimeError(str(e)) from e
+
+    def operation_time(self):
+        """Returns average per-operation execution times in milliseconds.
+
+        Fast pipelines do not collect profiling data and return zero for each
+        operation.
+        """
+        return self._pipeline.operation_time()
 
     @property
     def metadata(self) -> MappingProxyType:
@@ -250,7 +262,7 @@ def write_pipeline(filename: str, pipeline: Pipeline, compress: Optional[bool] =
     from . import pypixelpipes
     pypixelpipes.write_pipeline(pipeline._pipeline, filename, compress)
 
-def read_pipeline(filename: str):
+def read_pipeline(filename: str, profiling: bool = False):
     """Reads pipeline from a file. 
     
     Args:
@@ -259,7 +271,7 @@ def read_pipeline(filename: str):
     Returns: Pipeline object
     """
     from . import pypixelpipes
-    pipeline = pypixelpipes.read_pipeline(filename)
+    pipeline = pypixelpipes.read_pipeline(filename, profiling=profiling)
     return Pipeline(pipeline)
 
 def visualize_pipeline(pipeline: Pipeline):
