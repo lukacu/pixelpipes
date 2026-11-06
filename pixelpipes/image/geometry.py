@@ -72,6 +72,22 @@ class ImageCrop(Operation):
     def operation(self):
         return "opencv:crop",
 
+class ImageCropFixed(Operation):
+    """Fast crop for rectangles guaranteed to be inside the source image.
+
+    The crop coordinates may be runtime values, while width and height must
+    be statically known so downstream batching has a fixed shape.
+    """
+
+    source = Input(types.Image(), description="Input image")
+    x = Input(types.Integer(), description="X coordinate of the top-left corner")
+    y = Input(types.Integer(), description="Y coordinate of the top-left corner")
+    width = Input(types.Integer(), description="Width of the rectangle")
+    height = Input(types.Integer(), description="Height of the rectangle")
+
+    def operation(self):
+        return "opencv:crop_fixed",
+
 class ImageCropSafe(Operation):
     """Crops an image to a given rectangle"""
 

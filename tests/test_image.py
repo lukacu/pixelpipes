@@ -6,13 +6,17 @@ from pixelpipes.graph import Graph, Constant, outputs
 from pixelpipes.compiler import Compiler
 from pixelpipes.image import Equals, ColorConvert, Invert, Threshold, GetImageProperties, ConvertDepth
 from pixelpipes.image.processing import ImageBlend, ImageCoarseDropout, ImageDropout, ImageSolarize
-from pixelpipes.image.geometry import Flip, MaskBoundingBox, Resize, Scale, ImageCrop, ImageCropSafe, ViewImage
+from pixelpipes.image.geometry import (Flip, MaskBoundingBox, Resize, Scale,
+                                       ImageCrop, ImageCropFixed, ImageCropSafe,
+                                       ViewImage)
 from pixelpipes.image.augmentation import ImageBrightness, ImageNoise, ImagePiecewiseAffine
 from pixelpipes.image.filter import AverageFilter, BilateralFilter, GaussianFilter, LinearFilter, MedianBlur
 from pixelpipes.image.render import LinearImage, GaussianNoise, UniformNoise, PointsMask, PolygonMask
 from pixelpipes.geometry.rectangle import MakeRectangle
 from pixelpipes.geometry.points import MakePoints
 from pixelpipes.geometry.view import AffineView
+from pixelpipes.numbers import SampleUnform
+from pixelpipes.tensor import Integer
 
 np.random.seed(0)
 test_image = np.random.randint(0, 255, (32,32), dtype=np.uint8) 
@@ -339,6 +343,20 @@ class TestsGeometry(TestBase):
         self.assertEqual(output[1].shape, (1, 156, 156))
         self.assertEqual(output[2].shape[1], 256)
         self.assertEqual(output[2].shape[2], 256)
+
+    def test_image_crop_fixed_accepts_runtime_coordinates(self):
+        test_image = np.arange(64, dtype=np.uint8).reshape(8, 8)
+
+        with Graph() as graph:
+            n0 = Constant(test_image)
+            x = Integer(SampleUnform(2, 3, seed=1))
+            y = Integer(SampleUnform(3, 4, seed=2))
+            outputs(ImageCropFixed(n0, x=x, y=y, width=3, height=2))
+
+        pipeline = Compiler().build(graph)
+        output, = pipeline.run(1)
+
+        np.testing.assert_equal(output[0], test_image[3:5, 2:5])
 
     def test_image_view(self):
 

@@ -258,6 +258,35 @@ namespace pixelpipes
 
     PIXELPIPES_COMPUTE_OPERATION_AUTO("crop", crop, _crop_eval);
 
+    /**
+     * @brief Crop an in-bounds rectangle with runtime coordinates.
+     *
+     * Unlike crop(), this operation keeps the requested output shape even
+     * when x and y are computed at runtime.  It is intended for samplers
+     * that guarantee the rectangle is inside the source image, allowing the
+     * shape evaluator to avoid resolving dynamic coordinates.
+     */
+    cv::Mat crop_fixed(const cv::Mat &image, int x, int y, int width, int height) noexcept(false)
+    {
+        VERIFY(width > 0 && height > 0, "Width and height must be positive");
+        VERIFY(x >= 0 && y >= 0 && x + width <= image.cols && y + height <= image.rows,
+               "Crop rectangle is outside the image");
+        return image(cv::Rect(x, y, width, height)).clone();
+    }
+
+    TokenReference _crop_fixed_eval(const TokenList& tokens)
+    {
+        VERIFY(tokens.size() == 5, "Fixed crop requires five arguments");
+        auto shape = image_shape(tokens[0]);
+        auto width = get_size(tokens[3]);
+        auto height = get_size(tokens[4]);
+        VERIFY(width != unknown && height != unknown, "Fixed crop width and height must be known");
+        VERIFY(width != 0 && height != 0, "Width and height must be positive");
+        return create<Placeholder>(Shape(shape.type, {shape.channels, height, width}));
+    }
+
+    PIXELPIPES_COMPUTE_OPERATION_AUTO("crop_fixed", crop_fixed, _crop_fixed_eval);
+
     cv::Mat crop_safe(const cv::Mat &image, int x, int y, int width, int height, BorderStrategy border) noexcept(false)
     { 
         int border_value = 0;
