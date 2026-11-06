@@ -53,7 +53,9 @@ class CMakeBuildCommand(Command):
         self.mkpath(build_dir)
         self.mkpath(install_prefix)
 
+        debug_build = "PIXELPIPES_DEBUG" in os.environ
         cmake_args = [
+            "-DCMAKE_BUILD_TYPE={}".format("Debug" if debug_build else "Release"),
             "-DBUILD_PYTHON=ON",
             "-DBUILD_TOOL=OFF",
             "-DBUILD_INPLACE=OFF",
@@ -87,7 +89,7 @@ class CMakeBuildCommand(Command):
                     os.path.join(installed_root, "zlib")
                 ),
             ])
-        if "PIXELPIPES_DEBUG" in os.environ:
+        if debug_build:
             cmake_args.append("-DBUILD_DEBUG=ON")
         else:
             cmake_args.append("-DBUILD_DEBUG=OFF")
