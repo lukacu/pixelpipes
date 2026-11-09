@@ -5,8 +5,9 @@ from pixelpipes.graph import InferredReference
 from pixelpipes.resource.list import ResourceListSource, SegmentedResourceListSource
 
 from pixelpipes.graph import Constant, SampleIndex, outputs, Graph, RandomSeed
-from pixelpipes.compiler import Compiler
+from pixelpipes.compiler import Compiler, CompilerException
 from pixelpipes.resource import AppendField, ConditionalResource, MakeResource
+from pixelpipes.graph import ValidationException
 from tests._base import TestBase
 
 class TestResourceList(ResourceListSource):
@@ -32,6 +33,26 @@ class TestSegmentedResourceList(SegmentedResourceListSource):
             "a": [1, 2, 3, 4, 5, 6],
             "b": [True, False, True, True, False, True],
             "_segments": [4, 2]
+        }
+
+
+class EmptyResourceList(ResourceListSource):
+
+    def load(self):
+
+        return {
+            "a": [],
+            "b": [],
+        }
+
+
+class EmptySegmentedResourceList(SegmentedResourceListSource):
+
+    def load(self):
+
+        return {
+            "a": [],
+            "_segments": [],
         }
 
 
@@ -74,6 +95,29 @@ class TestResource(TestBase):
 
 
 class TestList(TestBase): 
+
+    def test_empty_resource_list_is_rejected(self):
+
+        with Graph() as graph:
+            resources = EmptyResourceList()
+            outputs(resources[0]["a"])
+
+        with self.assertRaises(CompilerException) as context:
+            Compiler().build(graph)
+
+        self.assertIsInstance(context.exception.__cause__, ValidationException)
+        self.assertEqual(str(context.exception.__cause__), "Empty resource list")
+
+    def test_empty_segmented_resource_list_is_rejected(self):
+
+        with Graph() as graph:
+            resources = EmptySegmentedResourceList()
+            outputs(resources[0]["a"])
+
+        with self.assertRaises(CompilerException) as context:
+            Compiler().build(graph)
+
+        self.assertIsInstance(context.exception.__cause__, IndexError)
 
     def test_resource_list(self):
 

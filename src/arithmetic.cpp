@@ -7,6 +7,7 @@
 #include <xtensor/xtensor_simd.hpp>
 #include <xtensor/xadapt.hpp>
 #include <xtensor/xnoalias.hpp>
+#include <xtensor/xsort.hpp>
 
 #include <pixelpipes/tensor.hpp>
 #include <pixelpipes/operation.hpp>
@@ -763,6 +764,65 @@ namespace pixelpipes
     XTENSOR_FUNCTOR_BINARY(xtensor_max_functor, xt::maximum)
 #define _maximum _elementwise_binary<xtensor_max_functor, nonsaturate_cast>
     PIXELPIPES_COMPUTE_OPERATION_AUTO("max", _maximum, _determine_shape_binary);
+
+    template <typename T, bool Maximum>
+    int _arg_index_tensor(const TensorReference &input)
+    {
+        auto values = wrap_xtensor<T>(input);
+
+        if constexpr (Maximum)
+        {
+            return static_cast<int>(xt::argmax(values)());
+        }
+        else
+        {
+            return static_cast<int>(xt::argmin(values)());
+        }
+    }
+
+    template <bool Maximum>
+    int _arg_index(const TensorReference &input)
+    {
+        switch (input->datatype())
+        {
+        case CharType:
+            return _arg_index_tensor<uchar, Maximum>(input);
+        case ShortType:
+            return _arg_index_tensor<short, Maximum>(input);
+        case UnsignedShortType:
+            return _arg_index_tensor<ushort, Maximum>(input);
+        case IntegerType:
+            return _arg_index_tensor<int, Maximum>(input);
+        case FloatType:
+            return _arg_index_tensor<float, Maximum>(input);
+        case BooleanType:
+            return _arg_index_tensor<bool, Maximum>(input);
+        default:
+            throw TypeException("Unsupported tensor type");
+        }
+    }
+
+    int argmin(const TensorReference &input)
+    {
+        VERIFY(input->size() > 0, "Cannot compute argmin of an empty tensor");
+        return _arg_index<false>(input);
+    }
+
+    int argmax(const TensorReference &input)
+    {
+        VERIFY(input->size() > 0, "Cannot compute argmax of an empty tensor");
+        return _arg_index<true>(input);
+    }
+
+    TokenReference _arg_index_eval(const TokenList &inputs)
+    {
+        VERIFY(inputs.size() == 1, "One tensor expected");
+        VERIFY(inputs[0]->shape().rank() > 0, "Argmin and argmax require a non-scalar tensor");
+        return create<Placeholder>(Shape(IntegerType));
+    }
+
+    PIXELPIPES_COMPUTE_OPERATION_AUTO("argmin", argmin, _arg_index_eval);
+    PIXELPIPES_COMPUTE_OPERATION_AUTO("argmax", argmax, _arg_index_eval);
 
     // Comparison operations on tensors
 
