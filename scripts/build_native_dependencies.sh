@@ -28,9 +28,9 @@ cmake -S "${ROOT}" -B "${CONFIGURE_ROOT}" \
     -DCMAKE_INSTALL_PREFIX="${DEPENDENCY_ROOT}/installed"
 
 cmake --build "${CONFIGURE_ROOT}" \
-    --target xtensor zlib opencv lodepng \
+    --target xtensor zlib opencv lodepng hashlib \
     --parallel "${BUILD_WORKERS}"
 
-# lodepng is the one dependency built as a top-level target; the other
-# ExternalProject dependencies install into the shared prefix as they build.
+# lodepng and hashlib are top-level targets; the other dependencies are
+# ExternalProject targets that install into the shared prefix as they build.
 cmake --install "${CONFIGURE_ROOT}" --component dependencies

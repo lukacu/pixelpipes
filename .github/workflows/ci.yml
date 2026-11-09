@@ -33,11 +33,39 @@ jobs:
           echo "compiler=$(g++ -dumpfullversion -dumpversion)" >> "$GITHUB_OUTPUT"
           echo "cmake=$(cmake --version | awk 'NR == 1 { print $3 }')" >> "$GITHUB_OUTPUT"
 
-      - name: Restore native dependency build
+      - name: Restore OpenCV dependency
         uses: actions/cache@v5
         with:
-          path: build/test-dependencies
-          key: native-test-${{ runner.os }}-${{ runner.arch }}-gcc-${{ steps.toolchain.outputs.compiler }}-cmake-${{ steps.toolchain.outputs.cmake }}-${{ hashFiles('CMakeLists.txt', 'cmake/**') }}-v1
+          path: |
+            build/test-dependencies/build/opencv
+            build/test-dependencies/installed/opencv
+          key: native-test-opencv-${{ runner.os }}-${{ runner.arch }}-gcc-${{ steps.toolchain.outputs.compiler }}-cmake-${{ steps.toolchain.outputs.cmake }}-${{ hashFiles('cmake/dependency-versions.cmake', 'cmake/opencv.cmake') }}-v2
+
+      - name: Restore zlib dependency
+        uses: actions/cache@v5
+        with:
+          path: |
+            build/test-dependencies/build/zlib
+            build/test-dependencies/installed/zlib
+          key: native-test-zlib-${{ runner.os }}-${{ runner.arch }}-gcc-${{ steps.toolchain.outputs.compiler }}-cmake-${{ steps.toolchain.outputs.cmake }}-${{ hashFiles('cmake/dependency-versions.cmake', 'cmake/zlib.cmake') }}-v2
+
+      - name: Restore xtensor dependencies
+        uses: actions/cache@v5
+        with:
+          path: |
+            build/test-dependencies/build/xtl
+            build/test-dependencies/build/xsimd
+            build/test-dependencies/build/xtensor
+            build/test-dependencies/installed/xtensor
+          key: native-test-xtensor-${{ runner.os }}-${{ runner.arch }}-gcc-${{ steps.toolchain.outputs.compiler }}-cmake-${{ steps.toolchain.outputs.cmake }}-${{ hashFiles('cmake/dependency-versions.cmake', 'cmake/xtensor.cmake') }}-v2
+
+      - name: Restore FetchContent sources
+        uses: actions/cache@v5
+        with:
+          path: |
+            build/test-dependencies/sources/lodepng-src
+            build/test-dependencies/sources/hashlib-src
+          key: native-test-sources-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('cmake/dependency-versions.cmake', 'cmake/lodepng.cmake', 'cmake/hashlib.cmake') }}-v2
 
       - name: Install Python build and runtime requirements
         run: python -m pip install "cmake>=3.15,<4" "pybind11>=2.12" "numpy>=1.23" "bidict>=0.21" "attributee>=0.1.9"
@@ -72,11 +100,39 @@ jobs:
           image_id=${image_id#sha256:}
           echo "id=${image_id}" >> "$GITHUB_OUTPUT"
 
-      - name: Restore pinned dependency build
+      - name: Restore OpenCV dependency
         uses: actions/cache@v5
         with:
-          path: build_wheel/dependencies
-          key: native-manylinux2014-x86_64-${{ steps.image.outputs.id }}-${{ hashFiles('CMakeLists.txt', 'cmake/**', 'scripts/build_native_dependencies.sh') }}-v1
+          path: |
+            build_wheel/dependencies/build/opencv
+            build_wheel/dependencies/installed/opencv
+          key: native-manylinux2014-x86_64-opencv-${{ steps.image.outputs.id }}-${{ hashFiles('cmake/dependency-versions.cmake', 'cmake/opencv.cmake') }}-v2
+
+      - name: Restore zlib dependency
+        uses: actions/cache@v5
+        with:
+          path: |
+            build_wheel/dependencies/build/zlib
+            build_wheel/dependencies/installed/zlib
+          key: native-manylinux2014-x86_64-zlib-${{ steps.image.outputs.id }}-${{ hashFiles('cmake/dependency-versions.cmake', 'cmake/zlib.cmake') }}-v2
+
+      - name: Restore xtensor dependencies
+        uses: actions/cache@v5
+        with:
+          path: |
+            build_wheel/dependencies/build/xtl
+            build_wheel/dependencies/build/xsimd
+            build_wheel/dependencies/build/xtensor
+            build_wheel/dependencies/installed/xtensor
+          key: native-manylinux2014-x86_64-xtensor-${{ steps.image.outputs.id }}-${{ hashFiles('cmake/dependency-versions.cmake', 'cmake/xtensor.cmake') }}-v2
+
+      - name: Restore FetchContent sources
+        uses: actions/cache@v5
+        with:
+          path: |
+            build_wheel/dependencies/sources/lodepng-src
+            build_wheel/dependencies/sources/hashlib-src
+          key: native-manylinux2014-x86_64-sources-${{ steps.image.outputs.id }}-${{ hashFiles('cmake/dependency-versions.cmake', 'cmake/lodepng.cmake', 'cmake/hashlib.cmake') }}-v2
 
       - name: Build or reuse pinned native dependencies
         run: |

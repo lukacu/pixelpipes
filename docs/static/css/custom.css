@@ -1,0 +1,21 @@
+
+html.writer-html5 .rst-content 
+dl[class]:not(.option-list):not(.field-list):not(.footnote):not(.citation):not(.glossary):not(.simple).nodes > dt.nodes {
+    background-color: #e2e2e2 ;
+    border-color: #959595;
+    color: #959595;
+}
+
+html.writer-html5 .rst-content 
+dl[class]:not(.option-list):not(.field-list):not(.footnote):not(.citation):not(.glossary):not(.simple).nodes.macro > dt.nodes {
+    background-color: #b9ffb9;
+    border-top: 3px solid #006f00;
+    color: #006f00;
+}
+
+html.writer-html5 .rst-content 
+dl[class]:not(.option-list):not(.field-list):not(.footnote):not(.citation):not(.glossary):not(.simple).nodes.operation > dt.nodes {
+    background-color: #cacaff;
+    border-top: 3px solid #5050ff;
+    color: #5050ff;
+}
