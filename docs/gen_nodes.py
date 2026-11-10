@@ -15,6 +15,20 @@ from typing import Iterable, Mapping
 ROOT_PACKAGE = "pixelpipes"
 NODE_BASE = "pixelpipes.graph.Node"
 
+# Keep the generated reference organized by the concepts users encounter
+# first. Modules not listed here are treated as core nodes, which keeps new
+# core modules visible without requiring a documentation-only change.
+NODE_CATEGORIES = (
+    ("Core", ("pixelpipes.graph", "pixelpipes.compiler", "pixelpipes.expression",
+               "pixelpipes.flow", "pixelpipes.list")),
+    ("Numbers", ("pixelpipes.numbers",)),
+    ("Tensors", ("pixelpipes.tensor",)),
+    ("Images", ("pixelpipes.image",)),
+    ("Resources", ("pixelpipes.resource",)),
+    ("Geometry", ("pixelpipes.geometry",)),
+    ("Sinks", ("pixelpipes.sink",)),
+)
+
 
 @dataclass(frozen=True)
 class ParameterInfo:
@@ -284,6 +298,17 @@ def discover_nodes(root: Path) -> list[str]:
     return sorted(discover_node_info(root))
 
 
+def node_category(name: str) -> str:
+    """Return the documentation category for a fully qualified node name."""
+
+    module = name.rpartition(".")[0]
+    for category, prefixes in NODE_CATEGORIES:
+        if any(module == prefix or module.startswith(prefix + ".")
+               for prefix in prefixes):
+            return category
+    return "Core"
+
+
 def _format_signature(parameters: Iterable[ParameterInfo]) -> str:
     values = []
     for parameter in parameters:
@@ -341,24 +366,39 @@ def process_node_docstring(app, what, name, obj, options, lines):
 
 
 def render_nodes(nodes: Iterable[str]) -> str:
-    lines = ["Node classes", "------------", ""]
-    current_module = None
-    for name in nodes:
-        module = name.rpartition(".")[0]
-        if module != current_module:
-            if current_module is not None:
-                lines.append("")
-            lines.extend((module, "~" * len(module), ""))
-            current_module = module
-        lines.extend((
-            f".. _node-{name}:",
-            "",
-            f".. autoapiclass:: {name}",
-            "   :members:",
-            "   :show-inheritance:",
-            "   :no-index:",
-            "",
-        ))
+    grouped: dict[str, list[str]] = {category: [] for category, _ in NODE_CATEGORIES}
+    for name in sorted(nodes, key=lambda value: (node_category(value), value)):
+        grouped.setdefault(node_category(name), []).append(name)
+
+    lines = ["Generated node classes", "----------------------", ""]
+    for category, _ in NODE_CATEGORIES:
+        category_nodes = grouped.get(category, [])
+        lines.extend((category, "~" * len(category), ""))
+        if not category_nodes:
+            lines.extend((
+                "This category does not currently define graph nodes. See the "
+                "hand-written node reference for its Python-facing helpers.",
+                "",
+            ))
+            continue
+
+        current_module = None
+        for name in category_nodes:
+            module = name.rpartition(".")[0]
+            if module != current_module:
+                if current_module is not None:
+                    lines.append("")
+                lines.extend((module, "^" * len(module), ""))
+                current_module = module
+            lines.extend((
+                f".. _node-{name}:",
+                "",
+                f".. autoapiclass:: {name}",
+                "   :members:",
+                "   :show-inheritance:",
+                "   :no-index:",
+                "",
+            ))
     return "\n".join(lines)
 
 

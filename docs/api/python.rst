@@ -1,7 +1,13 @@
 Python API
 ==========
 
-The following API was auto-generated from source code using `Auto API <https://sphinx-autoapi.readthedocs.io/en/latest/>`_.
+The following API is generated from source code using `Auto API
+<https://sphinx-autoapi.readthedocs.io/en/latest/>`_. Use the node reference
+for graph-building classes and this page for the surrounding Python objects.
+
+The stable execution path is ``Compiler`` → ``Pipeline`` → ``Engine`` or
+``PipelineDataLoader``. Compatibility and legacy execution classes are listed
+in the :doc:`../nodes` stability section.
 
 
 Pipeline
@@ -34,7 +40,8 @@ A compiler converts a graph to a sequence of operations.
 Sinks
 -----
 
-Sink is a utility class that execute a pipeline in multiple threads and stack sample outputs to batches.
+Sinks execute a pipeline in multiple threads and stack fixed-shape sample
+outputs into batches.
 
 .. autoapimodule:: pixelpipes.sink
    :members: 

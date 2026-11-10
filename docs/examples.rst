@@ -1,20 +1,52 @@
-Learning with examples
-======================
+Examples
+========
 
-Below is a set of simple examples that show the most important concepts of PixelPipes through some real-world (although still very simple) examples.
+These examples form the recommended first path through PixelPipes. They are
+small, bounded, and can be inspected without downloading a training dataset.
 
+Hello graph
+-----------
 
+Build a graph from a constant list, compile it, and consume a native batch.
 
-Sampling MNIST data
--------------------
+.. literalinclude:: ../examples/hello.py
 
-.. literalinclude:: ../examples/mnist.py
+Tensors and controlled randomness
+---------------------------------
 
+Create a zero-filled tensor and a uniformly distributed tensor whose values
+are controlled by an explicit seed.
 
-CIFAR sampling and augmentation pipeline
-----------------------------------------
+.. literalinclude:: ../examples/tensors.py
 
+Images and augmentation
+-----------------------
 
-.. literalinclude:: ../examples/cifar.py
+Load the bundled images through a resource list, sample an image, crop a fixed
+size patch, and apply brightness augmentation.
 
+.. literalinclude:: ../examples/images.py
 
+Batched output
+--------------
+
+Use ``PipelineDataLoader`` to assemble fixed-shape tensor outputs into batches.
+
+.. literalinclude:: ../examples/batches.py
+
+Custom C++ operation
+--------------------
+
+The example shows how to create a simple C++ operation and integrate it into the 
+PixelPipes framework. The custom module example builds a small native extension 
+and loads it before compiling a graph. See ``examples/custom_module/README.md`` for the build
+commands.
+
+.. literalinclude:: ../examples/custom_module/run.py
+
+Dataset recipes
+---------------
+
+The repository also contains optional ``mnist.py``, ``cifar.py``, ``birds.py``,
+and ``patches.py`` examples. They require external data or interactive image
+display and are kept as recipes rather than quick-start examples.

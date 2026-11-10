@@ -1,42 +1,74 @@
 
-# PixelPipes - infinite data streams for deep learning
+# PixelPipes — infinite data streams for deep learning
 
 [![Documentation Status](https://readthedocs.org/projects/pixelpipes/badge/?version=latest)](https://pixelpipes.readthedocs.io/en/latest/?badge=latest)
 [![CI](https://github.com/lukacu/pixelpipes/actions/workflows/ci.yml/badge.svg)](https://github.com/lukacu/pixelpipes/actions/workflows/ci.yml)
 
-This project provides a framework for creating repeatable infinite streams of data samples, emphasizing computer vision data. The main reason for this is (of course) deep learning; most deep models require many samples to be processed in a training phase. These samples must be sampled from a dataset and bundled into batches that can be processed simultaneously on a GPU. Besides sampling, another important concept in deep learning for computer vision is data augmentation where images are processed with several image processing steps to increase data diversity in a controlled manner.
+PixelPipes builds repeatable streams of data samples, with a focus on computer
+vision and deep learning. A pipeline is described as a Python graph and then
+compiled to a native C++ execution pipeline. Samples are selected by index, so
+seeded operations can be reproduced during training and debugging.
 
-PixelPipes combines both sampling and augmentation into a single data-generation pipeline. The pipeline is first described as a computational graph in Python. It is then transformed into an operation pipeline executed in C++, avoiding GIL and enabling efficient use of multiple threads with shared access to memory structures.
+PixelPipes combines dataset sampling, image augmentation, tensor operations,
+and batching in one data-generation pipeline.
 
-![PixelPipes preview](examples/birds.gif)
+## Quick start
 
-## Quickstart
+Install a published wheel:
 
-### Installing
-
-The package can be installed as a Python wheel package, currently from a testing PyPi compatible repository located [here](https://data.vicos.si/lukacu/pypi/).
-
+```bash
+python -m pip install pixelpipes -i https://data.vicos.si/lukacu/pypi/
 ```
-> pip install pixelpipes -i https://data.vicos.si/lukacu/pypi/
+
+The smallest complete pipeline samples values from a constant list and returns
+a batch through the native engine:
+
+```python
+from pixelpipes import Engine
+from pixelpipes.graph import Constant
+from pixelpipes.list import GetRandom
+from pixelpipes.utilities import pipeline
+
+
+@pipeline()
+def numbers():
+    return GetRandom(Constant([1, 2, 3, 4]))
+
+
+batch = Engine(numbers(), batch_size=4, workers=1).next_batch()[0]
+print(batch.reshape(-1).tolist())
 ```
 
-### Simple example
+The same example is included in the examples documentation. After installing
+the package, the bundled-image and tensor examples can be run from the
+repository with:
 
-Below is an example of a Python script that constructs a very simple graphs for sampling images from a directory and randomly cropping and augmenting them. Different and more complex examples are available in the documentation.
+```bash
+python examples/tensors.py
+python examples/images.py
+python examples/batches.py
+```
 
-TODO
+See the [full documentation](https://pixelpipes.readthedocs.io/en/latest/)
+for concepts, API reference, dataset recipes, and C++ extensions.
 
-## Documentation
+## Examples and documentation
 
-The documentation is hosted at ReadTheDocs:
+Basic examples are listed in the [examples documentation](https://pixelpipes.readthedocs.io/en/latest/examples.html):
 
- * Index
- * Quick start
- * Tutorials
- * API
- * Extending
- * Development
+- `hello.py` — graph construction and a native batch.
+- `tensors.py` — static and seeded random tensors.
+- `images.py` — bundled images, resource lists, and augmentation.
+- `batches.py` — fixed-shape tensor batches with `PipelineDataLoader`.
+- `custom_module` — a minimal C++ operation module.
+
+Dataset-specific MNIST and CIFAR examples remain available under `examples/`
+but require downloading the corresponding datasets.
+
+For development builds, documentation builds, and offline dependency setup,
+see the [development guide](https://pixelpipes.readthedocs.io/en/latest/development.html).
 
 ## Acknowledgements
 
-The development of this package was supported by Sloveninan research agency (ARRS) projects Z2-1866, J2-316 and J7-2596.
+The development of this package was supported by Slovenian Research Agency
+(ARRS) projects Z2-1866, J2-316, and J7-2596.

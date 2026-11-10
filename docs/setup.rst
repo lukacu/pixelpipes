@@ -1,20 +1,30 @@
-Installation and quick-start
-============================
+Installation and quick start
+=============================
 
-The source-code for the PixelPipes framwork can be downloaded from Github, but the most convenient way of testing it is by installing a prebuilt version. 
-The package can be installed as a Python wheel package, currently from a testing PyPi compatible repository located `here <https://data.vicos.si/lukacu/pypi/>`_.
+Install a published wheel from the project package index:
 
-```
-> pip install pixelpipes -i https://data.vicos.si/lukacu/pypi/
-```
+.. code-block:: bash
 
-Simple example
---------------
+   python -m pip install pixelpipes -i https://data.vicos.si/lukacu/pypi/
 
-To demonstrate a very simple example of using a PixelPipes pipeline (without any image operations), lets sample random numbers from a pre-defined list and 
-display them.
+Quick start
+-----------
 
-.. literalinclude:: ../examples/simple.py
+The shortest complete example builds a graph, compiles it with the
+``pipeline`` decorator, and consumes a native batch:
 
-Note that this sequence will be the same every time you run the script with the same sample indices. This example is very simple, but shows how a pipleine is built. More 
-complex examples with image operations are presented `here <tutorials/index.html>`_.
+.. literalinclude:: ../examples/hello.py
+
+The examples use the sample index and explicit seeds to make generated values
+repeatable. The complete example set is described in :doc:`examples`.
+
+For a local checkout, build the native extension before running the examples:
+
+.. code-block:: bash
+
+   BUILD_WORKERS=2 python setup.py build_lib --inplace
+   python examples/hello.py
+
+The bundled-image example uses only the images in ``examples/images``. MNIST
+and CIFAR recipes are optional and require downloading their datasets; they are
+not needed for the quick start.
