@@ -108,7 +108,9 @@ Sinks
 
 Sinks are Python-side consumers rather than graph nodes. Use
 ``PipelineDataLoader`` to assemble fixed-shape outputs into NumPy batches, or
-``TorchDataLoader`` when PyTorch is installed.
+``TorchDataLoader``, ``KerasDataLoader``, ``TensorFlowDataLoader``, or
+``JAXDataLoader`` when the corresponding framework is installed. The adapters
+are optional and do not add framework dependencies to the base package.
 
 .. code-block:: python
 

@@ -49,6 +49,19 @@ python examples/images.py
 python examples/batches.py
 ```
 
+Install an optional framework adapter with, for example,
+`python -m pip install pixelpipes[tensorflow]`; the corresponding extras are
+`torch`, `keras`, `tensorflow`, `jax`, and `frameworks` for all four.
+
+The optional framework examples can then be run with:
+
+```bash
+python examples/keras.py
+python examples/tensorflow.py
+python examples/jax.py
+python examples/torch.py
+```
+
 See the [full documentation](https://pixelpipes.readthedocs.io/en/latest/)
 for concepts, API reference, dataset recipes, and C++ extensions.
 
@@ -60,6 +73,7 @@ Basic examples are listed in the [examples documentation](https://pixelpipes.rea
 - `tensors.py` — static and seeded random tensors.
 - `images.py` — bundled images, resource lists, and augmentation.
 - `batches.py` — fixed-shape tensor batches with `PipelineDataLoader`.
+- `keras.py`, `tensorflow.py`, `jax.py`, `torch.py` — optional framework adapters.
 - `custom_module` — a minimal C++ operation module.
 
 Dataset-specific MNIST and CIFAR examples remain available under `examples/`

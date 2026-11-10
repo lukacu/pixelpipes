@@ -34,13 +34,47 @@ Use ``PipelineDataLoader`` to assemble fixed-shape tensor outputs into batches.
 
 .. literalinclude:: ../examples/batches.py
 
+Keras
+-----
+
+Train a small Keras model from the same infinite stream using the
+``KerasDataLoader`` adapter. Install Keras separately with
+``python -m pip install keras``.
+
+.. literalinclude:: ../examples/keras.py
+
+TensorFlow
+----------
+
+Convert PixelPipes batches into a ``tf.data.Dataset`` with
+``TensorFlowDataLoader``. Install TensorFlow separately with
+``python -m pip install tensorflow``.
+
+.. literalinclude:: ../examples/tensorflow.py
+
+JAX
+---
+
+Receive batches as JAX arrays with ``JAXDataLoader``. Install JAX separately
+with ``python -m pip install jax``.
+
+.. literalinclude:: ../examples/jax.py
+
+PyTorch
+-------
+
+Train a small PyTorch model from batches converted by ``TorchDataLoader``.
+Install PyTorch separately with ``python -m pip install torch``.
+
+.. literalinclude:: ../examples/torch.py
+
 Custom C++ operation
 --------------------
 
-The example shows how to create a simple C++ operation and integrate it into the 
-PixelPipes framework. The custom module example builds a small native extension 
-and loads it before compiling a graph. See ``examples/custom_module/README.md`` for the build
-commands.
+The example shows how to create a simple C++ operation and integrate it into the
+PixelPipes framework. The custom module example builds a small native extension
+and loads it before compiling a graph. See
+``examples/custom_module/README.md`` for the build commands.
 
 .. literalinclude:: ../examples/custom_module/run.py
 

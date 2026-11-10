@@ -137,3 +137,25 @@ try:
     from ._torch import *
 except ImportError:
     pass
+
+try:
+    import tensorflow
+    from ._tensorflow import *
+except ImportError:
+    pass
+
+try:
+    import keras
+    from ._keras import *
+except ImportError:
+    try:
+        from tensorflow import keras
+        from ._keras import *
+    except ImportError:
+        pass
+
+try:
+    import jax
+    from ._jax import *
+except ImportError:
+    pass

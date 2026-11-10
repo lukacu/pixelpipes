@@ -154,6 +154,13 @@ setup(
     packages=find_packages(include=["pixelpipes", "pixelpipes.*"]),
     include_package_data=True,
     install_requires=["numpy>=1.23", "bidict>=0.21", "attributee>=0.1.9"],
+    extras_require={
+        "torch": ["torch"],
+        "tensorflow": ["tensorflow"],
+        "keras": ["keras"],
+        "jax": ["jax"],
+        "frameworks": ["torch", "tensorflow", "keras", "jax"],
+    },
     python_requires=">=3.8",
     zip_safe=False,
     cmdclass={"build_lib": CMakeBuildCommand, "build_py": BuildPyCommand},

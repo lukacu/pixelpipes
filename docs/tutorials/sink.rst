@@ -55,9 +55,53 @@ converts each stacked NumPy output to a PyTorch tensor.
 TensorFlow
 ----------
 
-PixelPipes does not currently provide a TensorFlow-specific sink. Use
-``PipelineDataLoader`` and adapt its NumPy batches to the TensorFlow input API
-used by your training code.
+When TensorFlow is installed, ``TensorFlowDataLoader`` converts each output to
+a TensorFlow tensor. Use ``as_dataset`` when the training API expects a
+``tf.data.Dataset``.
+
+.. code-block:: python
+
+   import tensorflow as tf
+   from examples.mnist import mnist
+   from pixelpipes.sink import TensorFlowDataLoader
+
+   loader = TensorFlowDataLoader(mnist(), batch=32, workers=1)
+   dataset = loader.as_dataset((
+       tf.TensorSpec((32, 28, 28), tf.float32),
+       tf.TensorSpec((32, 1), tf.int32),
+   ))
+
+   model.fit(dataset, steps_per_epoch=100)
+
+Keras
+-----
+
+``KerasDataLoader`` returns tuples of NumPy arrays in the format accepted by
+``keras.Model.fit``. Keras converts them using its configured backend; pass an
+iterator and set ``steps_per_epoch`` because the PixelPipes stream is infinite.
+
+.. code-block:: python
+
+   from examples.mnist import mnist
+   from pixelpipes.sink import KerasDataLoader
+
+   loader = KerasDataLoader(mnist(), batch=32, workers=1)
+   model.fit(iter(loader), steps_per_epoch=100)
+
+JAX
+---
+
+``JAXDataLoader`` converts each output to a JAX array, ready for a JIT-compiled
+training step.
+
+.. code-block:: python
+
+   from examples.mnist import mnist
+   from pixelpipes.sink import JAXDataLoader
+
+   loader = JAXDataLoader(mnist(), batch=32, workers=1)
+   images, labels = next(iter(loader))
+   loss = train_step(images, labels)
 
 
 

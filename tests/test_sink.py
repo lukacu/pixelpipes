@@ -66,6 +66,49 @@ class TestSinks(TestBase):
         except ImportError:
             return
 
+    def test_sink_tensorflow(self):
+
+        try:
+            import tensorflow as tf
+            from pixelpipes.sink import TensorFlowDataLoader
+        except ImportError:
+            return
+
+        with Graph() as graph:
+            outputs(Constant(np.zeros((10, 10), dtype=np.float32)))
+
+        batch = next(iter(TensorFlowDataLoader(
+            Compiler().build(graph), batch=2, workers=1)))
+        self.assertIsInstance(batch[0], tf.Tensor)
+
+    def test_sink_keras(self):
+
+        try:
+            from pixelpipes.sink import KerasDataLoader
+        except ImportError:
+            return
+
+        with Graph() as graph:
+            outputs(Constant(np.zeros((10, 10), dtype=np.float32)))
+
+        batch = next(iter(KerasDataLoader(
+            Compiler().build(graph), batch=2, workers=1)))
+        self.assertIsInstance(batch, tuple)
+
+    def test_sink_jax(self):
+
+        try:
+            from pixelpipes.sink import JAXDataLoader
+        except ImportError:
+            return
+
+        with Graph() as graph:
+            outputs(Constant(np.zeros((10, 10), dtype=np.float32)))
+
+        batch = next(iter(JAXDataLoader(
+            Compiler().build(graph), batch=2, workers=1)))
+        self.assertEqual(batch[0].shape, (2, 10, 10))
+
         
 
   
