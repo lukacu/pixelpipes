@@ -15,7 +15,10 @@ class DecodePNGPaletteIndices(Operation):
         return "load_png_palette",
 
 class DecodeImage(Operation):
-    """Read image from file with 8-bit per channel depth. Color or grayscale.
+    """Read an encoded image with 8-bit per channel depth by default.
+
+    The native decoder routes JPEG payloads through libjpeg-turbo and keeps
+    OpenCV for other image formats, based on the encoded data header.
     """
 
     buffer = Input(types.Buffer(), description="Memory buffer with encoded image")
@@ -25,3 +28,15 @@ class DecodeImage(Operation):
 
     def operation(self):
         return "opencv:image_decode", self.depth, self.channels, self.normalize
+
+
+class DecodeJPEG(Operation):
+    """Decode an encoded JPEG buffer through the dedicated libjpeg-turbo node."""
+
+    buffer = Input(types.Buffer(), description="Memory buffer encoded as JPEG")
+    depth = Enumeration(DataType, default="Char", description="Depth of the image")
+    channels = Enumeration(ImageChannels, default="RGB", description="Number of channels in the image")
+    normalize = Boolean(default=True, description="Normalize image")
+
+    def operation(self):
+        return "opencv:image_decode_jpeg", self.depth, self.channels, self.normalize

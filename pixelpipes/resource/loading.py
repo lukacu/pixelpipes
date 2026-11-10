@@ -19,7 +19,7 @@ class ColorConversion(Enum):
 
 class LoadImage(ResourceField):
 
-    def __init__(self, field: str, decoder: Optional[bool] = None):
+    def __init__(self, field: str, decoder=None):
         super().__init__(types.Image())
         self._decoder = decoder
         self._field = field
@@ -50,6 +50,7 @@ class ImageDirectory(ResourceListSource):
         default=None, description="Filtering function, recieves filename, tells if file should be included")
     depth = Enumeration(DataType, default="Char", description="Depth of the image")
     channels = Enumeration(ImageChannels, default="RGB", description="Number of channels in the image")
+    decoder = Callable(default=None, description="Optional encoded-image decoder")
 
     def load(self):
         if not self.recursive:
@@ -65,7 +66,10 @@ class ImageDirectory(ResourceListSource):
         if self.filter is not None:
             files = [file for file in files if self.filter(file)]
 
-        image = LoadImage(field="file", decoder=lambda x: DecodeImage(x, depth=self.depth, channels=self.channels))
+        decoder = self.decoder
+        if decoder is None:
+            decoder = lambda x: DecodeImage(x, depth=self.depth, channels=self.channels)
+        image = LoadImage(field="file", decoder=decoder)
 
         return {
             "file": FileList(files),

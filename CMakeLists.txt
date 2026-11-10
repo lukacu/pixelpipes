@@ -72,6 +72,7 @@ ENDIF()
 
 INCLUDE(cmake/lodepng.cmake)
 INCLUDE(cmake/zlib.cmake)
+INCLUDE(cmake/turbojpeg.cmake)
 INCLUDE(cmake/opencv.cmake)
 INCLUDE(cmake/xtensor.cmake)
 INCLUDE(cmake/hashlib.cmake)
@@ -124,7 +125,7 @@ ADD_LIBRARY(pixelpipes_opencv SHARED
     src/opencv/morphology.cpp
     )
 
-TARGET_LINK_LIBRARIES(pixelpipes_opencv pixelpipes ${OPENCV_LIBS})
+TARGET_LINK_LIBRARIES(pixelpipes_opencv pixelpipes ${OPENCV_LIBS} pixelpipes_turbojpeg)
 
 if(BUILD_TESTING)
     add_executable(pixelpipes_cpp_tests src/tests/tokens.cpp)
