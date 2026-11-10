@@ -217,11 +217,53 @@ class Pipeline(object):
 
 
 class Engine(object):
-    """Synchronous native batch engine with background prefetching.
+    """Native batch engine with parallel tensor batch assembly.
 
     The pipeline and batch size are fixed at construction. ``next_batch``
     returns only complete batches, in contiguous sample-index order.
-    ``workers`` and ``max_workers`` define the autoscaling range.
+    ``workers`` and ``max_workers`` define the pipeline-worker autoscaling
+    range. Tensor outputs are copied into preallocated batch storage by a
+    separate copy pool; ``copy_workers`` defaults to ``workers``.
+    """
+
+    def __init__(self, pipeline: Pipeline, batch_size: int, workers: int = 1,
+                 max_workers: Optional[int] = None, queue_size: int = 10,
+                 first_index: int = 1, copy_workers: Optional[int] = None):
+        from . import pypixelpipes
+        if not isinstance(batch_size, int) or batch_size < 1:
+            raise ValueError("Batch size should be one or more")
+        if not isinstance(workers, int) or workers < 1:
+            raise ValueError("Worker count should be one or more")
+        if max_workers is None:
+            max_workers = 0
+        if not isinstance(max_workers, int) or max_workers < 0:
+            raise ValueError("Maximum worker count should be zero or more")
+        if max_workers and max_workers < workers:
+            raise ValueError("Maximum worker count should not be less than workers")
+        if not isinstance(queue_size, int) or queue_size < 1:
+            raise ValueError("Queue size should be one or more")
+        if not isinstance(first_index, int) or first_index < 0:
+            raise ValueError("First index should be zero or more")
+        if copy_workers is None:
+            copy_workers = workers
+        if not isinstance(copy_workers, int) or copy_workers < 1:
+            raise ValueError("Copy worker count should be one or more")
+        self._pipeline = pipeline
+        native_pipeline = getattr(pipeline, "_pipeline", pipeline)
+        self._engine = pypixelpipes.Engine(native_pipeline, batch_size, workers,
+                                           max_workers, queue_size, first_index,
+                                           copy_workers)
+
+    def next_batch(self):
+        """Block until the next complete native batch is available."""
+        return self._engine.next_batch()
+
+
+class LegacyEngine(object):
+    """Legacy native batch engine with serial tensor batch assembly.
+
+    This implementation is retained for comparison and compatibility. It
+    stacks tensor outputs after all samples in a batch have been generated.
     """
 
     def __init__(self, pipeline: Pipeline, batch_size: int, workers: int = 1,
@@ -244,12 +286,18 @@ class Engine(object):
             raise ValueError("First index should be zero or more")
         self._pipeline = pipeline
         native_pipeline = getattr(pipeline, "_pipeline", pipeline)
-        self._engine = pypixelpipes.Engine(native_pipeline, batch_size, workers,
-                                           max_workers, queue_size, first_index)
+        self._engine = pypixelpipes.LegacyEngine(
+            native_pipeline, batch_size, workers, max_workers, queue_size,
+            first_index)
 
     def next_batch(self):
-        """Block until the next complete native batch is available."""
+        """Block until the next complete legacy batch is available."""
         return self._engine.next_batch()
+
+
+# Compatibility name from when the parallel-copy implementation was
+# experimental. The parallel implementation is now the default Engine.
+ParallelEngine = Engine
 
 def write_pipeline(filename: str, pipeline: Pipeline, compress: Optional[bool] = True) -> None:
     """Serializes pipeline to a file with optional compression

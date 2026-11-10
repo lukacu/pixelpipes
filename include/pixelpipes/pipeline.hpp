@@ -139,6 +139,8 @@ namespace pixelpipes
         int _position;
         std::string name;
     };
+    // Native batch engine with preallocated output tensors and a dedicated
+    // copy pool. Each copy-pool task writes one sample into its output slice.
     class PIXELPIPES_API Engine
     {
         struct State;
@@ -146,10 +148,11 @@ namespace pixelpipes
     public:
     
         // The engine owns one ordered batch stream. `workers` is the minimum
-        // number of workers; zero max_workers selects hardware concurrency.
+        // number of pipeline workers; zero max_workers selects hardware
+        // concurrency. A zero copy_workers uses workers.
         explicit Engine(Pipeline &pipeline, size_t batch_size, uint16_t workers = 1,
                         uint16_t max_workers = 0, size_t queue_size = 10,
-                        unsigned long first_index = 1);
+                        unsigned long first_index = 1, uint16_t copy_workers = 0);
 
         ~Engine();
 
@@ -164,8 +167,34 @@ namespace pixelpipes
             void operator()(State *p) const;
         };
 
-        // TODO: figure out what kind of magic is done here and replicate it.
         std::unique_ptr<State, StateDeleter> state;
 
     };
+
+    // Legacy batch engine. It generates complete samples in worker threads and
+    // stacks tensor outputs after all samples in a batch have been generated.
+    class PIXELPIPES_API LegacyEngine
+    {
+        struct State;
+
+    public:
+        explicit LegacyEngine(Pipeline &pipeline, size_t batch_size, uint16_t workers = 1,
+                              uint16_t max_workers = 0, size_t queue_size = 10,
+                              unsigned long first_index = 1);
+
+        ~LegacyEngine();
+
+        Sequence<TokenReference> next_batch() noexcept(false);
+
+    private:
+        struct StateDeleter
+        {
+            void operator()(State *p) const;
+        };
+
+        std::unique_ptr<State, StateDeleter> state;
+    };
+
+    // Source compatibility for clients that used the experimental name.
+    using ParallelEngine = Engine;
 }

@@ -1077,9 +1077,50 @@ namespace pixelpipes
             }
             return result;
         }
+
+        // Allocate all tensor outputs before any copy task starts. Scalar
+        // outputs are stacked immediately; tensor outputs are filled by one
+        // copy-pool task per sample.
+        Sequence<TokenReference> prepare_parallel_batch(const std::vector<Sequence<TokenReference>> &samples)
+        {
+            if (samples.empty())
+                throw PipelineException("Unable to batch zero samples");
+
+            const size_t output_count = samples[0].size();
+            for (const auto &sample : samples)
+            {
+                if (sample.size() != output_count)
+                    throw PipelineException("Pipeline outputs have different lengths");
+            }
+
+            Sequence<TokenReference> result(output_count);
+            for (size_t output = 0; output < output_count; ++output)
+            {
+                if (samples[0][output]->is<Tensor>())
+                {
+                    auto first = extract<TensorReference>(samples[0][output]);
+                    for (size_t sample = 1; sample < samples.size(); ++sample)
+                    {
+                        if (!samples[sample][output] || !samples[sample][output]->is<Tensor>() ||
+                            !(extract<TensorReference>(samples[sample][output])->shape() == first->shape()))
+                            throw PipelineException("Pipeline outputs cannot be batched because their tensor shapes differ");
+                    }
+                    result[output] = create_tensor(first->shape().push(samples.size()));
+                }
+                else
+                {
+                    std::vector<TokenReference> values;
+                    values.reserve(samples.size());
+                    for (const auto &sample : samples)
+                        values.push_back(sample[output].reborrow());
+                    result[output] = stack_output(std::move(values));
+                }
+            }
+            return result;
+        }
     }
 
-    struct Engine::State
+    struct LegacyEngine::State
     {
         struct BatchWork
         {
@@ -1208,18 +1249,217 @@ namespace pixelpipes
         }
     };
 
+    void LegacyEngine::StateDeleter::operator()(State *p) const
+    {
+        delete p;
+    }
+
+    LegacyEngine::LegacyEngine(Pipeline &pipeline, size_t batch_size, uint16_t workers, uint16_t max_workers,
+                               size_t queue_size, unsigned long first_index) : state(nullptr)
+    {
+        if (workers == 0)
+            throw IllegalStateException("LegacyEngine requires at least one worker");
+
+        state.reset(new LegacyEngine::State(pipeline, batch_size, workers, max_workers, queue_size, first_index));
+    }
+
+    LegacyEngine::~LegacyEngine() = default;
+
+    Sequence<TokenReference> LegacyEngine::next_batch() noexcept(false)
+    {
+        return state->next();
+    }
+
+    struct Engine::State
+    {
+        struct BatchWork
+        {
+            State *owner;
+            uint64_t order;
+            Pipeline *pipeline;
+            std::vector<Sequence<TokenReference>> samples;
+            Sequence<TokenReference> result;
+            std::atomic<size_t> remaining_copies;
+
+            BatchWork(State *owner, uint64_t order, Pipeline *pipeline, size_t size)
+                : owner(owner), order(order), pipeline(pipeline), samples(size), remaining_copies(size) {}
+        };
+
+        std::mutex batch_lock;
+        std::condition_variable batch_ready;
+        std::map<uint64_t, Sequence<TokenReference>> ready;
+        Pipeline *pipeline;
+        size_t batch_size;
+        size_t queue_capacity;
+        unsigned long next_index = 1;
+        uint64_t next_order = 0;
+        uint64_t consume_order = 0;
+        bool stream_failed = false;
+        std::string stream_error;
+        AutoscalingQueue copy_pool;
+        // Keep the pipeline worker pool last so it is destroyed first: a
+        // running batch worker may still dispatch its copy tasks while the
+        // engine is being torn down.
+        AutoscalingQueue workers;
+
+        State(Pipeline &pipeline, size_t batch_size, uint16_t minimum, uint16_t maximum,
+              size_t queue_capacity, unsigned long first_index, uint16_t copy_workers)
+            : pipeline(&pipeline), batch_size(batch_size),
+              queue_capacity(std::max<size_t>(1, queue_capacity)),
+              next_index(first_index),
+              copy_pool(copy_workers, copy_workers),
+              workers(minimum, maximum == 0 ? std::max<size_t>(minimum, std::thread::hardware_concurrency()) : maximum)
+        {
+            if (batch_size == 0)
+                throw IllegalStateException("Batch size should be one or more");
+
+            std::lock_guard<std::mutex> guard(batch_lock);
+            for (size_t i = 0; i < queue_capacity; ++i)
+                submit_batch_locked();
+        }
+
+        void fail_batch(const std::string &error)
+        {
+            std::lock_guard<std::mutex> guard(batch_lock);
+            if (!stream_failed)
+            {
+                stream_failed = true;
+                stream_error = error;
+            }
+            batch_ready.notify_all();
+        }
+
+        void publish_batch(const std::shared_ptr<BatchWork> &work)
+        {
+            std::lock_guard<std::mutex> guard(batch_lock);
+            ready.emplace(work->order, std::move(work->result));
+            batch_ready.notify_all();
+        }
+
+        void copy_sample(const std::shared_ptr<BatchWork> &work, size_t sample_index)
+        {
+            try
+            {
+                const auto &sample = work->samples[sample_index];
+                for (size_t output = 0; output < sample.size(); ++output)
+                {
+                    if (!sample[output]->is<Tensor>())
+                        continue;
+
+                    auto source = extract<TensorReference>(sample[output]);
+                    auto destination = extract<TensorReference>(extract<TensorReference>(work->result[output])->get(sample_index));
+                    if (is_hwc_backed_chw(source))
+                        copy_hwc_backed_chw(source, destination);
+                    else
+                        copy_buffer(source, destination);
+                }
+
+                if (work->remaining_copies.fetch_sub(1) == 1)
+                    publish_batch(work);
+            }
+            catch (const BaseException &error)
+            {
+                fail_batch(error.what());
+            }
+            catch (const std::exception &error)
+            {
+                fail_batch(error.what());
+            }
+            catch (...)
+            {
+                fail_batch("Unknown exception while copying parallel pipeline output");
+            }
+        }
+
+        void complete_batch(const std::shared_ptr<BatchWork> &work)
+        {
+            try
+            {
+                work->result = prepare_parallel_batch(work->samples);
+                for (size_t sample = 0; sample < work->samples.size(); ++sample)
+                {
+                    copy_pool.dispatch([this, work, sample]()
+                    {
+                        copy_sample(work, sample);
+                    });
+                }
+            }
+            catch (const BaseException &error)
+            {
+                fail_batch(error.what());
+            }
+            catch (const std::exception &error)
+            {
+                fail_batch(error.what());
+            }
+            catch (...)
+            {
+                fail_batch("Unknown exception while preparing parallel pipeline output");
+            }
+        }
+
+        void submit_batch_locked()
+        {
+            const uint64_t order = next_order++;
+            auto work = std::make_shared<BatchWork>(this, order, pipeline, batch_size);
+
+            std::vector<unsigned long> indices(batch_size);
+            for (size_t sample = 0; sample < batch_size; ++sample)
+                indices[sample] = next_index++;
+
+            workers.dispatch([work, indices = std::move(indices)]()
+            {
+                try
+                {
+                    for (size_t sample = 0; sample < indices.size(); ++sample)
+                        work->samples[sample] = work->pipeline->run(indices[sample]);
+                    work->owner->complete_batch(work);
+                }
+                catch (const BaseException &error)
+                {
+                    work->owner->fail_batch(error.what());
+                }
+                catch (const std::exception &error)
+                {
+                    work->owner->fail_batch(error.what());
+                }
+                catch (...)
+                {
+                    work->owner->fail_batch("Unknown exception while running pipeline");
+                }
+            });
+        }
+
+        Sequence<TokenReference> next()
+        {
+            std::unique_lock<std::mutex> guard(batch_lock);
+            batch_ready.wait(guard, [this]() { return stream_failed || ready.find(consume_order) != ready.end(); });
+            if (stream_failed)
+                throw PipelineException(stream_error);
+
+            auto result = std::move(ready.find(consume_order)->second);
+            ready.erase(consume_order++);
+            submit_batch_locked();
+            return result;
+        }
+    };
+
     void Engine::StateDeleter::operator()(State *p) const
     {
         delete p;
     }
 
-    Engine::Engine(Pipeline &pipeline, size_t batch_size, uint16_t workers, uint16_t max_workers,
-                   size_t queue_size, unsigned long first_index) : state(nullptr)
+    Engine::Engine(Pipeline &pipeline, size_t batch_size, uint16_t workers,
+                   uint16_t max_workers, size_t queue_size,
+                   unsigned long first_index, uint16_t copy_workers) : state(nullptr)
     {
         if (workers == 0)
             throw IllegalStateException("Engine requires at least one worker");
+        if (copy_workers == 0)
+            copy_workers = workers;
 
-        state.reset(new Engine::State(pipeline, batch_size, workers, max_workers, queue_size, first_index));
+        state.reset(new Engine::State(pipeline, batch_size, workers, max_workers,
+                                      queue_size, first_index, copy_workers));
     }
 
     Engine::~Engine() = default;

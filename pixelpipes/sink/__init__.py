@@ -2,6 +2,7 @@
 import typing
 
 from pixelpipes import Pipeline
+from pixelpipes import Engine, LegacyEngine
 from pixelpipes import pypixelpipes
 class BatchIterator(object):
     """Base for iterators that receive complete batches from an engine."""
@@ -99,6 +100,37 @@ class PipelineDataLoader(AbstractDataLoader):
     @property
     def pipeline(self):
         return self._pipeline
+
+
+class ParallelPipelineDataLoader(PipelineDataLoader):
+    """Compatibility loader name for the default parallel batch engine."""
+
+    def __init__(self, pipeline: Pipeline, batch: int, workers: typing.Optional[int] = None,
+                 offset: typing.Optional[int] = 0, max_workers: typing.Optional[int] = None,
+                 queue_size: int = 10, copy_workers: typing.Optional[int] = None):
+        super().__init__(pipeline, batch, workers=workers, offset=offset,
+                         max_workers=max_workers, queue_size=queue_size)
+        self._copy_workers = copy_workers
+
+    def __iter__(self):
+        native_pipeline = getattr(self._pipeline, "_pipeline", self._pipeline)
+        engine = Engine(native_pipeline, self._batch, self._workers,
+                        self._max_workers, self._queue_size,
+                        self._offset + 1, self._copy_workers)
+        return PipelineDataLoader._BatchIterator(
+            engine, native_pipeline, self._batch, self._offset)
+
+
+class LegacyPipelineDataLoader(PipelineDataLoader):
+    """Data loader using the legacy serial tensor assembly engine."""
+
+    def __iter__(self):
+        native_pipeline = getattr(self._pipeline, "_pipeline", self._pipeline)
+        engine = LegacyEngine(native_pipeline, self._batch, self._workers,
+                              self._max_workers, self._queue_size,
+                              self._offset + 1)
+        return PipelineDataLoader._BatchIterator(
+            engine, native_pipeline, self._batch, self._offset)
 
 try:
     import torch
