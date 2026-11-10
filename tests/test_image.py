@@ -781,7 +781,7 @@ class TestsRender(TestBase):
 
         self.assertIsInstance(output[0], np.ndarray)
         self.assertEqual(output[0].shape, (1, 10, 10))
-        self.assertEqual(np.sum(output[0] > 0), 50)
+        self.assertEqual(np.count_nonzero(output[0] == 255), 50)
 
     def test_linear_image(self):
 

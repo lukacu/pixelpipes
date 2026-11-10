@@ -118,7 +118,7 @@ namespace pixelpipes
         VERIFY(positive >= 0.0 && positive <= 1.0, "Positives percentage value must be between 0 and 1");
 
         RandomGenerator generator = create_generator(seed);
-        cv::Mat noise(height, width, CV_8U);
+        cv::Mat noise = cv::Mat::zeros(height, width, CV_8U);
 
         // Generate a vector of increasing 1D image indices
         std::vector<size_t> indices(width * height);
