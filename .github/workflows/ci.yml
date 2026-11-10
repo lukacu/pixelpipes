@@ -39,7 +39,15 @@ jobs:
           path: |
             build/test-dependencies/build/opencv
             build/test-dependencies/installed/opencv
-          key: native-test-opencv-${{ runner.os }}-${{ runner.arch }}-gcc-${{ steps.toolchain.outputs.compiler }}-cmake-${{ steps.toolchain.outputs.cmake }}-${{ hashFiles('cmake/dependency-versions.cmake', 'cmake/opencv.cmake') }}-v2
+          key: native-test-opencv-${{ runner.os }}-${{ runner.arch }}-gcc-${{ steps.toolchain.outputs.compiler }}-cmake-${{ steps.toolchain.outputs.cmake }}-${{ hashFiles('cmake/dependency-versions.cmake', 'cmake/opencv.cmake') }}-v3
+
+      - name: Restore TurboJPEG dependency
+        uses: actions/cache@v5
+        with:
+          path: |
+            build/test-python/dependencies/build/turbojpeg
+            build/test-dependencies/installed/turbojpeg
+          key: native-test-turbojpeg-${{ runner.os }}-${{ runner.arch }}-gcc-${{ steps.toolchain.outputs.compiler }}-cmake-${{ steps.toolchain.outputs.cmake }}-${{ hashFiles('cmake/dependency-versions.cmake', 'cmake/turbojpeg.cmake') }}-v1
 
       - name: Restore zlib dependency
         uses: actions/cache@v5
@@ -106,7 +114,15 @@ jobs:
           path: |
             build_wheel/dependencies/build/opencv
             build_wheel/dependencies/installed/opencv
-          key: native-manylinux2014-x86_64-opencv-${{ steps.image.outputs.id }}-${{ hashFiles('cmake/dependency-versions.cmake', 'cmake/opencv.cmake') }}-v2
+          key: native-manylinux2014-x86_64-opencv-${{ steps.image.outputs.id }}-${{ hashFiles('cmake/dependency-versions.cmake', 'cmake/opencv.cmake') }}-v3
+
+      - name: Restore TurboJPEG dependency
+        uses: actions/cache@v5
+        with:
+          path: |
+            build_wheel/dependencies/build/turbojpeg
+            build_wheel/dependencies/installed/turbojpeg
+          key: native-manylinux2014-x86_64-turbojpeg-${{ steps.image.outputs.id }}-${{ hashFiles('cmake/dependency-versions.cmake', 'cmake/turbojpeg.cmake') }}-v1
 
       - name: Restore zlib dependency
         uses: actions/cache@v5

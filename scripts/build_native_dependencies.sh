@@ -28,7 +28,7 @@ cmake -S "${ROOT}" -B "${CONFIGURE_ROOT}" \
     -DCMAKE_INSTALL_PREFIX="${DEPENDENCY_ROOT}/installed"
 
 cmake --build "${CONFIGURE_ROOT}" \
-    --target xtensor zlib opencv lodepng hashlib \
+    --target xtensor zlib turbojpeg opencv lodepng hashlib \
     --parallel "${BUILD_WORKERS}"
 
 # lodepng and hashlib are top-level targets; the other dependencies are

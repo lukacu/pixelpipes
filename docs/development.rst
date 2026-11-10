@@ -11,8 +11,10 @@ Prerequisites
 
 Use Python 3.8 or newer, CMake 3.15 through 3.x, and a C++17-capable compiler.
 Release-style builds fetch immutable, pinned source revisions of OpenCV,
-xtensor, xsimd, xtl, zlib-ng, and lodepng, so the first build requires network
-access and can take several minutes.
+libjpeg-turbo, xtensor, xsimd, xtl, zlib-ng, and lodepng, so the first build
+requires network access and can take several minutes. libjpeg-turbo is built
+as a static library and included in ``pixelpipes_opencv``; no system JPEG
+development package is required.
 
 Set up a development environment
 --------------------------------
@@ -66,6 +68,9 @@ available through ``PIXELPIPES_ZLIBNG_ROOT`` or ``ZLIBNG_INCLUDE_DIR`` and
 xtl, and xsimd headers through ``CMAKE_PREFIX_PATH`` or their respective
 ``*_INCLUDE_DIR`` cache variables. lodepng can be supplied as an installed
 header/library or as a source checkout via ``PIXELPIPES_LODEPNG_SOURCE_DIR``.
+libjpeg-turbo must still be supplied as a source checkout via
+``PIXELPIPES_TURBOJPEG_SOURCE_DIR`` because it is always built and linked
+statically into ``pixelpipes_opencv``.
 
 For example, for a CMake build:
 
@@ -75,7 +80,8 @@ For example, for a CMake build:
       -DPIXELPIPES_FETCH_DEPENDENCIES=OFF \
       -DCMAKE_PREFIX_PATH=/opt/pixelpipes-deps \
       -DPIXELPIPES_ZLIBNG_ROOT=/opt/pixelpipes-deps \
-      -DPIXELPIPES_LODEPNG_SOURCE_DIR=/opt/pixelpipes-deps/src/lodepng
+      -DPIXELPIPES_LODEPNG_SOURCE_DIR=/opt/pixelpipes-deps/src/lodepng \
+      -DPIXELPIPES_TURBOJPEG_SOURCE_DIR=/opt/pixelpipes-deps/src/libjpeg-turbo
    cmake --build build/offline --parallel 2
 
 The same option is available through the setuptools wrapper with the

@@ -14,6 +14,8 @@ set(PIXELPIPES_ZLIBNG_REVISION "c882034d48afc0b32a38e8f7ca63a2e4e91ab42d")
 set(PIXELPIPES_LODEPNG_REVISION "5601b8272a6850b7c5d693dd0c0e16da50be8d8d")
 # hash-library has no upstream release tags; pin its source to an immutable commit.
 set(PIXELPIPES_HASHLIB_REVISION "d389d18112bcf7e4786ec5e8723f3658a7f433d7")
+# libjpeg-turbo 3.0.4 release commit.
+set(PIXELPIPES_TURBOJPEG_REVISION "f29eda648547b36aa594c4116c7764a6c8a079b9")
 
 set(PIXELPIPES_OPENCV_REPOSITORY "https://github.com/opencv/opencv")
 set(PIXELPIPES_XTL_REPOSITORY "https://github.com/xtensor-stack/xtl")
@@ -22,3 +24,4 @@ set(PIXELPIPES_XTENSOR_REPOSITORY "https://github.com/xtensor-stack/xtensor")
 set(PIXELPIPES_ZLIBNG_REPOSITORY "https://github.com/zlib-ng/zlib-ng")
 set(PIXELPIPES_LODEPNG_REPOSITORY "https://github.com/lvandeve/lodepng.git")
 set(PIXELPIPES_HASHLIB_REPOSITORY "https://github.com/stbrumme/hash-library")
+set(PIXELPIPES_TURBOJPEG_REPOSITORY "https://github.com/libjpeg-turbo/libjpeg-turbo.git")

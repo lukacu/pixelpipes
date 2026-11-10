@@ -89,10 +89,10 @@ class CMakeBuildCommand(Command):
                     os.path.join(installed_root, "zlib")
                 ),
             ])
-        if "PIXELPIPES_TURBOJPEG_ROOT" in os.environ:
+        if "PIXELPIPES_TURBOJPEG_SOURCE_DIR" in os.environ:
             cmake_args.append(
-                "-DPIXELPIPES_TURBOJPEG_ROOT={}".format(
-                    os.path.abspath(os.environ["PIXELPIPES_TURBOJPEG_ROOT"])
+                "-DPIXELPIPES_TURBOJPEG_SOURCE_DIR={}".format(
+                    os.path.abspath(os.environ["PIXELPIPES_TURBOJPEG_SOURCE_DIR"])
                 )
             )
         if debug_build:

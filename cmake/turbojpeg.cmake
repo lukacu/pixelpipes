@@ -1,30 +1,67 @@
-set(PIXELPIPES_TURBOJPEG_ROOT "" CACHE PATH
-    "Prefix containing a TurboJPEG installation")
+set(PIXELPIPES_TURBOJPEG_SOURCE_DIR "" CACHE PATH
+    "Source directory for the libjpeg-turbo build")
 
-find_path(PIXELPIPES_TURBOJPEG_INCLUDE_DIR NAMES turbojpeg.h
-    HINTS
-        "${PIXELPIPES_TURBOJPEG_ROOT}/include"
-)
-find_library(PIXELPIPES_TURBOJPEG_LIBRARY NAMES turbojpeg libturbojpeg
-    HINTS
-        "${PIXELPIPES_TURBOJPEG_ROOT}/lib"
-        "${PIXELPIPES_TURBOJPEG_ROOT}/lib64"
+set(_PIXELPIPES_TURBOJPEG_PREFIX "${CMAKE_EXTERNALS_DIR}turbojpeg")
+if(MSVC)
+    set(_PIXELPIPES_TURBOJPEG_LIBRARY_NAME "turbojpeg-static${CMAKE_STATIC_LIBRARY_SUFFIX}")
+else()
+    set(_PIXELPIPES_TURBOJPEG_LIBRARY_NAME
+        "${CMAKE_STATIC_LIBRARY_PREFIX}turbojpeg${CMAKE_STATIC_LIBRARY_SUFFIX}")
+endif()
+set(_PIXELPIPES_TURBOJPEG_LIBRARY
+    "${_PIXELPIPES_TURBOJPEG_PREFIX}/lib/${_PIXELPIPES_TURBOJPEG_LIBRARY_NAME}")
+set(_PIXELPIPES_TURBOJPEG_INCLUDE_DIR "${_PIXELPIPES_TURBOJPEG_PREFIX}/include")
+file(MAKE_DIRECTORY "${_PIXELPIPES_TURBOJPEG_INCLUDE_DIR}")
+
+set(_PIXELPIPES_TURBOJPEG_CMAKE_ARGS
+    -DCMAKE_INSTALL_PREFIX=${_PIXELPIPES_TURBOJPEG_PREFIX}
+    -DCMAKE_BUILD_TYPE=Release
+    -DCMAKE_POSITION_INDEPENDENT_CODE=ON
+    -DCMAKE_INSTALL_LIBDIR=lib
+    -DENABLE_SHARED=OFF
+    -DENABLE_STATIC=ON
+    -DWITH_TURBOJPEG=ON
 )
 
-if(NOT PIXELPIPES_TURBOJPEG_INCLUDE_DIR OR NOT PIXELPIPES_TURBOJPEG_LIBRARY)
+if(PIXELPIPES_FETCH_DEPENDENCIES)
+    if(NOT EXISTS "${_PIXELPIPES_TURBOJPEG_LIBRARY}")
+        ExternalProject_Add(turbojpeg
+            PREFIX "${PIXELPIPES_EXTERNAL_PROJECT_ROOT}/turbojpeg"
+            GIT_REPOSITORY ${PIXELPIPES_TURBOJPEG_REPOSITORY}
+            GIT_TAG ${PIXELPIPES_TURBOJPEG_REVISION}
+            CMAKE_ARGS ${_PIXELPIPES_TURBOJPEG_CMAKE_ARGS}
+            BUILD_BYPRODUCTS "${_PIXELPIPES_TURBOJPEG_LIBRARY}"
+            TEST_COMMAND ""
+        )
+    else()
+        add_custom_target(turbojpeg)
+    endif()
+elseif(NOT PIXELPIPES_TURBOJPEG_SOURCE_DIR OR
+       NOT EXISTS "${PIXELPIPES_TURBOJPEG_SOURCE_DIR}/CMakeLists.txt")
     message(FATAL_ERROR
-        "PixelPipes' JPEG decoder requires libjpeg-turbo (turbojpeg.h and "
-        "libturbojpeg). Install its development package or set "
-        "PIXELPIPES_TURBOJPEG_ROOT to a provisioned prefix.")
+        "No-network mode requires a libjpeg-turbo source directory via "
+        "PIXELPIPES_TURBOJPEG_SOURCE_DIR. The library is always built "
+        "statically into pixelpipes_opencv.")
+else()
+    ExternalProject_Add(turbojpeg
+        SOURCE_DIR "${PIXELPIPES_TURBOJPEG_SOURCE_DIR}"
+        BINARY_DIR "${PIXELPIPES_EXTERNAL_PROJECT_ROOT}/turbojpeg-build"
+        CMAKE_ARGS ${_PIXELPIPES_TURBOJPEG_CMAKE_ARGS}
+        BUILD_BYPRODUCTS "${_PIXELPIPES_TURBOJPEG_LIBRARY}"
+        UPDATE_COMMAND ""
+        TEST_COMMAND ""
+    )
 endif()
 
-add_library(pixelpipes_turbojpeg UNKNOWN IMPORTED)
+add_library(pixelpipes_turbojpeg STATIC IMPORTED)
 set_target_properties(pixelpipes_turbojpeg PROPERTIES
-    IMPORTED_LOCATION "${PIXELPIPES_TURBOJPEG_LIBRARY}"
-    INTERFACE_INCLUDE_DIRECTORIES "${PIXELPIPES_TURBOJPEG_INCLUDE_DIR}"
+    IMPORTED_LOCATION "${_PIXELPIPES_TURBOJPEG_LIBRARY}"
+    IMPORTED_LINK_INTERFACE_LANGUAGES "C"
+    INTERFACE_INCLUDE_DIRECTORIES "${_PIXELPIPES_TURBOJPEG_INCLUDE_DIR}"
 )
+add_dependencies(pixelpipes_turbojpeg turbojpeg)
 
 if(UNIX)
     set_property(TARGET pixelpipes_turbojpeg APPEND PROPERTY
-        INTERFACE_LINK_LIBRARIES "m;Threads::Threads")
+        INTERFACE_LINK_LIBRARIES "m;${CMAKE_DL_LIBS};Threads::Threads")
 endif()
