@@ -704,6 +704,53 @@ class FlowTests(TestBase):
 
 class TestTensor(TestBase):
 
+    def test_static_tensor(self):
+
+        from pixelpipes.tensor import StaticTensor
+
+        with Graph() as graph:
+            outputs(StaticTensor([2, 3]))
+
+        pipeline = Compiler().build(graph)
+        output = pipeline.run(1)[0]
+
+        self.assertEqual(output.shape, (2, 3))
+        self.assertEqual(output.dtype, np.float32)
+        np.testing.assert_array_equal(output, np.zeros((2, 3), dtype=np.float32))
+
+    def test_random_tensor_is_seeded_and_bounded(self):
+
+        from pixelpipes.tensor import RandomTensor
+
+        with Graph() as graph:
+            outputs(RandomTensor([2, 3], seed=123))
+
+        pipeline = Compiler().build(graph)
+        first = pipeline.run(1)[0]
+        second = pipeline.run(1)[0]
+
+        self.assertEqual(first.shape, (2, 3))
+        self.assertEqual(first.dtype, np.float32)
+        np.testing.assert_array_equal(first, second)
+        self.assertTrue(np.all(first >= 0.0))
+        self.assertTrue(np.all(first < 1.0))
+
+    def test_random_tensor_default_seed_is_sample_dependent(self):
+
+        from pixelpipes.tensor import RandomTensor
+        from pixelpipes.graph import SampleIndex
+
+        with Graph() as graph:
+            outputs(RandomTensor([4], seed=SampleIndex()))
+
+        pipeline = Compiler().build(graph)
+        first = pipeline.run(1)[0]
+        repeat = pipeline.run(1)[0]
+        next_sample = pipeline.run(2)[0]
+
+        np.testing.assert_array_equal(first, repeat)
+        self.assertFalse(np.array_equal(first, next_sample))
+
     def test_tensor_add(self):
 
         test = np.random.randint(1, 255, (256,256), dtype=np.uint8)

@@ -16,6 +16,65 @@ namespace pixelpipes
 
     PIXELPIPES_REGISTER_ENUM("datatype", DataType);
 
+    namespace
+    {
+
+        SizeSequence tensor_shape(const Sequence<int> &shape)
+        {
+            VERIFY(shape.size() > 0, "Tensor shape must have at least one dimension");
+            VERIFY(shape.size() <= SHAPE_RANK_MAX, "Tensor rank is too large");
+
+            SizeSequence result(shape.size());
+            for (size_t i = 0; i < shape.size(); i++)
+            {
+                VERIFY(shape[i] > 0, "Tensor dimensions must be positive");
+                result[i] = static_cast<size_t>(shape[i]);
+            }
+            return result;
+        }
+
+        TokenReference generated_tensor_eval(const TokenList &inputs)
+        {
+            VERIFY(inputs.size() >= 1, "Tensor shape expected");
+            if (_IS_PLACEHOLDER(inputs[0]))
+                return create<Placeholder>();
+
+            auto shape = tensor_shape(extract<Sequence<int>>(inputs[0]));
+            return create<Placeholder>(Shape(FloatType, shape));
+        }
+
+    }
+
+    TokenReference static_tensor_run(const TokenList &inputs)
+    {
+        VERIFY(inputs.size() == 1, "Tensor shape expected");
+        TensorReference result = create_tensor(Shape(FloatType, tensor_shape(extract<Sequence<int>>(inputs[0]))));
+        auto values = result->data().template reinterpret<float>();
+        std::fill(values.begin(), values.end(), 0.0f);
+        return result;
+    }
+
+    PIXELPIPES_COMPUTE_OPERATION("static_tensor", static_tensor_run, generated_tensor_eval);
+
+    TokenReference random_tensor_run(const TokenList &inputs)
+    {
+        VERIFY(inputs.size() == 2, "Tensor shape and seed expected");
+
+        TensorReference result = create_tensor(Shape(FloatType, tensor_shape(extract<Sequence<int>>(inputs[0]))));
+        auto values = result->data().template reinterpret<float>();
+        RandomGenerator generator = create_generator(extract<int>(inputs[1]));
+
+        // xorshift32 is both fast and fully controlled by the operation seed.
+        // Dividing by 2^32 maps every generator state to [0, 1).
+        constexpr double inverse_uint32_range = 1.0 / 4294967296.0;
+        for (size_t i = 0; i < values.size(); i++)
+            values[i] = static_cast<float>(generator()) * inverse_uint32_range;
+
+        return result;
+    }
+
+    PIXELPIPES_COMPUTE_OPERATION("random_tensor", random_tensor_run, generated_tensor_eval);
+
     struct TensorGuard
     {
         TensorReference guard;

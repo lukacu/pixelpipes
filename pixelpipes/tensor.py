@@ -2,7 +2,37 @@
 from attributee import List
 
 from . import types, DataType
-from .graph import Macro, Operation, Input, NodeException, EnumerationInput
+from .graph import Constant, Macro, Operation, Input, NodeException, EnumerationInput, SeedInput
+
+
+class _TensorShapeInput(Input):
+    """Accept a literal shape as well as an explicit graph value."""
+
+    def coerce(self, value, owner):
+        if isinstance(value, (list, tuple)):
+            # Let Input.coerce turn the generated node into the graph
+            # reference expected by the compiler.
+            return super().coerce(Constant(value=list(value)), owner)
+        return super().coerce(value, owner)
+
+
+class StaticTensor(Operation):
+    """Creates a zero-filled float tensor with the requested shape."""
+
+    shape = _TensorShapeInput(types.IntegerList(), description="Tensor dimensions")
+
+    def operation(self):
+        return "static_tensor",
+
+
+class RandomTensor(Operation):
+    """Creates a uniformly distributed float tensor with a controlled seed."""
+
+    shape = _TensorShapeInput(types.IntegerList(), description="Tensor dimensions")
+    seed = SeedInput()
+
+    def operation(self):
+        return "random_tensor",
 
 
 class Stack(Operation):
