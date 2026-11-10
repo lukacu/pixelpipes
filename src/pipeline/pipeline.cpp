@@ -15,6 +15,7 @@
 #include <map>
 #include <memory>
 #include <list>
+#include <cstring>
 
 #include <pixelpipes/pipeline.hpp>
 #include <pixelpipes/buffer.hpp>
@@ -932,6 +933,84 @@ namespace pixelpipes
             return result;
         }
 
+        // Image tensors are commonly represented as a CHW view over an HWC
+        // buffer.  copy_buffer() is deliberately generic, but its slice
+        // iterator cannot coalesce this layout and consequently falls back to
+        // copying one cell at a time.  That is particularly expensive when
+        // native batching turns several image outputs into one contiguous
+        // [N,C,H,W] tensor.  Keep the generic path for all other layouts, and
+        // handle this frequent image view with a small, explicit transpose.
+        bool is_hwc_backed_chw(const TensorReference &tensor)
+        {
+            const auto shape = tensor->shape();
+            const auto strides = tensor->strides();
+            if (shape.rank() != 3 || strides.size() != 3)
+                return false;
+
+            const size_t channels = shape[0];
+            const size_t width = shape[2];
+            const size_t cell = tensor->cell_size();
+            return strides[0] == cell &&
+                   strides[1] == width * channels * cell &&
+                   strides[2] == channels * cell;
+        }
+
+        void copy_hwc_backed_chw(const TensorReference &source, const TensorReference &destination)
+        {
+            const auto shape = source->shape();
+            const auto destination_strides = destination->strides();
+            const size_t channels = shape[0];
+            const size_t height = shape[1];
+            const size_t width = shape[2];
+            const size_t cell = source->cell_size();
+
+            // The destination is a slice of the newly allocated contiguous
+            // batch tensor.  Do not use this path if that invariant changes.
+            if (destination_strides.size() != 3 ||
+                destination_strides[2] != cell ||
+                destination_strides[1] != width * cell ||
+                destination_strides[0] != height * width * cell)
+            {
+                copy_buffer(source, destination);
+                return;
+            }
+
+            const uchar *input = source->const_data().data();
+            uchar *output = destination->data().data();
+            const size_t plane = height * width;
+
+            if (cell == 1)
+            {
+                // Keep the innermost loop over the source image so each
+                // decoded pixel is read once, while writing directly into
+                // the contiguous channel planes expected by the batch.
+                for (size_t y = 0; y < height; ++y)
+                {
+                    for (size_t x = 0; x < width; ++x)
+                    {
+                        const uchar *pixel = input + (y * width + x) * channels;
+                        for (size_t c = 0; c < channels; ++c)
+                            output[c * plane + y * width + x] = pixel[c];
+                    }
+                }
+                return;
+            }
+
+            for (size_t y = 0; y < height; ++y)
+            {
+                for (size_t x = 0; x < width; ++x)
+                {
+                    const uchar *pixel = input + (y * width + x) * channels * cell;
+                    for (size_t c = 0; c < channels; ++c)
+                    {
+                        std::memcpy(output + (c * plane + y * width + x) * cell,
+                                    pixel + c * cell,
+                                    cell);
+                    }
+                }
+            }
+        }
+
         TokenReference stack_output(std::vector<TokenReference> samples)
         {
             if (samples.empty() || !samples[0])
@@ -947,8 +1026,12 @@ namespace pixelpipes
                 {
                     if (!samples[i] || !samples[i]->is<Tensor>() || !(extract<TensorReference>(samples[i])->shape() == first->shape()))
                         throw PipelineException("Pipeline outputs cannot be batched because their tensor shapes differ");
+                    auto source = extract<TensorReference>(samples[i]);
                     auto destination = extract<TensorReference>(result->get(i));
-                    copy_buffer(extract<TensorReference>(samples[i]), destination);
+                    if (is_hwc_backed_chw(source))
+                        copy_hwc_backed_chw(source, destination);
+                    else
+                        copy_buffer(source, destination);
                 }
                 return result;
             }
