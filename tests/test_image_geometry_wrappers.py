@@ -40,7 +40,7 @@ class TestsImageGeometryWrappers(unittest.TestCase):
 
         result = Compiler().build(graph).run(1)
 
-        np.testing.assert_array_equal(result[0], image[2:6, 2:8])
+        np.testing.assert_array_equal(result[0], image[2:6, 2:8][None, ...])
         self.assertEqual(result[1].shape, (1, 4, 6))
         self.assertGreater(result[2].shape[1], 0)
         self.assertGreater(result[2].shape[2], 0)

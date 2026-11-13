@@ -41,9 +41,12 @@ class TestsImageAliases(unittest.TestCase):
         self.assertIs(Solarize, ImageSolarize)
 
     def test_defaulted_conversion_aliases(self):
-        self.assertEqual(ToFloat.depth.default, "Float")
-        self.assertEqual(ToGray.convert.default, "RGB_GRAY")
-        self.assertEqual(ToRGB.convert.default, "GRAY_RGB")
+        for operation, name, expected in (
+                (ToFloat, "depth", "Float"),
+                (ToGray, "convert", "RGB_GRAY"),
+                (ToRGB, "convert", "GRAY_RGB")):
+            attribute = operation.attributes()[name]
+            self.assertEqual(attribute.dump(attribute.default), expected)
 
     def test_directional_flips_only_expose_source(self):
         with Graph():

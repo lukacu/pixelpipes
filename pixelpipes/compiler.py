@@ -255,6 +255,11 @@ class Compiler(object):
             return input_value, infer_type(input_value, None, inferred_types)
 
         def normalize_inputs(node):
+            # Graph expansion and node replacement can reuse generated names.
+            # Start each node's normalization with a cache that belongs to the
+            # current graph state, rather than a node that previously occupied
+            # the same name.
+            inferred_types.clear()
             inputs = {}
             change = False
             with graph.subgraph() as subgraph:
@@ -277,9 +282,14 @@ class Compiler(object):
 
             
 
-            inputs, _ = normalize_inputs(node)
+            inputs, normalize_change = normalize_inputs(node)
             if inputs is None:
                 return False
+            if normalize_change:
+                # Normalizing literal inputs may add nodes to the graph. Any
+                # types inferred before that mutation may refer to a previous
+                # node with the same generated name.
+                inferred_types.clear()
 
             # Evaluate in macros does nothing, but calling it in unit tests allows us to monitor which macros are
             node.evaluate(**inputs)
@@ -319,6 +329,7 @@ class Compiler(object):
                         subname, name), node=name)
                 subnode._origin = node
                 graph.add(subnode, subname)
+            inferred_types.clear()
             return True
 
         while True:
@@ -334,6 +345,9 @@ class Compiler(object):
                     inputs, change = normalize_inputs(node)
                     if change:
                         graph.replace(name, node.duplicate(**inputs))
+                        # A replacement can reuse the node name while changing
+                        # its value/type. Do not reuse the old cached type.
+                        inferred_types.clear()
                         changes += 1
                     infer_type(name, graph, inferred_types)
 
@@ -444,6 +458,12 @@ class Compiler(object):
         ordered = sorted(ordered)
         operations = [(name, operation_data(optimized[name]), [
             r.name for r in optimized[name].input_values()]) for _, name in ordered]
+
+        # The graph is now stable. Rebuild the type cache for the final graph;
+        # entries from intermediate expansion graphs must not be reused.
+        inferred_types.clear()
+        for name, _, _ in operations:
+            infer_type(Reference(name), optimized, inferred_types)
 
         pipeline_operations = []
 
