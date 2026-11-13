@@ -312,8 +312,17 @@ namespace pixelpipes
             // Calculate overlap of the bounding box with the image.
             cv::Rect overlap = bbox & cv::Rect(0, 0, image.cols, image.rows);
 
+            // Padding is measured relative to the requested crop, not the
+            // overlap's position. In particular, overlap.x/y are zero when
+            // the requested crop starts outside the image.
+            int pad_left = std::max(0, -bbox.x);
+            int pad_top = std::max(0, -bbox.y);
+            int pad_right = std::max(0, bbox.x + bbox.width - image.cols);
+            int pad_bottom = std::max(0, bbox.y + bbox.height - image.rows);
+            double fill_value = maximum_value(image) * border_value;
+
             // Copy the content of the overlap to the result, the rest is padded.
-            cv::copyMakeBorder(image(overlap), result, overlap.y, bbox.y + bbox.height - overlap.y - image.rows, overlap.x, bbox.x + bbox.width - overlap.x - image.cols, border_const, border_value);
+            cv::copyMakeBorder(image(overlap), result, pad_top, pad_bottom, pad_left, pad_right, border_const, fill_value);
 
             return result;
         }
