@@ -1,8 +1,18 @@
 
+<video autoplay loop muted playsinline poster="media/banner.jpg" width="100%">
+  <source src="media/banner.mp4" type="video/mp4">
+  <img src="media/banner.jpg" alt="PixelPipes banner">
+</video>
+
+<div style="text-align: center; margin-top: 1em;">
+  
+
 # PixelPipes — infinite data streams for deep learning
 
 [![Documentation Status](https://readthedocs.org/projects/pixelpipes/badge/?version=latest)](https://pixelpipes.readthedocs.io/en/latest/?badge=latest)
 [![CI](https://github.com/lukacu/pixelpipes/actions/workflows/ci.yml/badge.svg)](https://github.com/lukacu/pixelpipes/actions/workflows/ci.yml)
+
+</div>
 
 PixelPipes builds repeatable streams of data samples, with a focus on computer
 vision and deep learning. A pipeline is described as a Python graph and then

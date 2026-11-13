@@ -57,7 +57,7 @@ todo_include_todos = False
 
 html_theme = 'sphinx_rtd_theme'
 
-html_static_path = ["static"] # html_static_path = ['_static']
+html_static_path = ["static", "../media"] # html_static_path = ['_static']
 
 html_css_files = [
     'css/custom.css',

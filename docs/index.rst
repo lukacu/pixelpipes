@@ -4,6 +4,13 @@ Welcome to PixelPipes documentation
 PixelPipes provides a framework for creating infinite streams of data samples. As it is clear from the its name, PixelPipes is primarily
 intended to be used on visual data with the emphasis on deep learning techniques. 
 
+.. raw:: html
+
+   <video autoplay loop muted playsinline poster="_static/banner.jpg" width="100%">
+     <source src="_static/banner.mp4" type="video/mp4">
+     <img src="_static/banner.jpg" alt="PixelPipes banner">
+   </video>
+
 Most deep models require a large amount of samples to be processed in a training phase.
 These samples have to be sampled from a dataset and bundled into batches that can be processed by the model. Besides sampling, another 
 important concept in deep learning for computer vision is data augmentation where each real sample can be expanded
