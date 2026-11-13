@@ -1,11 +1,11 @@
 
-<video autoplay loop muted playsinline poster="media/banner.jpg" width="100%">
-  <source src="media/banner.mp4" type="video/mp4">
-  <img src="media/banner.jpg" alt="PixelPipes banner">
-</video>
 
-<div style="text-align: center; margin-top: 1em;">
+
+<div align="center">
   
+<a href="media/banner.mp4">
+    <img src="media/banner.gif" alt="PixelPipes banner" width="100%">
+</a>
 
 # PixelPipes — infinite data streams for deep learning
 
