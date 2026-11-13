@@ -1,5 +1,5 @@
 
-from .. import LazyLoadEnum, load_module
+from .. import LazyLoadEnum, load_module, DataType
 
 load_module("opencv")
 
@@ -70,6 +70,12 @@ class ConvertDepth(Operation):
     def operation(self):
         return "opencv:convert_depth",
 
+
+class ToFloat(ConvertDepth):
+    """Convert an image to floating-point values."""
+
+    depth = EnumerationInput(DataType, default="Float", description="Output depth type")
+
 class ColorConvert(Operation):
     """Converts image between color spaces."""
 
@@ -78,6 +84,18 @@ class ColorConvert(Operation):
 
     def operation(self):
         return "opencv:color",
+
+
+class ToGray(ColorConvert):
+    """Convert an RGB image to grayscale."""
+
+    convert = EnumerationInput(ColorConversion, default="RGB_GRAY", description="Conversion type")
+
+
+class ToRGB(ColorConvert):
+    """Convert a grayscale image to RGB."""
+
+    convert = EnumerationInput(ColorConversion, default="GRAY_RGB", description="Conversion type")
 
 class Threshold(Operation):
     """Sets pixels with values above threshold to zero. Returns a binary image"""
@@ -95,6 +113,10 @@ class Invert(Operation):
 
     def operation(self):
         return "opencv:invert",
+
+
+# Albumentations-compatible public name for the existing operation.
+InvertImg = Invert
 
 class Equals(Operation):
     """Equal

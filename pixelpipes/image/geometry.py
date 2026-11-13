@@ -39,6 +39,24 @@ class Flip(Operation):
     def operation(self):
         return "opencv:flip",
 
+
+class HorizontalFlip(Macro):
+    """Flip an image around its horizontal axis."""
+
+    source = Input(types.Image(), description="Input image")
+
+    def expand(self, source):
+        return Flip(source=source, horizontal=True, vertical=False)
+
+
+class VerticalFlip(Macro):
+    """Flip an image around its vertical axis."""
+
+    source = Input(types.Image(), description="Input image")
+
+    def expand(self, source):
+        return Flip(source=source, horizontal=False, vertical=True)
+
 class Resize(Operation):
     """ Resize image to given width and height."""
 
@@ -165,4 +183,8 @@ class EnsureSize(Macro):
                 
         c = LogicalOr((image_width < self.width), (image_height < self.height))
         return Conditional(Scale(source, Max(width / Float(image_width), height / Float(image_height))), source, c)
+
+
+# Aliases for Albumentations-compatible names.
+Crop = ImageCrop
         

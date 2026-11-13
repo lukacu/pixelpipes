@@ -101,3 +101,7 @@ class AverageFilter(Macro):
         kernel_y = Transpose(UniformKernel(size_y))
         tmp = LinearFilter(source, kernel_x, border=border)
         return LinearFilter(tmp, kernel_y, border=border)
+
+
+# Alias the existing implementation.
+GaussianBlur = GaussianFilter

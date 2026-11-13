@@ -107,3 +107,11 @@ class DistanceTransform(Operation):
 
     def operation(self):
         return "opencv:distance_transform",
+
+
+# Albumentations-compatible names.
+Normalize = ImageNormalize
+PixelDropout = ImageDropout
+CoarseDropout = ImageCoarseDropout
+Erasing = ImageCut
+Solarize = ImageSolarize

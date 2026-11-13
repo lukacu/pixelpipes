@@ -53,3 +53,9 @@ class ImagePiecewiseAffine(Macro):
         y = ConvertDepth(Resize(UniformNoise(self.subdivision, self.subdivision, -amount, amount, seed=seed + 1), width, height, interpolation="Linear") + LinearImage(width, height, 0, height, flip=True), "Float")
         return ImageRemap(source, x, y, interpolation="Linear", border="Reflect")
 
+
+# Albumentations-compatible names.
+AdditiveNoise = ImageNoise
+GaussNoise = ImageNoise
+PiecewiseAffine = ImagePiecewiseAffine
+
