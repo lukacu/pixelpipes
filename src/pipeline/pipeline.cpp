@@ -52,8 +52,9 @@ namespace pixelpipes
         Output(std::string label) : label(label) {}
         virtual ~Output() = default;
 
-        virtual TokenReference run(const TokenList &inputs)
+        virtual TokenReference run(const TokenList &inputs, const TokenReference &output)
         {
+            UNUSED(output);
             VERIFY(inputs.size() == 1, "One input required");
             return empty();
         }
@@ -100,8 +101,9 @@ namespace pixelpipes
             VERIFY((bool)value, "Constant value undefined");
         }
 
-        virtual TokenReference run(const TokenList &inputs)
+        virtual TokenReference run(const TokenList &inputs, const TokenReference &output)
         {
+            UNUSED(output);
             UNUSED(inputs);
 
             VERIFY(inputs.size() == 0, "Illegal number of inputs");
@@ -114,12 +116,12 @@ namespace pixelpipes
 
         virtual TokenReference evaluate(const TokenList &inputs)
         {
-            return run(inputs);
+            return run(inputs, TokenReference());
         }
 
         virtual OperationTrait trait() const override
         {
-            return OperationTrait::Stateful;
+            return OperationTrait::Stateful | OperationTrait::Foldable;
         }
 
         virtual Type type() const override
@@ -142,8 +144,9 @@ namespace pixelpipes
         Conditional() = default;
         ~Conditional() = default;
 
-        virtual TokenReference run(const TokenList &inputs)
+        virtual TokenReference run(const TokenList &inputs, const TokenReference &output)
         {
+            UNUSED(output);
             VERIFY(inputs.size() == 3, "Illegal number of inputs");
 
             if (extract<bool>(inputs[2]))
@@ -163,13 +166,13 @@ namespace pixelpipes
             }
             else
             {
-                return run(inputs);
+                return run(inputs, TokenReference());
             }
         }
 
         virtual OperationTrait trait() const override
         {
-            return OperationTrait::Default;
+            return OperationTrait::Foldable;
         }
 
         virtual Type type() const override
@@ -196,8 +199,9 @@ namespace pixelpipes
         ContextQuery(ContextData query) : query(query) {}
         ~ContextQuery() = default;
 
-        virtual TokenReference run(const TokenList &inputs)
+        virtual TokenReference run(const TokenList &inputs, const TokenReference &output)
         {
+            UNUSED(output);
             UNUSED(inputs);
             return empty<IntegerScalar>();
         }
@@ -242,8 +246,9 @@ namespace pixelpipes
         }
         ~DebugOutput() = default;
 
-        virtual TokenReference run(const TokenList &inputs)
+        virtual TokenReference run(const TokenList &inputs, const TokenReference &output)
         {
+            UNUSED(output);
 
             VERIFY(inputs.size() == 1, "Only one input supported for debug");
 
@@ -263,7 +268,7 @@ namespace pixelpipes
 
         virtual OperationTrait trait() const override
         {
-            return OperationTrait::Default;
+            return OperationTrait::Foldable;
         }
 
         virtual Type type() const override
@@ -345,6 +350,8 @@ namespace pixelpipes
         std::vector<OperationData> operations;
 
         std::vector<bool> constants;
+        // Stateless output descriptions retained for per-run output storage.
+        std::vector<TokenReference> output_templates;
 
         std::vector<OperationStats> stats;
         std::mutex stats_mutex;
@@ -393,8 +400,6 @@ namespace pixelpipes
         the second one adds jumps and other optimizations and caching. This pipeline is not
         serializable as some operations are internal to the pipeline and not part of the operation list.
 
-        auto tokens = stateless_pass(state->operations);
-
         // Replace all nodes with constant values with constant operations.
         // Operations that are not needed will be pruned during graph optimization.
         for (size_t i = 0; i < state->operations.size(); i++)
@@ -409,6 +414,14 @@ namespace pixelpipes
 
         auto tokens = stateless_pass(state->operations);
 
+        state->output_templates.clear();
+        state->output_templates.resize(state->operations.size());
+        for (size_t i = 0; i < state->operations.size(); i++)
+        {
+            if (has_trait(state->operations[i].operation->trait(), OperationTrait::AcceptsPreallocated))
+                state->output_templates[i] = tokens[i].reborrow();
+        }
+
         state->cache.resize(state->operations.size());
         state->cache_initializers.clear();
         state->cache_initializers.reserve(state->operations.size());
@@ -417,7 +430,7 @@ namespace pixelpipes
         for (size_t i = 0; i < state->operations.size(); i++)
         {
             state->cache_initializers.push_back(std::make_unique<std::once_flag>());
-            if (state->operations[i].operation->trait() & static_cast<int>(OperationTrait::Stateful))
+            if (has_trait(state->operations[i].operation->trait(), OperationTrait::Stateful))
                 state->operation_mutexes[i] = std::make_unique<std::mutex>();
         }
         if (state->profiling)
@@ -450,7 +463,8 @@ namespace pixelpipes
             if (is_context(state->operations[i].operation))
                 constant = false;
 
-            state->constants[i] = constant;
+            state->constants[i] = constant &&
+                                  has_trait(state->operations[i].operation->trait(), OperationTrait::Foldable);
 
             // If the operation is an output, we need to store the inferred stateless shape
             if (is_output(state->operations[i].operation))
@@ -548,6 +562,24 @@ namespace pixelpipes
 
         context.resize(state->operations.size());
 
+        // Allocate known-shape output storage once for this execution. It is
+        // deliberately per-run because a Pipeline may be executed concurrently.
+        vector<TokenReference> preallocated(state->operations.size());
+        for (size_t operation = 0; operation < state->operations.size(); operation++)
+        {
+            if (state->constants[operation] || !state->output_templates[operation])
+                continue;
+
+            auto shape = state->output_templates[operation]->shape();
+            if (!shape.is_fixed())
+                continue;
+
+            const auto element = shape.element();
+            if (element == IntegerType || element == FloatType || element == BooleanType ||
+                element == CharType || element == ShortType || element == UnsignedShortType)
+                preallocated[operation] = create_tensor(shape);
+        }
+
         size_t i = 0;
 
         RandomGenerator generator = make_generator((int)index);
@@ -566,14 +598,14 @@ namespace pixelpipes
         {
 
             const auto operation_type = state->operations[i].operation->type();
-            auto run_operation = [this, i](const TokenList &inputs)
+            auto run_operation = [this, i, &preallocated](const TokenList &inputs)
             {
                 if (state->operation_mutexes[i])
                 {
                     std::lock_guard<std::mutex> lock(*state->operation_mutexes[i]);
-                    return state->operations[i].operation->run(inputs);
+                    return state->operations[i].operation->run(inputs, preallocated[i]);
                 }
-                return state->operations[i].operation->run(inputs);
+                return state->operations[i].operation->run(inputs, preallocated[i]);
             };
             const bool cacheable = state->constants[i] &&
                                    operation_type != GetType<Output>() &&

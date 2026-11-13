@@ -346,8 +346,9 @@ namespace pixelpipes
         {
         }
 
-        virtual TokenReference run(const TokenList &inputs)
+        virtual TokenReference run(const TokenList &inputs, const TokenReference &output)
         {
+            UNUSED(output);
             UNUSED(inputs);
             return value.reborrow();
         }
@@ -366,7 +367,7 @@ namespace pixelpipes
 
         virtual OperationTrait trait() const override
         {
-            return OperationTrait::Stateful;
+            return OperationTrait::Stateful | OperationTrait::Foldable;
         }
 
         virtual TokenReference evaluate(const TokenList &inputs) override

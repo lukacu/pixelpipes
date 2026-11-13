@@ -32,7 +32,9 @@ namespace pixelpipes
 
     OperationTrait Operation::trait() const
     {
-        return OperationTrait::Default;
+        // Operations that do not opt into another behavior retain the
+        // historical pure-operation semantics.
+        return OperationTrait::Foldable;
     }
 
     TokenReference Operation::evaluate(const TokenList &inputs)

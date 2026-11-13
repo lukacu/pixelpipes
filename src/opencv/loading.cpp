@@ -115,8 +115,9 @@ namespace pixelpipes
             VERIFY(_depth != DataType::Boolean, "Boolean type not supported");
         }
 
-        TokenReference run(const TokenList &inputs) override
+        TokenReference run(const TokenList &inputs, const TokenReference &output) override
         {
+            UNUSED(output);
             VERIFY(inputs.size() == 1, "JpegImageDecode: expected 1 input");
 
             auto buffer = extract<BufferReference>(inputs[0]);
@@ -169,12 +170,12 @@ namespace pixelpipes
                 return create<Placeholder>(Shape(GetType<char>(),
                                                  {static_cast<size_t>(channels), unknown, unknown}));
             }
-            return run(inputs);
+            return run(inputs, TokenReference());
         }
 
         OperationTrait trait() const override
         {
-            return OperationTrait::Compute;
+            return OperationTrait::Compute | OperationTrait::Foldable;
         }
 
         Type type() const override
@@ -205,8 +206,9 @@ namespace pixelpipes
         }
         ~ImageDecode() {}
 
-        TokenReference run(const TokenList &inputs) override
+        TokenReference run(const TokenList &inputs, const TokenReference &output) override
         {
+            UNUSED(output);
             VERIFY(inputs.size() == 1, "ImageDecode: expected 1 input");
 
             auto buffer = extract<BufferReference>(inputs[0]);
@@ -218,7 +220,7 @@ namespace pixelpipes
             if (is_jpeg_buffer(buffer))
             {
                 JpegImageDecode jpeg_decoder(_depth, _channels, _normalize);
-                return jpeg_decoder.run(inputs);
+                return jpeg_decoder.run(inputs, TokenReference());
             }
 
             cv::Mat wrapper(1, buffer->size(), CV_8UC1, buffer->data().data());
@@ -347,13 +349,13 @@ namespace pixelpipes
             }
             else
             {
-                return run(inputs);
+                return run(inputs, TokenReference());
             }
         }
 
         OperationTrait trait() const override
         {
-            return OperationTrait::Compute;
+            return OperationTrait::Compute | OperationTrait::Foldable;
         }
 
         virtual Type type() const override

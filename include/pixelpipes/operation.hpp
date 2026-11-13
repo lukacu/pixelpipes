@@ -6,6 +6,7 @@
 #include <list>
 #include <tuple>
 #include <map>
+#include <cstdint>
 
 #include <pixelpipes/token.hpp>
 #include <pixelpipes/module.hpp>
@@ -52,25 +53,51 @@ namespace pixelpipes
         RandomSeed
     };
 
-    enum class OperationTrait
+    /**
+     * Properties of an operation.
+     *
+     * The flags describe independent properties.  In particular, Compute and
+     * Access are descriptive categories, while Foldable and
+     * AcceptsPreallocated describe capabilities used by the execution engine.
+     */
+    enum class OperationTrait : uint32_t
     {
-        Default = 0, // No special traits
-        Compute = 1, // Operation is a compute operation
-        Access = 2, // Operation is an access operation (IO)
-        Stateful = 4, // Operation is stateful, it has an internal state and is not thread safe
-        Forward = 8 // Operation is a forward operation, it may forward the input to the output without copying
+        None = 0,
+        Default = None, // Backwards-compatible spelling for no flags
+
+        Foldable = 1u << 0, // The result may be computed when inputs are constant
+        AcceptsPreallocated = 1u << 1, // run(inputs, output) can fill output
+        // These aliases make the capability easy to discover at call sites.
+        Preallocated = AcceptsPreallocated,
+        Preallocatable = AcceptsPreallocated,
+
+        Stateful = 1u << 2, // Internal state; execution is not thread safe
+        Forward = 1u << 3, // May forward an input without copying
+        Compute = 1u << 4, // Compute operation category
+        Access = 1u << 5 // Access operation category (IO)
     };
 
-    // Combine traits
-    inline OperationTrait operator|(OperationTrait a, OperationTrait b)
+    // Combine traits.
+    constexpr inline OperationTrait operator|(OperationTrait a, OperationTrait b)
     {
-        return static_cast<OperationTrait>(static_cast<int>(a) | static_cast<int>(b));
+        return static_cast<OperationTrait>(static_cast<uint32_t>(a) | static_cast<uint32_t>(b));
     }
 
-    // Test if a trait is set
-    inline bool operator&(OperationTrait a, int b)
+    constexpr inline bool operator&(OperationTrait a, OperationTrait b)
     {
-        return static_cast<int>(a) & b;
+        return (static_cast<uint32_t>(a) & static_cast<uint32_t>(b)) != 0;
+    }
+
+    // Test if a trait is set without exposing integer bit values to callers.
+    constexpr inline bool has_trait(OperationTrait value, OperationTrait trait)
+    {
+        return (static_cast<uint32_t>(value) & static_cast<uint32_t>(trait)) != 0;
+    }
+
+    // Retain source compatibility with the old integer-mask test.
+    constexpr inline bool operator&(OperationTrait a, int b)
+    {
+        return (static_cast<uint32_t>(a) & static_cast<uint32_t>(b)) != 0;
     }
 
     PIXELPIPES_CONVERT_ENUM(ContextData)
@@ -107,7 +134,12 @@ namespace pixelpipes
     public:
         virtual ~Operation() = default;
 
-        virtual TokenReference run(const TokenList& inputs) = 0;
+        /**
+         * Run the operation.  A non-empty output is supplied for operations
+         * advertising AcceptsPreallocated; other operations may ignore it.
+         */
+        virtual TokenReference run(const TokenList& inputs,
+                                   const TokenReference& output = TokenReference()) = 0;
 
         virtual TokenReference evaluate(const TokenList& input);
 
@@ -280,6 +312,8 @@ namespace pixelpipes
 
     using EvaluateFunction =  TokenReference(*)(const TokenList&);
 
+    using PreallocatedRunFunction = TokenReference(*)(const TokenList&, const TokenReference&);
+
     template <typename Run, Run fn_run, EvaluateFunction fn_eval, OperationTrait o_trait, bool unpack>
     class OperationWrapper : public Operation
     {
@@ -291,7 +325,50 @@ namespace pixelpipes
         OperationWrapper() = default;
         virtual ~OperationWrapper() = default;
 
-        virtual TokenReference run(const TokenList& inputs)
+        virtual TokenReference run(const TokenList& inputs, const TokenReference& output)
+        {
+            if constexpr (has_trait(o_trait, OperationTrait::AcceptsPreallocated))
+            {
+                return fn_run(inputs, output);
+            }
+            else
+            {
+                return run_without_output(inputs);
+            }
+        }
+
+        virtual TokenReference evaluate(const TokenList& inputs)
+        {
+            using NullType = std::integral_constant<decltype(fn_eval), nullptr>;
+            using ActualType = std::integral_constant<decltype(fn_eval), fn_eval>;
+
+            if (any_placeholder(inputs)) {
+                if constexpr (std::is_same_v<ActualType, NullType>)
+                    return Operation::evaluate(inputs);
+                else
+                    return fn_eval(inputs);
+            } else {
+                if constexpr (has_trait(o_trait, OperationTrait::AcceptsPreallocated))
+                    return fn_run(inputs, TokenReference());
+                else
+                    return run_without_output(inputs);
+            }
+        }
+
+        virtual OperationTrait trait() const override
+        {
+            return o_trait;
+        }
+
+        virtual Type type() const override
+        {
+            return GetType<OperationType>();
+        }
+
+        virtual Sequence<TokenReference> serialize() { return Sequence<TokenReference>(); }
+
+    private:
+        TokenReference run_without_output(const TokenList& inputs)
         {
             if constexpr (unpack) {
                 auto converted = details::extract_args_tuple<OperationType, ArgTypes>::run(inputs.begin(), inputs.end());
@@ -306,35 +383,6 @@ namespace pixelpipes
             }
 
         }
-
-        virtual TokenReference evaluate(const TokenList& inputs)
-        {
-            using NullType = std::integral_constant<decltype(fn_eval), nullptr>;
-            using ActualType = std::integral_constant<decltype(fn_eval), fn_eval>;
-
-            if (any_placeholder(inputs)) {
-                //if constexpr (fn_eval == nullptr)
-                if constexpr (std::is_same_v<ActualType, NullType>) 
-                    return Operation::evaluate(inputs);
-                else
-                    return fn_eval(inputs);
-            } else {
-                return run(inputs);
-            }
-
-        }
-
-        virtual OperationTrait trait() const override
-        {
-            return o_trait;
-        }
-
-        virtual Type type() const override
-        {
-            return GetType<OperationType>();
-        }
-
-        virtual Sequence<TokenReference> serialize() { return Sequence<TokenReference>(); }
 
     };
 
@@ -402,6 +450,20 @@ namespace pixelpipes
         register_operation<OperationWrapper<Run, fn_run, fn_eval, trait, false>>(name);
     }
 
+    template <typename Run, Run fn_run, EvaluateFunction fn_eval, OperationTrait trait>
+    void register_operation_preallocated_auto(const std::string &name)
+    {
+        register_operation<OperationWrapper<Run, fn_run, fn_eval,
+                                           trait | OperationTrait::AcceptsPreallocated, false>>(name);
+    }
+
+    template <typename Run, Run fn_run, EvaluateFunction fn_eval, OperationTrait trait>
+    void register_operation_preallocated_manual(const std::string &name)
+    {
+        register_operation<OperationWrapper<Run, fn_run, fn_eval,
+                                           trait | OperationTrait::AcceptsPreallocated, false>>(name);
+    }
+
     template <typename Operation, typename... Args>
     void register_operation_class(const std::string &name)
     {
@@ -415,17 +477,20 @@ namespace pixelpipes
         return create<Placeholder>(Shape(GetType<T>(), {S...}));
     }
 
-#define PIXELPIPES_COMPUTE_OPERATION_AUTO(NAME, RUN, EVAL) static AddModuleInitializer CONCAT(__operation_add_, __COUNTER__)([]() { register_operation_auto<decltype(&(RUN)), (RUN), (EVAL), OperationTrait::Compute>(NAME); })
-#define PIXELPIPES_COMPUTE_OPERATION(NAME, RUN, EVAL) static AddModuleInitializer CONCAT(__operation_add_, __COUNTER__)([]() { register_operation_manual<decltype(&(RUN)), (RUN), (EVAL), OperationTrait::Compute>(NAME); })
+#define PIXELPIPES_COMPUTE_OPERATION_AUTO(NAME, RUN, EVAL) static AddModuleInitializer CONCAT(__operation_add_, __COUNTER__)([]() { register_operation_auto<decltype(&(RUN)), (RUN), (EVAL), OperationTrait::Compute | OperationTrait::Foldable>(NAME); })
+#define PIXELPIPES_COMPUTE_OPERATION(NAME, RUN, EVAL) static AddModuleInitializer CONCAT(__operation_add_, __COUNTER__)([]() { register_operation_manual<decltype(&(RUN)), (RUN), (EVAL), OperationTrait::Compute | OperationTrait::Foldable>(NAME); })
 
-#define PIXELPIPES_ACCESS_OPERATION_AUTO(NAME, RUN, EVAL) static AddModuleInitializer CONCAT(__operation_add_, __COUNTER__)([]() { register_operation_auto<decltype(&(RUN)), (RUN), (EVAL), OperationTrait::Access>(NAME); })
-#define PIXELPIPES_ACCESS_OPERATION(NAME, RUN, EVAL) static AddModuleInitializer CONCAT(__operation_add_, __COUNTER__)([]() { register_operation_manual<decltype(&(RUN)), (RUN), (EVAL), OperationTrait::Access>(NAME); })
+#define PIXELPIPES_ACCESS_OPERATION_AUTO(NAME, RUN, EVAL) static AddModuleInitializer CONCAT(__operation_add_, __COUNTER__)([]() { register_operation_auto<decltype(&(RUN)), (RUN), (EVAL), OperationTrait::Access | OperationTrait::Foldable>(NAME); })
+#define PIXELPIPES_ACCESS_OPERATION(NAME, RUN, EVAL) static AddModuleInitializer CONCAT(__operation_add_, __COUNTER__)([]() { register_operation_manual<decltype(&(RUN)), (RUN), (EVAL), OperationTrait::Access | OperationTrait::Foldable>(NAME); })
 
-#define PIXELPIPES_UNIT_OPERATION_AUTO(NAME, RUN, EVAL) static AddModuleInitializer CONCAT(__operation_add_, __COUNTER__)([]() { register_operation_auto<decltype(&(RUN)), (RUN), (EVAL), OperationTrait::Default>(NAME); })
-#define PIXELPIPES_UNIT_OPERATION(NAME, RUN, EVAL) static AddModuleInitializer CONCAT(__operation_add_, __COUNTER__)([]() { register_operation_manual<decltype(&(RUN)), (RUN), (EVAL), OperationTrait::Default>(NAME); })
+#define PIXELPIPES_UNIT_OPERATION_AUTO(NAME, RUN, EVAL) static AddModuleInitializer CONCAT(__operation_add_, __COUNTER__)([]() { register_operation_auto<decltype(&(RUN)), (RUN), (EVAL), OperationTrait::Foldable>(NAME); })
+#define PIXELPIPES_UNIT_OPERATION(NAME, RUN, EVAL) static AddModuleInitializer CONCAT(__operation_add_, __COUNTER__)([]() { register_operation_manual<decltype(&(RUN)), (RUN), (EVAL), OperationTrait::Foldable>(NAME); })
 
 #define PIXELPIPES_OPERATION_AUTO(NAME, RUN, EVAL, TRAITS) static AddModuleInitializer CONCAT(__operation_add_, __COUNTER__)([]() { register_operation_auto<decltype(&(RUN)), (RUN), (EVAL), (TRAITS)>(NAME); })
 #define PIXELPIPES_OPERATION(NAME, RUN, EVAL, TRAITS) static AddModuleInitializer CONCAT(__operation_add_, __COUNTER__)([]() { register_operation_manual<decltype(&(RUN)), (RUN), (EVAL), (TRAITS)>(NAME); })
+
+#define PIXELPIPES_PREALLOCATED_OPERATION_AUTO(NAME, RUN, EVAL, TRAITS) static AddModuleInitializer CONCAT(__operation_add_, __COUNTER__)([]() { register_operation_preallocated_auto<decltype(&(RUN)), (RUN), (EVAL), (TRAITS)>(NAME); })
+#define PIXELPIPES_PREALLOCATED_OPERATION(NAME, RUN, EVAL, TRAITS) static AddModuleInitializer CONCAT(__operation_add_, __COUNTER__)([]() { register_operation_preallocated_manual<decltype(&(RUN)), (RUN), (EVAL), (TRAITS)>(NAME); })
 
 #define PIXELPIPES_OPERATION_CLASS(N, ...) static AddModuleInitializer CONCAT(__operation_add_, __COUNTER__)([]() { register_operation_class<__VA_ARGS__>( N ); })
 

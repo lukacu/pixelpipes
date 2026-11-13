@@ -33,7 +33,7 @@ namespace pixelpipes
 
         ~Jump() = default;
 
-        virtual TokenReference run(const TokenList &inputs);
+        virtual TokenReference run(const TokenList &inputs, const TokenReference &output);
 
         virtual Type type() const override;
 
@@ -50,7 +50,7 @@ namespace pixelpipes
 
         ~ConditionalJump() = default;
 
-        virtual TokenReference run(const TokenList &inputs);
+        virtual TokenReference run(const TokenList &inputs, const TokenReference &output);
 
         virtual Type type() const override;
 

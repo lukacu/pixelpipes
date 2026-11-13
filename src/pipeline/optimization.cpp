@@ -67,8 +67,9 @@ namespace pixelpipes
             throw TypeException("Illegal jump location");
     }
 
-    TokenReference Jump::run(const TokenList &inputs)
+    TokenReference Jump::run(const TokenList &inputs, const TokenReference &output)
     {
+        UNUSED(output);
 
         VERIFY(inputs.size() == 1, "Incorrect number of parameters");
 
@@ -86,8 +87,9 @@ namespace pixelpipes
         VERIFY(condition.size() >= 1, "At least one condition must be defined");
     }
 
-    TokenReference ConditionalJump::run(const TokenList &inputs)
+    TokenReference ConditionalJump::run(const TokenList &inputs, const TokenReference &output)
     {
+        UNUSED(output);
 
         if (condition.compute(inputs))
         {
