@@ -4,7 +4,8 @@ on:
   pull_request:
   push:
     branches: [master]
-    tags: ["v*"]
+  release:
+    types: [published]
   workflow_dispatch:
 
 permissions:
@@ -88,8 +89,17 @@ jobs:
         run: ctest --test-dir "$BUILD_ROOT" --output-on-failure
 
   manylinux-wheels:
-    name: Build manylinux2014 x86_64 wheels
-    if: github.event_name != 'pull_request'
+    name: Build ${{ matrix.pydist }} manylinux2014 x86_64 wheel
+    if: github.event_name == 'release' || github.event_name == 'workflow_dispatch'
+    strategy:
+      fail-fast: false
+      matrix:
+        pydist:
+          - cp38-cp38
+          - cp39-cp39
+          - cp310-cp310
+          - cp311-cp311
+          - cp312-cp312
     runs-on: ubuntu-22.04
     env:
       MANYLINUX_IMAGE: quay.io/pypa/manylinux2014_x86_64
@@ -97,6 +107,7 @@ jobs:
       WHEEL_ROOT: ${{ github.workspace }}/build_wheel/dist
       BUILD_ROOT: ${{ github.workspace }}/build_wheel/build
       BUILD_WORKERS: 4
+      PYDIST_FILTER: ${{ matrix.pydist }}
     steps:
       - uses: actions/checkout@v7
 
@@ -159,23 +170,25 @@ jobs:
             "$MANYLINUX_IMAGE" bash /io/scripts/build_native_dependencies.sh
 
       - name: Build sdist and repaired wheels
-        if: startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch'
         run: |
           docker run --rm \
             -v "$GITHUB_WORKSPACE:/io" -w /io \
-            -e SKIP=cp36-cp36m,cp37-cp37m,pp37-pypy37_pp73,cp313-cp313,cp313-cp313t \
+            -e PYDIST_FILTER="$PYDIST_FILTER" \
+            -e BUILD_SDIST="${{ matrix.pydist == 'cp38-cp38' }}" \
             -e WHEEL_ROOT=/io/build_wheel/dist \
             -e BUILD_ROOT=/io/build_wheel/build \
             -e PIXELPIPES_DEPENDENCY_ROOT=/io/build_wheel/dependencies \
             -e BUILD_WORKERS="$BUILD_WORKERS" \
             "$MANYLINUX_IMAGE" bash -lc \
-            '/opt/python/cp310-cp310/bin/python /io/setup.py sdist --dist-dir /io/build_wheel/dist && bash /io/scripts/build_manylinux.sh'
+            'if [ "$BUILD_SDIST" = "true" ]; then
+               /opt/python/cp310-cp310/bin/python /io/setup.py sdist --dist-dir /io/build_wheel/dist
+             fi
+             bash /io/scripts/build_manylinux.sh'
 
       - name: Upload release artifacts
-        if: startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch'
         uses: actions/upload-artifact@v7
         with:
-          name: pixelpipes-manylinux2014-x86_64
+          name: pixelpipes-manylinux2014-x86_64-${{ matrix.pydist }}
           path: |
             build_wheel/dist/*.whl
             build_wheel/dist/*.tar.gz

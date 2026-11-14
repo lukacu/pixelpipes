@@ -6,6 +6,7 @@ auditwheel -V
 : "${WHEEL_ROOT:=/io/dist}"
 : "${PLAT:=manylinux2014_x86_64}"
 : "${SKIP:=}"
+: "${PYDIST_FILTER:=}"
 : "${BUILD_ROOT:=/io/build_wheel/build}"
 : "${PIXELPIPES_DEPENDENCY_ROOT:=/io/build_wheel/dependencies}"
 
@@ -32,6 +33,10 @@ function repair_wheel {
 for PYBIN in /opt/python/*/bin; do
     #"${PYBIN}/pip" install -r /io/dev-requirements.txt
     PYDIST=$(basename "$(dirname "${PYBIN}")")
+    if [[ -n "${PYDIST_FILTER}" && "${PYDIST}" != "${PYDIST_FILTER}" ]]; then
+        echo "Skipping ${PYDIST}"
+        continue
+    fi
     if exists_in_list "$SKIP" "," "$PYDIST"; then
     echo "Skipping ${PYDIST}"
         continue
