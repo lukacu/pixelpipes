@@ -875,6 +875,25 @@ class TestTensor(TestBase):
         np.testing.assert_array_equal(output[2], output[3])
         np.testing.assert_array_equal(output[0], test_image)
 
+    def test_tensor_stack_hwc_backed_chw_views(self):
+
+        from pixelpipes.tensor import Stack, Transpose
+
+        image0 = np.random.randint(0, 255, (20, 40, 3), dtype=np.uint8)
+        image1 = np.random.randint(0, 255, (20, 40, 3), dtype=np.uint8)
+
+        with Graph() as graph:
+            n0 = Transpose(Constant(image0), Constant([2, 0, 1]))
+            n1 = Transpose(Constant(image1), Constant([2, 0, 1]))
+            outputs(Stack(inputs=[n0, n1]))
+
+        pipeline = Compiler().build(graph)
+        output = pipeline.run(1)
+
+        expected = np.stack((np.moveaxis(image0, -1, 0),
+                             np.moveaxis(image1, -1, 0)))
+        np.testing.assert_array_equal(output[0], expected)
+
     def test_tesor_reshape(self):
 
         from pixelpipes.tensor import Reshape
