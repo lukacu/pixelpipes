@@ -29,7 +29,7 @@ class TestsImageAliases(unittest.TestCase):
 
     def test_operation_aliases_preserve_existing_implementations(self):
         self.assertIs(InvertImg, Invert)
-        self.assertIs(AdditiveNoise, ImageNoise)
+        self.assertIsNot(AdditiveNoise, ImageNoise)
         self.assertIs(GaussNoise, ImageNoise)
         self.assertIs(PiecewiseAffine, ImagePiecewiseAffine)
         self.assertIs(GaussianBlur, GaussianFilter)

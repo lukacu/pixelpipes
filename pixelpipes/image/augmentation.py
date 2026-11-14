@@ -7,6 +7,9 @@ from ..tensor import Convert
 from ..graph import Macro, Input, SeedInput, types
 from . import GetImageProperties, ConvertDepth
 from .render import LinearImage, GaussianNoise, UniformNoise
+from .processing import (AdditiveNoise, ChannelDropout, ChannelShuffle, CLAHE, ColorJitter,
+                         HueSaturationValue, MultiplicativeNoise, RandomBrightnessContrast,
+                         RandomGamma, RGBShift, SaltAndPepper, ShotNoise)
 
 
 class ImageNoise(Macro):
@@ -55,7 +58,6 @@ class ImagePiecewiseAffine(Macro):
 
 
 # Albumentations-compatible names.
-AdditiveNoise = ImageNoise
 GaussNoise = ImageNoise
 PiecewiseAffine = ImagePiecewiseAffine
 

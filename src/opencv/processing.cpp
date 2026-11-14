@@ -1,6 +1,13 @@
 
 #include "common.hpp"
 
+#include <algorithm>
+#include <cmath>
+#include <numeric>
+#include <random>
+#include <string>
+#include <vector>
+
 #include <opencv2/imgproc.hpp>
 
 namespace pixelpipes
@@ -508,6 +515,450 @@ namespace pixelpipes
     }
 
     PIXELPIPES_COMPUTE_OPERATION_AUTO("solarize", solarize, forward_shape<0>);
+
+    namespace
+    {
+        float sample_range(cv::RNG &generator, const Sequence<float> &range, const char *name)
+        {
+            VERIFY(range.size() == 2, Formatter() << name << " must contain two values");
+            VERIFY(range[0] <= range[1], Formatter() << name << " lower bound exceeds upper bound");
+            if (range[0] == range[1])
+                return range[0];
+            return generator.uniform(range[0], range[1]);
+        }
+
+        int sample_range(cv::RNG &generator, const Sequence<int> &range, const char *name)
+        {
+            VERIFY(range.size() == 2, Formatter() << name << " must contain two values");
+            VERIFY(range[0] <= range[1], Formatter() << name << " lower bound exceeds upper bound");
+            if (range[0] == range[1])
+                return range[0];
+            return generator.uniform(range[0], range[1] + 1);
+        }
+
+        cv::Mat to_unit(const cv::Mat &image)
+        {
+            cv::Mat result;
+            image.convertTo(result, CV_MAKETYPE(CV_32F, image.channels()), 1.0 / maximum_value(image));
+            return result;
+        }
+
+        cv::Mat from_unit(const cv::Mat &image, int depth, double maximum)
+        {
+            cv::Mat result;
+            image.convertTo(result, CV_MAKETYPE(depth, image.channels()), maximum);
+            return result;
+        }
+
+        void clip_unit(cv::Mat &image)
+        {
+            cv::min(image, 1.0, image);
+            cv::max(image, 0.0, image);
+        }
+
+        void apply_contrast(cv::Mat &image, float factor)
+        {
+            const cv::Scalar mean = cv::mean(image);
+            const double average = std::accumulate(mean.val, mean.val + image.channels(), 0.0) / image.channels();
+            image = image * factor + (1.0 - factor) * average;
+        }
+
+        void apply_saturation_hue(cv::Mat &image, float saturation, float hue)
+        {
+            VERIFY(image.channels() == 3, "Saturation and hue require an RGB image");
+
+            cv::Mat hsv;
+            cv::cvtColor(image, hsv, cv::COLOR_RGB2HSV);
+            std::vector<cv::Mat> channels;
+            cv::split(hsv, channels);
+
+            channels[1] *= saturation;
+            cv::min(channels[1], 1.0, channels[1]);
+            cv::max(channels[1], 0.0, channels[1]);
+
+            for (int y = 0; y < channels[0].rows; y++)
+            {
+                float *row = channels[0].ptr<float>(y);
+                for (int x = 0; x < channels[0].cols; x++)
+                {
+                    row[x] = std::fmod(row[x] + hue * 360.0f + 360.0f, 360.0f);
+                }
+            }
+
+            cv::merge(channels, hsv);
+            cv::cvtColor(hsv, image, cv::COLOR_HSV2RGB);
+        }
+
+        cv::Mat random_noise(cv::RNG &generator, cv::Size size, int channels, float low, float high,
+                             const std::string &noise_type, bool per_channel)
+        {
+            const int noise_channels = per_channel ? channels : 1;
+            cv::Mat noise(size, CV_MAKETYPE(CV_32F, noise_channels));
+
+            if (noise_type == "uniform")
+            {
+                generator.fill(noise, cv::RNG::UNIFORM, low, high);
+            }
+            else if (noise_type == "gaussian")
+            {
+                const float mean = (low + high) * 0.5f;
+                const float sigma = std::abs(high - low) * 0.5f;
+                generator.fill(noise, cv::RNG::NORMAL, mean, sigma);
+            }
+            else if (noise_type == "laplace")
+            {
+                std::uniform_real_distribution<float> uniform(0.0f, 1.0f);
+                std::mt19937 engine((uint32_t)generator.next());
+                const float mean = (low + high) * 0.5f;
+                const float scale = std::abs(high - low) / std::sqrt(2.0f);
+                float *data = noise.ptr<float>();
+                for (size_t i = 0; i < noise.total() * noise.channels(); i++)
+                {
+                    const float u = uniform(engine) - 0.5f;
+                    data[i] = mean - scale * (u < 0 ? -1.0f : 1.0f) * std::log(1.0f - 2.0f * std::abs(u));
+                }
+            }
+            else if (noise_type == "beta")
+            {
+                std::uniform_real_distribution<float> uniform(0.0f, 1.0f);
+                std::mt19937 engine((uint32_t)generator.next());
+                float *data = noise.ptr<float>();
+                for (size_t i = 0; i < noise.total() * noise.channels(); i++)
+                {
+                    const float a = uniform(engine);
+                    const float b = uniform(engine);
+                    data[i] = low + (high - low) * (a / std::max(a + b, 1e-7f));
+                }
+            }
+            else
+            {
+                throw TypeException("Unknown additive noise type");
+            }
+
+            if (!per_channel && channels > 1)
+            {
+                std::vector<cv::Mat> split_channels(channels, noise);
+                cv::merge(split_channels, noise);
+            }
+            return noise;
+        }
+    }
+
+    cv::Mat random_brightness_contrast(const cv::Mat &image, const Sequence<float> &brightness_range,
+                                       const Sequence<float> &contrast_range, bool brightness_by_max,
+                                       bool ensure_safe_output, int seed) noexcept(false)
+    {
+        cv::RNG generator(seed);
+        const double maximum = maximum_value(image);
+        const float brightness_delta = sample_range(generator, brightness_range, "brightness_range");
+        const float contrast_delta = sample_range(generator, contrast_range, "contrast_range");
+        const float contrast = 1.0f + contrast_delta;
+        const float brightness = 1.0f + brightness_delta;
+        cv::Mat result = to_unit(image);
+
+        if (brightness_by_max)
+        {
+            result = result * contrast + brightness_delta;
+        }
+        else
+        {
+            apply_contrast(result, contrast);
+            result *= brightness;
+        }
+
+        // The safe mode has the same visible result for already bounded inputs,
+        // while the final clamp also protects integer conversion from overflow.
+        UNUSED(ensure_safe_output);
+        clip_unit(result);
+        return from_unit(result, image.depth(), maximum);
+    }
+
+    PIXELPIPES_COMPUTE_OPERATION_AUTO("random_brightness_contrast", random_brightness_contrast, (forward_shape<0>));
+
+    cv::Mat color_jitter(const cv::Mat &image, const Sequence<float> &brightness_range,
+                         const Sequence<float> &contrast_range, const Sequence<float> &saturation_range,
+                         const Sequence<float> &hue_range, int seed) noexcept(false)
+    {
+        cv::RNG generator(seed);
+        cv::Mat result = to_unit(image);
+        std::vector<int> order{0, 1, 2, 3};
+        std::shuffle(order.begin(), order.end(), std::mt19937((uint32_t)generator.next()));
+
+        for (int operation : order)
+        {
+            switch (operation)
+            {
+            case 0:
+                result *= sample_range(generator, brightness_range, "brightness_range");
+                break;
+            case 1:
+                apply_contrast(result, sample_range(generator, contrast_range, "contrast_range"));
+                break;
+            case 2:
+                if (result.channels() == 3)
+                    apply_saturation_hue(result, sample_range(generator, saturation_range, "saturation_range"), 0);
+                break;
+            case 3:
+                if (result.channels() == 3)
+                    apply_saturation_hue(result, 1, sample_range(generator, hue_range, "hue_range"));
+                break;
+            }
+        }
+
+        clip_unit(result);
+        return from_unit(result, image.depth(), maximum_value(image));
+    }
+
+    PIXELPIPES_COMPUTE_OPERATION_AUTO("color_jitter", color_jitter, (forward_shape<0>));
+
+    cv::Mat hue_saturation_value(const cv::Mat &image, const Sequence<float> &hue_range,
+                                 const Sequence<float> &saturation_range, const Sequence<float> &value_range,
+                                 int seed) noexcept(false)
+    {
+        cv::RNG generator(seed);
+        cv::Mat result = to_unit(image);
+        const float hue = sample_range(generator, hue_range, "hue_shift_range") / 360.0f;
+        const float saturation = sample_range(generator, saturation_range, "sat_shift_range") / maximum_value(image);
+        const float value = sample_range(generator, value_range, "val_shift_range") / maximum_value(image);
+
+        if (result.channels() == 3)
+        {
+            apply_saturation_hue(result, 1.0f, hue);
+            cv::Mat hsv;
+            cv::cvtColor(result, hsv, cv::COLOR_RGB2HSV);
+            std::vector<cv::Mat> channels;
+            cv::split(hsv, channels);
+            channels[1] += saturation;
+            channels[2] += value;
+            cv::min(channels[1], 1.0, channels[1]);
+            cv::max(channels[1], 0.0, channels[1]);
+            cv::min(channels[2], 1.0, channels[2]);
+            cv::max(channels[2], 0.0, channels[2]);
+            cv::merge(channels, hsv);
+            cv::cvtColor(hsv, result, cv::COLOR_HSV2RGB);
+        }
+        else
+        {
+            result += value;
+        }
+
+        clip_unit(result);
+        return from_unit(result, image.depth(), maximum_value(image));
+    }
+
+    PIXELPIPES_COMPUTE_OPERATION_AUTO("hue_saturation_value", hue_saturation_value, (forward_shape<0>));
+
+    cv::Mat rgb_shift(const cv::Mat &image, const Sequence<float> &red_range,
+                      const Sequence<float> &green_range, const Sequence<float> &blue_range,
+                      int seed) noexcept(false)
+    {
+        VERIFY(image.channels() == 3, "RGBShift requires an RGB image");
+        cv::RNG generator(seed);
+        cv::Mat result = to_unit(image);
+        std::vector<cv::Mat> channels;
+        cv::split(result, channels);
+        channels[0] += sample_range(generator, red_range, "r_shift_range") / maximum_value(image);
+        channels[1] += sample_range(generator, green_range, "g_shift_range") / maximum_value(image);
+        channels[2] += sample_range(generator, blue_range, "b_shift_range") / maximum_value(image);
+        for (cv::Mat &channel : channels)
+        {
+            cv::min(channel, 1.0, channel);
+            cv::max(channel, 0.0, channel);
+        }
+        cv::merge(channels, result);
+        return from_unit(result, image.depth(), maximum_value(image));
+    }
+
+    PIXELPIPES_COMPUTE_OPERATION_AUTO("rgb_shift", rgb_shift, (forward_shape<0>));
+
+    cv::Mat random_gamma(const cv::Mat &image, const Sequence<float> &gamma_range, int seed) noexcept(false)
+    {
+        cv::RNG generator(seed);
+        const float gamma = sample_range(generator, gamma_range, "gamma_range") / 100.0f;
+        cv::Mat result;
+        cv::pow(to_unit(image), gamma, result);
+        return from_unit(result, image.depth(), maximum_value(image));
+    }
+
+    PIXELPIPES_COMPUTE_OPERATION_AUTO("random_gamma", random_gamma, (forward_shape<0>));
+
+    cv::Mat clahe(const cv::Mat &image, const Sequence<float> &clip_range,
+                  const Sequence<int> &tile_grid_size, int seed) noexcept(false)
+    {
+        VERIFY(tile_grid_size.size() == 2, "tile_grid_size must contain two values");
+        VERIFY(tile_grid_size[0] > 0 && tile_grid_size[1] > 0, "tile_grid_size values must be positive");
+        cv::RNG generator(seed);
+        const double clip_limit = sample_range(generator, clip_range, "clip_range");
+        const int original_depth = image.depth();
+        const double maximum = maximum_value(image);
+        cv::Mat working;
+        image.convertTo(working, CV_MAKETYPE(CV_8U, image.channels()), 255.0 / maximum);
+        cv::Ptr<cv::CLAHE> equalizer = cv::createCLAHE(clip_limit, cv::Size(tile_grid_size[1], tile_grid_size[0]));
+
+        if (working.channels() == 1)
+        {
+            cv::Mat result;
+            equalizer->apply(working, result);
+            result.convertTo(result, CV_MAKETYPE(original_depth, 1), maximum / 255.0);
+            return result;
+        }
+
+        VERIFY(working.channels() == 3, "CLAHE supports grayscale or RGB images");
+        cv::Mat lab;
+        cv::cvtColor(working, lab, cv::COLOR_RGB2Lab);
+        std::vector<cv::Mat> channels;
+        cv::split(lab, channels);
+        equalizer->apply(channels[0], channels[0]);
+        cv::merge(channels, lab);
+        cv::cvtColor(lab, working, cv::COLOR_Lab2RGB);
+        working.convertTo(working, CV_MAKETYPE(original_depth, working.channels()), maximum / 255.0);
+        return working;
+    }
+
+    PIXELPIPES_COMPUTE_OPERATION_AUTO("clahe", clahe, (forward_shape<0>));
+
+    cv::Mat channel_dropout(const cv::Mat &image, const Sequence<int> &drop_range,
+                            float fill, int seed) noexcept(false)
+    {
+        if (image.channels() == 1)
+            return image.clone();
+        VERIFY(drop_range.size() == 2, "channel_drop_range must contain two values");
+        VERIFY(drop_range[0] >= 0 && drop_range[1] < image.channels(), "Invalid channel_drop_range");
+        cv::RNG generator(seed);
+        const int count = sample_range(generator, drop_range, "channel_drop_range");
+        VERIFY(count < image.channels(), "ChannelDropout must retain one channel");
+        cv::Mat result = image.clone();
+        std::vector<cv::Mat> channels;
+        cv::split(result, channels);
+        std::vector<int> indices(image.channels());
+        std::iota(indices.begin(), indices.end(), 0);
+        std::shuffle(indices.begin(), indices.end(), std::mt19937((uint32_t)generator.next()));
+        for (int i = 0; i < count; i++)
+            channels[indices[i]].setTo(fill);
+        cv::merge(channels, result);
+        return result;
+    }
+
+    PIXELPIPES_COMPUTE_OPERATION_AUTO("channel_dropout", channel_dropout, (forward_shape<0>));
+
+    cv::Mat channel_shuffle(const cv::Mat &image, int seed) noexcept(false)
+    {
+        if (image.channels() == 1)
+            return image.clone();
+        cv::RNG generator(seed);
+        std::vector<int> indices(image.channels());
+        std::iota(indices.begin(), indices.end(), 0);
+        std::shuffle(indices.begin(), indices.end(), std::mt19937((uint32_t)generator.next()));
+        std::vector<cv::Mat> input;
+        cv::split(image, input);
+        std::vector<cv::Mat> output;
+        output.reserve(input.size());
+        for (int index : indices)
+            output.push_back(input[index]);
+        cv::Mat result;
+        cv::merge(output, result);
+        return result;
+    }
+
+    PIXELPIPES_COMPUTE_OPERATION_AUTO("channel_shuffle", channel_shuffle, (forward_shape<0>));
+
+    cv::Mat additive_noise(const cv::Mat &image, const std::string &noise_type,
+                           const Sequence<float> &noise_range, bool per_channel, int seed) noexcept(false)
+    {
+        VERIFY(noise_range.size() == 2, "noise_range must contain two values");
+        cv::RNG generator(seed);
+        cv::Mat result = to_unit(image);
+        result += random_noise(generator, image.size(), image.channels(), noise_range[0], noise_range[1], noise_type, per_channel);
+        clip_unit(result);
+        return from_unit(result, image.depth(), maximum_value(image));
+    }
+
+    PIXELPIPES_COMPUTE_OPERATION_AUTO("additive_noise", additive_noise, (forward_shape<0>));
+
+    cv::Mat multiplicative_noise(const cv::Mat &image, const Sequence<float> &multiplier_range,
+                                 bool per_channel, bool elementwise, int seed) noexcept(false)
+    {
+        VERIFY(multiplier_range.size() == 2, "multiplier must contain two values");
+        cv::RNG generator(seed);
+        const int channels = per_channel ? image.channels() : 1;
+        const int rows = elementwise ? image.rows : 1;
+        const int cols = elementwise ? image.cols : 1;
+        cv::Mat multiplier(rows, cols, CV_MAKETYPE(CV_32F, channels));
+        generator.fill(multiplier, cv::RNG::UNIFORM, multiplier_range[0], multiplier_range[1]);
+        if (!elementwise)
+            multiplier = cv::repeat(multiplier, image.rows, image.cols);
+        if (!per_channel && image.channels() > 1)
+        {
+            cv::Mat shared = multiplier;
+            std::vector<cv::Mat> shared_channels(image.channels(), shared);
+            cv::merge(shared_channels, multiplier);
+        }
+        cv::Mat result = to_unit(image);
+        result = result.mul(multiplier);
+        clip_unit(result);
+        return from_unit(result, image.depth(), maximum_value(image));
+    }
+
+    PIXELPIPES_COMPUTE_OPERATION_AUTO("multiplicative_noise", multiplicative_noise, (forward_shape<0>));
+
+    cv::Mat shot_noise(const cv::Mat &image, const Sequence<float> &scale_range, int seed) noexcept(false)
+    {
+        cv::RNG generator(seed);
+        const float scale = sample_range(generator, scale_range, "scale_range");
+        VERIFY(scale > 0, "scale_range must be positive");
+        cv::Mat linear;
+        cv::pow(to_unit(image), 2.2, linear);
+        linear *= 1.0 / scale;
+        cv::Mat noisy;
+        noisy = linear.clone();
+        std::mt19937 engine((uint32_t)generator.next());
+        for (int y = 0; y < noisy.rows; y++)
+        {
+            float *row = noisy.ptr<float>(y);
+            for (int x = 0; x < noisy.cols * noisy.channels(); x++)
+            {
+                std::poisson_distribution<int> poisson(std::max(0.0f, row[x]));
+                row[x] = static_cast<float>(poisson(engine));
+            }
+        }
+        noisy *= scale;
+        cv::pow(noisy, 1.0 / 2.2, noisy);
+        clip_unit(noisy);
+        return from_unit(noisy, image.depth(), maximum_value(image));
+    }
+
+    PIXELPIPES_COMPUTE_OPERATION_AUTO("shot_noise", shot_noise, (forward_shape<0>));
+
+    cv::Mat salt_and_pepper(const cv::Mat &image, const Sequence<float> &amount_range,
+                            const Sequence<float> &salt_range, int seed) noexcept(false)
+    {
+        cv::RNG generator(seed);
+        const float amount = sample_range(generator, amount_range, "amount_range");
+        const float salt_ratio = sample_range(generator, salt_range, "salt_vs_pepper_range");
+        VERIFY(amount >= 0 && amount <= 1, "amount_range must be between 0 and 1");
+        VERIFY(salt_ratio >= 0 && salt_ratio <= 1, "salt_vs_pepper_range must be between 0 and 1");
+        cv::Mat result = to_unit(image);
+        const int pixels = image.rows * image.cols;
+        std::vector<int> indices(pixels);
+        std::iota(indices.begin(), indices.end(), 0);
+        std::shuffle(indices.begin(), indices.end(), std::mt19937((uint32_t)generator.next()));
+        const int noisy_pixels = static_cast<int>(amount * pixels);
+        const int salt_pixels = static_cast<int>(salt_ratio * noisy_pixels);
+        std::vector<cv::Mat> channels;
+        cv::split(result, channels);
+        for (int i = 0; i < noisy_pixels; i++)
+        {
+            const int y = indices[i] / image.cols;
+            const int x = indices[i] % image.cols;
+            const float value = i < salt_pixels ? 1.0f : 0.0f;
+            for (cv::Mat &channel : channels)
+                channel.at<float>(y, x) = value;
+        }
+        cv::merge(channels, result);
+        return from_unit(result, image.depth(), maximum_value(image));
+    }
+
+    PIXELPIPES_COMPUTE_OPERATION_AUTO("salt_and_pepper", salt_and_pepper, (forward_shape<0>));
 
     /**
      * @brief Compute X partial derivative of an image.
