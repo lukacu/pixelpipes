@@ -159,6 +159,13 @@ IF(BUILD_PYTHON)
       src/python/array.cpp 
   )
 
+  # Python3::Python may expose a system NumPy 1.x tree through the Python
+  # include directory. Put the NumPy include directory first so the headers
+  # selected for the extension match the NumPy used by Python3_EXECUTABLE.
+  target_include_directories(pypixelpipes SYSTEM BEFORE PRIVATE
+      ${Python3_NumPy_INCLUDE_DIRS}
+  )
+
   TARGET_LINK_LIBRARIES(pypixelpipes PRIVATE pixelpipes Python3::NumPy)
 
   LIST(APPEND BINARY_TARGETS pypixelpipes)

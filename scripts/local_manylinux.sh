@@ -8,7 +8,7 @@ SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 docker run --rm \
     -v "${SCRIPT_DIR}/..:/io" \
     -w /io \
-    -e "SKIP=cp36-cp36m,cp37-cp37m,pp37-pypy37_pp73,cp313-cp313,cp313-cp313t" \
+    -e "SKIP=cp36-cp36m,cp37-cp37m,cp38-cp38,pp37-pypy37_pp73,cp313-cp313,cp313-cp313t" \
     -e "WHEEL_ROOT=/io/build_wheel/dist" \
     -e "BUILD_ROOT=/io/build_wheel/build" \
     -e "PIXELPIPES_DEPENDENCY_ROOT=/io/build_wheel/dependencies" \
@@ -18,7 +18,7 @@ docker run --rm \
 docker run --rm \
     -v "${SCRIPT_DIR}/..:/io" \
     -w /io \
-    -e "SKIP=cp36-cp36m,cp37-cp37m,pp37-pypy37_pp73,cp313-cp313,cp313-cp313t" \
+    -e "SKIP=cp36-cp36m,cp37-cp37m,cp38-cp38,pp37-pypy37_pp73,cp313-cp313,cp313-cp313t" \
     -e "WHEEL_ROOT=/io/build_wheel/dist" \
     -e "BUILD_ROOT=/io/build_wheel/build" \
     -e "PIXELPIPES_DEPENDENCY_ROOT=/io/build_wheel/dependencies" \

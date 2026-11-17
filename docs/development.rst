@@ -9,7 +9,7 @@ invoked through ``setup.py`` for in-place development builds.
 Prerequisites
 -------------
 
-Use Python 3.8 or newer, CMake 3.15 through 3.x, and a C++17-capable compiler.
+Use Python 3.9 or newer, CMake 3.15 through 3.x, and a C++17-capable compiler.
 Release-style builds fetch immutable, pinned source revisions of OpenCV,
 libjpeg-turbo, xtensor, xsimd, xtl, zlib-ng, and lodepng, so the first build
 requires network access and can take several minutes. libjpeg-turbo is built
@@ -27,12 +27,7 @@ and build dependencies:
    python3 -m venv .venv
    source .venv/bin/activate
    python -m pip install --upgrade pip
-   python -m pip install "numpy>=1.23" "bidict>=0.21" "attributee>=0.1.9" "pybind11>=2.12" "cmake>=3.15,<4"
-
-When building an sdist or wheel through ``pyproject.toml``, Python 3.9 and
-newer use NumPy 2 headers and pybind11 2.12 or newer. This produces an
-extension compatible with NumPy 2 and NumPy 1.x at runtime. Python 3.8 builds
-use NumPy 1.x because NumPy 2 does not support that Python version.
+   python -m pip install "numpy>=2" "bidict>=0.21" "attributee>=0.1.9" "pybind11>=2.12" "cmake>=3.15,<4"
 
 To build the documentation as well, install its dependencies:
 

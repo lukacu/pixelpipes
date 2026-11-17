@@ -77,7 +77,7 @@ jobs:
           key: native-test-sources-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('cmake/dependency-versions.cmake', 'cmake/lodepng.cmake', 'cmake/hashlib.cmake') }}-v2
 
       - name: Install Python build and runtime requirements
-        run: python -m pip install "cmake>=3.15,<4" "pybind11>=2.12" "numpy>=1.23" "bidict>=0.21" "attributee>=0.1.9"
+        run: python -m pip install "cmake>=3.15,<4" "pybind11>=2.12" "numpy>=2" "bidict>=0.21" "attributee>=0.1.9"
 
       - name: Build native libraries
         run: python setup.py build_lib --inplace
@@ -95,7 +95,6 @@ jobs:
       fail-fast: false
       matrix:
         pydist:
-          - cp38-cp38
           - cp39-cp39
           - cp310-cp310
           - cp311-cp311
@@ -174,7 +173,7 @@ jobs:
           docker run --rm \
             -v "$GITHUB_WORKSPACE:/io" -w /io \
             -e PYDIST_FILTER="$PYDIST_FILTER" \
-            -e BUILD_SDIST="${{ matrix.pydist == 'cp38-cp38' }}" \
+            -e BUILD_SDIST="${{ matrix.pydist == 'cp310-cp310' }}" \
             -e WHEEL_ROOT=/io/build_wheel/dist \
             -e BUILD_ROOT=/io/build_wheel/build \
             -e PIXELPIPES_DEPENDENCY_ROOT=/io/build_wheel/dependencies \

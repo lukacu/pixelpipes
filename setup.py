@@ -153,7 +153,7 @@ setup(
     distclass=BinaryDistribution,
     packages=find_packages(include=["pixelpipes", "pixelpipes.*"]),
     include_package_data=True,
-    install_requires=["numpy>=1.23", "bidict>=0.21", "attributee>=0.1.9"],
+    install_requires=["numpy>=2", "bidict>=0.21", "attributee>=0.1.9"],
     extras_require={
         "torch": ["torch"],
         "tensorflow": ["tensorflow"],
@@ -161,7 +161,7 @@ setup(
         "jax": ["jax"],
         "frameworks": ["torch", "tensorflow", "keras", "jax"],
     },
-    python_requires=">=3.8",
+    python_requires=">=3.9",
     zip_safe=False,
     cmdclass={"build_lib": CMakeBuildCommand, "build_py": BuildPyCommand},
 )
