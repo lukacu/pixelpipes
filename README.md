@@ -9,7 +9,7 @@
 
 # PixelPipes — infinite data streams for deep learning
 
-[![Documentation Status](https://readthedocs.org/projects/pixelpipes/badge/?version=latest)](https://pixelpipes.readthedocs.io/en/latest/?badge=latest)
+[![Documentation Status](https://img.shields.io/readthedocs/pixelpipes/latest.svg)   ](https://pixelpipes.readthedocs.io/en/latest/?badge=latest)
 [![CI](https://github.com/lukacu/pixelpipes/actions/workflows/ci.yml/badge.svg)](https://github.com/lukacu/pixelpipes/actions/workflows/ci.yml)
 
 </div>
