@@ -6,8 +6,8 @@ The following API is generated from source code using `Auto API
 for graph-building classes and this page for the surrounding Python objects.
 
 The stable execution path is ``Compiler`` → ``Pipeline`` → ``Engine`` or
-``PipelineDataLoader``. Compatibility and legacy execution classes are listed
-in the :doc:`../nodes` stability section.
+``PipelineDataLoader``. Compatibility names are listed in the
+:doc:`../nodes` stability section.
 
 
 Pipeline

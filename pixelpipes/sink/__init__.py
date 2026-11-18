@@ -2,7 +2,7 @@
 import typing
 
 from pixelpipes import Pipeline
-from pixelpipes import Engine, LegacyEngine
+from pixelpipes import Engine
 from pixelpipes import pypixelpipes
 class BatchIterator(object):
     """Base for iterators that receive complete batches from an engine."""
@@ -120,17 +120,6 @@ class ParallelPipelineDataLoader(PipelineDataLoader):
         return PipelineDataLoader._BatchIterator(
             engine, native_pipeline, self._batch, self._offset)
 
-
-class LegacyPipelineDataLoader(PipelineDataLoader):
-    """Data loader using the legacy serial tensor assembly engine."""
-
-    def __iter__(self):
-        native_pipeline = getattr(self._pipeline, "_pipeline", self._pipeline)
-        engine = LegacyEngine(native_pipeline, self._batch, self._workers,
-                              self._max_workers, self._queue_size,
-                              self._offset + 1)
-        return PipelineDataLoader._BatchIterator(
-            engine, native_pipeline, self._batch, self._offset)
 
 try:
     import torch

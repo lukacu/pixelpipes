@@ -79,7 +79,12 @@ namespace pixelpipes
 
         virtual bool contiguous() const
         {
-            return is_contiguous(shape().sizes(), strides());
+            // Keep the owning sequences alive while is_contiguous() uses the
+            // views it receives. Passing these temporaries directly can leave
+            // the base-class references dangling before the call completes.
+            auto shape_sizes = shape().sizes();
+            auto tensor_strides = strides();
+            return is_contiguous(shape_sizes, tensor_strides);
         }
 
     };

@@ -280,35 +280,6 @@ private:
     std::unique_ptr<Engine> _engine;
 };
 
-class PythonLegacyEngine
-{
-public:
-    explicit PythonLegacyEngine(Pipeline &pipeline, size_t batch_size, uint16_t workers,
-                                uint16_t max_workers, size_t queue_size,
-                                unsigned long first_index)
-        : _engine(new LegacyEngine(pipeline, batch_size, workers, max_workers,
-                                   queue_size, first_index)) {}
-
-    ~PythonLegacyEngine()
-    {
-        py::gil_scoped_release gil;
-        _engine.reset();
-    }
-
-    py::tuple next_batch()
-    {
-        Sequence<TokenReference> result;
-        {
-            py::gil_scoped_release gil;
-            result = _engine->next_batch();
-        }
-        return token_list_to_python(make_view(result));
-    }
-
-private:
-    std::unique_ptr<LegacyEngine> _engine;
-};
-
 template <typename T, typename C>
 TokenReference _python_list_convert_strict(const py::list &list)
 {
@@ -563,17 +534,10 @@ PYBIND11_MODULE(pypixelpipes, m)
         .def(py::init<Pipeline &, size_t, uint16_t, uint16_t, size_t, unsigned long, uint16_t>(),
              py::arg("pipeline"), py::arg("batch_size"), py::arg("workers") = 1,
              py::arg("max_workers") = 0, py::arg("queue_size") = 10,
-             py::arg("first_index") = 1, py::arg("copy_workers") = 0)
+             py::arg("first_index") = 1, py::arg("copy_workers") = 0,
+             py::keep_alive<1, 2>())
         .def("next_batch", &PythonEngine::next_batch,
              "Block until the next native batch is available");
-
-    py::class_<PythonLegacyEngine>(m, "LegacyEngine")
-        .def(py::init<Pipeline &, size_t, uint16_t, uint16_t, size_t, unsigned long>(),
-             py::arg("pipeline"), py::arg("batch_size"), py::arg("workers") = 1,
-             py::arg("max_workers") = 0, py::arg("queue_size") = 10,
-             py::arg("first_index") = 1)
-        .def("next_batch", &PythonLegacyEngine::next_batch,
-             "Block until the next legacy native batch is available");
 
     // Keep the experimental Python name as a compatibility alias. The
     // parallel-copy implementation is now the default Engine.

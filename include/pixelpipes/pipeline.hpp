@@ -171,30 +171,6 @@ namespace pixelpipes
 
     };
 
-    // Legacy batch engine. It generates complete samples in worker threads and
-    // stacks tensor outputs after all samples in a batch have been generated.
-    class PIXELPIPES_API LegacyEngine
-    {
-        struct State;
-
-    public:
-        explicit LegacyEngine(Pipeline &pipeline, size_t batch_size, uint16_t workers = 1,
-                              uint16_t max_workers = 0, size_t queue_size = 10,
-                              unsigned long first_index = 1);
-
-        ~LegacyEngine();
-
-        Sequence<TokenReference> next_batch() noexcept(false);
-
-    private:
-        struct StateDeleter
-        {
-            void operator()(State *p) const;
-        };
-
-        std::unique_ptr<State, StateDeleter> state;
-    };
-
     // Source compatibility for clients that used the experimental name.
     using ParallelEngine = Engine;
 }

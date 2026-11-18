@@ -259,42 +259,6 @@ class Engine(object):
         return self._engine.next_batch()
 
 
-class LegacyEngine(object):
-    """Legacy native batch engine with serial tensor batch assembly.
-
-    This implementation is retained for comparison and compatibility. It
-    stacks tensor outputs after all samples in a batch have been generated.
-    """
-
-    def __init__(self, pipeline: Pipeline, batch_size: int, workers: int = 1,
-                 max_workers: Optional[int] = None, queue_size: int = 10,
-                 first_index: int = 1):
-        from . import pypixelpipes
-        if not isinstance(batch_size, int) or batch_size < 1:
-            raise ValueError("Batch size should be one or more")
-        if not isinstance(workers, int) or workers < 1:
-            raise ValueError("Worker count should be one or more")
-        if max_workers is None:
-            max_workers = 0
-        if not isinstance(max_workers, int) or max_workers < 0:
-            raise ValueError("Maximum worker count should be zero or more")
-        if max_workers and max_workers < workers:
-            raise ValueError("Maximum worker count should not be less than workers")
-        if not isinstance(queue_size, int) or queue_size < 1:
-            raise ValueError("Queue size should be one or more")
-        if not isinstance(first_index, int) or first_index < 0:
-            raise ValueError("First index should be zero or more")
-        self._pipeline = pipeline
-        native_pipeline = getattr(pipeline, "_pipeline", pipeline)
-        self._engine = pypixelpipes.LegacyEngine(
-            native_pipeline, batch_size, workers, max_workers, queue_size,
-            first_index)
-
-    def next_batch(self):
-        """Block until the next complete legacy batch is available."""
-        return self._engine.next_batch()
-
-
 # Compatibility name from when the parallel-copy implementation was
 # experimental. The parallel implementation is now the default Engine.
 ParallelEngine = Engine

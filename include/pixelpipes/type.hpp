@@ -328,7 +328,7 @@ namespace pixelpipes
         Shape &operator=(const Shape &s) = default;
         Shape &operator=(Shape &&s) = default;
 
-        inline Sizes sizes() const
+        inline SizeSequence sizes() const
         {
             SizeSequence _s(rank());
             for (size_t i = 0; i < rank(); i++)

@@ -133,11 +133,8 @@ The recommended stable API consists of:
 * extension discovery through ``load_module``, ``include_dirs``, and
   ``link_dirs``.
 
-The following names remain available for compatibility but are not the default
-for new code:
+The following names remain available for compatibility:
 
-* ``LegacyEngine`` and ``LegacyPipelineDataLoader`` use the older serial tensor
-  assembly path;
 * ``ParallelEngine`` is an alias for the current ``Engine``;
 * ``ParallelPipelineDataLoader`` is a compatibility name for the current
   parallel loader;

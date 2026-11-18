@@ -1,6 +1,6 @@
 import numpy as np
 
-from pixelpipes import Engine, LegacyEngine, ParallelEngine, pypixelpipes
+from pixelpipes import Engine, ParallelEngine, pypixelpipes
 from pixelpipes.compiler import Compiler
 from pixelpipes.graph import Constant, Graph, SampleIndex, outputs
 
@@ -54,14 +54,6 @@ class TestEngine(TestBase):
         np.testing.assert_array_equal(second[1].reshape(-1), np.arange(7, 11))
         for batch_value in first[0]:
             np.testing.assert_array_equal(batch_value, np.arange(4, dtype=np.float32))
-
-    def test_legacy_engine_remains_available(self):
-        engine = LegacyEngine(self.pipeline, batch_size=4, workers=1,
-                              max_workers=1, queue_size=1, first_index=3)
-        batch = engine.next_batch()
-
-        self.assertEqual(batch[0].shape, (4, 4))
-        np.testing.assert_array_equal(batch[1].reshape(-1), np.arange(3, 7))
 
     def test_parallel_engine_name_is_compatible_alias(self):
         self.assertIs(ParallelEngine, Engine)
