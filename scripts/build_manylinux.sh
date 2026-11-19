@@ -55,8 +55,38 @@ for whl in "${RAW_WHEEL_ROOT}"/*.whl; do
     repair_wheel "${whl}"
 done
 
-# Install packages and test
-#for PYBIN in /opt/python/*/bin/; do
-#    "${PYBIN}/pip" install pixelpipes --no-index -f /io/wheelhouse
-#    (cd "$HOME"; "${PYBIN}/nosetests" pymanylinuxdemo)
-#done
+# Install the repaired wheel into an isolated target and exercise its native
+# extension and a minimal pipeline from outside the checkout.
+if [[ -n "${PYDIST_FILTER}" ]]; then
+    PYTHON_BIN="/opt/python/${PYDIST_FILTER}/bin/python"
+    wheel=$(find "${WHEEL_ROOT}" -maxdepth 1 -type f \
+        -name "*-${PYDIST_FILTER}-*.whl" -print -quit)
+    if [[ ! -x "${PYTHON_BIN}" ]]; then
+        echo "Missing Python interpreter for ${PYDIST_FILTER}: ${PYTHON_BIN}" >&2
+        exit 1
+    fi
+    if [[ -z "${wheel}" ]]; then
+        echo "No repaired wheel found for ${PYDIST_FILTER} in ${WHEEL_ROOT}" >&2
+        exit 1
+    fi
+
+    SMOKE_ROOT=$(mktemp -d)
+    trap 'rm -rf "${SMOKE_ROOT}"' EXIT
+    "${PYTHON_BIN}" -m pip install --disable-pip-version-check --no-cache-dir \
+        --target "${SMOKE_ROOT}" "${wheel}"
+    (
+        cd "${SMOKE_ROOT}"
+        PYTHONPATH="${SMOKE_ROOT}" "${PYTHON_BIN}" - <<'PY'
+import pixelpipes.pypixelpipes
+from pixelpipes.compiler import Compiler
+from pixelpipes.graph import Constant, Graph, outputs
+
+with Graph() as graph:
+    value = Constant(7)
+    outputs(value)
+
+pipeline = Compiler().build(graph)
+assert pipeline.run(1)[0] == 7
+PY
+    )
+fi
