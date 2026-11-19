@@ -1,6 +1,7 @@
 
 #include "common.hpp"
 
+#include <array>
 #include <algorithm>
 #include <cmath>
 #include <numeric>
@@ -8,6 +9,7 @@
 #include <string>
 #include <vector>
 
+#include <opencv2/imgcodecs.hpp>
 #include <opencv2/imgproc.hpp>
 
 namespace pixelpipes
@@ -215,9 +217,6 @@ namespace pixelpipes
 
     cv::Mat normalize(const cv::Mat &image)
     {
-
-        VERIFY(image.channels() == 1, "Only single channel images accepted");
-
         int maxv = maximum_value(image);
 
         cv::Mat out;
@@ -473,39 +472,49 @@ namespace pixelpipes
      */
     cv::Mat solarize(const cv::Mat &image, float threshold)
     {
-
-        VERIFY(image.channels() == 1, "Image has more than one channel");
-
         float max = (float) maximum_value(image);
 
         cv::Mat result = image.clone();
+        const int width = result.cols * result.channels();
 
-        if (result.channels() == 1)
+        if (result.depth() == CV_8U)
         {
             for (int y = 0; y < result.rows; y++)
             {
-                for (int x = 0; x < result.cols; x++)
+                uchar *row = result.ptr<uchar>(y);
+                for (int x = 0; x < width; x++)
                 {
-                    if (result.depth() == CV_8U)
+                    if (row[x] > (int)threshold)
                     {
-                        if (result.at<uchar>(y, x) > (int)threshold)
-                        {
-                            result.at<uchar>(y, x) = max - result.at<uchar>(y, x);
-                        }
+                        row[x] = max - row[x];
                     }
-                    else if (result.depth() == CV_32F)
+                }
+            }
+        }
+        else if (result.depth() == CV_32F)
+        {
+            for (int y = 0; y < result.rows; y++)
+            {
+                float *row = result.ptr<float>(y);
+                for (int x = 0; x < width; x++)
+                {
+                    if (row[x] > threshold)
                     {
-                        if (result.at<float>(y, x) > threshold)
-                        {
-                            result.at<float>(y, x) = max - result.at<float>(y, x);
-                        }
+                        row[x] = max - row[x];
                     }
-                    else if (result.depth() == CV_64F)
+                }
+            }
+        }
+        else if (result.depth() == CV_64F)
+        {
+            for (int y = 0; y < result.rows; y++)
+            {
+                double *row = result.ptr<double>(y);
+                for (int x = 0; x < width; x++)
+                {
+                    if (row[x] > threshold)
                     {
-                        if (result.at<double>(y, x) > threshold)
-                        {
-                            result.at<double>(y, x) = max - result.at<double>(y, x);
-                        }
+                        row[x] = max - row[x];
                     }
                 }
             }
@@ -560,7 +569,13 @@ namespace pixelpipes
         {
             const cv::Scalar mean = cv::mean(image);
             const double average = std::accumulate(mean.val, mean.val + image.channels(), 0.0) / image.channels();
-            image = image * factor + (1.0 - factor) * average;
+            // Avoid a multi-channel MatExpr assignment here. OpenCV currently
+            // warns that scalar offsets in such expressions may change
+            // semantics; convertTo expresses the same per-channel affine
+            // transform without going through that deprecated path.
+            cv::Mat adjusted;
+            image.convertTo(adjusted, image.type(), factor, (1.0 - factor) * average);
+            image = adjusted;
         }
 
         void apply_saturation_hue(cv::Mat &image, float saturation, float hue)
@@ -658,7 +673,10 @@ namespace pixelpipes
 
         if (brightness_by_max)
         {
-            result = result * contrast + brightness_delta;
+            // See apply_contrast() for why this is written using convertTo.
+            cv::Mat adjusted;
+            result.convertTo(adjusted, result.type(), contrast, brightness_delta);
+            result = adjusted;
         }
         else
         {
@@ -959,6 +977,337 @@ namespace pixelpipes
     }
 
     PIXELPIPES_COMPUTE_OPERATION_AUTO("salt_and_pepper", salt_and_pepper, (forward_shape<0>));
+
+    int interpolation_code(Interpolation interpolation)
+    {
+        switch (interpolation)
+        {
+        case Interpolation::Linear:
+            return cv::INTER_LINEAR;
+        case Interpolation::Area:
+            return cv::INTER_AREA;
+        case Interpolation::Cubic:
+            return cv::INTER_CUBIC;
+        case Interpolation::Lanczos:
+            return cv::INTER_LANCZOS4;
+        case Interpolation::Nearest:
+            return cv::INTER_NEAREST;
+        }
+        throw TypeException("Unknown interpolation mode");
+    }
+
+    cv::Mat sharpen(const cv::Mat &image, const Sequence<float> &alpha_range,
+                    const Sequence<float> &lightness_range, const std::string &method,
+                    int kernel_size, float sigma, int seed) noexcept(false)
+    {
+        cv::RNG generator(seed);
+        const float alpha = sample_range(generator, alpha_range, "alpha_range");
+        const double maximum = maximum_value(image);
+        cv::Mat working = to_unit(image);
+        cv::Mat result;
+
+        VERIFY(alpha >= 0.0f && alpha <= 1.0f, "alpha_range must be between 0 and 1");
+
+        if (method == "kernel")
+        {
+            const float lightness = sample_range(generator, lightness_range, "lightness_range");
+            VERIFY(lightness >= 0.0f, "lightness_range must be non-negative");
+
+            cv::Mat kernel = cv::Mat::ones(3, 3, CV_32F) * (-alpha);
+            kernel.at<float>(1, 1) = (1.0f - alpha) + alpha * (8.0f + lightness);
+            CV_EX_WRAP(cv::filter2D(working, result, -1, kernel, cv::Point(-1, -1), 0.0,
+                                    cv::BORDER_REFLECT_101));
+        }
+        else if (method == "gaussian")
+        {
+            VERIFY(kernel_size > 0 && kernel_size % 2 == 1, "kernel_size must be positive and odd");
+            VERIFY(sigma >= 0.0f, "sigma must be non-negative");
+            cv::Mat blurred;
+            CV_EX_WRAP(cv::GaussianBlur(working, blurred, cv::Size(kernel_size, kernel_size),
+                                        sigma, sigma, cv::BORDER_REFLECT_101));
+            cv::addWeighted(working, alpha, blurred, 1.0 - alpha, 0.0, result);
+        }
+        else
+        {
+            throw TypeException("Unknown sharpening method");
+        }
+
+        clip_unit(result);
+        return from_unit(result, image.depth(), maximum);
+    }
+
+    PIXELPIPES_COMPUTE_OPERATION_AUTO("sharpen", sharpen, (forward_shape<0>));
+
+    cv::Mat motion_blur(const cv::Mat &image, const Sequence<int> &blur_range,
+                        const Sequence<float> &angle_range, const Sequence<float> &direction_range,
+                        bool allow_shifted, int seed) noexcept(false)
+    {
+        cv::RNG generator(seed);
+        VERIFY(blur_range.size() == 2, "blur_range must contain two values");
+        int low = std::max(3, blur_range[0]);
+        int high = std::max(3, blur_range[1]);
+        if (low % 2 == 0)
+            low++;
+        if (high % 2 == 0)
+            high++;
+        if (high < low)
+            high = low;
+
+        const int kernel_size = low == high ? low : generator.uniform(low, high + 1);
+        const float angle = sample_range(generator, angle_range, "angle_range");
+        const float direction = std::max(-1.0f, std::min(1.0f,
+                                                          sample_range(generator, direction_range, "direction_range")));
+        const int center = kernel_size / 2;
+        const float line_length = static_cast<float>(center);
+        const float angle_rad = angle * static_cast<float>(CV_PI / 180.0);
+        const float dx = std::cos(angle_rad);
+        const float dy = std::sin(angle_rad);
+        float start;
+        float end;
+        if (direction < 0.0f)
+        {
+            start = -line_length;
+            end = line_length * (1.0f - std::abs(direction));
+        }
+        else if (direction > 0.0f)
+        {
+            start = -line_length * (1.0f - direction);
+            end = line_length;
+        }
+        else
+        {
+            start = -line_length;
+            end = line_length;
+        }
+
+        const float shift_x = allow_shifted ? generator.uniform(-1.0f, 1.0f) * line_length / 2.0f : 0.0f;
+        const float shift_y = allow_shifted ? generator.uniform(-1.0f, 1.0f) * line_length / 2.0f : 0.0f;
+        cv::Mat kernel = cv::Mat::zeros(kernel_size, kernel_size, CV_32F);
+        for (int i = 0; i < kernel_size; i++)
+        {
+            const float t = start + (end - start) * i / std::max(1, kernel_size - 1);
+            const int x = std::max(0, std::min(kernel_size - 1,
+                                                static_cast<int>(std::lround(center + dx * t + shift_x))));
+            const int y = std::max(0, std::min(kernel_size - 1,
+                                                static_cast<int>(std::lround(center + dy * t + shift_y))));
+            kernel.at<float>(y, x) = 1.0f;
+        }
+        kernel /= cv::sum(kernel)[0];
+
+        cv::Mat result;
+        CV_EX_WRAP(cv::filter2D(image, result, image.depth(), kernel, cv::Point(-1, -1), 0.0,
+                                cv::BORDER_REFLECT_101));
+        return result;
+    }
+
+    PIXELPIPES_COMPUTE_OPERATION_AUTO("motion_blur", motion_blur, (forward_shape<0>));
+
+    cv::Mat downscale(const cv::Mat &image, const Sequence<float> &scale_range,
+                      Interpolation downscale_interpolation, Interpolation upscale_interpolation,
+                      int seed) noexcept(false)
+    {
+        cv::RNG generator(seed);
+        const float scale = sample_range(generator, scale_range, "scale_range");
+        VERIFY(scale > 0.0f && scale <= 1.0f, "scale_range must be between 0 and 1");
+
+        const int width = std::max(1, static_cast<int>(std::lround(image.cols * scale)));
+        const int height = std::max(1, static_cast<int>(std::lround(image.rows * scale)));
+        cv::Mat reduced;
+        cv::Mat result;
+        CV_EX_WRAP(cv::resize(image, reduced, cv::Size(width, height), 0, 0,
+                              interpolation_code(downscale_interpolation)));
+        CV_EX_WRAP(cv::resize(reduced, result, cv::Size(image.cols, image.rows), 0, 0,
+                              interpolation_code(upscale_interpolation)));
+        return result;
+    }
+
+    PIXELPIPES_COMPUTE_OPERATION_AUTO("downscale", downscale, (forward_shape<0>));
+
+    cv::Mat image_compression(const cv::Mat &image, const Sequence<int> &quality_range,
+                              const std::string &compression_type, int seed) noexcept(false)
+    {
+        cv::RNG generator(seed);
+        const int quality = sample_range(generator, quality_range, "quality_range");
+        VERIFY(quality >= 1 && quality <= 100, "quality_range must be between 1 and 100");
+        VERIFY(image.channels() == 1 || image.channels() == 3 || image.channels() == 4,
+               "ImageCompression supports 1, 3, or 4 channels");
+
+        std::string extension;
+        std::vector<int> parameters;
+        if (compression_type == "jpeg")
+        {
+            extension = ".jpg";
+            parameters = {cv::IMWRITE_JPEG_QUALITY, quality};
+        }
+        else if (compression_type == "webp")
+        {
+            extension = ".webp";
+            parameters = {cv::IMWRITE_WEBP_QUALITY, quality};
+        }
+        else
+        {
+            throw TypeException("Unknown compression type");
+        }
+
+        const double maximum = maximum_value(image);
+        cv::Mat working;
+        image.convertTo(working, CV_MAKETYPE(CV_8U, image.channels()), 255.0 / maximum);
+        cv::Mat alpha;
+        if (compression_type == "jpeg" && image.channels() == 4)
+        {
+            std::vector<cv::Mat> channels;
+            cv::split(working, channels);
+            alpha = channels.back().clone();
+            channels.pop_back();
+            cv::merge(channels, working);
+        }
+
+        std::vector<uchar> encoded;
+        CV_EX_WRAP(cv::imencode(extension, working, encoded, parameters));
+        cv::Mat decoded;
+        CV_EX_WRAP(decoded = cv::imdecode(encoded, cv::IMREAD_UNCHANGED));
+        VERIFY(!decoded.empty(), "Unable to decode compressed image");
+
+        if (!alpha.empty())
+        {
+            std::vector<cv::Mat> channels;
+            cv::split(decoded, channels);
+            channels.push_back(alpha);
+            cv::merge(channels, decoded);
+        }
+
+        cv::Mat result;
+        decoded.convertTo(result, CV_MAKETYPE(image.depth(), image.channels()), maximum / 255.0);
+        return result;
+    }
+
+    PIXELPIPES_COMPUTE_OPERATION_AUTO("image_compression", image_compression, (forward_shape<0>));
+
+    cv::Mat random_tone_curve(const cv::Mat &image, float scale, bool per_channel, int seed) noexcept(false)
+    {
+        VERIFY(scale >= 0.0f, "scale must be non-negative");
+        if (scale == 0.0f)
+            return image.clone();
+
+        cv::RNG generator(seed);
+        const int channels = image.channels();
+        const int curve_count = per_channel ? channels : 1;
+        std::vector<float> control_low(curve_count);
+        std::vector<float> control_high(curve_count);
+        for (int c = 0; c < curve_count; c++)
+        {
+            control_low[c] = std::max(0.0f, std::min(1.0f, 0.25f + static_cast<float>(generator.gaussian(scale))));
+            control_high[c] = std::max(0.0f, std::min(1.0f, 0.75f + static_cast<float>(generator.gaussian(scale))));
+        }
+
+        cv::Mat working = to_unit(image);
+        cv::Mat result = working.clone();
+        for (int y = 0; y < working.rows; y++)
+        {
+            const float *input = working.ptr<float>(y);
+            float *output = result.ptr<float>(y);
+            for (int x = 0; x < working.cols; x++)
+            {
+                for (int c = 0; c < channels; c++)
+                {
+                    const float t = std::max(0.0f, std::min(1.0f, input[x * channels + c]));
+                    const float one_minus_t = 1.0f - t;
+                    const float low = control_low[per_channel ? c : 0];
+                    const float high = control_high[per_channel ? c : 0];
+                    output[x * channels + c] = 3.0f * one_minus_t * one_minus_t * t * low
+                                             + 3.0f * one_minus_t * t * t * high + t * t * t;
+                }
+            }
+        }
+
+        return from_unit(result, image.depth(), maximum_value(image));
+    }
+
+    PIXELPIPES_COMPUTE_OPERATION_AUTO("random_tone_curve", random_tone_curve, (forward_shape<0>));
+
+    cv::Mat auto_contrast(const cv::Mat &image, float cutoff, int ignore,
+                          const std::string &method) noexcept(false)
+    {
+        VERIFY(cutoff >= 0.0f && cutoff <= 100.0f, "cutoff must be between 0 and 100");
+        VERIFY(method == "cdf" || method == "pil", "Unknown auto contrast method");
+
+        const double maximum = maximum_value(image);
+        cv::Mat working = to_unit(image);
+        cv::Mat result = working.clone();
+        const int channels = image.channels();
+        const int cutoff_count = static_cast<int>(working.rows * working.cols * cutoff / 100.0f);
+
+        for (int c = 0; c < channels; c++)
+        {
+            std::array<int, 256> histogram{};
+            int count = 0;
+            for (int y = 0; y < working.rows; y++)
+            {
+                const float *row = working.ptr<float>(y);
+                for (int x = 0; x < working.cols; x++)
+                {
+                    const float value = row[x * channels + c];
+                    if (ignore >= 0 && std::abs(value * static_cast<float>(maximum) - ignore) < 0.5f)
+                        continue;
+                    histogram[std::max(0, std::min(255, static_cast<int>(std::lround(value * 255.0f))))]++;
+                    count++;
+                }
+            }
+
+            if (count == 0)
+                continue;
+
+            int low = 0;
+            int high = 255;
+            int cumulative = 0;
+            while (low < 255 && cumulative + histogram[low] <= cutoff_count)
+                cumulative += histogram[low++];
+            cumulative = 0;
+            while (high > 0 && cumulative + histogram[high] <= cutoff_count)
+                cumulative += histogram[high--];
+            if (high <= low || histogram[low] == count)
+                continue;
+
+            std::array<float, 256> lookup{};
+            if (method == "pil")
+            {
+                for (int i = 0; i < 256; i++)
+                    lookup[i] = std::max(0.0f, std::min(1.0f, (i - low) / static_cast<float>(high - low)));
+            }
+            else
+            {
+                int first_cdf = 0;
+                for (int i = 0; i < low; i++)
+                    first_cdf += histogram[i];
+                int cdf = first_cdf;
+                const int denominator = std::max(1, count - first_cdf);
+                for (int i = 0; i < 256; i++)
+                {
+                    cdf += histogram[i];
+                    lookup[i] = std::max(0.0f, std::min(1.0f,
+                        (cdf - first_cdf) / static_cast<float>(denominator)));
+                }
+            }
+
+            for (int y = 0; y < working.rows; y++)
+            {
+                const float *input = working.ptr<float>(y);
+                float *output = result.ptr<float>(y);
+                for (int x = 0; x < working.cols; x++)
+                {
+                    const float value = input[x * channels + c];
+                    if (ignore >= 0 && std::abs(value * static_cast<float>(maximum) - ignore) < 0.5f)
+                        continue;
+                    const int bin = std::max(0, std::min(255, static_cast<int>(std::lround(value * 255.0f))));
+                    output[x * channels + c] = lookup[bin];
+                }
+            }
+        }
+
+        return from_unit(result, image.depth(), maximum);
+    }
+
+    PIXELPIPES_COMPUTE_OPERATION_AUTO("auto_contrast", auto_contrast, (forward_shape<0>));
 
     /**
      * @brief Compute X partial derivative of an image.

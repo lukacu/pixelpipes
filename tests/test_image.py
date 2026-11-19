@@ -548,6 +548,24 @@ class TestsImage(TestBase):
         self.compare_arrays(output[0], test_image1)
         self.compare_arrays(output[1], test_image2)
 
+    def test_image_normalize_rgb(self):
+
+        from pixelpipes.image.processing import ImageNormalize
+
+        test_image = np.array([
+            [[10, 60], [110, 160]],
+            [[210, 35], [85, 185]],
+            [[135, 25], [75, 125]],
+        ], dtype=np.uint8)
+
+        with Graph() as graph:
+            outputs(ImageNormalize(Constant(test_image)))
+
+        output = Compiler().build(graph).run(1)[0]
+        expected = np.rint((test_image.astype(np.float32) - 10) * (255.0 / 200.0))
+        np.testing.assert_allclose(output, expected, atol=1)
+        self.assertEqual(output.dtype, test_image.dtype)
+
     def test_indexed_png(self):
 
         from pixelpipes.graph import ReadFile
@@ -691,6 +709,23 @@ class TestsProcessing(TestBase):
         max_val = np.amax(test_image)
         self.compare_arrays(output[0], max_val - test_image + 1)
         self.compare_arrays(output[1], test_image)
+
+    def test_solarize_rgb(self):
+
+        test_image = np.array([
+            [[0, 64], [128, 192]],
+            [[32, 96], [160, 224]],
+            [[16, 144], [208, 240]],
+        ], dtype=np.uint8)
+
+        with Graph() as graph:
+            n0 = Constant(test_image)
+            o0 = ImageSolarize(source=n0, threshold=128)
+            outputs(o0)
+
+        output = Compiler().build(graph).run(1)[0]
+        expected = np.where(test_image > 128, 255 - test_image, test_image)
+        np.testing.assert_array_equal(output, expected)
         
     def test_derivatives(self):
         

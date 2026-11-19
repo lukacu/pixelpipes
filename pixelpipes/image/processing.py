@@ -1,6 +1,7 @@
 
-from ..graph import Constant, Input, SeedInput, Operation
+from ..graph import Constant, EnumerationInput, Input, SeedInput, Operation
 from .. import types
+from . import InterpolationMode
 
 
 class _FloatRangeInput(Input):
@@ -285,6 +286,84 @@ class SaltAndPepper(Operation):
 
     def operation(self):
         return "opencv:salt_and_pepper",
+
+
+class Sharpen(Operation):
+    """Sharpen an image using a Laplacian kernel or Gaussian unsharp masking."""
+
+    source = Input(types.Image(), description="Input image")
+    alpha_range = _FloatRangeInput((0.2, 0.5), description="Sharpening visibility range")
+    lightness_range = _FloatRangeInput((0.5, 1.0), description="Sharpening lightness range")
+    method = Input(types.String(), default="kernel", description="Sharpening method")
+    kernel_size = Input(types.Integer(), default=5, description="Gaussian kernel size")
+    sigma = Input(types.Float(), default=1.0, description="Gaussian standard deviation")
+    seed = SeedInput()
+
+    def operation(self):
+        return "opencv:sharpen",
+
+
+class MotionBlur(Operation):
+    """Apply directional motion blur with sampled kernel parameters."""
+
+    source = Input(types.Image(), description="Input image")
+    blur_range = _IntegerRangeInput((3, 7), description="Motion kernel size range")
+    angle_range = _FloatRangeInput((0, 360), description="Motion angle range in degrees")
+    direction_range = _FloatRangeInput((-1, 1), description="Motion direction bias range")
+    allow_shifted = Input(types.Boolean(), default=True, description="Allow shifted blur kernels")
+    seed = SeedInput()
+
+    def operation(self):
+        return "opencv:motion_blur",
+
+
+class Downscale(Operation):
+    """Downscale and upscale an image to simulate resolution loss."""
+
+    source = Input(types.Image(), description="Input image")
+    scale_range = _FloatRangeInput((0.25, 0.25), description="Downscale factor range")
+    downscale_interpolation = EnumerationInput(InterpolationMode, default="Nearest")
+    upscale_interpolation = EnumerationInput(InterpolationMode, default="Nearest")
+    seed = SeedInput()
+
+    def operation(self):
+        return "opencv:downscale",
+
+
+class ImageCompression(Operation):
+    """Simulate JPEG or WebP compression artifacts in memory."""
+
+    source = Input(types.Image(), description="Input image")
+    quality_range = _IntegerRangeInput((99, 100), description="Compression quality range")
+    compression_type = Input(types.String(), default="jpeg", description="Compression format")
+    seed = SeedInput()
+
+    def operation(self):
+        return "opencv:image_compression",
+
+
+class RandomToneCurve(Operation):
+    """Apply a random cubic Bézier tone curve."""
+
+    source = Input(types.Image(), description="Input image")
+    scale = Input(types.Float(), default=0.1, description="Tone curve variation")
+    per_channel = Input(types.Boolean(), default=False, description="Use one curve per channel")
+    seed = SeedInput()
+
+    def operation(self):
+        return "opencv:random_tone_curve",
+
+
+class AutoContrast(Operation):
+    """Stretch each channel's intensity range using CDF or PIL-style contrast."""
+
+    source = Input(types.Image(), description="Input image")
+    cutoff = Input(types.Float(), default=0, description="Histogram cutoff percentage")
+    ignore = Input(types.Integer(), default=-1, description="Intensity to preserve, or -1")
+    method = Input(types.String(), default="cdf", description="Contrast method")
+
+    def operation(self):
+        return "opencv:auto_contrast",
 
 
 # Albumentations-compatible names.
