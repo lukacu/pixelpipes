@@ -86,12 +86,21 @@ controlled by the revisions in ``cmake/dependency-versions.cmake``. Dependency
 updates should change those revisions centrally and be reviewed alongside the
 upstream release/version, compatibility, and license changes.
 
-GitHub Actions builds and tests on pull requests and branch pushes. The
-manylinux release job caches the dependency source/build/install tree separately
-from Python-specific CMake build directories. Its cache key includes the
-manylinux image identity and dependency/build configuration, so unchanged
-dependencies are reused across releases while a pin or build-option change
-starts a fresh cache. A cache miss simply rebuilds from the pinned sources.
+GitHub Actions builds and tests on pull requests and branch pushes with Python
+3.9 through 3.12. Release and manually dispatched builds produce CPython
+3.9--3.12 wheels for x86_64 ``manylinux2014`` and a source distribution. The
+workflow smoke-tests each repaired wheel by installing it in its matching
+manylinux Python environment, importing the native extension, and running a
+small pipeline. This is the current binary-wheel platform scope; other
+operating systems and architectures are not yet covered by release wheels.
+
+The manylinux release workflow prepares the pinned native dependencies once,
+then shares the installed prefix with each Python-ABI wheel job. The dependency
+source/build/install tree is cached separately from Python-specific CMake
+build directories. Cache keys include the manylinux image identity and
+dependency/build configuration, so unchanged dependencies are reused across
+releases while a pin or build-option change starts a fresh cache. A cache miss
+simply rebuilds from the pinned sources.
 
 To produce a source archive, wheel, or inspect the shipped source files:
 

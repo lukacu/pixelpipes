@@ -96,3 +96,8 @@ see the [development guide](https://pixelpipes.readthedocs.io/en/latest/developm
 
 The development of this package was supported by Slovenian Research Agency
 (ARRS) projects Z2-1866, J2-316, and J7-2596.
+
+## License
+
+PixelPipes is distributed under the MIT License. See [LICENSE](LICENSE) for
+the complete license text. Third-party dependencies retain their own licenses.

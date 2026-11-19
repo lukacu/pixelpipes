@@ -1,50 +1,95 @@
 Architecture and concepts
 =========================
 
-This document describes the concepts of the PixelPipes framework in extensive technical details. If you are more interested in practical examples, check out the collection of `tutorials <tutorials/index.html>`_.
+PixelPipes turns a Python description of a data stream into a native pipeline
+that can generate an individual sample by index. This page explains the
+components involved; runnable introductions are in :doc:`examples` and
+:doc:`tutorials/index`.
 
-Similar to some machine learning frameworks, most notably TensorFlow, a PixelPipes stream is formalized as a computational directed acyclic graph (DAG). This graph is constructed in Python.
-The graph is then transformed into a sequence of operations that are executed in C++. These operations can be very primitive, e.g. summing up two numbers, or they can be very
-specialized, e.g. a specific image operation. Most users will only work with Python frontend to describe a stream, but it can be beneficial to know what lies beneath.
-
-The framework is therefore divided into two parts with a binding API bridge:
-
-  * a C++ core containing all low-level operations together with some binding code,
-  * a Python frontend that provides a high-level way of describing a computational graph.
-
-TODO: image overview
-
-Python wrapper
+Execution path
 --------------
 
-As already said, the Python part of the framework is just a frontent that makes assembling a pipeline easy. It is not involved in the execution in any way and once a pipeline is
-assembled, it can be executed from C++ directly (or from any other language). The frontend makes graph description easier by introducing organizational concepts
-like macros and resources and by allowing the user to leverage abundance of Python tools to import data and transform it into pipeline primitives.
+The system has three cooperating parts:
 
-Below is a list of Python-level concepts that are important to know when you start using the framework:
+1. **Python graph frontend.** Users create nodes inside a graph or define a
+   function with ``@pipeline``. Nodes represent constants, data sources,
+   transformations, or outputs.
+2. **Compiler.** The compiler infers node types, expands Python macros and
+   resources into primitive operations, validates dependencies, removes
+   redundant work where possible, and creates a native pipeline.
+3. **C++ runtime.** The runtime evaluates operations, manages tokens and
+   buffers, loads native modules, and exposes pipeline execution through the
+   Python binding. It can also read and execute a serialized pipeline without
+   reconstructing the original Python graph.
 
- * Node: represents an high-level operaton with zero or more inputs that produces a single output
- * Graph: a collection of connected nodes, a graph describes dependencies between operations, each operation, represented as a node in a graph can accept zero or more inputs and produces a single output. There are two types of nodes, operations and macros.
- * Operation: special nodes that map directly to individual operations in the final pipeline.
- * Macro: A macro is a combination of operations that are frequently used together and are represented as a single node. During compilation macros are expanded to their inner subgraph
-   until only the basic operation nodes remain. Macros are written in Python and combined normal Python language together with DAG generation, they can therefore base generation 
-   on input types, use loops and conditional statements.
- * Constant: Special type of operation node, used to introduce constant values into the pipeline. Constats can be scalars, but also tensors and lists.
- * Compilation: a process of iterativelly reducing macro nodes in a graph to basic operations, removing duplicates where possible and ordering operations according to dependencies.
- * Resource: Special type of macros that handle multi-field type abstractions, can be used to make the graph more organized, but get dissolved during compilation.
+Conceptually, the data path is:
 
-C++ core
---------
+.. code-block:: text
 
-The native part of the framework is written in C++, this part is less visible when only using the framework for training, but it is important when one wants to add some fast custom operations.
-The core operates with the following concepts:
+   Python graph -> validation and macro expansion -> native operation graph
+        -> indexed C++ execution -> selected output values -> batch sink
 
- * Operation: A stateless algorithm that accepts zero or more inputs and produces a single output. Direct mapping of the operation node concept.
- * Token: Tokens are data units passed from operation to operation. 
- * Type: Describes type trait of a token.
- * Pipeline: A sequence of operations.
- * Module: Operations are organized into modules. Some modules are a part of the core framework and the separation is less noticeable. Other modules can be written as extensions to the framework, providing additional operations.
+The source graph is a directed acyclic graph (DAG). A node may feed multiple
+downstream nodes; the compiler preserves shared dependencies and can eliminate
+duplicate computations. Only values required by declared outputs need to be
+returned from a run.
 
+Sample indices and repeatability
+--------------------------------
 
+A pipeline run is requested for a positive sample index. Sampling and random
+operations use this index together with their seed, so requesting the same
+sample again reproduces its values without requiring a shared advancing random
+generator. Independent samples can therefore be evaluated by multiple workers
+and returned in order by the batch engine.
 
+This repeatability applies to PixelPipes operations. External operations or
+data sources may have their own state or nondeterminism, so they must be
+designed accordingly when repeatable output is required.
 
+Python graph concepts
+---------------------
+
+* **Node:** a graph value with zero or more inputs and one output.
+* **Operation:** a node that maps to a native runtime operation.
+* **Macro:** a Python-authored node that expands into other nodes during
+  compilation. It is an authoring abstraction and is not executed as a Python
+  callback for every sample.
+* **Constant:** a scalar, list, or tensor value embedded in the graph.
+* **Resource:** a named collection of related values used to organize data.
+  Compilation removes fields that are not needed by outputs.
+* **Compilation:** type inference, validation, macro expansion, dependency
+  ordering, and optional optimization.
+
+C++ runtime concepts
+--------------------
+
+* **Token:** a runtime value, such as a scalar, string, list, or tensor.
+* **Type and shape:** metadata used to validate operation inputs and infer
+  output structure before execution.
+* **Pipeline:** an ordered, dependency-aware collection of operations and
+  selected outputs.
+* **Module:** a shared library that registers operations with the runtime.
+
+Image operations are provided by a separately loaded OpenCV module. The core
+owns the pipeline and token model; the module registers image-loading,
+transformation, and rendering operations. Load the module before compiling a
+graph that refers to its operations. The module mechanism also supports
+custom C++ operations; see :doc:`extending`.
+
+Serialization and consumers
+----------------------------
+
+Compiled pipelines can be serialized and loaded by the native runtime. This
+separates graph construction from execution and allows a C++ application to
+consume a pipeline created in Python. Pipeline outputs can be read directly
+or grouped into fixed-shape batches with a sink. Framework adapters convert
+those batches for optional PyTorch, TensorFlow, Keras, or JAX use; the core
+does not depend on those frameworks.
+
+See :doc:`api/index` for the Python and C++ interfaces and :doc:`development`
+for build and test instructions.
+
+..
+   TODO: Add a component diagram once the module-loading and serialization
+   boundaries are stable enough to illustrate without duplicating this text.

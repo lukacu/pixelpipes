@@ -4,7 +4,6 @@
 
 import ast
 import os
-import subprocess
 import sys
 from pathlib import Path
 
@@ -20,7 +19,7 @@ from gen_nodes import (
     write_nodes_page,
 )
 
-extensions = ['autoapi.extension', 'link_roles', 'breathe', 'sphinx.ext.napoleon']
+extensions = ['autoapi.extension', 'sphinx.ext.napoleon']
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
@@ -49,7 +48,19 @@ author = u'Luka Cehovin Zajc'
 # Usually you set "language" from the command line for these cases.
 # language = None
 
-exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store', '**/*setup*']
+exclude_patterns = [
+    '_build',
+    'Thumbs.db',
+    '.DS_Store',
+    '**/*setup*',
+    # Draft pages stay in the source tree as commented TODOs until complete.
+    'tutorials/augmentation.rst',
+    'tutorials/conditional.rst',
+    'tutorials/davis.rst',
+    'tutorials/graph.rst',
+    'tutorials/pascal.rst',
+    'tutorials/vot.rst',
+]
 
 pygments_style = 'sphinx'
 
@@ -109,10 +120,6 @@ autoapi_keep_files = True
 
 autoapi_options = ['members', 'undoc-members', 'show-inheritance', 'show-module-summary']
 
-breathe_projects = {"pixelpipes": "_build/doxygen/xml/"}
-
-breathe_default_project = "pixelpipes"
-
 cpp_index_common_prefix = ['pixelpipes::']
 
 def source_version(path):
@@ -141,18 +148,3 @@ def setup(app):
     app.connect('config-inited', generate_nodes_page)
     app.connect('autodoc-process-signature', process_node_signature)
     app.connect('autodoc-process-docstring', process_node_docstring)
-    app.connect("builder-inited", generate_doxygen_xml)
-
-def generate_doxygen_xml(app):
-    """Run the doxygen make commands if we're on the ReadTheDocs server"""
-
-    read_the_docs_build = os.environ.get('READTHEDOCS', None) == 'True'
-
-    if read_the_docs_build:
-
-        try:
-            retcode = subprocess.call("doxygen", shell=True)
-            if retcode < 0:
-                sys.stderr.write("doxygen terminated by signal %s" % (-retcode))
-        except OSError as e:
-            sys.stderr.write("doxygen execution failed: %s" % e)

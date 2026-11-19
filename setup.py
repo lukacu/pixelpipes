@@ -21,6 +21,9 @@ with open(os.path.join(ROOT, "pixelpipes", "__init__.py"), encoding="utf-8") as 
 if version_match is None:
     raise RuntimeError("Could not determine package version")
 
+with open(os.path.join(ROOT, "README.md"), encoding="utf-8") as readme_file:
+    long_description = readme_file.read()
+
 
 class CMakeBuildCommand(Command):
     """Build and install every native target through the project CMake build."""
@@ -149,7 +152,10 @@ setup(
     author_email="luka.cehovin@gmail.com",
     url="https://github.com/lukacu/pixelpipes",
     description="Infinite data streams for deep learning",
-    long_description="",
+    long_description=long_description,
+    long_description_content_type="text/markdown",
+    license="MIT",
+    license_files=["LICENSE"],
     distclass=BinaryDistribution,
     packages=find_packages(include=["pixelpipes", "pixelpipes.*"]),
     include_package_data=True,

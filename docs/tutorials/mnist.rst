@@ -1,11 +1,15 @@
 Getting started with MNIST
 ==========================
 
-MNIST is something like a hello-world dataset of deep learning community. In this example we will look at how to get real data into the pipeline and how to sample it.
-The full code for the example is available :example:`mnist.py here`, we will just commend on the core parts.
+MNIST is a small image-classification dataset that makes a useful first
+example of reading structured data into a pipeline. The complete example is
+included below. It expects the original IDX image and label files under
+``examples/_data/mnist``; see the comments in the source for the download
+location and file names. The example imports OpenCV for its display loop; the
+pipeline itself does not require the Python ``cv2`` package.
 
-Sampling MNIST data
--------------------
+Load and sample MNIST
+---------------------
 
 .. literalinclude:: ../../examples/mnist.py
 
