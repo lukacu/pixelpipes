@@ -1,5 +1,9 @@
+..
+   DRAFT — not published yet.
 
-Using DAVIS dataset
-===================
+   Using the DAVIS dataset
+   =======================
 
-TODO
+   Document dataset layout, frame/mask pairing, label decoding, and how to
+   preserve image/mask alignment through augmentation. Include a runnable
+   example and state the external dataset/tooling requirements.

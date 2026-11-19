@@ -1,5 +1,9 @@
-Augmenting images
-=================
+..
+   DRAFT — not published yet.
 
-Augmenting images can be viewed as generating multiple different samples from a same image by transforming it with image processing operations that change its pixel-level
-congent, but not its semantic meaning.
+   Augmenting images
+   =================
+
+   Explain deterministic per-sample randomness and show a runnable sequence
+   combining geometric and pixel-level transforms. Cover parameter ranges,
+   seeds, and the distinction between augmentation and image preprocessing.

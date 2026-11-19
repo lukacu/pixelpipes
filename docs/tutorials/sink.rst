@@ -1,8 +1,8 @@
 Batching data for training
 ==========================
 
-Simply generating data sequentially is suitable for inspecting pipeline output,
-but training usually requires batches prepared by multiple workers. PixelPipes
+Generating individual samples is useful for inspecting pipeline output, while
+training usually consumes batches prepared by multiple workers. PixelPipes
 provides a native multi-worker ``Engine`` and sink helpers that generate
 already-batched tensors.
 
@@ -13,8 +13,20 @@ enable a different autoscaling ceiling.
 
 One important thing that sinks assume is that all outputs are scalars or have a fixed size for every sample. This allows stacking into tensors that are necessary for efficient deep learning.
 
-For brevity, the examples below use the pipeline from the `MNIST tutorial
-<mnist.html>`_.
+The examples below share this small synthetic stream. It produces a 2-by-3
+feature tensor and a one-element target tensor for every sample; no dataset
+download or example module is needed.
+
+.. code-block:: python
+
+   from pixelpipes.graph import SampleIndex
+   from pixelpipes.tensor import RandomTensor
+   from pixelpipes.utilities import pipeline
+
+   @pipeline()
+   def samples():
+       index = SampleIndex()
+       return RandomTensor([2, 3], seed=index), RandomTensor([1], seed=index)
 
 NumPy sink
 ----------
@@ -25,15 +37,12 @@ stacked.
 
 .. code-block:: python
 
-   from examples.mnist import mnist
    from pixelpipes.sink import PipelineDataLoader
 
-   loader = PipelineDataLoader(mnist(), batch=32, workers=1, max_workers=4)
+   loader = PipelineDataLoader(samples(), batch=32, workers=1, max_workers=4)
 
-   for images, labels in loader:
-       # images.shape == (32, height, width)
-       # labels.shape == (32, 1)
-       train(images, labels)
+   features, targets = next(iter(loader))
+   print(features.shape, targets.shape)
 
 PyTorch sink
 ------------
@@ -44,13 +53,12 @@ converts each stacked NumPy output to a PyTorch tensor.
 
 .. code-block:: python
 
-   from examples.mnist import mnist
    from pixelpipes.sink import TorchDataLoader
 
-   loader = TorchDataLoader(mnist(), batch=32, workers=1, max_workers=4)
+   loader = TorchDataLoader(samples(), batch=32, workers=1, max_workers=4)
 
-   for images, labels in loader:
-       train(images, labels)
+   features, targets = next(iter(loader))
+   print(features.shape, targets.shape)
 
 TensorFlow
 ----------
@@ -62,16 +70,16 @@ a TensorFlow tensor. Use ``as_dataset`` when the training API expects a
 .. code-block:: python
 
    import tensorflow as tf
-   from examples.mnist import mnist
    from pixelpipes.sink import TensorFlowDataLoader
 
-   loader = TensorFlowDataLoader(mnist(), batch=32, workers=1)
+   loader = TensorFlowDataLoader(samples(), batch=32, workers=1)
    dataset = loader.as_dataset((
-       tf.TensorSpec((32, 28, 28), tf.float32),
-       tf.TensorSpec((32, 1), tf.int32),
+       tf.TensorSpec((32, 2, 3), tf.float32),
+       tf.TensorSpec((32, 1), tf.float32),
    ))
 
-   model.fit(dataset, steps_per_epoch=100)
+   for features, targets in dataset.take(1):
+       print(features.shape, targets.shape)
 
 Keras
 -----
@@ -82,11 +90,11 @@ iterator and set ``steps_per_epoch`` because the PixelPipes stream is infinite.
 
 .. code-block:: python
 
-   from examples.mnist import mnist
    from pixelpipes.sink import KerasDataLoader
 
-   loader = KerasDataLoader(mnist(), batch=32, workers=1)
-   model.fit(iter(loader), steps_per_epoch=100)
+   loader = KerasDataLoader(samples(), batch=32, workers=1)
+   features, targets = next(iter(loader))
+   print(features.shape, targets.shape)
 
 JAX
 ---
@@ -96,12 +104,11 @@ training step.
 
 .. code-block:: python
 
-   from examples.mnist import mnist
    from pixelpipes.sink import JAXDataLoader
 
-   loader = JAXDataLoader(mnist(), batch=32, workers=1)
-   images, labels = next(iter(loader))
-   loss = train_step(images, labels)
+   loader = JAXDataLoader(samples(), batch=32, workers=1)
+   features, targets = next(iter(loader))
+   print(features.shape, targets.shape)
 
 
 

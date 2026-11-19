@@ -21,15 +21,19 @@ All these steps involve a lot of work that is usually accomplished with many dif
 due to different pseudorandom generators involved, making debugging and experiments reproducibly more challenging.
 
 PixelPipes takes a different approach, it combines both sampling and augmentation into a single data processing pipeline of more or less complex operations. 
-This way each sample in a virtually infinite sequence of samples is referenced only by its index (i.e. position) in the stream. The pipeline is constructed 
-from a directed-acyclic graph (DAG) description and is optimized to reduce redundancy. 
-This concept has the following benefits (some of which have not yet been implemented at this state of development, but are possible):
+This way each sample in a virtually infinite sequence of samples is referenced
+by its index (its position in the stream). A pipeline is constructed from a
+directed acyclic graph (DAG) and compiled to reduce redundant work. This
+design provides the following capabilities:
 
-  * Because of the way the pipeline is conditioned on a single index, the data stream is easily repeatable, the training or testing procedure reproducibly ends and is easy to debug.
-  * The pipeline is written in C++, making it fast and keeping the memory footprint reasonable. It also exploits the fact that individual samples are generated independently making synchronization easier.
-  * Each pipeline can be saved and loaded from a file. When loaded, the pipeline can be run from C++ directly, making the stream accessible from other languages besides Python.
-  * External file dependencies can also be tracked clearly, making data stream easily transferable.
-  * Despite a C++ core, the framework is extendable with new operations.
+  * Samples can be reproduced by requesting the same index and using the same
+    seeds, which helps with debugging and repeatable experiments.
+  * The C++ runtime can evaluate independent samples concurrently and assemble
+    ordered batches.
+  * Compiled pipelines can be serialized and executed by the C++ runtime
+    without reconstructing their Python graph.
+  * The runtime can be extended with native modules that register additional
+    operations.
 
 The source code for the PixelPipes framework is available on `GitHub <https://github.com/lukacu/pixelpipes>`_. Contributions to the project are welcome, please read the
 `development <development.html>`_ document on how to get started.

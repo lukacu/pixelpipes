@@ -2,35 +2,30 @@
 Tutorials
 =========
 
-Below is a collection of tutorials covering different concepts and using different well-known datasets. The tutorials cover topics linearly, so each of them
-bases on the terminology used in the previous tutorials. 
+These guides are independent recipes for constructing data pipelines. The
+MNIST and CIFAR guides use downloadable datasets; the patches guide uses the
+images bundled with the repository. The sink guide uses a small synthetic
+stream and does not require dataset files.
 
-.. note::
-   Note that many examples use OpenCV python package for sample visualization purposes. The package is not a requirement for the PixelPipes package and
-   has to be installed manually.
+Some examples use OpenCV's Python package (``cv2``) only to display results.
+It is optional and can be installed separately; it is not needed to build or
+run the PixelPipes pipeline itself.
 
 .. toctree::
    :maxdepth: 2
 
-   graph
-   patches
    mnist
    cifar
-   augmentation
-   conditional
-   pascal
-   vot
-   davis
+   patches
    sink
 
 ..
-   graph - graph, types
-   patches - macros, files
-   mnist - images from memory
-   cifar - resource list
-   augmentation - augmentation, random parameters
-   conditional - multiple branches, switcing
-   pascal - complex labels?
-   vot - segmented resource lists
-   davis - segmentation masks
-   sink - batching
+   Draft tutorials are retained in the source tree but excluded from the
+   published documentation until they are complete:
+
+   graph - graph construction, types, and compilation
+   augmentation - image augmentation and deterministic random parameters
+   conditional - conditional execution and branch dependencies
+   pascal - PASCAL/COCO labels and resource organization
+   vot - segmented resource lists and tracking sequences
+   davis - segmentation masks and image/mask alignment

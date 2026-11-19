@@ -1,39 +1,46 @@
 CIFAR and resource lists
 ========================
 
-CIFAR is one of the most well known datasets for computer vision, espectially for representation learning. 
-This tutorial will show how to generate a stream of random samples from CIFAR-10 collection. In contract to the previous tutorial on MNIST, we will introduce
-the concept of resources and resource lists as a high-level way of structuring data into datasets. The full code for the example is available 
-:example:`cifar.py here`, we will just commend on the core parts.
+CIFAR-10 is a small image-classification dataset. This guide shows how a
+resource list organizes image and label fields, then samples corresponding
+records from that list. The complete runnable implementation is included
+below. It expects the Python CIFAR-10 batch files in ``examples/cifar``;
+the dataset download and extraction instructions are on the
+`official CIFAR-10 page <https://www.cs.toronto.edu/~kriz/cifar.html>`_.
   
 Resources
 ---------
 
-First, a few words about resources. Resources are an organizational tool that helps with complex data. They allow us to group several data connections between nodes
-and group them together into a structure-like connections. Individual fields can then be queried and manipulated. 
+Resources are an organizational tool for grouping related values. Their
+fields can be queried and transformed independently while remaining part of
+the same logical sample.
 
-It is important to know that resources are built upon macros and are therefore not really used in the final pipeline, they are dissolved during compilation and all
-the their fields that are not required to produce stream output are stripped away.
+Resources are built on macros and are expanded during compilation. Fields not
+needed to produce pipeline outputs are removed.
 
 Define a resource list 
 ----------------------
 
-Lets define a macro that will produce a dataset resource. This can be done manually by overloading the Macro class, but it is recommended to use a ResourceListSource
-as a base since it makes this easier.
+The example defines a resource-list source for the dataset. A
+``ResourceListSource`` subclass loads fields of equal length; sampling a row
+keeps its image and label paired.
 
 .. note::
-   This example assumes that you have downloaded the Python version of the CIFAR dataset from the `dataset website <http://www.cs.toronto.edu/~kriz/cifar.html>`_ and that you have extracted the files to the example directory.
+   The example assumes that you have downloaded and extracted the Python
+   version of CIFAR-10 into ``examples/cifar``.
 
 .. literalinclude:: ../../examples/cifar.py
    :pyobject: CIFARDataset
 
-The ResourceListSource expects subclasses to implement the load method that generates the fields, each field is expected to be a list or a NumPy array, they are also
-expected to be of equal length (for NumPy arrays this means the number of rows). We can also have virtual fields that generate a snippet once their content is requested, but this is a topic for another tutorial where such fields are needed.
+The ``load`` method returns fields as lists or NumPy arrays. Each field must
+have the same number of entries (for arrays, the number of rows). Resource
+fields can also be derived lazily, but this example uses only stored values.
 
-Since we have defined the dataset as a resource list, the final graph is now quite simple:
+The final graph is small because sampling and field selection are handled by
+the resource-list abstractions:
 
 .. literalinclude:: ../../examples/cifar.py
    :pyobject: cifar
 
-Notice that special macros are available to process resource lists efficiently. In this case a random resource is sampled from a list and its two fields are returned as
-output.
+The final graph samples one resource and returns its image and label fields as
+separate outputs.

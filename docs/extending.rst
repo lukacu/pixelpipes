@@ -1,34 +1,23 @@
-Extending
-=========
+Extending PixelPipes
+====================
 
-PixelPipes contains a lot of operations used in data loading and augmentation in computer vision. Still, sometimes additional functionality is needed. Simple cases can be easily implemented by Writing
-new macros, more complex cases require writing new C++ operations wrapped in a new custom module.   
+Use Python graph composition for a transformation that can be expressed with
+existing operations. Use a native module when an operation needs new C++
+functionality or should run as a single native operation. This guide focuses
+on the supported native-module path; the unfinished macro-authoring guide is
+kept as a draft comment in this source file.
 
-Writing macros
---------------
+Building a custom C++ operation
+-------------------------------
 
-A macro is a combination of operations that are frequently used together. It is written in Python and combined normal Python language together with DAG generation. 
-Macros can change generated subgraph based on input type inferrence. Macros can also use other macros within them. During compilation all macros are reduced down to primitive operations. 
-For this example lets write a macro that
+A native module is a shared library that registers operations with the
+PixelPipes runtime. The public headers and core library are installed with the
+package. Query their paths with ``pixelpipes.include_dirs()`` and
+``pixelpipes.link_dirs()`` rather than copying headers into a flat directory.
 
-
-
-
-
-Creating custom operations
---------------------------
-
-Frequently used or complex operations can be included in a pipeline by
-building a PixelPipes module. A module is a C++ dynamic library that registers
-operations with the native runtime.
-
-The installed package includes the public C++ headers under
-``pixelpipes/include/pixelpipes`` and the shared core library beside the Python
-extension. Use ``pixelpipes.include_dirs()`` and ``pixelpipes.link_dirs()`` to
-query those paths rather than copying or flattening the SDK headers. The
-``examples/custom_module`` directory contains a minimal CMake project and a
-``example:example_triple`` operation. After installing PixelPipes, build and load it
-with:
+The repository contains a complete minimal example in
+``examples/custom_module``. With PixelPipes and CMake installed in the active
+environment, run these commands from the repository root:
 
 .. code-block:: bash
 
@@ -36,9 +25,26 @@ with:
    cmake --build build/custom_module
    PIXELPIPES_MODULES_PATH="$PWD/build/custom_module" python examples/custom_module/run.py
 
-The module must be loaded before compiling a graph that references its
-operation. Its library filename follows the runtime convention:
-``libpixelpipes_<name>.so`` on Linux, ``libpixelpipes_<name>.dylib`` on macOS,
-and ``pixelpipes_<name>.dll`` on Windows.
+The example's CMake configuration is:
 
+.. literalinclude:: ../examples/custom_module/CMakeLists.txt
+   :language: cmake
 
+The registered operation is implemented here:
+
+.. literalinclude:: ../examples/custom_module/example.cpp
+   :language: cpp
+
+The module must be loadable before compiling a graph that references its
+operation. PixelPipes searches the directories in ``PIXELPIPES_MODULES_PATH``
+(separated using the platform path separator). The runtime library filename
+uses the ``pixelpipes_<name>`` convention, with the platform's shared-library
+suffix (for example, ``libpixelpipes_example.so`` on Linux).
+
+The API and examples are version-sensitive. Build an extension against the
+same PixelPipes installation that will load it, and expect to rebuild it when
+upgrading PixelPipes unless binary compatibility is explicitly guaranteed by
+that release.
+
+.. TODO: Restore a complete Python macro-authoring section when it has a
+   minimal runnable example and documents type inference and graph inputs.

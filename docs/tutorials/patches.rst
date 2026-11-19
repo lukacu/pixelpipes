@@ -1,10 +1,12 @@
 Sampling image patches
 ======================
 
-In this tutorial we will first sample random images from a directory, then we will cut rectangular patches from them at random positions. As you will see, all this can
-be achieved using a few operations, since suitable image manipulation macros are already available as standalone nodes.
+This guide samples images from a directory and extracts rectangular patches
+at random positions. The operations are composed from existing image
+manipulation nodes.
 
-For this example we will be using example images, located in `examples/images` directory. The entire code for the example is available :example:`patches.py here`, lets look at the pipeline.
+The example images are bundled in ``examples/images``. The complete pipeline
+function is included below and can be run from the repository root.
 
 .. literalinclude:: ../../examples/patches.py
    :pyobject: stream
