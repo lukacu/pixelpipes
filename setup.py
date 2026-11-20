@@ -159,7 +159,7 @@ setup(
     distclass=BinaryDistribution,
     packages=find_packages(include=["pixelpipes", "pixelpipes.*"]),
     include_package_data=True,
-    install_requires=["numpy>=2", "bidict>=0.21", "attributee>=0.1.9"],
+    install_requires=["numpy>=2", "bidict>=0.21", "attributee>=0.1.11"],
     extras_require={
         "torch": ["torch"],
         "tensorflow": ["tensorflow"],

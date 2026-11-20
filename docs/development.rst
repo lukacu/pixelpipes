@@ -27,7 +27,7 @@ and build dependencies:
    python3 -m venv .venv
    source .venv/bin/activate
    python -m pip install --upgrade pip
-   python -m pip install "numpy>=2" "bidict>=0.21" "attributee>=0.1.9" "pybind11>=2.12" "cmake>=3.15,<4"
+   python -m pip install "numpy>=2" "bidict>=0.21" "attributee>=0.1.11" "pybind11>=2.12" "cmake>=3.15,<4"
 
 To build the documentation as well, install its dependencies:
 
